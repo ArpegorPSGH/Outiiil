@@ -48,39 +48,68 @@ class PageMessagerie
     */
     analyseMessage()
     {
-        // Listener pour l'ouverture des rapports de combat ou de chasse.
-        $("#corps_messagerie").on("DOMNodeInserted", (e) => {
-            // Si on ouvre le message pour la première fois
-            if($(e.target).hasClass("contenu_conversation")){
-                // correction pour chrome
-                $(".message").removeAttr("colspan");
-                let titreMess = $(e.target).prev().prev().find(".td_objet").text();
-                // Si on est sur des rapports des chasses
-                if(titreMess.includes("chasseuses ont conquis")){
-                    let conv = $(e.target).prev().prev().attr("id").split("_")[1];
-                    $(e.target).find(".message").each((i, elt) => {this.analyseChasse(conv, $(elt).parent().attr("id"), $(elt).text());});
-                    // on affiche un bilan que lorsqu'il y a plus d'une chasse
-                    if($(e.target).find(".message").length > 1) this.analyseChasses(conv);
-                // Si on est sur des rapports de combat
-                }else if(titreMess.includes("Attaque réussie") || titreMess.includes("Attaque échouée") || titreMess.includes("Invasion") || titreMess.includes("Rebellion")){
-                    $(e.target).find(".message").each((i, elt) => {this.analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());});
-                    this.optionMessage($(e.target).find(".message:first").parent().attr("id"));
-                }
-                // Ajout des balises de mise en forme pour envoyer des messages
-                if($(e.target).find("div[id^='champ_bbcode_']").length && !Utils.comptePlus)
-                    this.plus($(e.target).find("div[id^='champ_bbcode_']").attr("id").match(/\d+$/));
-            }
-            // Si on affiche plus de message
-            else if($(e.target).attr("id") && $(e.target).attr("id").includes("message_")){
-                // Si on affiche plus de message d'un rapport de chasse
-                if($(e.target).closest(".contenu_conversation").prev().prev().find(".td_objet").text().includes("chasseuses ont conquis")){
-                    let conv = $(e.target).parents().eq(3).prevAll().eq(1).attr("id").split("_")[1];
-                    this.analyseChasse(conv, $(e.target).find(".message").parent().attr("id"), $(e.target).find(".message").text()).analyseChasses(conv);
-                }
-            }
-            if($(e.target).attr("id") && $(e.target).attr("id").includes("liste_conversations"))
-                this.couleurMessage();
+        // MutationObserver pour surveiller les changements dans #corps_messagerie
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        const element = $(node);
+                        // Si on ouvre le message pour la première fois
+                        if (element.hasClass("contenu_conversation")) {
+                            // correction pour chrome
+                            $(".message").removeAttr("colspan");
+                            const titreMess = element.prev().prev().find(".td_objet").text();
+                            // Si on est sur des rapports des chasses
+                            if(titreMess.includes("chasseuses ont conquis")){
+                                const conv = element.prev().prev().attr("id").split("_")[1];
+                                element.find(".message").each((i, elt) => {
+                                    this.analyseChasse(conv, $(elt).parent().attr("id"), $(elt).text());
+                                });
+                                // on affiche un bilan que lorsqu'il y a
+                                if(element.find(".message").length > 1) {
+                                    this.analyseChasses(conv);
+                                }
+                            // Si on est sur des rapports de combat
+                            } else if (
+                                titreMess.includes("Attaque réussie") ||
+                                titreMess.includes("Attaque échouée") ||
+                                titreMess.includes("Invasion") ||
+                                titreMess.includes("Rebellion")
+                            ) {
+                                element.find(".message").each((i, elt) => {
+                                    this.analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());
+                                });
+                                this.optionMessage(element.find(".message:first").parent().attr("id"));
+                            }
+                            // Ajout des balises de mise en forme pour envoyer des messages
+                            if (element.find("div[id^='champ_bbcode_']").length && !Utils.comptePlus){
+                                this.plus(element.find("div[id^='champ_bbcode_']").attr("id").match(/\d+$/));
+                            }
+                        // Si on affiche plus de message
+                        }else if(element.attr("id") && element.attr("id").includes("message_")){
+                            const titreChasse = element.closest(".contenu_conversation").prev().prev().find(".td_objet").text();
+                            // Si on affiche plus de message d'un rapport de chasse
+                            if(titreChasse.includes("chasseuses ont conquis")){
+                                const conv = element.parents().eq(3).prevAll().eq(1).attr("id").split("_")[1];
+                                this.analyseChasse(conv, element.find(".message").parent().attr("id"), element.find(".message").text());
+                                this.analyseChasses(conv);
+                            }
+                        }
+                        // Si on affiche la liste des conversations
+                        if(element.attr("id") && element.attr("id").includes("liste_conversations")){
+                            this.couleurMessage();
+                        }
+                    }
+                });
+            });
         });
+        // Configurer l'observateur pour observer les enfants de #corps_messagerie
+        const observerConfig = { childList: true, subtree: true };
+        const corpsMessagerie = document.getElementById("corps_messagerie");
+        if (corpsMessagerie) {
+            observer.observe(corpsMessagerie, observerConfig);
+        }
+        return this;
     }
     /**
     *

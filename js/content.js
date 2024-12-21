@@ -171,19 +171,19 @@ const IMG_GAUCHE         = "<img src='images/bouton/fleche-champs-gauche.gif' wi
 const IMG_DROITE         = "<img src='images/bouton/fleche-champs-droite.gif' width='9' height='15' class='o_vAlign'/>";
 const IMG_COPY           = "<img src='images/icone/feuille.gif' class='cliquable' title='Copier/Coller une armée' style='position:relative;top:3px' width='14' height='17'>";
 // Image pour l'extension
-const IMG_CHANGE         = chrome.extension.getURL("images/change.png");
-const IMG_ACTUALISER     = chrome.extension.getURL("images/actualize_on_01.png");
-const IMG_CRAYON	     = chrome.extension.getURL("images/crayon.gif");
-const IMG_CROIX			 = chrome.extension.getURL("images/croix.png");
-const IMG_COPIER		 = chrome.extension.getURL("images/copy.png");
-const IMG_HISTORIQUE	 = chrome.extension.getURL("images/historique.png");
-const IMG_LIVRAISON		 = chrome.extension.getURL("images/livraison.png");
-const IMG_RADAR			 = chrome.extension.getURL("images/radar.png");
-const IMG_SPRITE_MENU	 = chrome.extension.getURL("images/sprite_menu.png");
-const IMG_UTILITY		 = chrome.extension.getURL("images/utility.png");
-const IMG_DOWN			 = chrome.extension.getURL("images/down.png");
-const IMG_UP			 = chrome.extension.getURL("images/up.png");
-const IMG_OUTIIIL		 = chrome.extension.getURL("images/outiiil.png");
+const IMG_CHANGE         = chrome.runtime.getURL("images/change.png");
+const IMG_ACTUALISER     = chrome.runtime.getURL("images/actualize_on_01.png");
+const IMG_CRAYON         = chrome.runtime.getURL("images/crayon.gif");
+const IMG_CROIX          = chrome.runtime.getURL("images/croix.png");
+const IMG_COPIER         = chrome.runtime.getURL("images/copy.png");
+const IMG_HISTORIQUE     = chrome.runtime.getURL("images/historique.png");
+const IMG_LIVRAISON      = chrome.runtime.getURL("images/livraison.png");
+const IMG_RADAR          = chrome.runtime.getURL("images/radar.png");
+const IMG_SPRITE_MENU    = chrome.runtime.getURL("images/sprite_menu.png");
+const IMG_UTILITY        = chrome.runtime.getURL("images/utility.png");
+const IMG_DOWN           = chrome.runtime.getURL("images/down.png");
+const IMG_UP             = chrome.runtime.getURL("images/up.png");
+const IMG_OUTIIIL        = chrome.runtime.getURL("images/outiiil.png");
 
 const TOAST_ERROR        = {heading : "Erreur", hideAfter: 3500, showHideTransition : "slide", position: {top : 30, right : 100}, icon : "error"};
 const TOAST_SUCCESS      = {heading : "Succès", hideAfter: 3500, showHideTransition : "slide", position: {top : 30, right : 100}, icon : "success"};
