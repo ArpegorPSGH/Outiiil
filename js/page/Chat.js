@@ -46,50 +46,55 @@ class PageChat
 	* @private
 	* @method afficheMessage
 	*/
-	afficheMessage()
-	{
+    afficheMessage()
+    {
         // ajoute du cite sur les anciens messages
-		$("#anciensMessages p, #nouveauxMessages p").each((i, elt) => {
-			$(elt).html((i, html) => {
-				let nth = 0;
-				return html.replace(/:/g, (match, j) => {
-					nth++;
-					return nth == 3 ? ` <span id="o_cite${$(elt).attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
-				});
-			});
-		});
+        $("#anciensMessages p, #nouveauxMessages p").each((i, elt) => {
+            $(elt).html((i, html) => {
+                let nth = 0;
+                return html.replace(/:/g, (match, j) => {
+                    nth++;
+                    return nth == 3 ? ` <span id="o_cite${$(elt).attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
+                });
+            });
+        });
         // event sur les anciens message
         $("span[id^='o_cite']").click((e) => {
             let texte = this.citerMessage(e);
             texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
         });
-        // ajotu du cite pour les nouveaux messages
-		$("#nouveauxMessages").on("DOMNodeInserted", (e) => {
-            let element = $(e.target);
-			if(element.is("p") && !element.hasClass("o_parsed")){
-				$(element).addClass("o_parsed");
-				element.html((i, html) => {
-					let nth = 0;
-					return html.replace(/:/g, (match, i) => {
-						nth++;
-						return nth == 3 ? ` <span id="o_cite${element.attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
-					});
-				});
-                $(`#o_cite${element.attr("id")}`).click((e) => {
-                    let texte = this.citerMessage(e);
-                    texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
+        // MutationObserver pour les nouveaux messages
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        let element = $(node);
+                        if (element.is("p") && !element.hasClass("o_parsed")) {
+                            element.addClass("o_parsed");
+                            element.html((i, html) => {
+                                let nth = 0;
+                                return html.replace(/:/g, (match, i) => {
+                                    nth++;
+                                    return nth == 3 ? ` <span id="o_cite${element.attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
+                                });
+                            });
+                            $(`#o_cite${element.attr("id")}`).click((e) => {
+                                let texte = this.citerMessage(e);
+                                texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
+                            });
+                        }
+                    }
                 });
-			}
-		});
-        // ajout de l'event lorsqu'on actualise et que les nouveaux messages passent en anciens messages
-        $("#anciensMessages").on("DOMNodeInserted", (e) => {
-            $("span[id^='o_cite']").off().click((e) => {
-                let texte = this.citerMessage(e);
-                texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
             });
-		});
+        });
+        // Configurer l'observateur pour observer les enfants de #nouveauxMessages et #anciensMessages
+        const observerConfig = { childList: true, subtree: false };
+        const nouveauxMessages = document.getElementById("nouveauxMessages");
+        const anciensMessages = document.getElementById("anciensMessages");
+        if (nouveauxMessages) observer.observe(nouveauxMessages, observerConfig);
+        if (anciensMessages) observer.observe(anciensMessages, observerConfig);
         return this;
-	}
+    }
     /**
     *
     */
