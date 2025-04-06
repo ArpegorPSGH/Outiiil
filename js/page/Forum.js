@@ -271,9 +271,13 @@ class PageForum
                     this.creerSection("Outiiil_Commande").then((data) => {
                         let response = $("<div/>").append($(data).find("cmd:eq(1)").html());
                         let idCat = $(response).find(`input[value='Outiiil_Commande']`).parent().attr("id").match(/\d+/)[0];
+                        // Sauvegarde automatique de l'ID dans les paramètres
+                        monProfil.parametre["forumCommande"].valeur = idCat;
+                        monProfil.parametre["forumCommande"].sauvegarde();
+                        console.log(`ID section Outiiil_Commande (${idCat}) sauvegardé automatiquement.`);
                         // on ne peut pas creer directement une section caché donc on cache aprés
                         this.modifierSection("Outiiil_Commande", idCat, "cache").then((data) => {
-                            $.toast({...TOAST_SUCCESS, text : "La section commande a été correctement créée."});
+                            $.toast({...TOAST_SUCCESS, text : "La section commande a été correctement créée et son ID sauvegardé."}); // Message mis à jour
                         }, (jqXHR, textStatus, errorThrown) => {
                             $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la protection de la section commande."});
                         });
@@ -287,9 +291,13 @@ class PageForum
                     this.creerSection("Outiiil_Membre").then((data) => {
                         let response = $("<div/>").append($(data).find("cmd:eq(1)").html());
                         let idCat = $(response).find(`input[value='Outiiil_Membre']`).parent().attr("id").match(/\d+/)[0];
+                        // Sauvegarde automatique de l'ID dans les paramètres
+                        monProfil.parametre["forumMembre"].valeur = idCat;
+                        monProfil.parametre["forumMembre"].sauvegarde();
+                        console.log(`ID section Outiiil_Membre (${idCat}) sauvegardé automatiquement.`);
                         // on ne peut pas creer directement une section caché donc on cache aprés
                         this.modifierSection("Outiiil_Membre", idCat, "cache").then((data) => {
-                            $.toast({...TOAST_SUCCESS, text : "La section membre a été correctement créée."});
+                            $.toast({...TOAST_SUCCESS, text : "La section membre a été correctement créée et son ID sauvegardé."}); // Message mis à jour
                         }, (jqXHR, textStatus, errorThrown) => {
                             $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la protection de la section membre."});
                         });

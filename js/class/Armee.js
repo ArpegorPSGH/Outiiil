@@ -962,4 +962,44 @@ class Armee
         });
 		return this;
     }
+
+    /**
+    * Parse le HTML de la page Armee.php pour extraire les totaux d'unités (TDC + Dôme + Loge).
+    *
+    * @static
+    * @method parseHtml
+    * @param {String} html Le contenu HTML de la page /Armee.php.
+    * @return {Object} Un objet où les clés sont les noms des unités (depuis NOM_UNITE) et les valeurs sont les quantités totales.
+    */
+    static parseHtml(html) {
+        let unitesTotales = {};
+        // Initialiser avec toutes les unités à 0 (y compris Ouvrière)
+        NOM_UNITE.forEach(nom => {
+             unitesTotales[nom] = 0;
+        });
+
+        let parsedHtml = $("<div/>").append(html);
+        parsedHtml.find(".simulateur tr[align='center']:lt(14)").each((i, elt) => {
+            let nomUnite = $(elt).find(".pas_sur_telephone").text();
+            if (nomUnite && unitesTotales.hasOwnProperty(nomUnite)) {
+                // Somme des unités TDC (col 3), Dôme (cols 4 à n-2), Loge (col n-1)
+                // TDC
+                unitesTotales[nomUnite] += numeral($(elt).find("td:nth-child(3) span").text()).value() || 0;
+                // Dôme (plus complexe car nombre variable de colonnes)
+                $(elt).find("td").slice(3, -2).each((i2, elt2) => {
+                     unitesTotales[nomUnite] += numeral($(elt2).text()).value() || 0;
+                });
+                // Loge
+                unitesTotales[nomUnite] += numeral($(elt).find("td:nth-last-child(2)").text()).value() || 0;
+            }
+        });
+        // Retourner seulement les unités qui ont une quantité > 0 pour alléger
+        let unitesFinales = {};
+         for (const [nom, qte] of Object.entries(unitesTotales)) {
+             if (qte > 0) {
+                 unitesFinales[nom] = qte;
+             }
+         }
+        return unitesFinales;
+    }
 }
