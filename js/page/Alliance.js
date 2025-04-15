@@ -173,6 +173,8 @@ class PageAlliance
         // si on est chef de l'alliance on peut mettre à jour les membres
         if($("img[src='images/crayon.gif']").length){
             $("#tabMembresAlliance_wrapper .dt-buttons").prepend(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
+            // Retrait de la marge droite forcée sur le premier bouton
+            // $("#o_actualiserAlliance").css("margin-right", "0.333em"); // Ligne retirée
             $("#o_actualiserAlliance").click((e) => {
                 let promiseJoueur = new Array(), pseudoJoueur = new Array();
                 // si coordonnée inconnu on va les chercher
@@ -204,6 +206,144 @@ class PageAlliance
                 });
                 return false;
             });
+
+             // --- START: Ajout bouton et logique Recensement ---
+             // Insérer le bouton Recensement APRÈS le bouton Actualiser
+             $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`).insertAfter("#o_actualiserAlliance");
+             // Ajouter une marge gauche au bouton Recensement pour l'espacement
+             $("#o_recensementButton").css("margin-left", "0.333em");
+             // Ajouter ici un span pour le loading si souhaité (il faudrait l'insérer aussi après #o_actualiserAlliance)
+             // Ex: $(`<span id="o_recensementLoading" style="display:none;">...</span>`).insertAfter("#o_recensementButton");
+
+             // Fonction pour gérer le clic sur le bouton Recensement
+            async function handleRecensementClick(e) {
+                e.preventDefault(); // Prevent default link action
+                const $button = $(e.currentTarget);
+                // Utiliser le style de traitement de datatables ou simplement désactiver
+                $button.addClass('processing').css('pointer-events', 'none'); // Désactiver clics + style visuel
+
+                // Afficher un indicateur de chargement à côté (optionnel, nécessite un span HTML)
+                // $("#o_recensementLoading").show(); // Supposons qu'un span avec cet ID existe
+
+                try {
+                    // --- Étape 1: Récupérer Armée ---
+                    console.log("Récupération des données d'armée...");
+                    const htmlArmee = await $.ajax({ url: "/Armee.php" });
+                    const unites = Armee.parseHtml(htmlArmee); // Utilise la méthode statique
+                    console.log("Données d'armée récupérées:", unites);
+
+                    // --- Étape 2: Collecter & Formater ---
+                    console.log("Collecte et formatage des données...");
+                    let messageLines = [];
+                    messageLines.push(`Nourriture: ${numeral(Utils.nourriture).format()}`);
+                    messageLines.push(`Matériaux: ${numeral(Utils.materiaux).format()}`);
+                    messageLines.push(`Terrain de Chasse: ${numeral(Utils.terrain).format()} cm²`);
+
+                    messageLines.push("\n--- Constructions ---");
+                    CONSTRUCTION.forEach((nom, index) => {
+                        if (monProfil.niveauConstruction[index] > -1) {
+                            messageLines.push(`${nom}: ${monProfil.niveauConstruction[index]}`);
+                        }
+                    });
+
+                    messageLines.push("\n--- Recherches ---");
+                    RECHERCHE.forEach((nom, index) => {
+                        if (monProfil.niveauRecherche[index] > -1) {
+                            messageLines.push(`${nom}: ${monProfil.niveauRecherche[index]}`);
+                        }
+                    });
+
+                    messageLines.push("\n--- Unités ---");
+                    const nbOuvrieres = Utils.ouvrieres;
+                    messageLines.push(`Ouvrière: ${numeral(nbOuvrieres).format()}`);
+
+                    if (Object.keys(unites).length > 0) {
+                        // Trier les unités par leur ordre dans NOM_UNITE pour la cohérence
+                        const unitesOrdonnees = {};
+                        NOM_UNITE.forEach(nom => {
+                            if (unites[nom] !== undefined && nom !== "Ouvrière") { // Exclure Ouvrière déjà ajoutée
+                                unitesOrdonnees[nom] = unites[nom];
+                            }
+                        });
+                        for (const [nom, qte] of Object.entries(unitesOrdonnees)) {
+                             messageLines.push(`${nom}: ${numeral(qte).format()}`);
+                        }
+                    } else {
+                        messageLines.push("Aucune unité militaire trouvée (ou erreur lors de la récupération).");
+                    }
+
+                    const messageFormatte = messageLines.join("\n");
+                    console.log("Message formaté:\n", messageFormatte);
+
+                    // --- Étape 3: Envoyer au Forum ---
+                    let idSujet = monProfil.sujetForum;
+                    const forumManager = new PageForum(); // Assumes PageForum is available globally or imported
+
+                    if (!idSujet) {
+                        console.log("ID Sujet non trouvé dans monProfil, recherche dans la section...");
+                        const idSection = monProfil.parametre["forumMembre"]?.valeur;
+                        if (!idSection) {
+                            throw new Error("ID de la section forum 'Outiiil_Membre' non trouvé dans les paramètres.");
+                        }
+
+                        console.log(`Consultation de la section ${idSection} pour trouver le sujet de ${monProfil.pseudo}`);
+                        const htmlSectionData = await forumManager.consulterSection(idSection);
+
+                        const responseHtml = $(htmlSectionData).find("cmd:eq(1)").text();
+                        if (!responseHtml) {
+                             throw new Error("Réponse invalide lors de la consultation de la section forum.");
+                        }
+                        const $sectionContent = $("<div/>").append(responseHtml);
+                        let foundId = null;
+
+                        $sectionContent.find("#form_cat tr:gt(0)").each((i, elt) => {
+                            const $row = $(elt);
+                            const titreSujet = $row.find("td:eq(1)").text().trim();
+                            if (titreSujet.startsWith(monProfil.pseudo + " /")) {
+                                const onclickAttr = $row.find("a.topic_forum").attr("onclick");
+                                if (onclickAttr) {
+                                    const match = onclickAttr.match(/callGetTopic\((\d+)\)/);
+                                    if (match && match[1]) {
+                                        foundId = match[1];
+                                        return false;
+                                    }
+                                }
+                                const inputVal = $row.find("input[name='topic[]']").val();
+                                if (inputVal) {
+                                     foundId = inputVal;
+                                     return false;
+                                }
+                            }
+                        });
+
+                        if (!foundId) {
+                            throw new Error(`Sujet forum pour '${monProfil.pseudo}' non trouvé dans la section Outiiil_Membre.`);
+                        }
+                        idSujet = foundId;
+                        console.log(`ID Sujet trouvé: ${idSujet}`);
+                    } else {
+                         console.log(`Utilisation de l'ID sujet pré-enregistré: ${idSujet}`);
+                    }
+
+                    console.log(`Envoi du message au sujet ${idSujet}...`);
+                    await forumManager.envoyerMessage(idSujet, encodeURIComponent(messageFormatte));
+                    $.toast({...TOAST_SUCCESS, text: "Statistiques postées sur le forum."});
+                    console.log("Message envoyé avec succès.");
+
+                } catch (error) {
+                    console.error("Erreur lors du post des stats:", error);
+                    $.toast({...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}`});
+                } finally {
+                    // --- Étape Finale ---
+                    console.log("Fin de l'opération Recensement.");
+                    $button.removeClass('processing').css('pointer-events', 'auto'); // Réactiver
+                    // $("#o_recensementLoading").hide(); // Cacher l'indicateur si utilisé
+                }
+            }
+
+             $("#o_recensementButton").click(handleRecensementClick);
+             // --- END: Ajout bouton et logique Recensement ---
+
         }
         return this;
     }
