@@ -15,25 +15,35 @@
     - L'ID du sujet forum est récupéré (soit depuis `monProfil.sujetForum`, soit via `consulterSection`).
     - Le message est envoyé au bon sujet via `envoyerMessage`.
     - Un feedback visuel (chargement, désactivation bouton) et des notifications (succès/erreur) sont présents (logique déplacée).
-- **Préparation Forum:** La fonction "Préparer le forum pour un SDC" sauvegarde maintenant automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre".
+- **Gestion Forum:**
+    - **Préparation Forum:** La fonction "Préparer le forum pour un SDC" (`optionAdmin` dans `Forum.js`) sauvegarde automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" lors de leur création.
+    - **Auto-Correction IDs Forum (Corrigée):** La logique dans `traitementSection` (`Forum.js`) a été rendue plus robuste : cible `#cat_forum`, utilise une boucle `each` insensible à la casse pour trouver par nom, vérifie l'existence par ID, loggue des informations de débogage, et **utilise la regex corrigée (`/forum(\d+)/`) pour extraire l'ID**. L'appel depuis `MutationObserver` est plus précis.
 
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
-    - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
-    - Tester le clic avec un ID de sujet forum déjà connu dans `monProfil`.
-    - Tester le clic sans ID de sujet forum connu (vérifier la recherche via `consulterSection`).
-    - Tester avec différentes compositions d'armée (présence/absence de certaines unités).
-    - Tester la gestion des erreurs (échec AJAX, sujet non trouvé, erreur forum).
-- **Vérification Générale:** S'assurer qu'aucune régression n'a été introduite dans les autres fonctionnalités suite aux modifications récentes (notamment dans `ComptePlus.js`).
+    - Vérifier affichage, ordre, style, espacement du bouton.
+    - Tester clic avec ID sujet connu/inconnu.
+    - Tester compositions d'armée variées.
+    - Tester gestion des erreurs.
+- **Tests Auto-Correction IDs Forum (Prioritaire):**
+    - **Simuler ID invalide/manquant:** Vérifier la correction auto et les logs console lors de la visite du forum.
+    - **Vérifier absence bug affichage:** Confirmer que le problème d'image au survol a disparu.
+- **Vérification Générale:** S'assurer de l'absence de régressions.
 
 ## Current Status
-La fonctionnalité "Recensement" a été déplacée vers la page Membres Alliance et est considérée comme complète du point de vue de l'implémentation, en attente de tests et validation utilisateur dans son nouvel emplacement. L'amélioration de la fonction "Préparer le forum..." est toujours considérée comme terminée.
+- Fonctionnalité "Recensement" complète.
+- Fonctionnalité d'auto-correction des IDs forum **corrigée et améliorée**.
+- Projet en attente de tests prioritaires sur l'auto-correction et de validation générale.
 
 ## Known Issues
-- **Dépendance au DOM:** Comme toute extension de ce type, elle reste sensible aux modifications du site Fourmizzz.
-- **Performance AJAX Recensement:** L'appel AJAX pour les unités introduit un léger délai au clic, ce qui était un compromis accepté pour la fraîcheur des données.
+- **Dépendance au DOM:** Sensibilité aux changements du site Fourmizzz. L'auto-correction dépend du nom de section et de la classe CSS `forumXXXXX` (où XXXXX est l'ID).
+- **Performance AJAX Recensement:** Léger délai au clic.
 
 ## Evolution of Decisions
-- **Emplacement Bouton Recensement:** Déplacé de `BoiteComptePlus` vers `PageAlliance` (entre "Actualiser" et "Colonne") pour une meilleure pertinence contextuelle et un accès direct.
-- **Récupération Unités (Recensement):** Passage d'une sauvegarde lors de la visite de `/Armee.php` à une récupération AJAX à la volée pour privilégier la fraîcheur des données (décision maintenue).
-- **Sauvegarde ID Forum:** Passage d'une détection différée à une sauvegarde immédiate lors de la création des sections pour plus de fiabilité (décision maintenue).
+- **Correction Regex Auto-Correction IDs Forum:** La regex d'extraction d'ID a été corrigée de `/forum_(\d+)/` à `/forum(\d+)/`.
+- **Auto-Correction IDs Forum (Amélioration):** Passage d'une recherche `:contains()` à une boucle `each()` plus robuste ciblant `#cat_forum` pour fiabiliser la détection et la correction.
+- **Gestion IDs Forum:** (Précédent) Ajout de l'auto-correction.
+- **Espacement Bouton Recensement:** (Précédent) Marge gauche sur le bouton.
+- **Emplacement Bouton Recensement:** (Précédent) Déplacé vers `PageAlliance`.
+- **Récupération Unités (Recensement):** (Précédent) Passage à AJAX à la volée.
+- **Sauvegarde ID Forum (Création):** (Précédent) Sauvegarde immédiate.

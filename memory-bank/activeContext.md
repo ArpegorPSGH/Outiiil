@@ -1,28 +1,28 @@
 # Active Context: Outiiil (2025-04-07)
 
 ## Current Focus
-Déplacement et finalisation de la fonctionnalité "Recensement".
+Finalisation et test de l'auto-correction des IDs de section forum.
 
 ## Recent Changes & Decisions
-- **Déplacement du Bouton "Recensement":** Le bouton et sa logique associée ont été déplacés de `js/boite/ComptePlus.js` vers `js/page/Alliance.js`. Il est maintenant ajouté **entre** les boutons "Actualiser l'alliance" et "Colonne" sur la page des membres de l'alliance (`/alliance.php?Membres`).
-- **Style du Bouton:** Le bouton "Recensement" utilise la classe `dt-button` et les styles personnalisés `font-size: 1.1em; font-weight: bold;`. L'espacement horizontal avec le bouton précédent est assuré par l'application explicite de `margin-left: 0.333em;` au bouton "Recensement" lui-même.
-- **Logique Conservée:** La logique de récupération des données (AJAX pour unités militaires, `Utils` pour ressources/ouvrières, `monProfil` pour niveaux), le formatage du message (sans pseudo, avec ouvrières), la recherche d'ID de sujet forum et l'envoi du message restent inchangés mais sont maintenant exécutés depuis `PageAlliance.js`.
-- **Implémentation Précédente (avant déplacement et ajustements):**
-    - Ajout initial du bouton dans `BoiteComptePlus`.
-    - Décision d'utiliser AJAX pour les unités.
-    - Refactorisation du parsing (`Armee.parseHtml`).
-    - Ajustements UI/Contenu initiaux (nom, style, alignement, ouvrières, retrait pseudo).
-    - Amélioration de la sauvegarde auto des IDs forum dans `PageForum.optionAdmin`.
-    - Ajout du feedback visuel (chargement).
-- **Amélioration Forum:** Modification de la fonction "Préparer le forum..." (`PageForum.optionAdmin`) pour sauvegarder automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres lors de leur création (cette modification reste pertinente).
-- **Feedback Visuel:** Ajout d'un indicateur "Chargement..." et désactivation/réactivation du bouton pendant l'exécution de la fonction Recensement (logique déplacée vers `PageAlliance.js`).
+- **Correction Regex Auto-Correction IDs Forum (`js/page/Forum.js`):**
+    - La regex utilisée dans `checkAndCorrectForumId` pour extraire l'ID de la classe CSS a été corrigée de `/forum_(\d+)/` à `/forum(\d+)/` pour correspondre au format réel (`forumXXXXX`) observé dans le DOM.
+- **Améliorations Précédentes Auto-Correction IDs Forum (`js/page/Forum.js`):**
+    - La fonction `checkAndCorrectForumId` cible `#cat_forum`, utilise `.each()` pour la recherche par nom (insensible à la casse), vérifie par ID d'abord, et loggue en détail.
+    - L'appel depuis `MutationObserver` est plus précis.
+- **Ajustement Espacement Bouton Recensement (`js/page/Alliance.js`):** (Décision précédente) Marge gauche appliquée.
+- **Déplacement du Bouton "Recensement":** (Décision précédente) Déplacé vers `Alliance.js`.
+- **Style du Bouton (Recensement):** (Décision précédente) Utilise `dt-button`.
+- **Logique Conservée (Recensement):** (Décision précédente) Récupération données, formatage, envoi forum.
 
 ## Next Steps
-- **Tests Utilisateur:** Vérifier le bon fonctionnement de la fonctionnalité "Recensement" sur la page Membres Alliance.
-- **Validation Finale:** Confirmer que le bouton s'affiche correctement, a le bon style, et que la fonctionnalité de post est opérationnelle.
+- **Tests Utilisateur (Prioritaire):**
+    - Vérifier que l'auto-correction des IDs forum fonctionne maintenant avec la regex corrigée (ID manquant, ID incorrect). Examiner les logs console pour confirmer l'extraction correcte de l'ID.
+    - Vérifier le fonctionnement du Recensement.
+- **Validation Finale:** Confirmer la stabilité.
 
 ## Active Considerations & Patterns
-- **Contexte d'Exécution:** La logique du Recensement s'exécute maintenant uniquement lorsque l'utilisateur est sur la page Membres Alliance.
-- **Dépendance DOM:** La fonction Recensement dépend toujours du parsing du DOM de `/Armee.php` (via AJAX) et des IDs pour les ressources/ouvrières (via `Utils`). L'ajout du bouton dépend de la structure DOM de la page Alliance Membres (spécifiquement `#tabMembresAlliance_wrapper .dt-buttons`).
-- **Gestion Erreurs:** La logique `try...catch...finally` est conservée.
-- **Asynchronisme:** Utilisation de `async/await` conservée.
+- **Robustesse IDs Forum:** La correction de la regex était cruciale. La dépendance au nom exact et à la classe `forumXXXXX` demeure.
+- **MutationObserver:** (Précédent) `subtree: true`, callback vérifie `#cat_forum`.
+- **Dépendance DOM:** (Précédent) Dépendance forte à la structure HTML.
+- **Gestion Erreurs:** (Précédent) Logs et `try/catch`.
+- **Asynchronisme:** (Précédent) `async/await`.

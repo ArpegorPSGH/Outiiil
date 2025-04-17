@@ -42,17 +42,25 @@ L'extension suit un modèle basé sur les **Content Scripts** de Chrome. Le scri
 - **Accès Données Globales**: Via l'instance `monProfil` et la classe statique `Utils`.
 - **Persistance**: Via `localStorage` pour les paramètres, le profil joueur, et l'état des évolutions.
 - **Requêtes Asynchrones**: Utilisation de `$.ajax` (jQuery Promises) et `async/await` pour les appels réseau.
+- **Auto-Correction IDs Forum (Corrigée) (`Forum.js`)**:
+    - La fonction `checkAndCorrectForumId` (appelée dans `traitementSection` lorsque `#cat_forum` est détecté) vérifie la validité des IDs des sections "Outiiil_Commande" et "Outiiil_Membre".
+    - **Fiabilité améliorée :**
+        - Cible explicitement `#cat_forum`.
+        - Vérifie d'abord l'existence par ID (`span.forum_ID`).
+        - Si non trouvé par ID (ou ID manquant), utilise une boucle `.each()` sur `span[class^='forum']` avec comparaison de texte insensible à la casse pour trouver par nom.
+        - Extrait l'ID de la classe (`forum_(\d+)`) et met à jour `monProfil.parametre` si une correction est nécessaire.
+        - Loggue des informations de débogage détaillées.
 
-## Flux de Données (Exemple: Recensement)
-1.  Clic sur bouton (`BoiteComptePlus`).
+## Flux de Données (Exemple: Recensement - *Maintenant dans Alliance.js*)
+1.  Clic sur bouton (`PageAlliance`).
 2.  Appel AJAX vers `/Armee.php`.
 3.  Parsing de la réponse HTML via `Armee.parseHtml()`.
 4.  Récupération des autres données via `Utils` et `monProfil`.
 5.  Formatage du message.
-6.  Vérification `monProfil.sujetForum`.
-7.  Si ID absent:
-    a. Récupération `idSection` depuis `monProfil.parametre`.
-    b. Appel `forumManager.consulterSection(idSection)`.
-    c. Parsing de la réponse pour trouver `idSujet`.
+6.  Vérification `monProfil.sujetForum` (ID du *sujet* personnel, pas de la *section*).
+7.  Si ID du sujet absent:
+    a. Récupération `idSectionMembre` depuis `monProfil.parametre["forumMembre"]` (qui est potentiellement auto-corrigé si l'utilisateur a visité le forum avant).
+    b. Appel `forumManager.consulterSection(idSectionMembre)`.
+    c. Parsing de la réponse pour trouver l'`idSujet` correspondant au pseudo du joueur.
 8.  Appel `forumManager.envoyerMessage(idSujet, message)`.
 9.  Affichage notification (`$.toast`).
