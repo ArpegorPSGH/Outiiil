@@ -47,3 +47,32 @@
 - **Emplacement Bouton Recensement:** (Précédent) Déplacé vers `PageAlliance`.
 - **Récupération Unités (Recensement):** (Précédent) Passage à AJAX à la volée.
 - **Sauvegarde ID Forum (Création):** (Précédent) Sauvegarde immédiate.
+
+---
+# Progress: Outiiil (2025-04-18)
+
+## What Works (Ajouts)
+- **Notification Mise à Jour ID Forum:**
+    - Un popup (`$.toast`) s'affiche désormais dans `js/page/Forum.js` lorsqu'un ID de section ("Outiiil_Commande" ou "Outiiil_Membre") est corrigé ou trouvé pour la première fois.
+    - Le popup n'apparaît pas si l'ID était déjà correct ou si la section est introuvable.
+
+## What's Left to Build / Verify (Mise à jour)
+- **Tests Notification Mise à Jour ID Forum (Prioritaire):**
+    - Simuler ID invalide/manquant et vérifier l'affichage correct du popup.
+    - Vérifier l'absence de popup si ID correct ou section absente.
+- **Tests Auto-Correction IDs Forum:** Vérifier que la correction fonctionne toujours (logs).
+- **Tests Approfondis "Recensement":** (Inchangé)
+- **Vérification Générale:** (Inchangé)
+
+## Current Status (Mise à jour)
+- Fonctionnalité "Recensement" complète.
+- Fonctionnalité d'auto-correction des IDs forum corrigée et améliorée.
+- **Nouvelle fonctionnalité:** Notification popup pour la mise à jour des IDs forum implémentée.
+- Projet en attente de tests prioritaires sur la nouvelle notification et l'auto-correction, puis validation générale.
+
+## Known Issues (Inchangé)
+- Dépendance au DOM.
+- Performance AJAX Recensement.
+
+## Evolution of Decisions (Ajouts)
+- **Ajout Notification ID Forum:** Décision d'ajouter un feedback visuel (`$.toast`) pour l'utilisateur lors de la correction/trouvaille d'un ID de section forum.

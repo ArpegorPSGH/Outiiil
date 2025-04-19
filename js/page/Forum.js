@@ -231,6 +231,11 @@ class PageForum
                 if (foundByName && newId && newId !== savedId) {
                     monProfil.parametre[paramKey].valeur = newId;
                     monProfil.parametre[paramKey].sauvegarde();
+                $.toast({
+                    ...TOAST_SUCCESS, // Ou TOAST_INFO si disponible/préféré
+                    heading: 'Mise à jour Forum',
+                    text: `L'ID de la section forum '${sectionName}' a été ${savedId ? 'corrigé' : 'trouvé'} et mis à jour (${newId}).`
+                });
                     // Log final pour l'utilisateur
                     console.log(`[Outiiil] ID Forum ${sectionName} ${savedId ? 'corrigé' : 'trouvé'} : ${newId}`);
                 } else if (foundByName && !newId) {

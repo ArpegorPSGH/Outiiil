@@ -26,3 +26,31 @@ Finalisation et test de l'auto-correction des IDs de section forum.
 - **Dépendance DOM:** (Précédent) Dépendance forte à la structure HTML.
 - **Gestion Erreurs:** (Précédent) Logs et `try/catch`.
 - **Asynchronisme:** (Précédent) `async/await`.
+
+---
+# Active Context: Outiiil (2025-04-18)
+
+## Current Focus
+Test de la nouvelle notification popup pour la mise à jour des IDs de section forum.
+
+## Recent Changes & Decisions
+- **Ajout Notification Popup (`js/page/Forum.js`):**
+    - Un appel à `$.toast({...TOAST_SUCCESS, ...})` a été ajouté dans la fonction `checkAndCorrectForumId` (ligne 234).
+    - **Condition:** La notification s'affiche *uniquement* lorsqu'un ID de section ("Outiiil_Commande" ou "Outiiil_Membre") est effectivement mis à jour (corrigé ou trouvé pour la première fois après sauvegarde). Elle n'apparaît pas si l'ID était déjà correct ou si la section est introuvable.
+    - **Message:** Le popup indique quelle section a été mise à jour et le nouvel ID.
+
+## Next Steps
+- **Tests Utilisateur (Prioritaire):**
+    - **Tester la Notification:** Simuler un ID de section invalide ou manquant dans les paramètres (`localStorage` ou via outils dev) et visiter la page forum pour vérifier que le popup s'affiche correctement avec le bon message.
+    - **Tester la Non-Notification:** Vérifier qu'aucun popup n'apparaît si les IDs sont corrects ou si les sections n'existent pas.
+    - Vérifier que l'auto-correction des IDs forum fonctionne toujours comme prévu (logs console).
+    - Vérifier le fonctionnement du Recensement (non-régression).
+- **Validation Finale:** Confirmer la stabilité.
+
+## Active Considerations & Patterns
+- **Feedback Utilisateur:** L'ajout du toast fournit un retour visuel direct pour une action d'arrière-plan (correction d'ID).
+- **Robustesse IDs Forum:** (Inchangé) Dépendance au nom et à la classe `forumXXXXX`.
+- **MutationObserver:** (Inchangé)
+- **Dépendance DOM:** (Inchangé)
+- **Gestion Erreurs:** (Inchangé)
+- **Asynchronisme:** (Inchangé)
