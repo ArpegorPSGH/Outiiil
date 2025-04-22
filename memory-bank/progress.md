@@ -16,6 +16,7 @@
     - Le message est envoyé au bon sujet via `envoyerMessage`.
     - Un feedback visuel (chargement, désactivation bouton) et des notifications (succès/erreur) sont présents (logique déplacée).
 - **Préparation Forum:** La fonction "Préparer le forum pour un SDC" sauvegarde maintenant automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre".
+- **Vérification et Mise à Jour Automatique des IDs Forum:** Implémentation de la logique dans `PageForum.js` (`traitementSection`) pour vérifier et mettre à jour automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres de l'extension si elles sont présentes sur la page du forum et que les IDs stockés sont incorrects ou manquants. Un popup de notification est affiché en cas de mise à jour.
 
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
@@ -28,6 +29,7 @@
 
 ## Current Status
 La fonctionnalité "Recensement" a été déplacée vers la page Membres Alliance et est considérée comme complète du point de vue de l'implémentation, en attente de tests et validation utilisateur dans son nouvel emplacement. L'amélioration de la fonction "Préparer le forum..." est toujours considérée comme terminée.
+[2025-04-21 20:06:36] - La vérification et la mise à jour automatique des IDs des sections forum Outiiil, ainsi que la notification associée, ont été implémentées dans `PageForum.js`.
 
 ## Known Issues
 - **Dépendance au DOM:** Comme toute extension de ce type, elle reste sensible aux modifications du site Fourmizzz.

@@ -178,14 +178,38 @@ class PageForum
     {
         // ajoute les options pour outiiil
         if($(element).find("div.simulateur").length) this.optionAdmin();
-        // on enregistre les id des topic si on utilise l'utilitaire
-        if(!monProfil.parametre["forumCommande"].valeur && $(element).find("span[class^='forum']:contains('Outiiil_Commande')").length){
-            monProfil.parametre["forumCommande"].valeur = $(element).find("span[class^='forum']:contains('Outiiil_Commande')").attr("class").match(/\d+/)[0];
-            monProfil.parametre["forumCommande"].sauvegarde();
+        // Vérification et mise à jour des IDs des sections Outiiil
+        let idsUpdated = false;
+
+        // Vérification et mise à jour de l'ID de la section Outiiil_Commande
+        const commandeSection = $(element).find("span[class^='forum']:contains('Outiiil_Commande')");
+        if (commandeSection.length) {
+            const pageId = commandeSection.attr("class").match(/\d+/)[0];
+            const storedId = monProfil.parametre["forumCommande"].valeur;
+            if (storedId === undefined || storedId === null || storedId === '' || storedId != pageId) {
+                monProfil.parametre["forumCommande"].valeur = pageId;
+                monProfil.parametre["forumCommande"].sauvegarde();
+                idsUpdated = true;
+                console.log(`ID section Outiiil_Commande mis à jour vers ${pageId}.`);
+            }
         }
-        if(!monProfil.parametre["forumMembre"].valeur && $(element).find("span[class^='forum']:contains('Outiiil_Membre')").length){
-            monProfil.parametre["forumMembre"].valeur = $(element).find("span[class^='forum']:contains('Outiiil_Membre')").attr("class").match(/\d+/)[0];
-            monProfil.parametre["forumMembre"].sauvegarde();
+
+        // Vérification et mise à jour de l'ID de la section Outiiil_Membre
+        const membreSection = $(element).find("span[class^='forum']:contains('Outiiil_Membre')");
+        if (membreSection.length) {
+            const pageId = membreSection.attr("class").match(/\d+/)[0];
+            const storedId = monProfil.parametre["forumMembre"].valeur;
+            if (storedId === undefined || storedId === null || storedId === '' || storedId != pageId) {
+                monProfil.parametre["forumMembre"].valeur = pageId;
+                monProfil.parametre["forumMembre"].sauvegarde();
+                idsUpdated = true;
+                console.log(`ID section Outiiil_Membre mis à jour vers ${pageId}.`);
+            }
+        }
+
+        // Afficher une notification si des IDs ont été mis à jour
+        if (idsUpdated) {
+            $.toast({...TOAST_SUCCESS, text : "IDs des sections forum Outiiil mis à jour."});
         }
         // selon la section ACTIVE on ajoute les outils necessaires
         switch($(element).find("span[class^='forum'][class$='ligne_paire']").html()){

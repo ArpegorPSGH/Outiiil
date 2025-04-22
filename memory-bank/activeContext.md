@@ -16,6 +16,7 @@ Déplacement et finalisation de la fonctionnalité "Recensement".
     - Ajout du feedback visuel (chargement).
 - **Amélioration Forum:** Modification de la fonction "Préparer le forum..." (`PageForum.optionAdmin`) pour sauvegarder automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres lors de leur création (cette modification reste pertinente).
 - **Feedback Visuel:** Ajout d'un indicateur "Chargement..." et désactivation/réactivation du bouton pendant l'exécution de la fonction Recensement (logique déplacée vers `PageAlliance.js`).
+[2025-04-21 20:06:14] - **Vérification et Mise à Jour Automatique des IDs Forum:** Implémentation de la logique dans `PageForum.js` (`traitementSection`) pour vérifier et mettre à jour automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres de l'extension si elles sont présentes sur la page du forum et que les IDs stockés sont incorrects ou manquants. Un popup de notification est affiché en cas de mise à jour.
 
 ## Next Steps
 - **Tests Utilisateur:** Vérifier le bon fonctionnement de la fonctionnalité "Recensement" sur la page Membres Alliance.
@@ -26,3 +27,4 @@ Déplacement et finalisation de la fonctionnalité "Recensement".
 - **Dépendance DOM:** La fonction Recensement dépend toujours du parsing du DOM de `/Armee.php` (via AJAX) et des IDs pour les ressources/ouvrières (via `Utils`). L'ajout du bouton dépend de la structure DOM de la page Alliance Membres (spécifiquement `#tabMembresAlliance_wrapper .dt-buttons`).
 - **Gestion Erreurs:** La logique `try...catch...finally` est conservée.
 - **Asynchronisme:** Utilisation de `async/await` conservée.
+[2025-04-21 20:06:14] - **Gestion des IDs Forum:** La logique de vérification et de mise à jour des IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dépend de la présence de ces sections sur la page du forum et de la structure DOM pour extraire l'ID.
