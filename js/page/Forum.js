@@ -239,7 +239,8 @@ class PageForum
                 if(titreSujet){
                     id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
                     commande = new Commande();
-                    this._commande[id] = commande.parseUtilitaire(id, $(elt).next().find("a").text(), titreSujet.split("] ")[0].split("[")[1], titreSujet.split("] ")[1].split(" / "), $(elt).find("td:last :not(a)").contents().filter(function(){return (this.nodeType === 3);}).text());
+                    let infos = titreSujet.split("] ")[1].split(" / ");
+                    this._commande[id] = commande.parseUtilitaire(id, $(elt).next().find("a").text(), titreSujet.split("] ")[0].split("[")[1], infos, $(elt).find("td:last :not(a)").contents().filter(function(){return (this.nodeType === 3);}).text());
                 }
             });
             return true;

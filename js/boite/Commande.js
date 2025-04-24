@@ -74,8 +74,8 @@ class BoiteCommande extends Boite
         $("#o_commander" + this._commande.id).click((e) => {
             e.preventDefault();
             this._commande.evolution = $("#o_form" + this._commande.id + " select[name='o_evolution']").val();
-            this._commande.nourriture = numeral($("#o_form" + this._commande.id + " input[name='o_quantiteNou']").val()).value();
-            this._commande.materiaux = numeral($("#o_form" + this._commande.id + " input[name='o_quantiteMat']").val()).value();
+            this._commande.totalNourritureDemandee = numeral($("#o_form" + this._commande.id + " input[name='o_quantiteNou']").val()).value();
+            this._commande.totalMateriauxDemandes = numeral($("#o_form" + this._commande.id + " input[name='o_quantiteMat']").val()).value();
             this._commande.dateSouhaite = moment($("#o_form" + this._commande.id + " input[name='o_dateCommande']").val(), "DD-MM-YYYY");
             let dateApres = $("#o_form" + this._commande.id + " input[name='o_dateApres']").val();
             this._commande.dateApres = dateApres ? moment($("#o_form" + this._commande.id + " input[name='o_dateApres']").val(), "DD-MM-YYYY") : null;
@@ -122,8 +122,8 @@ class BoiteCommande extends Boite
         for(let i = 0 ; i < EVOLUTION.length ; select += `<option value="${i}" ${i == this._commande.evolution ? "selected" : ""}>${EVOLUTION[i++]}</option>`);
         $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${this._commande.id}">
             <div class="group"><select name="o_evolution" class="o_input" required>${select}</select><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Evolution</label></div>
-            <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${this._commande.nourriture ? numeral(this._commande.nourriture).format() : (qte[0] ? numeral(qte[0]).format() : 0)}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
-            <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${this._commande.materiaux ? numeral(this._commande.materiaux).format() : (qte[1] ? numeral(qte[1]).format() : 0)}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
+            <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${this._commande.totalNourritureDemandee ? numeral(this._commande.totalNourritureDemandee).format() : (qte[0] ? numeral(qte[0]).format() : 0)}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
+            <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${this._commande.totalMateriauxDemandes ? numeral(this._commande.totalMateriauxDemandes).format() : (qte[1] ? numeral(qte[1]).format() : 0)}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
             <div class="group"><input name="o_dateCommande" class="o_input" type="text" value="${this._commande.dateSouhaite ? moment(this._commande.dateSouhaite).format("DD-MM-YYYY") : ""}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Pour le*</label></div>
             <div class="group"><input name="o_dateApres" class="o_input" type="text" value="${this._commande.dateApres ? moment(this._commande.dateApres).format("DD-MM-YYYY") : ""}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>&Agrave; Partir du</label></div>
             <br/><button id="o_commander${this._commande.id}" name="o_btnCommande" class="o_button f_success">Commander</button>

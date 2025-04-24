@@ -39,11 +39,19 @@ class Commande
         /**
         * materiaux ou nourriture
         */
-        this._nourriture = parametres["nourriture"] || 0;
+        this._totalNourritureDemandee = parametres["totalNourritureDemandee"] || parametres["nourriture"] || 0; // Keep 'nourriture' for backward compatibility during transition
         /**
-        * quantité restante à livrer
-        */
-        this._materiaux = parametres["materiaux"] || 0;
+         * quantité totale de materiaux demandée
+         */
+        this._totalMateriauxDemandes = parametres["totalMateriauxDemandes"] || parametres["materiaux"] || 0; // Keep 'materiaux' for backward compatibility during transition
+        /**
+         * quantité de nourriture déjà livrée
+         */
+        this._nourritureLivree = parametres["nourritureLivree"] || 0;
+        /**
+         * quantité de materiaux déjà livrée
+         */
+        this._materiauxLivres = parametres["materiauxLivres"] || 0;
         /**
         * etat de la commande
         */
@@ -138,36 +146,78 @@ class Commande
         this._evolution = newEvo;
     }
     /**
-    *
-    */
+     * Quantité restante de nourriture à livrer
+     */
     get nourriture()
     {
-        return this._nourriture;
+        return this._totalNourritureDemandee - this._nourritureLivree;
     }
     /**
-    *
-    */
-    set nourriture(newNourriture)
-    {
-        this._nourriture = newNourriture;
-    }
-    /**
-    *
-    */
+     * Quantité restante de materiaux à livrer
+     */
     get materiaux()
     {
-        return this._materiaux;
+        return this._totalMateriauxDemandes - this._materiauxLivres;
     }
     /**
-    *
-    */
-    set materiaux(newMateriaux)
+     * Quantité totale de nourriture demandée
+     */
+    get totalNourritureDemandee()
     {
-        this._materiaux = newMateriaux;
+        return this._totalNourritureDemandee;
     }
     /**
-    *
-    */
+     *
+     */
+    set totalNourritureDemandee(newTotal)
+    {
+        this._totalNourritureDemandee = newTotal;
+    }
+    /**
+     * Quantité totale de materiaux demandés
+     */
+    get totalMateriauxDemandes()
+    {
+        return this._totalMateriauxDemandes;
+    }
+    /**
+     *
+     */
+    set totalMateriauxDemandes(newTotal)
+    {
+        this._totalMateriauxDemandes = newTotal;
+    }
+    /**
+     * Quantité de nourriture déjà livrée
+     */
+    get nourritureLivree()
+    {
+        return this._nourritureLivree;
+    }
+    /**
+     *
+     */
+    set nourritureLivree(newLivree)
+    {
+        this._nourritureLivree = newLivree;
+    }
+    /**
+     * Quantité de materiaux déjà livrée
+     */
+    get materiauxLivres()
+    {
+        return this._materiauxLivres;
+    }
+    /**
+     *
+     */
+    set materiauxLivres(newLivres)
+    {
+        this._materiauxLivres = newLivres;
+    }
+    /**
+     *
+     */
     get etat()
     {
         return this._etat;
@@ -198,27 +248,29 @@ class Commande
     */
     toUtilitaire()
     {
-        return "[" + Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] == this._etat) + "] " + this._demandeur.x + " / " + this._demandeur.y + " / " + EVOLUTION[this._evolution] + " / " + this._materiaux + " / " + this._nourriture + " / " + moment(this._dateSouhaite).format(("D MMM YYYY")) + (this._dateApres ? " / " + moment(this._dateApres).format(("D MMM YYYY")) : "");
+        return "[" + Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] == this._etat) + "] " + this._demandeur.x + " / " + this._demandeur.y + " / " + EVOLUTION[this._evolution] + " / " + this._totalMateriauxDemandes + " / " + this._materiauxLivres + " / " + this._totalNourritureDemandee + " / " + this._nourritureLivree + " / " + moment(this._dateSouhaite).format(("D MMM YYYY")) + (this._dateApres ? " / " + moment(this._dateApres).format(("D MMM YYYY")) : "");
     }
     /**
-    *
-    */
+     *
+     */
     parseUtilitaire(id, demandeur, etat, infos, dernierConvoi)
     {
         this._id = id;
-        this._dateSouhaite = moment(infos[5], "D MMM YYYY");
-        this._dateApres = infos.length > 6 ? moment(infos[6], "D MMM YYYY") : "";
         this._demandeur = new Joueur({pseudo : demandeur, x : infos[0], y : infos[1]});
         this._evolution = EVOLUTION.indexOf(infos[2]);
-        this._nourriture = infos[4];
-        this._materiaux = infos[3];
+        this._totalMateriauxDemandes = parseInt(infos[3]) || 0;
+        this._materiauxLivres = parseInt(infos[4]) || 0;
+        this._totalNourritureDemandee = parseInt(infos[5]) || 0;
+        this._nourritureLivree = parseInt(infos[6]) || 0;
+        this._dateSouhaite = moment(infos[7], "D MMM YYYY");
+        this._dateApres = infos.length > 8 ? moment(infos[8], "D MMM YYYY") : "";
         this._etat = ETAT_COMMANDE[etat];
         this._derniereMiseAJour = moment(dernierConvoi, "D MMM [à] HH[h]mm");
         return this;
     }
     /**
-    *
-    */
+     *
+     */
     estHorsTard()
     {
         return moment().diff(moment(this._dateSouhaite), "days") > 0;
@@ -256,10 +308,14 @@ class Commande
     */
     estValide()
     {
-        if(this._nourriture && this._nourriture < 0)
-            return "Quantité nourriture incorrecte.";
-        if(this._materiaux && this._materiaux < 0)
-            return "Quantité materiaux incorrecte.";
+        if(this._totalNourritureDemandee < 0)
+            return "Quantité totale de nourriture demandée incorrecte.";
+        if(this._totalMateriauxDemandes < 0)
+            return "Quantité totale de materiaux demandés incorrecte.";
+        if(this._nourritureLivree < 0 || this._nourritureLivree > this._totalNourritureDemandee)
+             return "Quantité de nourriture livrée incorrecte.";
+        if(this._materiauxLivres < 0 || this._materiauxLivres > this._totalMateriauxDemandes)
+             return "Quantité de materiaux livrés incorrecte.";
         if(!this._dateSouhaite.isValid())
             return "Date de la demande invalide.";
         if(this._dateApres && !moment(this._dateApres, "YYYY-MM-DD").isValid())
@@ -267,13 +323,13 @@ class Commande
         return "";
     }
     /**
-    *
-    */
+     *
+     */
     toHTML()
     {
         let apres = !this._dateApres || moment().isSameOrAfter(moment(this._dateApres));
         let html = `<tr data="${this._id}">
-            <td>${this._demandeur.getLienFourmizzz()}</a></td><td>${numeral(this._nourriture).format()}</td><td class='right'>${numeral(this._materiaux).format()}</td>
+            <td>${this._demandeur.getLienFourmizzz()}</a></td><td>${numeral(this.nourriture).format()}</td><td class='right'>${numeral(this.materiaux).format()}</td>
             <td>${moment(this._dateSouhaite).format("D MMM YYYY")}</td>`;
         if(apres){
             let attente = this.getAttente();
@@ -304,18 +360,15 @@ class Commande
     ajouterEvent(page, utilitaire)
     {
         $("#o_commande" + this._id).click((e) => {
-            let livraison = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2))),
-                max = livraison && livraison > Utils.materiaux ? Utils.materiaux : livraison;
-            if(this._materiaux < max){
-                $("#input_nbMateriaux").val(numeral(this._materiaux).format());
-                $("#nbMateriaux").val(this._materiaux);
-                max -= this._materiaux;
-                $("#input_nbNourriture").val(numeral(this._nourriture < max ? this._nourriture : max).format());
-                $("#nbNourriture").val(this._nourriture < max ? this._nourriture : max);
-            }else{
-                $("#input_nbMateriaux").val(numeral(max).format());
-                $("#nbMateriaux").val(max);
-            }
+            let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2)));
+            let materialsToPrefill = Math.min(this.materiaux, transportCapacity);
+            let nourishmentToPrefill = Math.min(this.nourriture, transportCapacity - materialsToPrefill);
+
+            $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
+            $("#nbMateriaux").val(materialsToPrefill);
+
+            $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
+            $("#nbNourriture").val(nourishmentToPrefill);
             $("#pseudo_convoi").val(this._demandeur.pseudo);
             $("#o_idCommande").val(this._id);
             $("html").animate({scrollTop : 0}, 600);
@@ -344,14 +397,14 @@ class Commande
     */
     ajouteConvoi(convoi)
     {
-        // on retire la nourrtiure
-        this._nourriture -= convoi.nourriture;
-        if(this._nourriture < 0) this._nourriture = 0;
-        // on retire les materiaux
-        this._materiaux -= convoi.materiaux;
-        if(this._materiaux < 0) this._materiaux = 0;
-        // on met a jour le status
-        if(!this._nourriture && !this._materiaux) this._etat = ETAT_COMMANDE.Terminée;
+        // on ajoute la nourriture livrée
+        this._nourritureLivree += convoi.nourriture;
+        if (this._nourritureLivree > this._totalNourritureDemandee) this._nourritureLivree = this._totalNourritureDemandee;
+        // on ajoute les materiaux livrés
+        this._materiauxLivres += convoi.materiaux;
+        if (this._materiauxLivres > this._totalMateriauxDemandes) this._materiauxLivres = this._totalMateriauxDemandes;
+        // on met a jour le status si tout est livré
+        if(!this.nourriture && !this.materiaux) this._etat = ETAT_COMMANDE.Terminée;
         return this;
     }
 }
