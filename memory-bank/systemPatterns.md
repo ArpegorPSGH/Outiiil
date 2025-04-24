@@ -2,6 +2,18 @@
 
 ## Architecture Générale
 L'extension suit un modèle basé sur les **Content Scripts** de Chrome. Le script principal (`js/content.js`) est injecté dans les pages du domaine `fourmizzz.fr`.
+## Technologies et Bibliothèques Clés
+- **Type:** Extension Chrome (Manifest V2 actuellement)
+- **Langage Principal:** JavaScript (ES6+)
+- **Bibliothèques Frontend Clés:**
+    - jQuery (manipulation DOM, AJAX)
+    - Moment.js (manipulation dates/heures)
+    - Numeral.js (formatage nombres)
+    - DataTables (tri/filtrage tableaux)
+    - Highcharts (graphiques, ex: historique joueur)
+    - jQuery UI (widgets UI comme tooltips, progressbar, autocomplete)
+    - jQuery Toast (notifications)
+- **Styling:** CSS
 
 1.  **Initialisation Globale (`content.js`)**:
     *   Vérifie si l'utilisateur est connecté.
@@ -24,6 +36,16 @@ L'extension suit un modèle basé sur les **Content Scripts** de Chrome. Le scri
         *   **Gestion Événements**: Attache des écouteurs d'événements aux éléments ajoutés.
         *   **Mise à jour Données Globales**: Peut mettre à jour `monProfil` ou les données dans `localStorage` (ex: `PageArmee` qui pourrait sauvegarder les unités).
 
+## Structure du Code
+- **`manifest.json`**: Définit l'extension, les permissions, et les content scripts.
+- **`js/content.js`**: Point d'entrée principal. Injecté dans les pages Fourmizzz. Gère l'initialisation globale, le routing basé sur l'URL, et charge les modules spécifiques.
+- **`js/class/`**: Contient les classes de données et utilitaires (ex: `Joueur`, `Alliance`, `Armee`, `Utils`, `Parametre`). Modélise les entités du jeu et fournit des fonctions transverses.
+- **`js/page/`**: Modules spécifiques à chaque page majeure de Fourmizzz (ex: `Armee.js`, `Forum.js`, `Construction.js`). Contiennent la logique pour parser la page et ajouter les fonctionnalités Outiiil.
+- **`js/boite/`**: Modules gérant les composants UI ajoutés par Outiiil (ex: `Dock.js` pour la barre d'outils, `ComptePlus.js` pour la boîte d'infos globale, `BoiteRang.js` pour le popup de gestion de rang).
+- **`js/lib/`**: Contient les bibliothèques JavaScript tierces.
+- **`css/`**: Feuilles de style pour l'extension (`outiiil.css`, `toasts.css`) et les bibliothèques (`datatables.css`).
+- **`images/`**: Icônes et autres ressources graphiques utilisées par l'extension.
+- **`memory-bank/`**: Documentation interne (ce dossier).
 4.  **Composants UI (`js/boite/*.js`)**:
     *   Chaque classe gère l'affichage (`afficher()`) et la logique interne d'un composant UI spécifique (ex: la boîte d'infos, la barre d'outils, les popups).
     *   Ces composants peuvent lire les données depuis `monProfil` ou `Utils` et interagir avec d'autres parties de l'extension (ex: `Dock` qui ouvre d'autres boîtes).
@@ -44,6 +66,9 @@ L'extension suit un modèle basé sur les **Content Scripts** de Chrome. Le scri
 - **Requêtes Asynchrones**: Utilisation de `$.ajax` (jQuery Promises) et `async/await` pour les appels réseau.
 
 ## Flux de Données (Exemple: Recensement)
+## Contraintes Techniques
+- **Dépendance à la Structure DOM de Fourmizzz:** Les sélecteurs jQuery utilisés pour le parsing sont sensibles aux changements de structure HTML du site Fourmizzz. Une mise à jour du jeu peut casser certaines fonctionnalités.
+- **Manifest V2:** Si l'extension utilise toujours Manifest V2, une migration vers V3 sera nécessaire à terme.
 1.  Clic sur bouton (`BoiteComptePlus`).
 2.  Appel AJAX vers `/Armee.php`.
 3.  Parsing de la réponse HTML via `Armee.parseHtml()`.
