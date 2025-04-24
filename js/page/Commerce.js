@@ -127,7 +127,7 @@ class PageCommerce
 	{
         let total = 0, totalRouge = 0, tabCommandeAff = new Array(), tabCommandePersoEnCours = new Array(),
             contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Pseudo</th><th>${IMG_POMME}</th><th>${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`;
+            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`;
         for(let id in this._utilitaire.commande){
             if(this._utilitaire.commande[id].estAFaire()){
                 contenu += this._utilitaire.commande[id].toHTML();
@@ -142,7 +142,7 @@ class PageCommerce
                 if(this._utilitaire.commande[id].etat == ETAT_COMMANDE["En cours"] || (this._utilitaire.commande[id].etat == ETAT_COMMANDE["Terminée"] && this._utilitaire.commande[id].estTermineRecent()))
                     tabCommandePersoEnCours.push(id);
         }
-        contenu += `<tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='9'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
+        contenu += `<tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='11'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
         $("#centre .Bas").before(contenu);
         // event
         for(let id of tabCommandeAff)
@@ -164,10 +164,11 @@ class PageCommerce
                 buttons : {colvis : "Colonne"}
             },
             columnDefs : [
-                {type : "quantite-grade", targets : [1, 2]},
-                {type : "moment-D MMM YYYY", targets : 3},
-                {type : "time-unformat", targets : 6},
-                {sortable : false, targets : [7, 8]}
+                {type : "quantite-grade", targets : [3, 4]},
+                {type : "moment-D MMM YYYY", targets : 5},
+                {type : "time-unformat", targets : 8},
+                {sortable : false, targets : [9, 10]},
+                {visible: false, targets: [1, 2]}
             ]
         });
         $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);

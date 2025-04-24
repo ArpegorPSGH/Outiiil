@@ -329,7 +329,7 @@ class Commande
     {
         let apres = !this._dateApres || moment().isSameOrAfter(moment(this._dateApres));
         let html = `<tr data="${this._id}">
-            <td>${this._demandeur.getLienFourmizzz()}</a></td><td>${numeral(this.nourriture).format()}</td><td class='right'>${numeral(this.materiaux).format()}</td>
+            <td>${this._demandeur.getLienFourmizzz()}</a></td><td>${numeral(this._totalNourritureDemandee).format()}</td><td class='centre'>${numeral(this._totalMateriauxDemandes).format()}</td><td>${numeral(this.nourriture).format()}</td><td class='centre'>${numeral(this.materiaux).format()}</td>
             <td>${moment(this._dateSouhaite).format("D MMM YYYY")}</td>`;
         if(apres){
             let attente = this.getAttente();

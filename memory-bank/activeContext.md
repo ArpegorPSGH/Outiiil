@@ -29,3 +29,5 @@ Déplacement et finalisation de la fonctionnalité "Recensement".
 - **Gestion Erreurs:** La logique `try...catch...finally` est conservée.
 - **Asynchronisme:** Utilisation de `async/await` conservée.
 [2025-04-21 20:06:14] - **Gestion des IDs Forum:** La logique de vérification et de mise à jour des IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dépend de la présence de ces sections sur la page du forum et de la structure DOM pour extraire l'ID.
+
+[2025-04-24 23:33:11] - Travail terminé sur l'affichage du tableau des commandes sur la page commerce. Ajout d'une colonne pour la quantité demandée, renommage des colonnes de quantité à livrer, ajustements de la configuration DataTables et centrage des colonnes de matériaux.
