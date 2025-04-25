@@ -18,6 +18,7 @@
 - **Préparation Forum:** La fonction "Préparer le forum pour un SDC" sauvegarde maintenant automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre".
 - **Vérification et Mise à Jour Automatique des IDs Forum:** Implémentation de la logique dans `PageForum.js` (`traitementSection`) pour vérifier et mettre à jour automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres de l'extension si elles sont présentes sur la page du forum et que les IDs stockés sont incorrects ou manquants. Un popup de notification est affiché en cas de mise à jour.
 
+- **Correction Date Commande et Affichage Immédiat :** Le problème d'affichage "invalid date" pour la date de création des commandes a été corrigé en ajustant le format de parsing dans `js/class/Commande.js` pour correspondre au format réel extrait du forum ("D MMMM"). L'affichage non immédiat de la date pour les nouvelles commandes a été résolu en modifiant `js/boite/Commande.js` pour recharger la liste des commandes depuis le forum après la création réussie d'un nouveau sujet, assurant ainsi que l'objet Commande est mis à jour avec la date correcte avant l'actualisation du tableau.
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
     - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
@@ -42,3 +43,5 @@ La fonctionnalité "Recensement" a été déplacée vers la page Membres Allianc
 [2025-04-24 22:17:00] - Modification de la gestion des commandes de ressources pour stocker le montant total demandé et le montant déjà livré (au lieu du montant restant) dans `js/class/Commande.js`. Ajustement des getters, `parseUtilitaire`, `ajouteConvoi`, `estValide`, `ajouterEvent` et `toHTML`. La boîte de dialogue de modification (`js/boite/Commande.js`) a été mise à jour pour ne modifier que le montant total demandé. Un problème d'affichage de la quantité restante a été diagnostiqué comme étant lié à des données incorrectes enregistrées dans le forum pour une commande spécifique, et non à un bug dans le code de calcul ou d'affichage. Le code de débogage temporaire a été retiré.
 
 [2025-04-24 23:34:25] - Tâche terminée : Créer une nouvelle colonne pour faire apparaître la quantité demandée dans le tableau des commandes et différencier les colonnes de quantité.
+
+[2025-04-26 12:46:20] - Tâche terminée : Renommer la colonne "Date création sujet" en "Date commande" et la déplacer après la colonne "pseudo" dans le tableau des commandes sur la page Commerce. Le contenu des lignes du tableau et la configuration DataTables ont été ajustés en conséquence.

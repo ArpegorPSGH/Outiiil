@@ -1,2 +1,3 @@
 # Decision Log: Outiiil
 [2025-04-24 23:34:34] - Décision prise d'ajouter une colonne pour la quantité demandée dans le tableau des commandes. Les colonnes de quantité seront nommées 'Qté demandée' et 'Qté à livrer' pour une meilleure clarté.
+[2025-04-26 01:42:41] - Décision prise de recharger la liste des commandes depuis le forum après la création d'une nouvelle commande dans `js/boite/Commande.js`. Cela garantit que l'objet Commande correspondant est mis à jour avec la date de création du sujet extraite de la liste du forum avant que le tableau d'affichage ne soit actualisé, résolvant ainsi le problème de la date qui ne s'affichait pas immédiatement.

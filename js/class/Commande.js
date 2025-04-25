@@ -17,9 +17,9 @@ class Commande
         */
         this._id = parametres["id"] || moment().valueOf();
         /**
-        * date de la commande
+        * date de la commande (date de création du sujet sur le forum)
         */
-        this._dateCommande = parametres["dateCommande"] || moment();
+        this._dateCreationSujet = parametres["dateCreationSujet"] || null;
         /**
         * date à laquelle on souhaite être livré
         */
@@ -78,16 +78,16 @@ class Commande
     /**
     *
     */
-    get dateCommande()
+    get dateCreationSujet()
     {
-        return this._dateCommande;
+        return this._dateCreationSujet;
     }
     /**
     *
     */
-    set dateCommande(newDate)
+    set dateCreationSujet(newDate)
     {
-        this._dateCommande = newDate;
+        this._dateCreationSujet = newDate;
     }
     /**
     *
@@ -234,14 +234,14 @@ class Commande
     */
     get dernierMiseAJour()
     {
-        return this._dernierMiseAJour;
+        return this._derniereMiseAJour;
     }
     /**
     *
     */
     set dernierMiseAJour(newDernier)
     {
-        this._dernierMiseAJour = newDernier;
+        this._derniereMiseAJour = newDernier;
     }
     /**
     *
@@ -253,7 +253,7 @@ class Commande
     /**
      *
      */
-    parseUtilitaire(id, demandeur, etat, infos, dernierConvoi)
+    parseUtilitaire(id, demandeur, etat, infos, dernierConvoi, dateCreationSujetStr)
     {
         this._id = id;
         this._demandeur = new Joueur({pseudo : demandeur, x : infos[0], y : infos[1]});
@@ -266,6 +266,9 @@ class Commande
         this._dateApres = infos.length > 8 ? moment(infos[8], "D MMM YYYY") : "";
         this._etat = ETAT_COMMANDE[etat];
         this._derniereMiseAJour = moment(dernierConvoi, "D MMM [à] HH[h]mm");
+        // Extract date part (day and month) from the string
+        let datePart = dateCreationSujetStr.split(' ')[1] + ' ' + dateCreationSujetStr.split(' ')[2];
+        this._dateCreationSujet = moment(datePart, "D MMMM"); // Parse the extracted date part
         return this;
     }
     /**
@@ -287,7 +290,7 @@ class Commande
     */
     estTermine()
     {
-        return !this._nourriture && !this._materiaux;
+        return !this._nourriture && !this.materiaux;
     }
     /**
     *
@@ -329,7 +332,7 @@ class Commande
     {
         let apres = !this._dateApres || moment().isSameOrAfter(moment(this._dateApres));
         let html = `<tr data="${this._id}">
-            <td>${this._demandeur.getLienFourmizzz()}</a></td><td>${numeral(this._totalNourritureDemandee).format()}</td><td class='centre'>${numeral(this._totalMateriauxDemandes).format()}</td><td>${numeral(this.nourriture).format()}</td><td class='centre'>${numeral(this.materiaux).format()}</td>
+            <td>${this._demandeur.getLienFourmizzz()}</a></td><td>${this._dateCreationSujet ? moment(this._dateCreationSujet).format("D MMM YYYY") : ''}</td><td>${numeral(this._totalNourritureDemandee).format()}</td><td class='centre'>${numeral(this._totalMateriauxDemandes).format()}</td><td>${numeral(this.nourriture).format()}</td><td class='centre'>${numeral(this.materiaux).format()}</td>
             <td>${moment(this._dateSouhaite).format("D MMM YYYY")}</td>`;
         if(apres){
             let attente = this.getAttente();

@@ -90,8 +90,14 @@ class BoiteCommande extends Boite
                             $.toast({...TOAST_WARNING, text : response + " Vous n'avez pas les droits de créer de commandes."});
                         else{
                             $.toast({...TOAST_SUCCESS, text : "Commande ajoutée avec succès."});
-                            this._utilitaire.commande[this._commande.id] = this._commande;
-                            this._page.actualiserCommande();
+                            // Reload the command list from the forum to get the correct date
+                            this._utilitaire.consulterSection(monProfil.parametre["forumCommande"].valeur).then((data) => {
+                                if(this._utilitaire.chargerCommande(data)) {
+                                    this._page.actualiserCommande(); // Update the table display
+                                }
+                            }, (jqXHR, textStatus, errorThrown) => {
+                                $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes après création."});
+                            });
                         }
                     }, (jqXHR, textStatus, errorThrown) => {
                          $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de l'ajout de votre commande."});
