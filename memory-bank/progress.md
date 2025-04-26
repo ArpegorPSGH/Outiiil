@@ -19,6 +19,7 @@
 - **Vérification et Mise à Jour Automatique des IDs Forum:** Implémentation de la logique dans `PageForum.js` (`traitementSection`) pour vérifier et mettre à jour automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres de l'extension si elles sont présentes sur la page du forum et que les IDs stockés sont incorrects ou manquants. Un popup de notification est affiché en cas de mise à jour.
 
 - **Correction Date Commande et Affichage Immédiat :** Le problème d'affichage "invalid date" pour la date de création des commandes a été corrigé en ajustant le format de parsing dans `js/class/Commande.js` pour correspondre au format réel extrait du forum ("D MMMM"). L'affichage non immédiat de la date pour les nouvelles commandes a été résolu en modifiant `js/boite/Commande.js` pour recharger la liste des commandes depuis le forum après la création réussie d'un nouveau sujet, assurant ainsi que l'objet Commande est mis à jour avec la date correcte avant l'actualisation du tableau.
+- **Ajout Colonne Évolution au Tableau des Commandes :** Ajout d'une colonne "Évolution" au tableau des commandes sur la page Commerce (`js/page/Commerce.js`). La méthode `toHTML` dans `js/class/Commande.js` a été modifiée pour inclure la valeur de l'évolution. La configuration DataTables dans `js/page/Commerce.js` a été mise à jour pour prendre en compte la nouvelle colonne et la masquer par défaut.
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
     - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
@@ -45,3 +46,5 @@ La fonctionnalité "Recensement" a été déplacée vers la page Membres Allianc
 [2025-04-24 23:34:25] - Tâche terminée : Créer une nouvelle colonne pour faire apparaître la quantité demandée dans le tableau des commandes et différencier les colonnes de quantité.
 
 [2025-04-26 12:46:20] - Tâche terminée : Renommer la colonne "Date création sujet" en "Date commande" et la déplacer après la colonne "pseudo" dans le tableau des commandes sur la page Commerce. Le contenu des lignes du tableau et la configuration DataTables ont été ajustés en conséquence.
+
+[2025-04-27 12:25:00] - Tâche terminée : Ajouter une colonne "Évolution" au tableau des commandes sur la page Commerce, inclure son contenu dans la méthode `toHTML` de la classe Commande et configurer DataTables pour la masquer par défaut.
