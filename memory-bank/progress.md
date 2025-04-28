@@ -19,6 +19,7 @@
 - **Vérification et Mise à Jour Automatique des IDs Forum:** Implémentation de la logique dans `PageForum.js` (`traitementSection`) pour vérifier et mettre à jour automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres de l'extension si elles sont présentes sur la page du forum et que les IDs stockés sont incorrects ou manquants. Un popup de notification est affiché en cas de mise à jour.
 
 - **Correction Date Commande et Affichage Immédiat :** Le problème d'affichage "invalid date" pour la date de création des commandes a été corrigé en ajustant le format de parsing dans `js/class/Commande.js` pour correspondre au format réel extrait du forum ("D MMMM"). L'affichage non immédiat de la date pour les nouvelles commandes a été résolu en modifiant `js/boite/Commande.js` pour recharger la liste des commandes depuis le forum après la création réussie d'un nouveau sujet, assurant ainsi que l'objet Commande est mis à jour avec la date correcte avant l'actualisation du tableau.
+- **Logique de Complétion de l'Année pour la Date de Commande :** La logique de complétion de l'année pour la date de création des commandes a été mise à jour dans le fichier `js/class/Commande.js`. Désormais, si l'année est absente lors de la récupération de la date depuis le forum, le script utilise la dernière occurrence de la combinaison jour/mois. L'utilisateur a effectué un test manuel et a confirmé que cela fonctionne correctement.
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
     - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
@@ -31,6 +32,7 @@
 ## Current Status
 La fonctionnalité "Recensement" a été déplacée vers la page Membres Alliance et est considérée comme complète du point de vue de l'implémentation, en attente de tests et validation utilisateur dans son nouvel emplacement. L'amélioration de la fonction "Préparer le forum..." est toujours considérée comme terminée.
 [2025-04-21 20:06:36] - La vérification et la mise à jour automatique des IDs des sections forum Outiiil, ainsi que la notification associée, ont été implémentées dans `PageForum.js`.
+[2025-04-28 21:59:45] - La logique de complétion de l'année pour la date de création des commandes a été mise à jour et vérifiée manuellement par l'utilisateur. La tâche est terminée.
 
 ## Known Issues
 - **Dépendance au DOM:** Comme toute extension de ce type, elle reste sensible aux modifications du site Fourmizzz.

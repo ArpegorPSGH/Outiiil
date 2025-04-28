@@ -268,7 +268,14 @@ class Commande
         this._derniereMiseAJour = moment(dernierConvoi, "D MMM [à] HH[h]mm");
         // Extract date part (day and month) from the string
         let datePart = dateCreationSujetStr.split(' ')[1] + ' ' + dateCreationSujetStr.split(' ')[2];
-        this._dateCreationSujet = moment(datePart, "D MMMM"); // Parse the extracted date part
+        let parsedDate = moment(datePart, "D MMMM"); // Parse the extracted date part
+
+        // Check if the parsed date is in the future. If so, subtract a year.
+        if (parsedDate.isAfter(moment())) {
+            parsedDate.subtract(1, 'year');
+        }
+
+        this._dateCreationSujet = parsedDate;
         return this;
     }
     /**
