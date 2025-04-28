@@ -127,7 +127,7 @@ class PageCommerce
 	{
         let total = 0, totalRouge = 0, tabCommandeAff = new Array(), tabCommandePersoEnCours = new Array(),
             contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`; // Renamed and moved column header
+            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Évolution</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`; // Renamed and moved column header
         for(let id in this._utilitaire.commande){
             if(this._utilitaire.commande[id].estAFaire()){
                 contenu += this._utilitaire.commande[id].toHTML();
@@ -142,7 +142,7 @@ class PageCommerce
                 if(this._utilitaire.commande[id].etat == ETAT_COMMANDE["En cours"] || (this._utilitaire.commande[id].etat == ETAT_COMMANDE["Terminée"] && this._utilitaire.commande[id].estTermineRecent()))
                     tabCommandePersoEnCours.push(id);
         }
-        contenu += `<tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='12'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`; // Updated colspan
+        contenu += `<tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='13'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`; // Updated colspan
         $("#centre .Bas").before(contenu);
         // event
         for(let id of tabCommandeAff)
@@ -164,12 +164,13 @@ class PageCommerce
                 buttons : {colvis : "Colonne"}
             },
             columnDefs : [
-                {type : "quantite-grade", targets : [4, 5]},
-                {type : "moment-D MMM YYYY", targets : 6},
-                {type : "time-unformat", targets : 9},
-                {type : "moment-D MMM YYYY", targets : 1}, // Updated column definition for moved column
-                {sortable : false, targets : [10, 11]}, // Targets for Livrer and Options remain the same
-                {visible: false, targets: [2, 3, 1]} // Updated targets to hide original 1, 2, and the new column at index 1
+                {type : "string", targets : 2, visible: false}, // Added type and set to hidden
+                {type : "quantite-grade", targets : [5, 6]}, // Adjusted targets
+                {type : "moment-D MMM YYYY", targets : 7}, // Adjusted target
+                {type : "time-unformat", targets : 10}, // Adjusted target
+                {type : "moment-D MMM YYYY", targets : 1},
+                {sortable : false, targets : [11, 12]}, // Adjusted targets
+                {visible: false, targets: [3, 4, 1]} // Adjusted targets
             ]
         });
         $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
@@ -199,7 +200,7 @@ class PageCommerce
         for(let id of tabCommandeAff)
             this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
         // mise à jour du tfoot
-        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='12'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`); // Corrected colspan to 12
+        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='13'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`); // Corrected colspan to 13
         return this;
     }
     /**

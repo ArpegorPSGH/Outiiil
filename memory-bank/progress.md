@@ -20,6 +20,7 @@
 
 - **Correction Date Commande et Affichage Immédiat :** Le problème d'affichage "invalid date" pour la date de création des commandes a été corrigé en ajustant le format de parsing dans `js/class/Commande.js` pour correspondre au format réel extrait du forum ("D MMMM"). L'affichage non immédiat de la date pour les nouvelles commandes a été résolu en modifiant `js/boite/Commande.js` pour recharger la liste des commandes depuis le forum après la création réussie d'un nouveau sujet, assurant ainsi que l'objet Commande est mis à jour avec la date correcte avant l'actualisation du tableau.
 - **Logique de Complétion de l'Année pour la Date de Commande :** La logique de complétion de l'année pour la date de création des commandes a été mise à jour dans le fichier `js/class/Commande.js`. Désormais, si l'année est absente lors de la récupération de la date depuis le forum, le script utilise la dernière occurrence de la combinaison jour/mois. L'utilisateur a effectué un test manuel et a confirmé que cela fonctionne correctement.
+- **Ajout Colonne Évolution au Tableau des Commandes :** Une colonne "Évolution" a été ajoutée au tableau des commandes sur la page Commerce. La colonne affiche la valeur de l'évolution de la commande et est masquée par défaut. Le "colspan" dans le pied du tableau a été ajusté en conséquence.
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
     - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
