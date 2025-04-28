@@ -127,7 +127,7 @@ class PageCommerce
 	{
         let total = 0, totalRouge = 0, tabCommandeAff = new Array(), tabCommandePersoEnCours = new Array(),
             contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Évolution</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`; // Renamed and moved column header
+            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Évolution</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Échéance</th><th>Statut</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`; // Renamed and moved column header
         for(let id in this._utilitaire.commande){
             if(this._utilitaire.commande[id].estAFaire()){
                 contenu += this._utilitaire.commande[id].toHTML();

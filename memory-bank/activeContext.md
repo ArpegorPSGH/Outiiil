@@ -1,7 +1,7 @@
 # Active Context: Outiiil (2025-04-07)
 
 ## Current Focus
-Déplacement et finalisation de la fonctionnalité "Recensement".
+Modification des noms de colonnes dans les tableaux des commandes et des membres de l'alliance.
 
 ## Recent Changes & Decisions
 - **Déplacement du Bouton "Recensement":** Le bouton et sa logique associée ont été déplacés de `js/boite/ComptePlus.js` vers `js/page/Alliance.js`. Il est maintenant ajouté **entre** les boutons "Actualiser l'alliance" et "Colonne" sur la page des membres de l'alliance (`/alliance.php?Membres`).
@@ -24,6 +24,8 @@ Déplacement et finalisation de la fonctionnalité "Recensement".
 [2025-04-27 00:44:14] - Ajout d'une vérification dans `js/page/Commerce.js` pour ne pas enregistrer les convois nuls dans le sujet de la commande.
 [2025-04-28 21:58:23] - **Logique de Complétion de l'Année pour la Date de Commande :** Modification de la méthode `parseUtilitaire` dans `js/class/Commande.js` pour que, si l'année est absente lors du parsing de la date de création du sujet depuis le forum, l'année complétée soit la dernière occurrence de la combinaison jour/mois. Un test visuel sur la page de commerce après chargement de l'extension a montré que les dates s'affichent correctement.
 [2025-04-28 22:23:15] - **Ajout Colonne Évolution au Tableau des Commandes :** Ajout d'une colonne "Évolution" au tableau des commandes sur la page Commerce (`js/page/Commerce.js`). La méthode `toHTML()` dans `js/class/Commande.js` a été modifiée pour inclure la valeur de l'évolution. La configuration DataTables dans `js/page/Commerce.js` a été mise à jour pour inclure la nouvelle colonne à l'index 2, définir son type comme "string" et la masquer par défaut. Le `colspan` dans le pied du tableau a été ajusté à 13.
+[2025-04-28 22:44:51] - **Correction des Noms de Colonnes :** Les noms de colonnes "Echéance" et "Status" dans le tableau des commandes (`js/page/Commerce.js`) ont été corrigés en "Échéance" et "Statut". Le nom de la colonne "Etat" dans le tableau des membres de l'alliance (`js/page/Alliance.js`) a été corrigé en "État". Les erreurs TypeScript introduites précédemment dans `js/page/Alliance.js` ont été corrigées par l'utilisateur.
+
 ## Next Steps
 - **Tests Utilisateur:** Vérifier le bon fonctionnement de la fonctionnalité "Recensement" sur la page Membres Alliance.
 - **Validation Finale:** Confirmer que le bouton s'affiche correctement, a le bon style, et que la fonctionnalité de post est opérationnelle.

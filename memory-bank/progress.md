@@ -20,7 +20,9 @@
 
 - **Correction Date Commande et Affichage Immédiat :** Le problème d'affichage "invalid date" pour la date de création des commandes a été corrigé en ajustant le format de parsing dans `js/class/Commande.js` pour correspondre au format réel extrait du forum ("D MMMM"). L'affichage non immédiat de la date pour les nouvelles commandes a été résolu en modifiant `js/boite/Commande.js` pour recharger la liste des commandes depuis le forum après la création réussie d'un nouveau sujet, assurant ainsi que l'objet Commande est mis à jour avec la date correcte avant l'actualisation du tableau.
 - **Logique de Complétion de l'Année pour la Date de Commande :** La logique de complétion de l'année pour la date de création des commandes a été mise à jour dans le fichier `js/class/Commande.js`. Désormais, si l'année est absente lors de la récupération de la date depuis le forum, le script utilise la dernière occurrence de la combinaison jour/mois. L'utilisateur a effectué un test manuel et a confirmé que cela fonctionne correctement.
-- **Ajout Colonne Évolution au Tableau des Commandes :** Une colonne "Évolution" a été ajoutée au tableau des commandes sur la page Commerce. La colonne affiche la valeur de l'évolution de la commande et est masquée par défaut. Le "colspan" dans le pied du tableau a été ajusté en conséquence.
+- **Ajout Colonne Évolution au Tableau des Commandes :** Une colonne "Évolution" a été ajoutée au tableau des commandes sur la page Commerce. La colonne affiche la valeur de l'évolution de la commande et est masquée par défaut. Le "colspan" dans le pied du tableau a été ajusté à 13.
+- **Correction des Noms de Colonnes :** Les noms de colonnes "Echéance" et "Status" dans le tableau des commandes (`js/page/Commerce.js`) ont été corrigés en "Échéance" et "Statut". Le nom de la colonne "Etat" dans le tableau des membres de l'alliance (`js/page/Alliance.js`) a été corrigé en "État". Les erreurs TypeScript introduites précédemment dans `js/page/Alliance.js` ont été corrigées par l'utilisateur.
+
 ## What's Left to Build / Verify
 - **Tests Approfondis "Recensement" (sur page Alliance):**
     - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
@@ -34,6 +36,7 @@
 La fonctionnalité "Recensement" a été déplacée vers la page Membres Alliance et est considérée comme complète du point de vue de l'implémentation, en attente de tests et validation utilisateur dans son nouvel emplacement. L'amélioration de la fonction "Préparer le forum..." est toujours considérée comme terminée.
 [2025-04-21 20:06:36] - La vérification et la mise à jour automatique des IDs des sections forum Outiiil, ainsi que la notification associée, ont été implémentées dans `PageForum.js`.
 [2025-04-28 21:59:45] - La logique de complétion de l'année pour la date de création des commandes a été mise à jour et vérifiée manuellement par l'utilisateur. La tâche est terminée.
+[2025-04-28 22:44:51] - Tâche terminée : Correction des noms de colonnes dans les tableaux des commandes et des membres de l'alliance.
 
 ## Known Issues
 - **Dépendance au DOM:** Comme toute extension de ce type, elle reste sensible aux modifications du site Fourmizzz.
