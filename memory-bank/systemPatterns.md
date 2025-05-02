@@ -1,83 +1,75 @@
 # System Patterns: Outiiil
 
-## Architecture Générale
-L'extension suit un modèle basé sur les **Content Scripts** de Chrome. Le script principal (`js/content.js`) est injecté dans les pages du domaine `fourmizzz.fr`.
-## Technologies et Bibliothèques Clés
-- **Type:** Extension Chrome (Manifest V2 actuellement)
-- **Langage Principal:** JavaScript (ES6+)
-- **Bibliothèques Frontend Clés:**
-    - jQuery (manipulation DOM, AJAX)
-    - Moment.js (manipulation dates/heures)
-    - Numeral.js (formatage nombres)
-    - DataTables (tri/filtrage tableaux)
-    - Highcharts (graphiques, ex: historique joueur)
-    - jQuery UI (widgets UI comme tooltips, progressbar, autocomplete)
-    - jQuery Toast (notifications)
-- **Styling:** CSS
+## System architecture
+The extension follows a **Content Script** model for Chrome extensions. The main script (`js/content.js`) is injected into pages on the `fourmizzz.fr` domain.
 
-1.  **Initialisation Globale (`content.js`)**:
-    *   Vérifie si l'utilisateur est connecté.
-    *   Charge les constantes du jeu et configure les bibliothèques (moment, numeral, datatables).
-    *   Instancie l'objet `monProfil` (classe `Joueur`) qui représente l'utilisateur courant.
-    *   Récupère les paramètres de l'extension et les données de base du joueur (profil, constructions, recherches) via `localStorage` ou des appels AJAX initiaux.
-    *   Instancie et affiche les composants UI globaux (ex: `Dock`, `BoiteComptePlus`, `BoiteRadar`).
-    *   Lance les fonctionnalités persistantes (ex: Traceur si activé).
+## Key technical decisions
+- **Global Initialization (`content.js`)**:
+    *   Checks if the user is logged in.
+    *   Loads game constants and configures libraries (moment, numeral, datatables).
+    *   Instantiates the `monProfil` object (class `Joueur`) representing the current user.
+    *   Retrieves extension parameters and basic player data (profile, constructions, research) via `localStorage` or initial AJAX calls.
+    *   Instantiates and displays global UI components (e.g., `Dock`, `BoiteComptePlus`, `BoiteRadar`).
+    *   Launches persistent functionalities (e.g., Tracker if activated).
 
-2.  **Routing par Page (`content.js`)**:
-    *   Détecte l'URL de la page courante (`location.pathname`, `location.search`).
-    *   Instancie la classe `Page*` correspondante (ex: `PageArmee`, `PageForum`) en lui passant parfois des références aux boîtes globales (ex: `BoiteComptePlus`).
-    *   Appelle la méthode `executer()` du module de page.
+- **Page Routing (`content.js`)**:
+    *   Detects the current page URL (`location.pathname`, `location.search`).
+    *   Instantiates the corresponding `Page*` class (e.g., `PageArmee`, `PageForum`), sometimes passing references to global boxes (e.g., `BoiteComptePlus`).
+    *   Calls the `executer()` method of the page module.
 
-3.  **Logique Spécifique à la Page (`js/page/*.js`)**:
-    *   La méthode `executer()` du module de page contient la logique spécifique :
-        *   **Parsing DOM**: Extrait les informations pertinentes de la page HTML.
-        *   **Calculs/Logique Métier**: Effectue les calculs nécessaires (ex: temps HOF, stats armée, simulation chasse).
-        *   **Injection UI**: Ajoute les boutons, tableaux, ou modifications visuelles propres à cette page.
-        *   **Gestion Événements**: Attache des écouteurs d'événements aux éléments ajoutés.
-        *   **Mise à jour Données Globales**: Peut mettre à jour `monProfil` ou les données dans `localStorage` (ex: `PageArmee` qui pourrait sauvegarder les unités).
+- **Page-Specific Logic (`js/page/*.js`)**:
+    *   The `executer()` method of the page module contains the specific logic:
+        *   **DOM Parsing**: Extracts relevant information from the HTML page.
+        *   **Calculations/Business Logic**: Performs necessary calculations (e.g., HOF time, army stats, hunting simulation).
+        *   **UI Injection**: Adds buttons, tables, or visual modifications specific to this page.
+        *   **Event Handling**: Attaches event listeners to added elements.
+        *   **Global Data Update**: Can update `monProfil` or data in `localStorage` (e.g., `PageArmee` which could save units).
 
-## Structure du Code
-- **`manifest.json`**: Définit l'extension, les permissions, et les content scripts.
-- **`js/content.js`**: Point d'entrée principal. Injecté dans les pages Fourmizzz. Gère l'initialisation globale, le routing basé sur l'URL, et charge les modules spécifiques.
-- **`js/class/`**: Contient les classes de données et utilitaires (ex: `Joueur`, `Alliance`, `Armee`, `Utils`, `Parametre`). Modélise les entités du jeu et fournit des fonctions transverses.
-- **`js/page/`**: Modules spécifiques à chaque page majeure de Fourmizzz (ex: `Armee.js`, `Forum.js`, `Construction.js`). Contiennent la logique pour parser la page et ajouter les fonctionnalités Outiiil.
-- **`js/boite/`**: Modules gérant les composants UI ajoutés par Outiiil (ex: `Dock.js` pour la barre d'outils, `ComptePlus.js` pour la boîte d'infos globale, `BoiteRang.js` pour le popup de gestion de rang).
-- **`js/lib/`**: Contient les bibliothèques JavaScript tierces.
-- **`css/`**: Feuilles de style pour l'extension (`outiiil.css`, `toasts.css`) et les bibliothèques (`datatables.css`).
-- **`images/`**: Icônes et autres ressources graphiques utilisées par l'extension.
-- **`memory-bank/`**: Documentation interne (ce dossier).
-4.  **Composants UI (`js/boite/*.js`)**:
-    *   Chaque classe gère l'affichage (`afficher()`) et la logique interne d'un composant UI spécifique (ex: la boîte d'infos, la barre d'outils, les popups).
-    *   Ces composants peuvent lire les données depuis `monProfil` ou `Utils` et interagir avec d'autres parties de l'extension (ex: `Dock` qui ouvre d'autres boîtes).
-    *   La fonction "Recensement" est implémentée dans `BoiteComptePlus.js`.
+- **UI Components (`js/boite/*.js`)**:
+    *   Each class manages the display (`afficher()`) and internal logic of a specific UI component (e.g., the info box, the toolbar, rank management popups).
+    *   These components can read data from `monProfil` or `Utils` and interact with other parts of the extension (e.g., `Dock` which opens other boxes).
 
-5.  **Classes de Données (`js/class/*.js`)**:
-    *   Modélisent les entités du jeu (`Joueur`, `Alliance`, `Armee`, `Commande`).
-    *   Encapsulent les données et les méthodes associées (calculs, parsing, formatage).
-    *   `Utils.js` fournit des accesseurs statiques pour les données globales extraites du DOM (`Utils.nourriture`, `Utils.terrain`, etc.) et des fonctions utilitaires (temps, formatage).
-    *   `Parametre.js` gère la structure des paramètres de l'extension.
+- **Data Classes (`js/class/*.js`)**:
+    *   Model game entities (`Joueur`, `Alliance`, `Armee`, `Commande`).
+    *   Encapsulate data and associated methods (calculations, parsing, formatting).
+    *   `Utils.js` provides static accessors for global data extracted from the DOM (`Utils.nourriture`, `Utils.terrain`, etc.) and utility functions (time, formatting).
+    *   `Parametre.js` manages the structure of extension parameters.
 
-## Patterns Clés
-- **Injection de Dépendances (Simple)**: Les modules de page reçoivent parfois des instances des boîtes globales via leur constructeur.
-- **Module Pattern (via Classes ES6)**: Le code est organisé en classes, encapsulant état et comportement.
-- **Observer Pattern (MutationObserver)**: Utilisé dans `PageForum` et `PageAlliance` pour détecter le chargement asynchrone de contenu et déclencher le traitement.
-- **Accès Données Globales**: Via l'instance `monProfil` et la classe statique `Utils`.
-- **Persistance**: Via `localStorage` pour les paramètres, le profil joueur, et l'état des évolutions.
-- **Requêtes Asynchrones**: Utilisation de `$.ajax` (jQuery Promises) et `async/await` pour les appels réseau.
+## Design patterns in use
+- **Dependency Injection (Simple)**: Page modules sometimes receive instances of global boxes via their constructor.
+- **Module Pattern (via ES6 Classes)**: Code is organized into classes, encapsulating state and behavior.
+- **Observer Pattern (MutationObserver)**: Used in `PageForum` and `PageAlliance` to detect asynchronous content loading and trigger processing.
 
-## Flux de Données (Exemple: Recensement)
-## Contraintes Techniques
-- **Dépendance à la Structure DOM de Fourmizzz:** Les sélecteurs jQuery utilisés pour le parsing sont sensibles aux changements de structure HTML du site Fourmizzz. Une mise à jour du jeu peut casser certaines fonctionnalités.
-- **Manifest V2:** Si l'extension utilise toujours Manifest V2, une migration vers V3 sera nécessaire à terme.
-1.  Clic sur bouton (`BoiteComptePlus`).
-2.  Appel AJAX vers `/Armee.php`.
-3.  Parsing de la réponse HTML via `Armee.parseHtml()`.
-4.  Récupération des autres données via `Utils` et `monProfil`.
-5.  Formatage du message.
-6.  Vérification `monProfil.sujetForum`.
-7.  Si ID absent:
-    a. Récupération `idSection` depuis `monProfil.parametre`.
-    b. Appel `forumManager.consulterSection(idSection)`.
-    c. Parsing de la réponse pour trouver `idSujet`.
-8.  Appel `forumManager.envoyerMessage(idSujet, message)`.
-9.  Affichage notification (`$.toast`).
+## Component relationships
+- `content.js` is the central orchestrator, routing to specific `js/page/*` modules.
+- `js/page/*` modules interact with the DOM, use `js/class/*` for data modeling and utilities, and can interact with `js/boite/*` UI components.
+- `js/boite/*` components use `js/class/*` for data and utilities.
+- `js/class/*` provides data structures and utility functions used across the extension.
+
+## Critical implementation paths
+- **Data Access**: Via the `monProfil` instance and the static `Utils` class.
+- **Persistence**: Via `localStorage` for parameters, player profile, and evolution state.
+- **Asynchronous Requests**: Use of `$.ajax` (jQuery Promises) and `async/await` for network calls. This is notably used for fetching forum data, including consulting individual topics to get the creation date of commands.
+- **Recensement Functionality Flow**:
+    1.  Click on button (`PageAlliance.js`).
+    2.  AJAX call to `/Armee.php`.
+    3.  Parsing of HTML response via `Armee.parseHtml()`.
+    4.  Retrieval of other data via `Utils` and `monProfil`.
+    5.  Message formatting.
+    6.  Check `monProfil.sujetForum`.
+    7.  If ID absent:
+        a. Retrieve `idSection` from `monProfil.parametre`.
+        b. Call `forumManager.consulterSection(idSection)`.
+        c. Parse response to find `idSujet`.
+    8.  Call `forumManager.envoyerMessage(idSujet, message)`.
+    9.  Display notification (`$.toast`).
+- **Command Loading Flow**:
+    1.  Navigate to Commerce page (`PageCommerce.js`).
+    2.  Call `forumManager.consulterSection` to get the list of topics in the command section.
+    3.  Filter topics based on their state ('Nouvelle', 'En cours', 'En attente').
+    4.  For each filtered topic, call `forumManager.consulterSujet` to get the topic content.
+    5.  Use `Promise.all` to wait for all topic content to be fetched.
+    6.  Parse the first message of each topic content to extract the creation date using `Utils.parseForumDate`.
+    7.  Create `Commande` objects with the extracted data, including the creation date.
+    8.  Store `Commande` objects in `forumManager._commande`.
+    9.  Call `PageCommerce.afficherCommande` to display the table using the loaded command data.

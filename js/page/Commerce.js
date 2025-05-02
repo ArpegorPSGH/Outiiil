@@ -59,7 +59,13 @@ class PageCommerce
         if(monProfil.parametre["forumCommande"].valeur){
             // recuperation des commandes sur l'utilitaire
             this._utilitaire.consulterSection(monProfil.parametre["forumCommande"].valeur).then((data) => {
-                if(this._utilitaire.chargerCommande(data)) this.afficherCommande();
+                // chargerCommande retourne maintenant une Promise
+                this._utilitaire.chargerCommande(data).then(() => {
+                    this.afficherCommande();
+                }).catch((error) => {
+                    // Gérer les erreurs de chargerCommande si nécessaire
+                    console.error("Erreur lors du chargement des commandes:", error);
+                });
             }, (jqXHR, textStatus, errorThrown) => {
                 $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes."});
             });
@@ -125,14 +131,53 @@ class PageCommerce
 	*/
 	afficherCommande()
 	{
-        let total = 0, totalRouge = 0, tabCommandeAff = new Array(), tabCommandePersoEnCours = new Array(),
-            contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>`;
+        let total = 0, totalRouge = 0, tabCommandeAff = new Array(), tabCommandePersoEnCours = new Array();
+        let tableData = []; // Tableau pour les données de DataTables
+
         for(let id in this._utilitaire.commande){
             if(this._utilitaire.commande[id].estAFaire()){
-                contenu += this._utilitaire.commande[id].toHTML();
-                total += parseInt(this._utilitaire.commande[id].materiaux);
-                if(this._utilitaire.commande[id].estHorsTard()) totalRouge += parseInt(this._utilitaire.commande[id].materiaux);
+                const commande = this._utilitaire.commande[id];
+                // Construire un tableau de données pour chaque ligne
+                const rowData = [
+                    commande.demandeur.getLienFourmizzz(), // Pseudo
+                    moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
+                    numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
+                    numeral(commande.totalMateriauxDemandes).format(), // Qté demandée Matériaux
+                    numeral(commande.nourriture).format(), // Qté à livrer Nourriture
+                    numeral(commande.materiaux).format(), // Qté à livrer Matériaux
+                    moment(commande.dateSouhaite).format("D MMM YYYY"), // Echéance
+                    // Status (image ou croix)
+                    (() => {
+                        let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
+                        if(apres){
+                            let attente = commande.getAttente();
+                            switch(true){
+                                case attente > 0 : return `<img src='images/icone/3rondrouge.gif'/>`;
+                                case attente > -3 : return `<img src='images/icone/2rondorange.gif'/>`;
+                                default : return `<img src='images/icone/1rondvert.gif'/>`;
+                            }
+                        } else {
+                            return `<img src="${IMG_CROIX}" alt='supprimer' title='Ne pas livrer avant le ${moment(commande.dateApres).format("DD-MM-YYYY")}'/>`;
+                        }
+                    })(),
+                    // État
+                    `<span ${commande.etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === commande.etat)}</span>`,
+                    // Temps de trajet
+                    Utils.intToTime(monProfil.getTempsParcours2(commande.demandeur)),
+                    // Livrer (bouton ou vide)
+                    (() => {
+                        let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
+                        return apres && commande.etat == ETAT_COMMANDE["En cours"] ? `<a id='o_commande${commande.id}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>` : "";
+                    })(),
+                    // Options (boutons ou vide)
+                    (() => {
+                        return (commande.demandeur.pseudo == monProfil.pseudo) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
+                    })()
+                ];
+                tableData.push(rowData);
+
+                total += parseInt(commande.materiaux);
+                if(commande.estHorsTard()) totalRouge += parseInt(commande.materiaux);
                 tabCommandeAff.push(id);
             }
             // ajout des commandes à verifier pour vois les convois
@@ -142,18 +187,23 @@ class PageCommerce
                 if(this._utilitaire.commande[id].etat == ETAT_COMMANDE["En cours"] || (this._utilitaire.commande[id].etat == ETAT_COMMANDE["Terminée"] && this._utilitaire.commande[id].estTermineRecent()))
                     tabCommandePersoEnCours.push(id);
         }
-        contenu += `<tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='11'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
+
+        // Créer la structure HTML du tableau (sans les lignes de données)
+        let contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
+            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>
+            <tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='12'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
+
         $("#centre .Bas").before(contenu);
-        // event
-        for(let id of tabCommandeAff)
-             this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
+
+        // Initialiser DataTables avec les données
         $("#o_tableListeCommande").DataTable({
+            data: tableData, // Passer les données ici
             bInfo : false,
             bPaginate : false,
             bAutoWidth : false,
             dom : "Bfrti",
             buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            order : [[5, "desc"]],
+            order : [[6, "desc"]], // Index de colonne ajusté pour l'échéance
             stripeClasses : ["", "ligne_paire"],
             responsive : true,
             language : {
@@ -164,13 +214,63 @@ class PageCommerce
                 buttons : {colvis : "Colonne"}
             },
             columnDefs : [
-                {type : "quantite-grade", targets : [3, 4]},
-                {type : "moment-D MMM YYYY", targets : 5},
-                {type : "time-unformat", targets : 8},
-                {sortable : false, targets : [9, 10]},
-                {visible: false, targets: [1, 2]}
-            ]
+                {targets: 1, title: "Date commande", visible: false}, // Nouvelle colonne Date commande
+                {type : "quantite-grade", targets : [4, 5]}, // Indices ajustés
+                {type : "moment-D MMM YYYY", targets : 6}, // Indice ajusté
+                {type : "time-unformat", targets : 9}, // Indice ajusté
+                {sortable : false, targets : [10, 11]}, // Indices ajustés
+                {visible: false, targets: [2, 3]} // Indices ajustés pour les quantités demandées
+            ],
+            // Ajouter des render functions pour attacher les événements si nécessaire
+            // ou utiliser la délégation d'événements après l'initialisation du tableau
+            createdRow: (row, data, dataIndex) => {
+                // Attacher les événements aux boutons "Livrer", "Modifier", "Supprimer"
+                const commandeId = tabCommandeAff[dataIndex]; // Récupérer l'ID de la commande correspondant à la ligne
+                const commande = this._utilitaire.commande[commandeId];
+
+                $(row).find(`#o_commande${commandeId}`).on('click', (e) => {
+                    e.preventDefault();
+                    let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2)));
+                    let materialsToPrefill = Math.min(commande.materiaux, transportCapacity);
+                    let nourishmentToPrefill = Math.min(commande.nourriture, transportCapacity - materialsToPrefill);
+
+                    $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
+                    $("#nbMateriaux").val(materialsToPrefill);
+
+                    $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
+                    $("#nbNourriture").val(nourishmentToPrefill);
+                    $("#pseudo_convoi").val(commande.demandeur.pseudo);
+                    $("#o_idCommande").val(commande.id);
+                    $("html").animate({scrollTop : 0}, 600);
+                    return false;
+                });
+
+                $(row).find(`#o_modifierCommande${commandeId}`).on('click', (e) => {
+                    e.preventDefault();
+                    let boiteCommande = new BoiteCommande(commande, this._utilitaire, this);
+                    boiteCommande.afficher();
+                    return false;
+                });
+
+                $(row).find(`#o_supprimerCommande${commandeId}`).on('click', (e) => {
+                    if(confirm("Supprimer cette commande ?")){
+                        commande.etat = ETAT_COMMANDE.Supprimée;
+                        this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then((data) => {
+                            $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
+                            this.actualiserCommande();
+                        }, (jqXHR, textStatus, errorThrown) => {
+                            $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
+                        });
+                    }
+                    return false;
+                });
+            }
         });
+
+        // Supprimer la boucle d'ajout d'événements après l'initialisation de DataTables
+        // for(let id of tabCommandeAff)
+        //      this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
+
         $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
         $("#o_ajouterCommande").click((e) => {
             let boiteCommande = new BoiteCommande(new Commande(), this._utilitaire, this);
@@ -179,26 +279,67 @@ class PageCommerce
         // récuperation des convois sur l'utilitaire
         this.afficherConvoi(tabCommandePersoEnCours);
         return this;
-    }
+	}
     /**
     *
     */
     actualiserCommande()
     {
-        let data = new Array(), total = 0, totalRouge = 0, tabCommandeAff = new Array();  // current table data
+        let total = 0, totalRouge = 0, tabCommandeAff = new Array();
+        let tableData = []; // Tableau pour les données de DataTables
+
         for(let id in this._utilitaire.commande){
             if(this._utilitaire.commande[id].estAFaire()){
-                data.push($(this._utilitaire.commande[id].toHTML())[0]);
-                total += parseInt(this._utilitaire.commande[id].materiaux);
-                if(this._utilitaire.commande[id].estHorsTard()) totalRouge += parseInt(this._utilitaire.commande[id].materiaux);
+                const commande = this._utilitaire.commande[id];
+                 // Construire un tableau de données pour chaque ligne
+                const rowData = [
+                    commande.demandeur.getLienFourmizzz(), // Pseudo
+                    moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
+                    numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
+                    numeral(commande.totalMateriauxDemandes).format(), // Qté demandée Matériaux
+                    numeral(commande.nourriture).format(), // Qté à livrer Nourriture
+                    numeral(commande.materiaux).format(), // Qté à livrer Matériaux
+                    moment(commande.dateSouhaite).format("D MMM YYYY"), // Echéance
+                    // Status (image ou croix)
+                    (() => {
+                        let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
+                        if(apres){
+                            let attente = commande.getAttente();
+                            switch(true){
+                                case attente > 0 : return `<img src='images/icone/3rondrouge.gif'/>`;
+                                case attente > -3 : return `<img src='images/icone/2rondorange.gif'/>`;
+                                default : return `<img src='images/icone/1rondvert.gif'/>`;
+                            }
+                        } else {
+                            return `<img src="${IMG_CROIX}" alt='supprimer' title='Ne pas livrer avant le ${moment(commande.dateApres).format("DD-MM-YYYY")}'/>`;
+                        }
+                    })(),
+                    // État
+                    `<span ${commande.etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === commande.etat)}</span>`,
+                    // Temps de trajet
+                    Utils.intToTime(monProfil.getTempsParcours2(commande.demandeur)),
+                    // Livrer (bouton ou vide)
+                    (() => {
+                        let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
+                        return apres && commande.etat == ETAT_COMMANDE["En cours"] ? `<a id='o_commande${commande.id}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>` : "";
+                    })(),
+                    // Options (boutons ou vide)
+                    (() => {
+                        return (commande.demandeur.pseudo == monProfil.pseudo) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
+                    })()
+                ];
+                tableData.push(rowData);
+                total += parseInt(commande.materiaux);
+                if(commande.estHorsTard()) totalRouge += parseInt(commande.materiaux);
                 tabCommandeAff.push(id);
             }
         }
-        $("#o_tableListeCommande").DataTable().clear().rows.add(data).draw();
-        for(let id of tabCommandeAff)
-            this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
+        $("#o_tableListeCommande").DataTable().clear().rows.add(tableData).draw(); // Utiliser les données structurées
+        // Les événements sont attachés via createdRow dans afficherCommande, pas besoin ici
+        // for(let id of tabCommandeAff)
+        //     this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
         // mise à jour du tfoot
-        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='9'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`);
+        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='12'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`); // colspan ajusté
         return this;
     }
     /**

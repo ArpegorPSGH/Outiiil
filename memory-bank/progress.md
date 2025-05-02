@@ -1,44 +1,47 @@
-# Progress: Outiiil (2025-04-07)
+# Progress: Outiiil
 
-## What Works
-- **Structure de Base:** L'extension s'injecte correctement, initialise les données globales et les composants UI. Le routing par page fonctionne.
-- **Composants UI Globaux:** La barre d'outils (`Dock`) et la boîte d'informations (`BoiteComptePlus`) s'affichent et se mettent à jour (pontes, constructions, etc.).
-- **Fonctionnalités Spécifiques (Existantes):** Les outils présents sur les différentes pages (Armée, Ressources, Forum, etc.) sont fonctionnels (sous réserve de non-régression).
-- **Fonctionnalité "Recensement":**
-    - Le bouton a été déplacé de `BoiteComptePlus` vers la page Membres Alliance (`PageAlliance.js`), **entre** les boutons "Actualiser l'alliance" et "Colonne".
-    - Le style utilise la classe `.dt-button` standard, avec une police personnalisée (1.1em, gras). L'espacement horizontal est assuré par une marge gauche ajoutée au bouton Recensement.
-    - Le clic déclenche la récupération des données (logique déplacée vers `PageAlliance.js`) :
-        - Ressources, TDC, Ouvrières via `Utils`.
-        - Niveaux via `monProfil`.
-        - Unités militaires via AJAX vers `/Armee.php` et parsing via `Armee.parseHtml`.
-    - Le message est correctement formaté (liste "Nom: Valeur", sans pseudo, avec Ouvrières).
-    - L'ID du sujet forum est récupéré (soit depuis `monProfil.sujetForum`, soit via `consulterSection`).
-    - Le message est envoyé au bon sujet via `envoyerMessage`.
-    - Un feedback visuel (chargement, désactivation bouton) et des notifications (succès/erreur) sont présents (logique déplacée).
-- **Préparation Forum:** La fonction "Préparer le forum pour un SDC" sauvegarde maintenant automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre".
-- **Vérification et Mise à Jour Automatique des IDs Forum:** Implémentation de la logique dans `PageForum.js` (`traitementSection`) pour vérifier et mettre à jour automatiquement les IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dans les paramètres de l'extension si elles sont présentes sur la page du forum et que les IDs stockés sont incorrects ou manquants. Un popup de notification est affiché en cas de mise à jour.
+## What works
+- **Basic Structure:** The extension injects correctly, initializes global data and UI components. Page routing works.
+- **Global UI Components:** The toolbar (`Dock`) and info box (`BoiteComptePlus`) display and update (layings, constructions, etc.).
+- **Specific Functionalities (Existing):** Tools present on different pages (Army, Resources, Forum, etc.) are functional (subject to non-regression).
+- **"Recensement" Functionality:**
+    - The button has been moved from `BoiteComptePlus` to the Alliance Members page (`PageAlliance.js`), **between** the "Refresh Alliance" and "Column" buttons.
+    - The style uses the standard `.dt-button` class, with a custom font (1.1em, bold). Horizontal spacing is ensured by a left margin added to the Recensement button.
+    - Clicking triggers data retrieval (logic moved to `PageAlliance.js`):
+        - Resources, TDC, Workers via `Utils`.
+        - Levels via `monProfil`.
+        - Military units via AJAX to `/Armee.php` and parsing via `Armee.parseHtml`.
+    - The message is correctly formatted ("Name: Value" list, no pseudo, with Workers).
+    - The forum topic ID is retrieved (either from `monProfil.sujetForum` or via `consulterSection`).
+    - The message is sent to the correct topic via `envoyerMessage`.
+    - Visual feedback (loading, button deactivation) and notifications (success/error) are present (logic moved).
+- **Forum Preparation:** The "Prepare forum for SDC" function now automatically saves the IDs of the "Outiiil_Commande" and "Outiiil_Membre" sections.
+- **Automatic Forum ID Check and Update:** Logic implemented in `PageForum.js` (`traitementSection`) to automatically check and update the IDs of the "Outiiil_Commande" and "Outiiil_Membre" sections in the extension's parameters if they are present on the forum page and the stored IDs are incorrect or missing. A notification popup is displayed upon update.
+- **Command Table Date Column:** Implemented the addition of a "Date commande" column to the command table on the Commerce page, including fetching the creation date from the forum topic and handling the missing year.
+- **Commerce Page Error Fixes:**
+    - Corrected the `TypeError: this._utilitaire.chargerCommande(...).then is not a function` by ensuring `chargerCommande` in `js/page/Forum.js` returns a Promise.
+    - Corrected the `TypeError: Cannot read properties of null (reading 'nodeName')` and visual glitches in the command table by refactoring `js/page/Commerce.js` to use structured data with DataTables initialization (`data` option) and handling events via `createdRow`.
 
-## What's Left to Build / Verify
-- **Tests Approfondis "Recensement" (sur page Alliance):**
-    - Vérifier l'affichage, l'ordre et le style du bouton sur la page Membres Alliance.
-    - Tester le clic avec un ID de sujet forum déjà connu dans `monProfil`.
-    - Tester le clic sans ID de sujet forum connu (vérifier la recherche via `consulterSection`).
-    - Tester avec différentes compositions d'armée (présence/absence de certaines unités).
-    - Tester la gestion des erreurs (échec AJAX, sujet non trouvé, erreur forum).
-- **Vérification Générale:** S'assurer qu'aucune régression n'a été introduite dans les autres fonctionnalités suite aux modifications récentes (notamment dans `ComptePlus.js`).
+## What's left to build
+- **In-depth "Recensement" Tests (on Alliance page):**
+    - Verify the display, order, and style of the button on the Alliance Members page.
+    - Test clicking with a forum topic ID already known in `monProfil`.
+    - Test clicking without a known forum topic ID (verify search via `consulterSection`).
+    - Test with different army compositions (presence/absence of certain units).
+    - Test error handling (AJAX failure, topic not found, forum error).
+- **General Verification:** Ensure no regressions have been introduced in other functionalities following recent modifications (especially in `ComptePlus.js`).
+- **Verification of Commerce Page Fixes:** Confirm that the errors on the Commerce page are resolved and the command table displays and functions correctly.
 
-## Current Status
-La fonctionnalité "Recensement" a été déplacée vers la page Membres Alliance et est considérée comme complète du point de vue de l'implémentation, en attente de tests et validation utilisateur dans son nouvel emplacement. L'amélioration de la fonction "Préparer le forum..." est toujours considérée comme terminée.
-[2025-04-21 20:06:36] - La vérification et la mise à jour automatique des IDs des sections forum Outiiil, ainsi que la notification associée, ont été implémentées dans `PageForum.js`.
+## Current status
+The "Recensement" functionality has been moved to the Alliance Members page and is considered complete from an implementation standpoint, awaiting user testing and validation in its new location. The improvement to the "Prepare forum..." function is still considered complete. The automatic check and update of Outiiil forum section IDs, along with the associated notification, have been implemented in `PageForum.js`. The "Date commande" column functionality has been implemented. **Corrections for errors on the Commerce page related to command loading and table display have been implemented and are awaiting user verification.** Le problème d'affichage "Invalid date" pour la colonne "Date commande" a été résolu.
 
-## Known Issues
-- **Dépendance au DOM:** Comme toute extension de ce type, elle reste sensible aux modifications du site Fourmizzz.
-- **Performance AJAX Recensement:** L'appel AJAX pour les unités introduit un léger délai au clic, ce qui était un compromis accepté pour la fraîcheur des données.
+## Known issues
+- **DOM Dependency:** Like any extension of this type, it remains sensitive to modifications of the Fourmizzz site.
+- **Recensement AJAX Performance:** The AJAX call for units introduces a slight delay on click, which was an accepted compromise for data freshness.
 
-## Evolution of Decisions
-- **Emplacement Bouton Recensement:** Déplacé de `BoiteComptePlus` vers `PageAlliance` (entre "Actualiser" et "Colonne") pour une meilleure pertinence contextuelle et un accès direct.
-- **Récupération Unités (Recensement):** Passage d'une sauvegarde lors de la visite de `/Armee.php` à une récupération AJAX à la volée pour privilégier la fraîcheur des données (décision maintenue).
-- **Sauvegarde ID Forum:** Passage d'une détection différée à une sauvegarde immédiate lors de la création des sections pour plus de fiabilité (décision maintenue).
-[2025-04-24 22:17:00] - Modification de la gestion des commandes de ressources pour stocker le montant total demandé et le montant déjà livré (au lieu du montant restant) dans `js/class/Commande.js`. Ajustement des getters, `parseUtilitaire`, `ajouteConvoi`, `estValide`, `ajouterEvent` et `toHTML`. La boîte de dialogue de modification (`js/boite/Commande.js`) a été mise à jour pour ne modifier que le montant total demandé. Un problème d'affichage de la quantité restante a été diagnostiqué comme étant lié à des données incorrectes enregistrées dans le forum pour une commande spécifique, et non à un bug dans le code de calcul ou d'affichage. Le code de débogage temporaire a été retiré.
-
-[2025-04-24 23:34:25] - Tâche terminée : Créer une nouvelle colonne pour faire apparaître la quantité demandée dans le tableau des commandes et différencier les colonnes de quantité.
+## Evolution of project decisions
+- **Recensement Button Location:** Moved from `BoiteComptePlus` to `PageAlliance` (between "Refresh" and "Column") for better contextual relevance and direct access.
+- **Unit Retrieval (Recensement):** Switched from saving when visiting `/Armee.php` to on-the-fly AJAX retrieval to prioritize data freshness (decision maintained).
+- **Forum ID Saving:** Switched from delayed detection to immediate saving upon section creation for more reliability (decision maintained).
+- **Resource Order Management:** Modified resource order management to store the total requested amount and the amount already delivered (instead of the remaining amount) in `js/class/Commande.js`. Adjusted getters, `parseUtilitaire`, `ajouteConvoi`, `estValide`, `ajouterEvent`, and `toHTML`. The modification dialog (`js/boite/Commande.js`) has been updated to only modify the total requested amount. An issue with displaying the remaining quantity was diagnosed as being related to incorrect data saved in the forum for a specific order, not a bug in the calculation or display code. Temporary debugging code has been removed.
+- **Order Table Display:** Created a new column to display the requested quantity in the orders table and differentiated quantity columns for better clarity ('Qté demandée' and 'Qté à livrer'). Adjusted DataTables configuration and centered material columns.

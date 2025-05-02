@@ -258,4 +258,33 @@ class Utils
         }
         return element;
     }
+
+    /**
+     * Parse une chaîne de date du forum (format "jour mois à heurehminute")
+     * et gère l'année manquante en utilisant l'année la plus récente.
+     *
+     * @static
+     * @method parseForumDate
+     * @param {String} dateString La chaîne de date à parser.
+     * @return {Object} Un objet moment représentant la date parsée.
+     */
+    static parseForumDate(dateString) {
+        // Le format de la date est "D MMMM [à] HH[h]mm"
+        // moment.js peut avoir besoin des locales chargées pour les noms de mois.
+        // Remplacer les espaces insécables par des espaces normaux
+        let cleanedDateString = dateString.replace(/\u00A0/g, ' ');
+        // Le format de la date est "D MMMM [à] HH[h]mm"
+        // moment.js peut avoir besoin des locales chargées pour les noms de mois.
+        // Assurez-vous que la locale 'fr' est chargée.
+        let parsedDate = moment(cleanedDateString, "D MMMM [à] HH[h]mm", 'fr', true);
+
+        // Si la date est valide mais n'a pas d'année (moment le gère en utilisant l'année en cours par défaut)
+        // et que la date parsée est dans le futur par rapport à maintenant,
+        // cela signifie que l'année correcte est l'année précédente.
+        if (parsedDate.isValid() && parsedDate.isAfter(moment())) {
+            parsedDate.subtract(1, 'year');
+        }
+
+        return parsedDate;
+    }
 }

@@ -229,23 +229,59 @@ class PageForum
     chargerCommande(data)
     {
         let response = $(data).find("cmd:eq(1)").text();
-        if(response.includes("Vous n'avez pas accès à ce forum."))
+        if(response.includes("Vous n'avez pas accès à ce forum.")) {
             $.toast({...TOAST_ERROR, text : "L'identifiant du sujet pour les commandes est érroné."});
-        else{
-            let commande = null;
-            $("<div/>").append(response).find("#form_cat tr:gt(0)").each((i, elt) => {
-                let titreSujet = $(elt).find("td:eq(1)").text().trim(), id = -1;
-                // les lignes des commandes ont 3 td et du contenu
-                if(titreSujet){
-                    id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
-                    commande = new Commande();
-                    let infos = titreSujet.split("] ")[1].split(" / ");
-                    this._commande[id] = commande.parseUtilitaire(id, $(elt).next().find("a").text(), titreSujet.split("] ")[0].split("[")[1], infos, $(elt).find("td:last :not(a)").contents().filter(function(){return (this.nodeType === 3);}).text());
+            return false;
+        } else {
+            let sujetElements = $("<div/>").append(response).find("#form_cat tr:gt(0)");
+            let sujetsAConsulter = [];
+
+            sujetElements.each((i, elt) => {
+                let titreSujet = $(elt).find("td:eq(1)").text().trim();
+                if (titreSujet) {
+                    let etat = titreSujet.split("] ")[0].split("[")[1];
+                    // Filtrer les sujets selon les états souhaités
+                    if (etat === "Nouvelle" || etat === "En cours" || etat === "En attente") {
+                        let id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
+                        sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet });
+                    }
                 }
             });
-            return true;
+
+            if (sujetsAConsulter.length === 0) {
+                // Aucune commande à afficher
+                return true;
+            }
+
+            let promises = sujetsAConsulter.map(sujet => this.consulterSujet(sujet.id));
+
+            Promise.all(promises).then(results => {
+                results.forEach((sujetData, index) => {
+                    let sujetInfo = sujetsAConsulter[index];
+                    let commande = new Commande();
+                    let infos = sujetInfo.titreSujet.split("] ")[1].split(" / ");
+                    let etat = sujetInfo.titreSujet.split("] ")[0].split("[")[1];
+
+                    // Extraire la date du premier message
+                    let sujetHtml = $("<div/>").append($(sujetData).find("cmd:eq(1)").text());
+                    let dateCreationText = sujetHtml.find(".auteurForum:first span").text().trim();
+                    let dateCreation = Utils.parseForumDate(dateCreationText);
+
+                    this._commande[sujetInfo.id] = commande.parseUtilitaire(sujetInfo.id, $(sujetInfo.element).next().find("a").text(), etat, infos, $(sujetInfo.element).find("td:last :not(a)").contents().filter(function(){return (this.nodeType === 3);}).text());
+                    this._commande[sujetInfo.id].dateCommande = dateCreation; // Assigner la date de création
+                });
+
+                // Appeler la fonction de rappel pour indiquer que le chargement est terminé
+                // Je dois trouver comment déclencher l'affichage du tableau dans PageCommerce.js
+                // Je vais relire PageCommerce.js pour voir comment chargerCommande est utilisé.
+                // En attendant, je ne retourne rien ici car le processus est asynchrone.
+                // La fonction appelante dans PageCommerce.js attend une Promise.
+                // Je vais ajuster le code appelant dans PageCommerce.js ensuite.
+            });
+
+            // Retourne la Promise pour que l'appelant puisse attendre la fin du chargement
+            return Promise.all(promises);
         }
-        return false;
     }
     /**
     *
