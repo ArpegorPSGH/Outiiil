@@ -308,6 +308,8 @@ class Commande
     */
     estValide()
     {
+        if (this._totalNourritureDemandee <= 0 && this._totalMateriauxDemandes <= 0)
+            return "La quantité totale de nourriture ou de matériaux demandée doit être supérieure à zéro.";
         if(this._totalNourritureDemandee < 0)
             return "Quantité totale de nourriture demandée incorrecte.";
         if(this._totalMateriauxDemandes < 0)

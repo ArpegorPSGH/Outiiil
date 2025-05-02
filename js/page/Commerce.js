@@ -387,6 +387,15 @@ class PageCommerce
 	{
         $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>").after(` <button id='o_resetConvoi'>Effacer</button>`).click((e) => {
             let idCommande = $("#o_idCommande").val();
+            let materiaux = numeral($("#nbMateriaux").val()).value();
+            let nourriture = numeral($("#nbNourriture").val()).value();
+
+            if (materiaux === 0 && nourriture === 0) {
+                $.toast({...TOAST_ERROR, text : "Impossible de lancer un convoi vide."});
+                e.preventDefault();
+                return false;
+            }
+
             if(idCommande != -1){ // Enrengistrement du convoi
                 e.preventDefault();
                 let monConvoi = new Convoi({

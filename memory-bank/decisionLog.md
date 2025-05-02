@@ -1,2 +1,0 @@
-# Decision Log: Outiiil
-[2025-04-24 23:34:34] - Décision prise d'ajouter une colonne pour la quantité demandée dans le tableau des commandes. Les colonnes de quantité seront nommées 'Qté demandée' et 'Qté à livrer' pour une meilleure clarté.

@@ -21,6 +21,8 @@
 - **Commerce Page Error Fixes:**
     - Corrected the `TypeError: this._utilitaire.chargerCommande(...).then is not a function` by ensuring `chargerCommande` in `js/page/Forum.js` returns a Promise.
     - Corrected the `TypeError: Cannot read properties of null (reading 'nodeName')` and visual glitches in the command table by refactoring `js/page/Commerce.js` to use structured data with DataTables initialization (`data` option) and handling events via `createdRow`.
+- **Détection Convoi Nul:** Ajout d'une logique dans le handler du bouton "lancer le convoi" dans `js/page/Commerce.js` pour détecter si les quantités de matériaux et de nourriture sont toutes deux à zéro et afficher un message d'erreur toast si c'est le cas.
+- **Validation Commande Nulle/Négative :** La méthode `estValide` dans `js/class/Commande.js` a été modifiée pour bloquer la création de commandes si la quantité totale de nourriture ET la quantité totale de matériaux demandés sont inférieures ou égales à zéro.
 
 ## What's left to build
 - **In-depth "Recensement" Tests (on Alliance page):**
