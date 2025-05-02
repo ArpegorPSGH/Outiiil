@@ -141,6 +141,7 @@ class PageCommerce
                 const rowData = [
                     commande.demandeur.getLienFourmizzz(), // Pseudo
                     moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
+                    EVOLUTION[commande.evolution], // Évolution
                     numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
                     numeral(commande.totalMateriauxDemandes).format(), // Qté demandée Matériaux
                     numeral(commande.nourriture).format(), // Qté à livrer Nourriture
@@ -190,8 +191,8 @@ class PageCommerce
 
         // Créer la structure HTML du tableau (sans les lignes de données)
         let contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>
-            <tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='12'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
+            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Évolution</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Echéance</th><th>Status</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>
+            <tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='13'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
 
         $("#centre .Bas").before(contenu);
 
@@ -203,7 +204,7 @@ class PageCommerce
             bAutoWidth : false,
             dom : "Bfrti",
             buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            order : [[6, "desc"]], // Index de colonne ajusté pour l'échéance
+            order : [[7, "desc"]], // Index de colonne ajusté pour l'échéance
             stripeClasses : ["", "ligne_paire"],
             responsive : true,
             language : {
@@ -215,11 +216,12 @@ class PageCommerce
             },
             columnDefs : [
                 {targets: 1, title: "Date commande", visible: false}, // Nouvelle colonne Date commande
-                {type : "quantite-grade", targets : [4, 5]}, // Indices ajustés
-                {type : "moment-D MMM YYYY", targets : 6}, // Indice ajusté
-                {type : "time-unformat", targets : 9}, // Indice ajusté
-                {sortable : false, targets : [10, 11]}, // Indices ajustés
-                {visible: false, targets: [2, 3]} // Indices ajustés pour les quantités demandées
+                {targets: 2, title: "Évolution", visible: false}, // Nouvelle colonne Évolution
+                {type : "quantite-grade", targets : [5, 6]}, // Indices ajustés
+                {type : "moment-D MMM YYYY", targets : 7}, // Indice ajusté
+                {type : "time-unformat", targets : 10}, // Indice ajusté
+                {sortable : false, targets : [11, 12]}, // Indices ajustés
+                {visible: false, targets: [3, 4]} // Indices ajustés pour les quantités demandées
             ],
             // Ajouter des render functions pour attacher les événements si nécessaire
             // ou utiliser la délégation d'événements après l'initialisation du tableau
@@ -295,6 +297,7 @@ class PageCommerce
                 const rowData = [
                     commande.demandeur.getLienFourmizzz(), // Pseudo
                     moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
+                    EVOLUTION[commande.evolution], // Évolution
                     numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
                     numeral(commande.totalMateriauxDemandes).format(), // Qté demandée Matériaux
                     numeral(commande.nourriture).format(), // Qté à livrer Nourriture
@@ -339,7 +342,7 @@ class PageCommerce
         // for(let id of tabCommandeAff)
         //     this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
         // mise à jour du tfoot
-        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='12'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`); // colspan ajusté
+        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='13'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`); // colspan ajusté
         return this;
     }
     /**
@@ -376,7 +379,7 @@ class PageCommerce
             this.plus();
         }
         return this;
-    }
+	}
     /**
 	* Modifie le bouton d'envoie des convois pour prendre ne compte l'utilitaire.
     *

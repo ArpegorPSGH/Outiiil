@@ -31,14 +31,26 @@ Déplacement et finalisation de la fonctionnalité "Recensement".
     - **Correction "Invalid date":** Résolution du problème d'affichage "Invalid date" pour la colonne "Date commande" en modifiant la fonction `Utils.parseForumDate` pour gérer correctement les espaces insécables présents dans la chaîne de date extraite du forum. (2025-05-02)
 - **Détection Convoi Nul:** Ajout d'une logique dans le handler du bouton "lancer le convoi" dans `js/page/Commerce.js` pour détecter si les quantités de matériaux et de nourriture sont toutes deux à zéro et afficher un message d'erreur toast si c'est le cas. (2025-05-02)
 - **Validation Commande Nulle/Négative :** Modification de la méthode `estValide` dans `js/class/Commande.js` pour bloquer la création de commandes si la quantité totale de nourriture ET la quantité totale de matériaux demandés sont inférieures ou égales à zéro. (2025-05-02)
+- **Ajout Colonne Évolution:** Ajout d'une colonne "Évolution" masquée par défaut dans le tableau des commandes sur la page Commerce (`js/page/Commerce.js`). La colonne affiche le nom de l'évolution (construction, recherche, nourriture ou matériaux) en utilisant l'index stocké dans `commande.evolution` et le tableau `EVOLUTION` de `js/content.js`. Les méthodes `afficherCommande` et `actualiserCommande` ont été modifiées pour inclure cette colonne dans les données du tableau et ajuster la configuration DataTables (`columnDefs` et `colspan` du `tfoot`). (2025-05-02)
+- **Correction Erreur DataTables (Colonne Évolution):** Correction de l'erreur DataTables "Requested unknown parameter '12'" en ajoutant la donnée de l'évolution (`EVOLUTION[commande.evolution]`) dans le tableau `rowData` pour chaque ligne de commande et en ajustant correctement les indices des colonnes dans la configuration `columnDefs` de DataTables dans les méthodes `afficherCommande` et `actualiserCommande` de `js/page/Commerce.js`. (2025-05-02)
 
 ## Next Steps
 - **Tests Utilisateur:** Vérifier le bon functioning de la fonctionnalité "Recensement" sur la page Membres Alliance.
 - **Validation Finale:** Confirmer que le bouton Recensement s'affiche correctement, a le bon style, et que la fonctionnalité de post est opérationnelle.
+- **Validation Colonne Évolution:** Vérifier que la colonne "Évolution" s'affiche correctement lorsqu'elle est rendue visible via le bouton "Colonne" de DataTables et que les informations affichées sont correctes.
 
 ## Active Considerations & Patterns
 - **Contexte d'Exécution:** La logique du Recensement s'exécute maintenant uniquement lorsque l'utilisateur est sur la page Membres Alliance.
-- **Dépendance DOM:** La fonction Recensement dépend toujours du parsing du DOM de `/Armee.php` (via AJAX) et des IDs pour les ressources/ouvrières (via `Utils`). L'ajout du bouton dépend de la structure DOM de la page Alliance Membres (spécifiquement `#tabMembresAlliance_wrapper .dt-buttons`).
+- **Dépendance DOM:** La fonction Recensement dépend toujours du parsing du DOM de `/Armee.php` (via AJAX) et des IDs pour les ressources/ouvrières (via `Utils`). L'ajout du bouton dépend de la structure DOM de la page Alliance Membres (spécifiquement `#tabMembresAlliance_wrapper .dt-buttons`). L'affichage de la colonne "Évolution" dépend de la structure du tableau DataTables sur la page Commerce.
 - **Gestion Erreurs:** La logique `try...catch...finally` est conservée.
 - **Asynchronisme:** Utilisation de `async/await` conservée.
 - **Gestion des IDs Forum:** La logique de vérification et de mise à jour des IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dépend de la présence de ces sections sur la page du forum et de la structure DOM pour extraire l'ID.
+
+## Evolution of project decisions
+- **Recensement Button Location:** Moved from `BoiteComptePlus` to `PageAlliance` (between "Refresh" and "Column") for better contextual relevance and direct access.
+- **Unit Retrieval (Recensement):** Switched from saving when visiting `/Armee.php` to on-the-fly AJAX retrieval to prioritize data freshness (decision maintained).
+- **Forum ID Saving:** Switched from delayed detection to immediate saving upon section creation for more reliability (decision maintained).
+- **Resource Order Management:** Modified resource order management to store the total requested amount and the amount already delivered (instead of the remaining amount) in `js/class/Commande.js`. Adjusted getters, `parseUtilitaire`, `ajouteConvoi`, `estValide`, `ajouterEvent`, and `toHTML`. The modification dialog (`js/boite/Commande.js`) has been updated to only modify the total requested amount. An issue with displaying the remaining quantity was diagnosed as being related to incorrect data saved in the forum for a specific order, not a bug in the calculation or display code. Temporary debugging code has been removed.
+- **Order Table Display:** Created a new column to display the requested quantity in the orders table and differentiated quantity columns for better clarity ('Qté demandée' et 'Qté à livrer'). Adjusted DataTables configuration and centered material columns.
+- **Date Column Implementation:** Added a "Date commande" column to the Commerce page table, involving parsing forum topic creation dates.
+- **Evolution Column Implementation:** Added an "Évolution" column to the Commerce page table, displaying the type of evolution based on the command data.
