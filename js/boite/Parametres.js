@@ -101,7 +101,7 @@ class BoiteParametre extends Boite
     {
         let content = ``;
         for(let param of this._paramUtilitaire) content += monProfil.parametre[param].getForm();
-        $("#o_tabsParametre2").append(`<p class='left reduce gras'>Saisissez les identifiants des sujets de votre utilitaire</p><form>${content}</form>`);
+        $("#o_tabsParametre2").append(`<p class='left reduce gras'>Saisissez les identifiants des sections de votre utilitaire</p><form>${content}</form>`);
         return this;
     }
     /**

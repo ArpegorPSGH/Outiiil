@@ -2,7 +2,7 @@
 
 ## Technologies Used
 - **Type:** Browser Extension (Chrome, currently Manifest V2)
-- **Primary Language:** JavaScript (ES6+)
+- **Primary Language:** JavaScript (ES6+, incluant l'utilisation de `async/await` pour les opérations asynchrones)
 - **Frontend Libraries:**
     - jQuery
     - Moment.js

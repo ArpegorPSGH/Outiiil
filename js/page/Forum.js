@@ -446,4 +446,41 @@ class PageForum
         }
         return this;
     }
+    /**
+     * Vérifie si un sujet existe pour le joueur dans la section membres.
+     *
+     * @private
+     * @method verifierSujetMembre
+     * @param {string} idSectionMembres L'identifiant de la section membres du forum.
+     * @param {string} pseudoJoueur Le pseudo du joueur à vérifier.
+     * @returns {Promise<boolean>} Une promesse qui résout avec true si le sujet existe, false sinon.
+     */
+    async verifierSujetMembre(idSectionMembres, pseudoJoueur) {
+        try {
+            const data = await this.consulterSection(idSectionMembres);
+            const response = $(data).find("cmd:eq(1)").text();
+
+            if (response.includes("Vous n'avez pas accès à ce forum.")) {
+                console.warn("Accès refusé à la section forum des membres.");
+                return false;
+            }
+
+            const sujetElements = $("<div/>").append(response).find("#form_cat tr:gt(0)");
+            let sujetTrouve = false;
+
+            sujetElements.each((i, elt) => {
+                const titreSujet = $(elt).find("td:eq(1)").text().trim();
+                if (titreSujet.startsWith(pseudoJoueur + " /")) {
+                    sujetTrouve = true;
+                    return false; // Sortir de la boucle .each()
+                }
+            });
+
+            return sujetTrouve;
+        } catch (error) {
+            console.error("Erreur lors de la vérification du sujet membre:", error);
+            // En cas d'erreur, on considère que le sujet n'a pas pu être vérifié, donc on retourne false
+            return false;
+        }
+    }
 }

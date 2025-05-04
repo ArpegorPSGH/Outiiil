@@ -49,7 +49,7 @@ The extension follows a **Content Script** model for Chrome extensions. The main
 ## Critical implementation paths
 - **Data Access**: Via the `monProfil` instance and the static `Utils` class.
 - **Persistence**: Via `localStorage` for parameters, player profile, and evolution state.
-- **Asynchronous Requests**: Use of `$.ajax` (jQuery Promises) and `async/await` for network calls. This is notably used for fetching forum data, including consulting individual topics to get the creation date of commands.
+- **Asynchronous Requests**: Use of `$.ajax` (jQuery Promises) and `async/await` for network calls. This is notably used for fetching forum data, including consulting individual topics to get the creation date of commands, and verifying the existence of a player's topic in a forum section (`PageForum.verifierSujetMembre`).
 - **Recensement Functionality Flow**:
     1.  Click on button (`PageAlliance.js`).
     2.  AJAX call to `/Armee.php`.
@@ -65,11 +65,24 @@ The extension follows a **Content Script** model for Chrome extensions. The main
     9.  Display notification (`$.toast`).
 - **Command Loading Flow**:
     1.  Navigate to Commerce page (`PageCommerce.js`).
-    2.  Call `forumManager.consulterSection` to get the list of topics in the command section.
-    3.  Filter topics based on their state ('Nouvelle', 'En cours', 'En attente').
-    4.  For each filtered topic, call `forumManager.consulterSujet` to get the topic content.
-    5.  Use `Promise.all` to wait for all topic content to be fetched.
-    6.  Parse the first message of each topic content to extract the creation date using `Utils.parseForumDate`.
-    7.  Create `Commande` objects with the extracted data, including the creation date.
-    8.  Store `Commande` objects in `forumManager._commande`.
-    9.  Call `PageCommerce.afficherCommande` to display the table using the loaded command data.
+    2.  Check if `forumCommande` and `forumMembre` parameters are configured.
+    3.  If configured, call `PageForum.verifierSujetMembre` to check for the player's topic in the members section.
+    4.  If the topic exists:
+        a. Call `forumManager.consulterSection` to get the list of topics in the command section.
+        b. Filter topics based on their state ('Nouvelle', 'En cours', 'En attente').
+        c. For each filtered topic, call `forumManager.consulterSujet` to get the topic content.
+        d. Use `Promise.all` to wait for all topic content to be fetched.
+        e. Parse the first message of each topic content to extract the creation date using `Utils.parseForumDate`.
+        f. Create `Commande` objects with the extracted data, including the creation date.
+        g. Store `Commande` objects in `forumManager._commande`.
+        h. Call `PageCommerce.afficherCommande` to display the table using the loaded command data.
+    5.  If parameters are not configured or the player's topic does not exist, the command table is not displayed.
+- **Alliance Members Page Flow (Partial Update)**:
+    1.  Navigate to Alliance page (`PageAlliance.js`).
+    2.  Check if `forumMembre` parameter is configured.
+    3.  If configured, call `PageForum.verifierSujetMembre` to check for the player's topic in the members section.
+    4.  If the topic exists:
+        a. Call `forumManager.consulterSection` to get member data.
+        b. If successful, call `PageAlliance.traitementUtilitaire` to add supplementary columns and process data.
+    5.  If the parameter is not configured or the player's topic does not exist, call `PageAlliance.tableau` to display the basic table without supplementary columns.
+    6.  The display of "Actualiser l'alliance" and "Recensement" buttons is still solely based on the presence of the edit icon (`images/crayon.gif`), which indicates in-game administration rights.

@@ -9,7 +9,7 @@ Outiiil addresses the lack of certain tools and the decentralization of informat
 ## How it should work
 Outiiil injects itself into the pages of the Fourmizzz game to:
 1.  **Centralize Information:** Display a quick overview of current layings, constructions, research, and troop movements in a dedicated box.
-2.  **Provide Contextual Tools:** Add buttons, calculators, and visual aids on specific pages (Army, Resources, Forum, Profiles, etc.) to simplify common actions. This includes enhancing the command table on the Commerce page with additional information like the command creation date.
+2.  **Provide Contextual Tools:** Add buttons, calculators, and visual aids on specific pages (Army, Resources, Forum, Profiles, etc.) to simplify common actions. This includes enhancing the command table on the Commerce page with additional information like the command creation date, and adding supplementary columns on the Alliance members page. Access to these features is conditional on the user having a dedicated topic in the configured Alliance Members forum section.
 3.  **Facilitate Alliance Communication:** Enable coordinated actions via the internal forum (e.g., SDC management, sharing statistics via the "Recensement" function).
 
 ## User experience goals

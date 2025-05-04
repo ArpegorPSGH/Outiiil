@@ -55,22 +55,44 @@ class PageCommerce
         });
         // option c+
         if(!Utils.comptePlus) this.plus();
-        // Si on dispose d'un utilitaire pour le commerce on affiche les outils
-        if(monProfil.parametre["forumCommande"].valeur){
-            // recuperation des commandes sur l'utilitaire
-            this._utilitaire.consulterSection(monProfil.parametre["forumCommande"].valeur).then((data) => {
-                // chargerCommande retourne maintenant une Promise
-                this._utilitaire.chargerCommande(data).then(() => {
-                    this.afficherCommande();
-                }).catch((error) => {
-                    // Gérer les erreurs de chargerCommande si nécessaire
-                    console.error("Erreur lors du chargement des commandes:", error);
-                });
-            }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes."});
+
+        // Si on dispose d'un utilitaire pour le commerce ET que le joueur a un sujet dans la section membres
+        const idSectionCommande = monProfil.parametre["forumCommande"].valeur;
+        const idSectionMembre = monProfil.parametre["forumMembre"].valeur;
+        const pseudoJoueur = monProfil.pseudo;
+
+        if (idSectionCommande && idSectionMembre) {
+            this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur).then(sujetExiste => {
+                if (sujetExiste) {
+                    // recuperation des commandes sur l'utilitaire
+                    this._utilitaire.consulterSection(idSectionCommande).then((data) => {
+                        // chargerCommande retourne maintenant une Promise
+                        this._utilitaire.chargerCommande(data).then(() => {
+                            this.afficherCommande();
+                        }).catch((error) => {
+                            // Gérer les erreurs de chargerCommande si nécessaire
+                            console.error("Erreur lors du chargement des commandes:", error);
+                        });
+                    }, (jqXHR, textStatus, errorThrown) => {
+                        $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes."});
+                    });
+                    this.formulaireConvoi();
+                } else {
+                    console.log("Sujet membre non trouvé. Le tableau des commandes ne sera pas affiché.");
+                    // Optionnel: Afficher un message à l'utilisateur
+                    // $.toast({...TOAST_INFO, text : "Votre sujet membre n'a pas été trouvé. Le tableau des commandes n'est pas disponible."});
+                }
+            }).catch(error => {
+                console.error("Erreur lors de la vérification du sujet membre:", error);
+                // Optionnel: Afficher un message d'erreur
+                // $.toast({...TOAST_ERROR, text : "Erreur lors de la vérification de votre sujet membre."});
             });
-            this.formulaireConvoi();
+        } else {
+             console.log("Paramètres forumCommande ou forumMembre non configurés. Le tableau des commandes ne sera pas affiché.");
+             // Optionnel: Afficher un message à l'utilisateur
+             // $.toast({...TOAST_INFO, text : "Les paramètres du forum ne sont pas configurés. Le tableau des commandes n'est pas disponible."});
         }
+
         return this;
     }
 	/**
