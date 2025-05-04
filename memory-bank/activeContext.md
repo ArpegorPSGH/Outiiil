@@ -58,6 +58,8 @@ Déplacement du bouton "Recensement" pour qu'il soit conditionné par l'existenc
 - **Gestion Erreurs:** La logique `try...catch...finally` est conservée.
 - **Asynchronisme:** Utilisation de `async/await` conservée, notamment pour la nouvelle fonction `verifierSujetMembre` et son intégration dans les flux des pages Commerce et Alliance.
 - **Gestion des IDs Forum:** La logique de vérification et de mise à jour des IDs des sections "Outiiil_Commande" et "Outiiil_Membre" dépend de la présence de ces sections sur la page du forum et de la structure DOM pour extraire l'ID.
+- **Accès aux Fonctionnalités Futures:** Sauf exception, les fonctionnalités futures seront restreintes en accès soit aux membres avec des droits d'administration du forum ou de l'alliance, soit aux membres possédant un sujet dans la section membres du forum.
+- **Modèle de Création et Gestion des Sections:** Les futures sections créées via l'extension devront suivre le même modèle de création, de gestion et mise à jour des IDs, et de vérification d’existence pour activer la fonctionnalité attachée que les sections actuellement utilisées ("Outiiil_Commande", "Outiiil_Membre").
 
 ## Evolution of project decisions
 - **Recensement Button Location:** Moved from `BoiteComptePlus` to `PageAlliance` (between "Refresh" and "Column") for better contextual relevance and direct access. The button's display is now conditioned by the existence of the player's member topic, not administration rights.
