@@ -4,11 +4,10 @@
 Permettre aux joueurs de communiquer et s'organiser facilement pour donner des troupes en sacrifice, sans qu'il y ait de télescopage d'armées.
 
 ## Fonctionnement Détaillé
-- Possibilité d’opt-in/out
-- Pour chaque unité hors ouvrières, proposer de définir un nombre et préciser s’il est gardé ou donné
+- Pour chaque unité hors ouvrières, proposer de définir un nombre et préciser s’il est gardé ou donné (par défaut en mode donné et une quantité de 0)
 - Si donné, le nombre exposé sera le minimum entre le nombre réel et ce nombre
 - Si gardé, le nombre exposé sera le maximum entre 0 et le nombre réel moins ce nombre
-- Les joueurs participant et leurs unités exposées ainsi que les demandes en cours, et leurs niveaux de bouclier, loge et armes seront affichées dans un tableau
+- Les joueurs dont le nombre d'unité exposé est non nul seront affichés dans un tableau avec leurs unités exposées ainsi que les demandes en cours, et leurs niveaux de bouclier, loge et armes 
 - Un joueur pourra effectuer une demande auprès d’un autre dont les montants sont inférieurs ou égaux aux disponibles (égaux par défaut) en précisant ses horaires (précision à la minute) de disponibilité pour lancer (demande modifiable ou annulable à tout moment)
 - Les joueurs pouvant donner/recevoir sont décidés par le conseil
 - Un joueur pourra accepter ou refuser une demande d’un autre et elle pourra être supprimée par le conseil
