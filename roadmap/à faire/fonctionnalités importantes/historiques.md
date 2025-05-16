@@ -5,7 +5,7 @@ Permettre la visualisation et l'exploration des historiques des joueurs et de l'
 
 ## Fonctionnement Détaillé
 Mettre en place affichage historiques :
-- Niveaux
+- Evolutions
 - Troupes
 - Ressources
 - TdC
@@ -14,6 +14,7 @@ Mettre en place affichage historiques :
 - Floods
 - Pex
 - Echange TdC
+- Statut membre (rang, priorité, coefficient, ajustement, droits accumulés)
 - Chaque joueur accède à ses historiques et ceux globaux de l'alliance
 - Le conseil a également accès aux historiques de chaque joueur
 

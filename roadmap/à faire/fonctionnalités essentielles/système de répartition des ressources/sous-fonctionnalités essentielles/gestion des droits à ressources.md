@@ -31,6 +31,7 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
 - Mise à jour :
     - A chaque début de minute de récolte (sur la base de la prochaine récolte enregistrée et le fait qu’elles ont lieu toutes les demi-heures), mettre à jour toutes les colonnes présentées dans l’image, de gauche à droite (sauf les colonnes de TdC à la dernière mise à jour et date de la dernière mise à jour qui sont mises à jour en dernier).
     - Lorsque le coefficient ou la liberté d’ajustement sont changés pour un joueur, mettre à jour les parts des joueurs ajustées
+- Si un joueur dont le coefficient est non nul n'a aucun recensement dans son sujet membres, ne pas mettre à jour les droits accumulés pour tous les joueurs de l'alliance et afficher une notification toast informant que la mise à jour est bloquée à cause de certains joueurs n'ayant pas effectué de recensement et indiquer leurs pseudos
 
 
 ## Plan d'Implémentation
