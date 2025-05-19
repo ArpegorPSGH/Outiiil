@@ -76,7 +76,9 @@ The extension follows a **Content Script** model for Chrome extensions. The main
         f. Create `Commande` objects with the extracted data, including the creation date.
         g. Store `Commande` objects in `forumManager._commande`.
         h. Call `PageCommerce.afficherCommande` to display the table using the loaded command data.
-    5.  If parameters are not configured or the player's topic does not exist, the command table is not displayed.
+        i. Call `forumManager.chargerConvois(forumManager._commande)` to get the list of ongoing convoys.
+        j. Call `PageCommerce.afficherConvoi` to display the convois in a separate table. L'affichage des convois est maintenant pleinement opérationnel.
+    5.  If parameters are not configured or the player's topic does not exist, the command and convoy tables are not displayed.
 - **Alliance Members Page Flow (Partial Update)**:
     1.  Navigate to Alliance page (`PageAlliance.js`).
     2.  Check if `forumMembre` parameter is configured.

@@ -7,4 +7,6 @@ Donner des droits accumulés lors d’un échange C+ vers TdC, et en retirer dan
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

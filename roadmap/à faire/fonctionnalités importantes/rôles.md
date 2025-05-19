@@ -7,4 +7,6 @@ Permettre la création de rôles à attribuer à chaque joueur, qui seront utili
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

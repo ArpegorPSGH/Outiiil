@@ -8,4 +8,6 @@ Intégrer la version modifiée du lanceur de chasses de Calystène à la place d
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

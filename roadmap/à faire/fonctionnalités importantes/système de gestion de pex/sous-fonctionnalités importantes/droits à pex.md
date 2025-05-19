@@ -7,4 +7,6 @@ Créer une métrique pour classer les demandes de pex afin de répartir équitab
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

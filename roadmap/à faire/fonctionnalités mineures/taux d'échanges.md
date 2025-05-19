@@ -7,4 +7,6 @@ Ajouter boîte Zzzelp taux d’échanges.
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

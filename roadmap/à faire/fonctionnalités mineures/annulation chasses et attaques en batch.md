@@ -9,4 +9,6 @@ Pouvoir annuler toutes les attaques ou chasses en cours en un clic.
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

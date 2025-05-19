@@ -17,6 +17,13 @@ Corriger l'orthographe de divers affichages.
 4.  Identifier les boutons avec le texte "copy" et modifier leur texte pour "copier".
 5.  Identifier et modifier la chaîne de texte "Prioritè du rang" pour la remplacer par "Priorité du rang" dans le fichier concerné (probablement `js/boite/Rang.js`).
 
+## Tests à effectuer
+1. Vérifier que le texte "Saisissez les identifiants des sujets de votre utilitaire" est remplacé par "Saisissez les identifiants des sections de votre utilitaire" dans les paramètres de l'utilitaire.
+2. Vérifier que l'orthographe des termes "Commandes" et "Membres" est correcte dans l'interface. S'assurer notamment que les en-têtes de colonnes dans le tableau des commandes sur la page Commerce sont "Échéance" et "Statut", et que l'en-tête de colonne "Etat" sur la page Alliance est "État".
+3. Vérifier que le message de notification "la mise à jour c’est correctement effectuée" est remplacé par "La mise à jour s’est correctement effectuée." lors d'une mise à jour réussie.
+4. Vérifier que les boutons avec le texte "copy" sont maintenant libellés "copier".
+5. Vérifier que le texte "Prioritè du rang" est remplacé par "Priorité du rang".
+
 ## Avancement
 Les points 1 et 2 du plan d'implémentation sont terminés et fonctionnels.
 - Le texte "Saisissez les identifiants des sujets de votre utilitaire" a été remplacé par "Saisissez les identifiants des sections de votre utilitaire".

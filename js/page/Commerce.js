@@ -69,26 +69,33 @@ class PageCommerce
                         // chargerCommande retourne maintenant une Promise
                         this._utilitaire.chargerCommande(data).then(() => {
                             this.afficherCommande();
+                            console.log("[PageCommerce] Appel de chargerConvois après chargement des commandes.");
+                            // Charger les convois après les commandes
+                            return this._utilitaire.chargerConvois(this._utilitaire.commande);
+                        }).then((convois) => {
+                            console.log("[PageCommerce] chargerConvois terminé. Convois reçus:", convois);
+                            // Actualiser le tableau des convois après le chargement initial
+                            this.actualiserConvois();
                         }).catch((error) => {
-                            // Gérer les erreurs de chargerCommande si nécessaire
-                            console.error("Erreur lors du chargement des commandes:", error);
+                            // Gérer les erreurs de chargement des commandes ou des convois
+                            console.error("[PageCommerce] Erreur lors du chargement des commandes ou des convois:", error);
                         });
                     }, (jqXHR, textStatus, errorThrown) => {
                         $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes."});
                     });
                     this.formulaireConvoi();
                 } else {
-                    console.log("Sujet membre non trouvé. Le tableau des commandes ne sera pas affiché.");
+                    console.log("[PageCommerce] Sujet membre non trouvé. Le tableau des commandes et des convois ne sera pas affiché.");
                     // Optionnel: Afficher un message à l'utilisateur
                     // $.toast({...TOAST_INFO, text : "Votre sujet membre n'a pas été trouvé. Le tableau des commandes n'est pas disponible."});
                 }
             }).catch(error => {
-                console.error("Erreur lors de la vérification du sujet membre:", error);
+                console.error("[PageCommerce] Erreur lors de la vérification du sujet membre:", error);
                 // Optionnel: Afficher un message d'erreur
                 // $.toast({...TOAST_ERROR, text : "Erreur lors de la vérification de votre sujet membre."});
             });
         } else {
-             console.log("Paramètres forumCommande ou forumMembre non configurés. Le tableau des commandes ne sera pas affiché.");
+             console.log("[PageCommerce] Paramètres forumCommande ou forumMembre non configurés. Le tableau des commandes ne sera pas affiché.");
              // Optionnel: Afficher un message à l'utilisateur
              // $.toast({...TOAST_INFO, text : "Les paramètres du forum ne sont pas configurés. Le tableau des commandes n'est pas disponible."});
         }
@@ -300,108 +307,63 @@ class PageCommerce
             let boiteCommande = new BoiteCommande(new Commande(), this._utilitaire, this);
             boiteCommande.afficher();
         });
-        // récuperation des convois sur l'utilitaire
-        this.afficherConvoi(tabCommandePersoEnCours);
-        return this;
-	}
-    /**
-    *
-    */
-    actualiserCommande()
-    {
-        let total = 0, totalRouge = 0, tabCommandeAff = new Array();
-        let tableData = []; // Tableau pour les données de DataTables
 
-        for(let id in this._utilitaire.commande){
-            if(this._utilitaire.commande[id].estAFaire()){
-                const commande = this._utilitaire.commande[id];
-                 // Construire un tableau de données pour chaque ligne
-                const rowData = [
-                    commande.demandeur.getLienFourmizzz(), // Pseudo
-                    moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
-                    EVOLUTION[commande.evolution], // Évolution
-                    numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
-                    numeral(commande.totalMateriauxDemandes).format(), // Qté demandée Matériaux
-                    numeral(commande.nourriture).format(), // Qté à livrer Nourriture
-                    numeral(commande.materiaux).format(), // Qté à livrer Matériaux
-                    moment(commande.dateSouhaite).format("D MMM YYYY"), // Echéance
-                    // Status (image ou croix)
-                    (() => {
-                        let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
-                        if(apres){
-                            let attente = commande.getAttente();
-                            switch(true){
-                                case attente > 0 : return `<img src='images/icone/3rondrouge.gif'/>`;
-                                case attente > -3 : return `<img src='images/icone/2rondorange.gif'/>`;
-                                default : return `<img src='images/icone/1rondvert.gif'/>`;
-                            }
-                        } else {
-                            return `<img src="${IMG_CROIX}" alt='supprimer' title='Ne pas livrer avant le ${moment(commande.dateApres).format("DD-MM-YYYY")}'/>`;
-                        }
-                    })(),
-                    // État
-                    `<span ${commande.etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === commande.etat)}</span>`,
-                    // Temps de trajet
-                    Utils.intToTime(monProfil.getTempsParcours2(commande.demandeur)),
-                    // Livrer (bouton ou vide)
-                    (() => {
-                        let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
-                        return apres && commande.etat == ETAT_COMMANDE["En cours"] ? `<a id='o_commande${commande.id}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>` : "";
-                    })(),
-                    // Options (boutons ou vide)
-                    (() => {
-                        return (commande.demandeur.pseudo == monProfil.pseudo) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
-                    })()
-                ];
-                tableData.push(rowData);
-                total += parseInt(commande.materiaux);
-                if(commande.estHorsTard()) totalRouge += parseInt(commande.materiaux);
-                tabCommandeAff.push(id);
-            }
-        }
-        $("#o_tableListeCommande").DataTable().clear().rows.add(tableData).draw(); // Utiliser les données structurées
-        // Les événements sont attachés via createdRow dans afficherCommande, pas besoin ici
-        // for(let id of tabCommandeAff)
-        //     this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
-        // mise à jour du tfoot
-        $("#o_tableListeCommande tfoot").html(`<tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='13'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr>`); // colspan ajusté
-        return this;
+        // Créer la structure HTML du tableau des convois
+        let contenuConvois = `<div id="o_listeConvoi" class="simulateur centre o_marginT15"><h2>Convois en cours</h2><table id='o_tableListeConvoi' class="o_maxWidth" cellspacing=0>
+            <thead><tr class="ligne_paire"><th>Expéditeur</th><th>Destinataire</th><th>${IMG_POMME}</th><th>${IMG_MAT}</th><th>Arrivée</th></tr></thead>
+            <tbody></tbody></table></div><br/>`;
+
+        $("#o_listeCommande").after(contenuConvois); // Ajouter après le tableau des commandes
+
+        // Initialiser DataTables pour le tableau des convois
+        $("#o_tableListeConvoi").DataTable({
+            data: [], // Les données seront ajoutées par actualiserConvois
+            bInfo : false,
+            bPaginate : false,
+            bAutoWidth : false,
+            dom : "Bfrti",
+            buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+            order : [[4, "asc"]], // Trier par date d'arrivée
+            stripeClasses : ["", "ligne_paire"],
+            responsive : true,
+            language : {
+                zeroRecords : "Aucun convoi en cours",
+                infoEmpty : "Aucun enregistrement",
+                infoFiltered : "(Filtré par _MAX_ enregistrements)",
+                search : "Rechercher : ",
+                buttons : {colvis : "Colonne"}
+            },
+            columnDefs : [
+                {type : "quantite-grade", targets : [2, 3]},
+                {type : "moment-D MMM YYYY à HH[h]mm", targets : 4}
+            ]
+        });
     }
     /**
-    * Afficher les convois en cours.
+    * Actualise le tableau des convois en cours.
     *
     * @private
-	* @method afficherConvoi
+	* @method actualiserConvois
     */
-    afficherConvoi(tabCommande)
-    {
-        if(!Utils.comptePlus){
-            for(let id of tabCommande){
-                this._utilitaire.consulterSujet(id).then((data) => {
-                    let response = $(data).find("cmd:eq(1)").text();
-                    if(response.includes("Vous n'avez pas accès à ce forum."))
-                        $.toast({...TOAST_ERROR, text : "L'identifiant du sujet pour les convois est érroné."});
-                    else{
-                        let convoi = null, message = "", nombres = new Array();
-                        $("<div/>").append(response).find(".messageForum").each((i, elt) => {
-                            message = $(elt).text();
-                            if(message.trim()){
-                                nombres = message.replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
-                                convoi = new Convoi({expediteur : $(elt).prev().find("a").text(), destinataire : monProfil.pseudo, nourriture : nombres[0], materiaux : nombres[1], idCommande : id, dateArrivee : moment(message.split("Retour le ")[1], "D MMM YYYY à HH[h]mm")});
-                                // si la commande est toujours en cours et que je suis le destinaitaire et que le convoi est n'est pas encore arrivée
-                                if(!convoi.estTermine())
-                                    convoi.toHTML($("h3:contains('Convois en cours:')").length ? "h3" : ".simulateur:first", convoi.type);
-                            }
-                        });
-                    }
-                }, (jqXHR, textStatus, errorThrown) => {
-                     $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des convois."});
-                });
-            }
-            this.plus();
-        }
-        return this;
-	}
+    actualiserConvois() {
+        // Recharger les convois
+        this._utilitaire.chargerConvois(this._utilitaire.commande).then((convois) => {
+            // Préparer les données pour DataTables
+            const tableDataConvois = convois.map(convoi => [
+                convoi.expediteur,
+                convoi.destinataire,
+                numeral(convoi.nourriture).format(),
+                numeral(convoi.materiaux).format(),
+                moment(convoi.dateArrivee).format("D MMM YYYY à HH[h]mm") // Formatage de la date
+            ]);
+
+            // Mettre à jour le tableau DataTables existant
+            $("#o_tableListeConvoi").DataTable().clear().rows.add(tableDataConvois).draw();
+        }).catch((error) => {
+            console.error("Erreur lors de l'actualisation des convois:", error);
+            // Gérer l'erreur si nécessaire
+        });
+    }
     /**
 	* Modifie le bouton d'envoie des convois pour prendre ne compte l'utilitaire.
     *
@@ -456,6 +418,8 @@ class PageCommerce
                         }
                         // Lancement du convoi dans fourmizzz
                         $("input[name='convoi']").trigger("click");
+                        // Actualiser le tableau des convois après l'envoi
+                        this.actualiserConvois();
                     }, (jqXHR, textStatus, errorThrown) => {
                          $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
                     });

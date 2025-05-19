@@ -275,21 +275,11 @@ Le dossier roadmap contient toutes les nouvelles fonctionnalités prévues. Il e
 - Les fichier correspondant à des fonctionnalités ou sous-fonctionnalités sont structurés de la façon suivante :
     - Une section "Objectif" décrivant l'objectif global haut-niveau de la fonctionnalité
     - Une section "Fonctionnement Détaillé" explicitant ce qui est exactement attendu de la fonctionnalité, sous la forme d'un ensemble d'opérations qu'elle doit permettre et/ou d'un workflow de fonctionnement
-    - Une section "Plan d'Implémentation" présentant le plan à suivre de façon très détaillée, en petites tâches élémentaires, pour pouvoir mettre en place tout le contenu de la section "Fonctionnement Détaillé". Il doit être possible de directement démarrer l'implémentation à partir de ce plan. Cette section doit également comprendre les différents tests à effectuer pour valider chaque tâche élémentaire avant de passer à la suivante.
+    - Une section "Plan d'Implémentation" présentant le plan à suivre de façon très détaillée, en petites tâches élémentaires, pour pouvoir mettre en place tout le contenu de la section "Fonctionnement Détaillé". Il doit être possible de directement démarrer l'implémentation à partir de ce plan.
+    - Une section "Tests à Effectuer" contenant les différents tests à effectuer pour valider la fonctionnalité.
     - Une section "Avancement" dans laquelle est détaillé ce qui a été fait du plan d'implémentation, ce qu'il reste à faire, et les éventuels bugs repérés
 - Mettre à jour la roadmap consiste à compléter les sections "Fonctionnement Détaillé" et/ou "Plan d'Implémentation" et/ou "Avancement" d'un fichier en fonction du travail qui vient d'être effectué, ainsi qu'éventuellement à le déplacer.
 - Lorsque l'on commence à travailler sur le contenu d'un fichier de la roadmap, celui-ci doit être transféré du dossier "à faire" vers celui "en cours", en conservant l'arborescence dans laquelle il se trouve.
 - Lors de la complétion de l'objectif d'un fichier, celui-ci doit être transféré du dossier "en cours" vers celui "terminé", en conservant l'arborescence dans laquelle il se trouve.
 - Si l'arborescence du fichier existe déjà partiellement ou totalement dans le dossier de destination, elle est réutilisée.
 - Si un dossier de fonctionnalité se retrouve vide après transfert, le supprimer.
-
-# Testing phase
-Here is the testing workflow :
-
-1. You launch the browser and ask the user to load the new version of the extension.
-2. For each test :
-   2.1. You perform it. If you do not know how to perform a specific action, look into your memory bank, and if the answer is not there, ask the user to explain or show you (if you can see his actions on the browser window). If the user explained or showed you, you then document the memory bank to remember for next time.
-   2.2. You visually check if the result conforms to your expectations and also present your conclusions (fail or pass and why). The user can tell you that your clonclusion is wrong and why, and you should modify your conclusion
-   2.3. If the test pass, you move on to the next one
-   2.4. If the test fails, then go check the errors and logs in the console of the browser to understand why, close the browser, and fix the code appropriately. You then restart at step 1., but starting with the failed test.
-4. Once all tests are passed, you close the browser and end the testing phase

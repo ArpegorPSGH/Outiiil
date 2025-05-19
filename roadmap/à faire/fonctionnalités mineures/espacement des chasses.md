@@ -8,4 +8,6 @@ Espacer les chasses de façon régulière pour éviter l'engorgement de la chaî
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

@@ -36,6 +36,32 @@ Permettre à chaque joueur de partager toutes ses données avec l'alliance en un
 7.  Utiliser `verifierSujetMembre` dans `js/page/Alliance.js` pour conditionner l'affichage du bouton "Recensement".
 8.  Ajuster la logique d'actualisation du tableau des membres de l'alliance (`actualiserMembre`) pour gérer correctement l'initialisation de DataTables en fonction de l'existence du sujet membre après une potentielle création de sujet.
 
+## Tests à effectuer
+1.  **Vérifier l'affichage conditionnel du bouton :**
+    *   S'assurer que l'ID de la section membres est configuré dans les paramètres.
+    *   Vérifier que le bouton "Recensement" n'est pas affiché si le joueur n'a pas de sujet dédié dans la section membres configurée.
+    *   Créer un sujet dédié au joueur dans la section membres configurée (si possible manuellement ou via une autre fonctionnalité).
+    *   Actualiser la page membres de l'alliance.
+    *   Vérifier que le bouton "Recensement" est maintenant affiché.
+
+2.  **Vérifier l'envoi des données :**
+    *   Cliquer sur le bouton "Recensement".
+    *   Vérifier qu'un indicateur de chargement s'affiche et que le bouton est désactivé pendant l'opération.
+    *   Vérifier qu'une notification s'affiche une fois l'opération terminée.
+    *   Aller sur le sujet dédié au joueur dans la section membres du forum.
+    *   Vérifier qu'un nouveau message a été posté.
+    *   Vérifier que le message contient les données correctes et formatées du joueur (ressources, terrain de chasse, constructions, technologies, unités).
+
+3.  **Vérifier le comportement en cas d'erreur :**
+    *   Tester le clic sur le bouton dans différentes conditions (par exemple, si l'ID de la section membres est incorrect, si le sujet du joueur n'existe plus, si une erreur réseau se produit).
+    *   Vérifier que l'extension gère ces erreurs de manière appropriée (messages d'erreur, réactivation du bouton).
+
+4.  **Vérifier la mise à jour du tableau des membres après création/détection du sujet membre (si le bug est corrigé) :**
+    *   Partir d'une situation où le joueur n'a pas de sujet membre et le bouton n'est pas affiché.
+    *   Créer le sujet membre (si possible via l'extension ou manuellement).
+    *   Actualiser la page membres de l'alliance.
+    *   Vérifier que le bouton "Recensement" s'affiche et que le tableau des membres s'initialise correctement avec les colonnes supplémentaires liées au recensement si elles existent.
+
 ## Avancement
 La logique principale de récupération des données (unités via AJAX, ressources/ouvrières/niveaux via Utils et monProfil), le formatage du message et l'envoi du message sur le sujet du forum sont implémentés et fonctionnels. Cette logique a été déplacée de `js/boite/ComptePlus.js` vers `js/page/Alliance.js`.
 

@@ -7,4 +7,6 @@ Réparer la fonctionnalité historique de l'extension.
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

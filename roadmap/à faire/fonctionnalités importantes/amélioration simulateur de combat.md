@@ -11,4 +11,6 @@ Rajouter diverses fonctionnalités au simulateur de combat pour le rendre plus u
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

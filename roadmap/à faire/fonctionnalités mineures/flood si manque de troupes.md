@@ -8,4 +8,6 @@ Ajouter un réglage dans les préférences de l'extension pour choisir entre lan
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

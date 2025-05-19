@@ -7,4 +7,6 @@ Permettre la mise à jour automatique pour éviter au joueur de devoir télécha
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

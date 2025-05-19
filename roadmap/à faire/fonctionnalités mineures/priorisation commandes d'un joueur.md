@@ -12,4 +12,6 @@ Permettre à un même joueur de définir l'ordre dans lequel il souhaite recevoi
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

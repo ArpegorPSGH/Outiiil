@@ -8,4 +8,6 @@ Restreindre la publication sur le forum aux versions de l’extension supérieur
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

@@ -8,4 +8,6 @@ Mettre en place un système de restrictions par joueur (via le sujet membres) de
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

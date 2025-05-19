@@ -8,4 +8,6 @@ Fonction arrondir à mettre dans l’état correspondant à livraison max sans d
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

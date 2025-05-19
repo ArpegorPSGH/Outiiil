@@ -7,4 +7,6 @@ Gérer les ghosts en interne et en externe pour faciliter leur lancement et perm
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

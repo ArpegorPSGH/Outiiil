@@ -51,6 +51,121 @@ class PageForum
         this._monAlliance = newAlliance;
     }
     /**
+    * Charge les convois en cours depuis la section commande du forum.
+    *
+    * @async
+    * @method chargerConvois
+    * @param {object} commandes La liste des commandes chargées, indexée par ID de sujet.
+    * @returns {Promise<Array<Convoi>>} Une promesse qui résout avec une liste d'objets Convoi.
+    */
+    async chargerConvois(commandes) {
+        const idSectionCommande = monProfil.parametre["forumCommande"].valeur;
+        if (!idSectionCommande) {
+            console.warn("[PageForum] ID de la section commande non défini.");
+            return [];
+        }
+
+        try {
+            const dataSection = await this.consulterSection(idSectionCommande);
+            const responseSection = $(dataSection).find("cmd:eq(1)").text();
+
+            if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
+                console.warn("[PageForum] Accès refusé à la section forum des commandes.");
+                return [];
+            }
+
+            const sujetElements = $("<div/>").append(responseSection).find("#form_cat tr:gt(0)");
+            const sujetsAConsulter = [];
+            const maintenant = moment();
+
+            sujetElements.each((i, elt) => {
+                const titreSujet = $(elt).find("td:eq(1)").text().trim();
+                // Filtrer les sujets dont la dernière activité remonte à moins de 24h (approximatif)
+                // On pourrait affiner en parsant la date de dernière activité si nécessaire
+                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim(); // Supposons que la 3ème colonne contient la date
+
+                // Extraire la partie date et heure de la chaîne, en ignorant le début et en utilisant une regex flexible pour les espaces
+                const dateMatch = dateDerniereActiviteText.match(/(\d+\s+\w+\s+à\s*\d+h\d+)/); // Regex ajustée avec groupe de capture
+                const datePartToParse = dateMatch ? dateMatch[1] : ''; // dateMatch[1] contient la partie capturée
+
+                const dateDerniereActivite = Utils.parseForumDate(datePartToParse); // Utiliser la partie extraite
+
+                if (dateDerniereActivite && maintenant.diff(dateDerniereActivite, 'hours') < 24) {
+                     const id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
+                     sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet });
+                }
+            });
+
+            if (sujetsAConsulter.length === 0) {
+                console.log("[PageForum] Aucun sujet récent à consulter pour les convois.");
+                return [];
+            }
+
+            const convois = [];
+            for (const sujetInfo of sujetsAConsulter) {
+                try {
+                    const dataSujet = await this.consulterSujet(sujetInfo.id);
+                    const responseSujet = $(dataSujet).find("cmd:eq(1)").text();
+                    const messages = $("<div/>").append(responseSujet).find(".messageForum");
+
+                    const destinatairePseudo = commandes[sujetInfo.id] ? commandes[sujetInfo.id].demandeur.pseudo : "Inconnu"; // Récupérer le destinataire depuis les commandes chargées
+
+                    messages.each((i, messageElt) => {
+                        const messageText = $(messageElt).text();
+                        const auteurElement = $(messageElt).prevAll(".auteurForum");
+                        const auteurHtml = auteurElement.html();
+                        let auteurMessage = "Inconnu";
+                        // Regex pour extraire le texte entre les balises <a>
+                        const pseudoMatch = auteurHtml ? auteurHtml.match(/<a[^>]*>([^<]*)<\/a>/) : null;
+                        if (pseudoMatch && pseudoMatch[1] !== undefined) {
+                            auteurMessage = pseudoMatch[1].trim();
+                        }
+                        const dateMessageText = auteurElement.find("span").text().trim();
+                        const dateMessage = Utils.parseForumDate(dateMessageText);
+
+                        // Déterminer le pattern exact pour identifier un message de convoi
+                        // Basé sur la méthode toUtilitaire de la classe Convoi si elle existe et est pertinente
+                        const convoiMatch = messageText.match(/\s*- Vous allez livrer (\d+) nourritures et (\d+) materiaux à (.+?) dans (.+?) - Retour le (.+)$/);
+
+                        if (convoiMatch) {
+                            const nourriture = parseInt(convoiMatch[1], 10);
+                            const materiaux = parseInt(convoiMatch[2], 10);
+                            const destinataire = convoiMatch[3];
+                            const dateRetourText = convoiMatch[5]; // Capture group 5 is the return date string
+
+                            // Parse the return date directly
+                            const dateArrivee = moment(dateRetourText, "D MMM YYYY à HH[h]mm");
+
+                            // Vérifier si la date d'arrivée est dans le futur ou dans la minute actuelle
+                            // Utiliser une tolérance pour les dates passées très récentes
+                            if (dateArrivee.diff(maintenant) >= -60000) { // -60000 ms = -1 minute
+                                // Créer un objet Convoi en utilisant la classe Convoi
+                                const convoi = new Convoi({
+                                    expediteur: auteurMessage,
+                                    destinataire: destinataire,
+                                    nourriture: nourriture,
+                                    materiaux: materiaux,
+                                    dateArrivee: dateArrivee.toDate(), // Stocker comme objet Date
+                                    idCommande: sujetInfo.id // Lier au sujet de commande
+                                });
+
+                                convois.push(convoi);
+                            }
+                        }
+                    });
+                } catch (error) {
+                    console.error(`[chargerConvois] Erreur lors de la consultation du sujet ${sujetInfo.id}:`, error);
+                    // Continuer avec le sujet suivant même en cas d'erreur sur un sujet
+                }
+            }
+            return convois;
+
+        } catch (error) {
+            console.error("[PageForum] Erreur lors du chargement des convois:", error);
+            return [];
+        }
+    }
+    /**
     *
     */
     creerSection(nomSection)

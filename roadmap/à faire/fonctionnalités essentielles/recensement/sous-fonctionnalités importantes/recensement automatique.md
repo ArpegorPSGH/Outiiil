@@ -10,4 +10,6 @@ Mettre à disposition une routine de déclenchement du recensement de façon aut
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

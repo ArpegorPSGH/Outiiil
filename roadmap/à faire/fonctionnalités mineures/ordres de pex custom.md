@@ -7,4 +7,6 @@ Créer un ordre de pex custom pour attaque et pour chasse et des ordres par déf
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

@@ -9,4 +9,6 @@ Permettre au joueur de prendre en compte sa production personnelle ou tout autre
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

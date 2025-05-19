@@ -21,4 +21,6 @@ Maintenir les fonctionnalités d'alliance de l'extension même lorsque le joueur
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

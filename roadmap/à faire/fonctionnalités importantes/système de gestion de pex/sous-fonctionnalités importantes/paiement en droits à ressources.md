@@ -8,4 +8,6 @@ Effectuer un transfert (non conservatif) de droits accumulés lors de la clôtur
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement

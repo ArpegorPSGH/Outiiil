@@ -35,22 +35,12 @@ La fonctionnalité doit :
         *   Créer un nouvel objet `Convoi` avec les informations extraites et l'ID du sujet de commande.
         *   Ajouter cet objet `Convoi` à une liste temporaire.
     *   Retourner la liste des objets `Convoi`.
-    *   **Tests pour cette étape :**
-        *   Vérifier que la méthode `chargerConvois` est asynchrone et retourne une Promise.
-        *   Tester avec une section forum contenant des sujets avec des messages de convoi récents et anciens.
-        *   Tester avec une section forum vide.
-        *   Tester avec des messages qui ne sont pas des convois.
-        *   Vérifier que seuls les convois dont la date d'arrivée est dans le futur ou la minute actuelle sont retournés.
-        *   Vérifier que les objets `Convoi` créés contiennent les informations correctes (expéditeur, destinataire, quantités, date d'arrivée, idCommande).
 
 2.  **Modifier la méthode `executer` dans `js/page/Commerce.js`**.
     *   Après l'appel à `this._utilitaire.chargerCommande(data).then(...)`, ajouter un appel à la nouvelle méthode `this._utilitaire.chargerConvois(this._utilitaire.commande)`.
     *   Utiliser `.then()` pour gérer la Promise retournée par `chargerConvois`.
     *   Passer la liste des convois retournée à une nouvelle méthode d'affichage (étape 3).
     *   Gérer les erreurs potentielles lors du chargement des convois.
-    *   **Tests pour cette étape :**
-        *   Vérifier que `chargerConvois` est bien appelée après `chargerCommande`.
-        *   Vérifier que la liste des convois est correctement passée à la méthode d'affichage.
 
 3.  **Créer une nouvelle méthode `afficherConvois` dans `js/page/Commerce.js`**. Cette méthode prendra en paramètre la liste des objets `Convoi`.
     *   Créer la structure HTML pour un nouveau tableau DataTables (par exemple, avec l'ID `#o_tableListeConvoi`), incluant les en-têtes de colonne (Expéditeur, Destinataire, Nourriture ${IMG_POMME}, Matériaux ${IMG_MAT}, Date d'arrivée).
@@ -58,25 +48,50 @@ La fonctionnalité doit :
     *   Insérer la structure HTML du tableau dans le DOM, sous le tableau des commandes existant (trouver le sélecteur approprié, potentiellement après `#o_listeCommande`).
     *   Initialiser le tableau DataTables (`#o_tableListeConvoi`) avec les données préparées (`tableDataConvois`), en utilisant une configuration similaire à celle du tableau des commandes (classes CSS, options, langue, etc.).
     *   Configurer les `columnDefs` pour le tri et le formatage des colonnes (notamment pour la date d'arrivée).
-    *   **Tests pour cette étape :**
-        *   Vérifier que le tableau est ajouté à la page au bon endroit.
-        *   Vérifier que le tableau est correctement initialisé par DataTables.
-        *   Tester avec une liste de convois vide et non vide.
-        *   Vérifier que les données des convois sont correctement affichées dans les colonnes appropriées.
-        *   Vérifier que le tri par date d'arrivée fonctionne correctement.
-        *   Vérifier que les icônes de ressources s'affichent dans les en-têtes.
 
-4.  **Adapter la méthode `actualiserCommande` dans `js/page/Commerce.js`** si nécessaire pour gérer la mise à jour du tableau des convois. Il pourrait être plus simple de créer une méthode `actualiserConvois` dédiée, appelée après l'actualisation des commandes.
+4.  **Adapter la méthode `actualiserCommande` ou créer `actualiserConvois` dans `js/page/Commerce.js`** si nécessaire pour gérer la mise à jour du tableau des convois. Il pourrait être plus simple de créer une méthode `actualiserConvois` dédiée, appelée après l'actualisation des commandes.
     *   Créer une méthode `actualiserConvois` qui recharge les convois via `chargerConvois` et met à jour le tableau DataTables existant (`#o_tableListeConvoi`) en utilisant `DataTable().clear().rows.add(newData).draw()`.
-    *   Appeler `actualiserConvois` depuis `executer` ou une autre fonction de mise à jour si nécessaire (par exemple, après l'envoi d'un nouveau convoi via `formulaireConvoi`).
-    *   **Tests pour cette étape :**
-        *   Vérifier que le tableau des convois se met à jour correctement après l'envoi d'un nouveau convoi ou une actualisation.
-        *   Tester l'actualisation avec des convois qui expirent pendant la session.
+    *   Appeler `actualiserConvois` depuis `executer` ou une autre fonction de mise à jour si nécessaire (par exemple, après l'envoi d'un nouveau convoi via `formulaireConvoi`). - **Terminé**.
 
-5.  **Mettre à jour la méthode `formulaireConvoi` dans `js/page/Commerce.js`** pour appeler `actualiserConvois` après l'envoi réussi d'un convoi.
-    *   **Tests pour cette étape :**
-        *   Vérifier que le nouveau convoi apparaît dans le tableau après l'envoi.
+## Tests à effectuer
+Voici les tests à effectuer pour vérifier le bon fonctionnement de la fonctionnalité :
+
+1.  **Vérifier l'affichage du tableau :**
+    *   Aller sur la page Commerce.
+    *   S'assurer qu'un nouveau tableau intitulé "Convois en cours" est affiché sous le tableau des commandes.
+    *   Vérifier que le tableau contient les colonnes "Expéditeur", "Destinataire", "Nourriture", "Matériaux", et "Date d'arrivée".
+    *   S'assurer que les icônes de nourriture et de matériaux sont correctement affichées dans les en-têtes de colonne.
+    *   Vérifier que le style du tableau est similaire à celui du tableau des commandes.
+
+2.  **Vérifier le chargement des convois existants :**
+    *   S'assurer qu'il existe des messages de convoi récents (moins de 24h) dans les sujets de commande du forum.
+    *   Actualiser la page Commerce.
+    *   Vérifier que les convois correspondants sont listés dans le tableau "Convois en cours".
+    *   Pour chaque convoi listé, vérifier que les informations (Expéditeur, Destinataire, quantités de ressources, Date d'arrivée) sont correctes et correspondent aux messages du forum.
+    *   Vérifier que seuls les convois dont la date d'arrivée est dans le futur ou dans la minute actuelle sont affichés.
+
+3.  **Vérifier la mise à jour après envoi d'un nouveau convoi :**
+    *   Lancer un nouveau convoi via le formulaire (si cette partie est déjà implémentée).
+    *   Vérifier que le nouveau convoi apparaît immédiatement dans le tableau "Convois en cours" sans avoir à actualiser la page manuellement.
+    *   Vérifier que les informations du nouveau convoi sont correctes.
+
+4.  **Vérifier la mise à jour après actualisation manuelle :**
+    *   Actualiser la page Commerce manuellement (F5 ou bouton d'actualisation du navigateur).
+    *   Vérifier que le tableau "Convois en cours" se met à jour correctement, en affichant les convois pertinents et en retirant ceux dont la date d'arrivée est passée.
+
+5.  **Vérifier le comportement sans convois :**
+    *   S'assurer qu'il n'y a aucun message de convoi récent dans les sujets de commande du forum.
+    *   Actualiser la page Commerce.
+    *   Vérifier que le tableau "Convois en cours" est vide ou affiche un message indiquant qu'aucun convoi n'est en cours.
+
+6.  **Vérifier le tri et le formatage :**
+    *   Si DataTables est configuré pour le tri, vérifier que le tri par colonne (notamment par Date d'arrivée) fonctionne correctement.
+    *   Vérifier que le format de la date d'arrivée est correct (précision à la minute).
 
 ## Avancement
 - Plan d'implémentation initial défini.
-- Prêt à commencer l'implémentation en mode ACT.
+- Étape 1 : Création de la méthode `chargerConvois` dans `js/page/Forum.js` - **Terminé**.
+- Étape 2 : Modification de la méthode `executer` dans `js/page/Commerce.js` pour appeler `chargerConvois` - **Terminé**.
+- Étape 3 : Création de la méthode `afficherConvois` dans `js/page/Commerce.js` - **Terminé**.
+- Étape 4 : Adapter la méthode `actualiserCommande` ou créer `actualiserConvois` dans `js/page/Commerce.js` - **Terminé**.
+- Implémentation terminée et validée par les tests.

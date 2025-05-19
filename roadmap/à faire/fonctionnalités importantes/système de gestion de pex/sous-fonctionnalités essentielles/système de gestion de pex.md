@@ -20,4 +20,6 @@ Permettre aux joueurs de communiquer et s'organiser facilement pour donner des t
 
 ## Plan d'Implémentation
 
+## Tests à effectuer
+
 ## Avancement
