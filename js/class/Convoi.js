@@ -158,8 +158,16 @@ class Convoi
     */
     toUtilitaire()
     {
+        // Calculer le temps restant pour les deux cas (convoi normal ou annulation)
         let tempsRestant = moment(this._dateArrivee).diff(moment()) / 1000;
-        return `- Vous allez livrer ${numeral(this._nourriture).format()} nourritures et ${numeral(this._materiaux).format()} materiaux à ${this._destinataire} dans ${Utils.intToTime(tempsRestant)} - Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}`;
+
+        // Si c'est un convoi d'annulation (quantités négatives), la date de retour est la date d'arrivée initiale.
+        if (this._nourriture < 0 || this._materiaux < 0) {
+            return `- Vous allez livrer ${numeral(this._nourriture).format()} nourritures et ${numeral(this._materiaux).format()} materiaux à ${this._destinataire} dans ${Utils.intToTime(tempsRestant)} - Retour le ${moment(this._dateArrivee).format("D MMM YYYY à HH[h]mm")}`;
+        } else {
+            // Pour un convoi normal, calculer le temps restant.
+            return `- Vous allez livrer ${numeral(this._nourriture).format()} nourritures et ${numeral(this._materiaux).format()} materiaux à ${this._destinataire} dans ${Utils.intToTime(tempsRestant)} - Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}`;
+        }
     }
     /**
     *

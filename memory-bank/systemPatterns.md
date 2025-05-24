@@ -76,8 +76,14 @@ The extension follows a **Content Script** model for Chrome extensions. The main
         f. Create `Commande` objects with the extracted data, including the creation date.
         g. Store `Commande` objects in `forumManager._commande`.
         h. Call `PageCommerce.afficherCommande` to display the table using the loaded command data.
-        i. Call `forumManager.chargerConvois(forumManager._commande)` to get the list of ongoing convoys.
-        j. Call `PageCommerce.afficherConvoi` to display the convois in a separate table. L'affichage des convois est maintenant pleinement opérationnel.
+        i. Call `forumManager.chargerConvois(forumManager._commande)` to get the list of ongoing convoys from the forum.
+        j. Call `PageCommerce.getConvoisActifsPage()` to extract the list of active convois currently displayed on the page commerce.
+        k. Call `PageCommerce.gererAnnulationsConvois(convoisForum, convoisActifsPage)` to:
+            - Compare the convois from the forum and the active convois from the page to identify cancellations.
+            - For each identified cancellation group, update the corresponding command's delivered quantity in memory (subtracting the cancelled amount).
+            - If a command was completed but now has an undelivered quantity, revert its status to "En cours" in memory.
+            - Post a message on the forum thread of the command, formatted using `Convoi.toUtilitaire()` with negative quantities, to record the cancellation.
+        l. Call `PageCommerce.actualiserConvois()` to display the convois from the forum in a separate table.
     5.  If parameters are not configured or the player's topic does not exist, the command and convoy tables are not displayed.
 - **Alliance Members Page Flow (Partial Update)**:
     1.  Navigate to Alliance page (`PageAlliance.js`).

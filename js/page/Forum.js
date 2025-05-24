@@ -125,7 +125,9 @@ class PageForum
 
                         // Déterminer le pattern exact pour identifier un message de convoi
                         // Basé sur la méthode toUtilitaire de la classe Convoi si elle existe et est pertinente
-                        const convoiMatch = messageText.match(/\s*- Vous allez livrer (\d+) nourritures et (\d+) materiaux à (.+?) dans (.+?) - Retour le (.+)$/);
+                        // Déterminer le pattern exact pour identifier un message de convoi
+                        // Modification pour accepter les quantités négatives
+                        const convoiMatch = messageText.match(/\s*- Vous allez livrer (-?\d+) nourritures et (-?\d+) materiaux à (.+?) dans (.+?) - Retour le (.+)$/);
 
                         if (convoiMatch) {
                             const nourriture = parseInt(convoiMatch[1], 10);
@@ -356,9 +358,21 @@ class PageForum
                 if (titreSujet) {
                     let etat = titreSujet.split("] ")[0].split("[")[1];
                     // Filtrer les sujets selon les états souhaités
-                    if (etat === "Nouvelle" || etat === "En cours" || etat === "En attente") {
+                    // Inclure les commandes "Nouvelle", "En cours", "En attente" et "Terminée" (si récente)
+                    if (etat === "Nouvelle" || etat === "En cours" || etat === "En attente" || etat === "Terminée") {
                         let id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
-                        sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet });
+                        // Pour les commandes terminées, vérifier si elles sont récentes
+                        if (etat === "Terminée") {
+                            // Créer une instance temporaire de Commande pour utiliser estTermineRecent
+                            // On ne peut pas encore parser complètement la commande ici car on n'a pas toutes les infos
+                            // On va donc charger toutes les commandes terminées et filtrer après le parse complet
+                            // Ou, mieux, on va s'assurer que la logique de PageCommerce gère les cas où la commande n'est pas trouvée
+                            // et que chargerCommande charge toutes les commandes nécessaires pour la gestion des convois.
+                            // Pour l'instant, chargeons toutes les commandes terminées et laissons PageCommerce gérer le filtrage par date de dernière mise à jour.
+                            sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat });
+                        } else {
+                            sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat });
+                        }
                     }
                 }
             });

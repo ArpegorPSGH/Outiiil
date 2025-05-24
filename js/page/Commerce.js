@@ -70,12 +70,21 @@ class PageCommerce
                         this._utilitaire.chargerCommande(data).then(() => {
                             this.afficherCommande();
                             console.log("[PageCommerce] Appel de chargerConvois après chargement des commandes.");
-                            // Charger les convois après les commandes
+                            // Charger les convois du forum après les commandes
                             return this._utilitaire.chargerConvois(this._utilitaire.commande);
-                        }).then((convois) => {
-                            console.log("[PageCommerce] chargerConvois terminé. Convois reçus:", convois);
+                        }).then((convoisForum) => {
+                            console.log("[PageCommerce] chargerConvois terminé. Convois du forum reçus:", convoisForum);
+
+                            // Extraire les convois actifs de la page commerce
+                            const convoisActifsPage = this.getConvoisActifsPage();
+                            console.log("[PageCommerce] Convois actifs de la page extraits:", convoisActifsPage);
+
+                            // Appeler la nouvelle méthode pour gérer les annulations (étapes 2 à 7)
+                            this.gererAnnulationsConvois(convoisForum, convoisActifsPage);
+
                             // Actualiser le tableau des convois après le chargement initial
-                            this.actualiserConvois();
+                            this.actualiserConvois(); // Cette fonction utilise toujours this._utilitaire.chargerConvois() en interne, ce qui est correct pour afficher les convois du forum.
+
                         }).catch((error) => {
                             // Gérer les erreurs de chargement des commandes ou des convois
                             console.error("[PageCommerce] Erreur lors du chargement des commandes ou des convois:", error);
@@ -135,6 +144,175 @@ class PageCommerce
         if(listeConvoi.length) this.saveConvoi(listeConvoi);
         return this;
 	}
+    /**
+    * Gère l'identification et le traitement des annulations de convois.
+    * Correspond aux étapes 2 à 7 du plan d'implémentation.
+    *
+    * @private
+    * @method gererAnnulationsConvois
+    * @param {Array} convoisForum - Liste de tous les convois en cours extraits du forum.
+    * @param {Array} convoisActifsPage - Liste des convois actuellement actifs affichés sur la page commerce du joueur.
+    */
+    gererAnnulationsConvois(convoisForum, convoisActifsPage) {
+        console.log("[PageCommerce] Début de gererAnnulationsConvois");
+        console.log("Convois du forum:", convoisForum);
+        console.log("Convois actifs de la page:", convoisActifsPage);
+
+        // Étape 2: Filtrage et Groupement des Convois du Forum
+        const convoisForumJoueur = convoisForum.filter(convoi => convoi.expediteur === monProfil.pseudo);
+        console.log("Convois du forum du joueur actuel:", convoisForumJoueur);
+
+        const groupesForum = new Map();
+        convoisForumJoueur.forEach(convoi => {
+            const absNourriture = Math.abs(convoi.nourriture);
+            const absMateriaux = Math.abs(convoi.materiaux);
+            const key = `${convoi.destinataire}-${absNourriture}-${absMateriaux}-${moment(convoi.dateArrivee).format("YYYYMMDDHHmm")}`;
+
+            if (!groupesForum.has(key)) {
+                groupesForum.set(key, { count_forum: 0, absNourriture: absNourriture, absMateriaux: absMateriaux, destinataire: convoi.destinataire, dateArrivee: convoi.dateArrivee, idCommande: convoi.idCommande });
+            }
+
+            // Un convoi est considéré comme négatif si au moins une de ses quantités est négative.
+            if (convoi.nourriture < 0 || convoi.materiaux < 0) {
+                groupesForum.get(key).count_forum--;
+                console.log(`[gererAnnulationsConvois] Convoi négatif soustrait du groupe ${key}. count_forum: ${groupesForum.get(key).count_forum}`);
+            } else { // Sinon, c'est un convoi positif ou nul.
+                groupesForum.get(key).count_forum++;
+                console.log(`[gererAnnulationsConvois] Convoi positif ajouté au groupe ${key}. count_forum: ${groupesForum.get(key).count_forum}`);
+            }
+        });
+        console.log("[gererAnnulationsConvois] Groupes de convois attendus (forum) après traitement:", groupesForum);
+
+        // Étape 3: Groupement et Comptage des Convois Actifs
+        const groupesPage = new Map();
+        convoisActifsPage.forEach(convoi => {
+             // Utiliser la même clé unique pour le groupement
+            const key = `${convoi.cible}-${convoi.nou}-${convoi.mat}-${moment(convoi.exp).format("YYYYMMDDHHmm")}`;
+             if (!groupesPage.has(key)) {
+                groupesPage.set(key, { count_page: 0, convoi: convoi }); // Stocker une référence au convoi
+            }
+            groupesPage.get(key).count_page++;
+            console.log(`[gererAnnulationsConvois] Convoi actif ajouté au groupe de page ${key}. count_page: ${groupesPage.get(key).count_page}`);
+        });
+        console.log("[gererAnnulationsConvois] Groupes de convois réels (page) après traitement:", groupesPage);
+
+        // Étape 4: Comparaison des Groupes et Identification des Annulations
+        const annulationsIdentifiees = [];
+        groupesForum.forEach((forumGroup, key) => {
+            const pageGroup = groupesPage.get(key);
+            const countForum = forumGroup.count_forum;
+            const countPage = pageGroup ? pageGroup.count_page : 0;
+
+            console.log(`[gererAnnulationsConvois] Comparaison pour la clé ${key}: countForum=${countForum}, countPage=${countPage}`);
+
+            if (countForum > countPage) {
+                const nombreAnnulations = countForum - countPage;
+                console.log(`[gererAnnulationsConvois] Annulation identifiée pour ${key}. Nombre d'annulations: ${nombreAnnulations}`);
+
+                annulationsIdentifiees.push({
+                    destinataire: forumGroup.destinataire,
+                    nourriture: forumGroup.absNourriture, // Quantité d'un seul convoi (positive)
+                    materiaux: forumGroup.absMateriaux,   // Quantité d'un seul convoi (positive)
+                    dateArrivee: forumGroup.dateArrivee,
+                    idCommande: forumGroup.idCommande,
+                    nombreAnnulations: nombreAnnulations
+                });
+            }
+        });
+        console.log("[gererAnnulationsConvois] Annulations identifiées après comparaison:", annulationsIdentifiees);
+
+        // Étape 5: Traitement des Annulations (Mise à jour en mémoire et post sur le forum)
+        annulationsIdentifiees.forEach(annulation => {
+            const commande = this._utilitaire.commande[annulation.idCommande];
+            if (commande) {
+                console.log(`Traitement annulation pour commande ${commande.id}:`, annulation);
+
+                // Soustraire la quantité annulée de la quantité déjà livrée pour chaque convoi annulé
+                commande.nourritureLivree -= (annulation.nourriture * annulation.nombreAnnulations);
+                commande.materiauxLivres -= (annulation.materiaux * annulation.nombreAnnulations);
+
+                // S'assurer que les quantités livrées ne deviennent pas négatives
+                commande.nourritureLivree = Math.max(0, commande.nourritureLivree);
+                commande.materiauxLivres = Math.max(0, commande.materiauxLivres);
+
+                // Si la commande était terminée et que la quantité livrée est maintenant inférieure à la quantité commandée, la remettre en "en cours"
+                if (commande.etat === ETAT_COMMANDE.Terminée && (commande.nourritureLivree < commande.totalNourritureDemandee || commande.materiauxLivres < commande.totalMateriauxDemandes)) {
+                    commande.etat = ETAT_COMMANDE["En cours"];
+                    console.log(`Commande ${commande.id} repassée en statut "En cours" suite à annulation.`);
+                }
+
+                // Pour chaque convoi annulé, préparer et poster un message de "livraison négative"
+                for (let i = 0; i < annulation.nombreAnnulations; i++) {
+                    const convoiAnnulation = new Convoi({
+                        expediteur: monProfil.pseudo,
+                        destinataire: annulation.destinataire,
+                        nourriture: -annulation.nourriture, // Quantité négative d'un seul convoi
+                        materiaux: -annulation.materiaux,   // Quantité négative d'un seul convoi
+                        dateArrivee: annulation.dateArrivee,
+                        idCommande: annulation.idCommande
+                    });
+
+                    const messageForum = convoiAnnulation.toUtilitaire();
+                    console.log(`Message forum à envoyer pour convoi annulé ${i + 1}:`, messageForum);
+
+                    this._utilitaire.envoyerMessage(annulation.idCommande, messageForum).then(() => {
+                        console.log(`Message d'annulation posté pour commande ${annulation.idCommande} (convoi ${i + 1}/${annulation.nombreAnnulations}).`);
+                        // Optionnel: Afficher une notification à l'utilisateur après le dernier message
+                        if (i === annulation.nombreAnnulations - 1) {
+                            $.toast({...TOAST_INFO, text : `Annulation(s) de convoi(s) enregistrée(s) pour la commande ${annulation.idCommande}.`});
+                        }
+                    }).catch(error => {
+                        console.error(`Erreur lors du post du message d'annulation pour commande ${annulation.idCommande} (convoi ${i + 1}/${annulation.nombreAnnulations}):`, error);
+                        $.toast({...TOAST_ERROR, text : `Erreur lors de l'enregistrement de l'annulation pour la commande ${annulation.idCommande}.`});
+                    });
+                }
+
+                // Sauvegarder l'état mis à jour de la commande sur le forum
+                this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then(() => {
+                    console.log(`Commande ${commande.id} mise à jour sur le forum après annulation.`);
+                }).catch(error => {
+                    console.error(`Erreur lors de la mise à jour de la commande ${commande.id} sur le forum après annulation:`, error);
+                    $.toast({...TOAST_ERROR, text : `Erreur lors de la mise à jour de la commande ${commande.id} sur le forum.`});
+                });
+
+            } else {
+                console.warn(`Commande avec ID ${annulation.idCommande} non trouvée pour traiter l'annulation.`, annulation);
+            }
+        });
+
+        // Étape 7: Mise à jour locale des données
+        // Les données des commandes (this._utilitaire.commande) ont été mises à jour en mémoire à l'étape 5.
+        // Elles seront conservées pour la session actuelle.
+
+        console.log("[PageCommerce] Fin de gererAnnulationsConvois");
+    }
+    /**
+    * Extrait les convois actuellement actifs affichés sur la page commerce.
+    *
+    * @private
+    * @method getConvoisActifsPage
+    * @return {Array} Liste des convois actifs extraits.
+    */
+    getConvoisActifsPage() {
+        let listeConvoi = new Array(), nombres = new Array();
+		$("#centre > strong").each((i, elt) => {
+            // Affichage du retour des convois (cette partie n'est pas nécessaire pour l'extraction, mais je la laisse pour l'instant)
+            if($(elt).next().text().indexOf("Retour") == -1)
+                $(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(Utils.timeToInt($(elt).text().split("dans")[1].trim())).format("D MMM YYYY à HH[h]mm")}</span>`);
+            nombres = $(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
+            listeConvoi.push({
+                "cible" : $(elt).find("a").text(),
+                "sens" : $(elt).text().includes("livrer"),
+                "nou" : parseInt(nombres[0]), // Convertir en nombre
+                "mat" : parseInt(nombres[1]), // Convertir en nombre
+                "exp" : Utils.roundMinute(Utils.timeToInt($(elt).text().split("dans")[1].trim()))
+            });
+        });
+        // tri les convois par ordre d'arrivée (pas strictement nécessaire pour l'étape 1, mais peut être utile plus tard)
+        listeConvoi.sort((a, b) => {return moment(a.exp).diff(moment(b.exp));});
+
+        return listeConvoi;
+    }
 	/**
 	* Sauvegarde les convois en cours.
     *

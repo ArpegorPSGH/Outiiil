@@ -5,6 +5,7 @@ Intégrer la version modifiée du lanceur de chasses de Calystène à la place d
 
 ## Fonctionnement Détaillé
 - Utiliser le simulateur de chasse une fois implémenté.
+- Vérifier le fonctionnement sur téléphone
 
 ## Plan d'Implémentation
 
