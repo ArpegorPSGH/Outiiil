@@ -105,8 +105,62 @@ class Joueur
         this._parametre["nbPageTraceurJoueur"] = new Parametre("nbPageTraceurJoueur", "Nombre de page à relever", "number", 1);
         this._parametre["etatTraceurAlliance"] = new Parametre("etatTraceurAlliance", "Traceur alliance actif ?", "checkbox", false);
         this._parametre["intervalleTraceurAlliance"] = new Parametre("intervalleTraceurAlliance", "Intervalle entre chaque relevé (en mn)", "number", 5);
+        /**
+        * Indique si le joueur est hébergé à l'extérieur (non présent sur la page Fourmizzz actuelle).
+        */
+        this._estExterieur = parametres["estExterieur"] || false;
+        /**
+        * Tag de l'alliance du joueur (utile pour les joueurs extérieurs).
+        */
+        this._allianceTag = parametres["allianceTag"] || "";
+        /**
+        * Indique si le joueur est colonisé.
+        */
+        this._colonise = parametres["colonise"] || false;
         return this;
 
+    }
+    /**
+    *
+    */
+    get colonise()
+    {
+        return this._colonise;
+    }
+    /**
+    *
+    */
+    set colonise(newColonise)
+    {
+        this._colonise = newColonise;
+    }
+    /**
+    *
+    */
+    get estExterieur()
+    {
+        return this._estExterieur;
+    }
+    /**
+    *
+    */
+    set estExterieur(newEstExterieur)
+    {
+        this._estExterieur = newEstExterieur;
+    }
+    /**
+    *
+    */
+    get allianceTag()
+    {
+        return this._allianceTag;
+    }
+    /**
+    *
+    */
+    set allianceTag(newAllianceTag)
+    {
+        this._allianceTag = newAllianceTag;
     }
     /**
     *
@@ -407,6 +461,7 @@ class Joueur
     */
     getProfil()
     {
+        console.log(`[Joueur] Récupération du profil pour: ${this._pseudo}`);
         return $.ajax({url : "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + this._pseudo});
     }
     /**
@@ -435,15 +490,39 @@ class Joueur
     */
     chargerProfil(html)
     {
-        if(html.includes("Aucun joueurs avec le pseudo"))
+        if(html.includes("Aucun joueurs avec le pseudo")) {
+            console.log(`[Joueur] Profil non trouvé pour: ${this._pseudo}`);
             return false;
-        else{
+        } else {
             let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(html).find(".boite_membre a[href^='carte2.php?']").text();
             this._id = $(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0];
             this._x = ~~(ligne.replace(regexp, "$1"));
             this._y = ~~(ligne.replace(regexp, "$2"));
             this._mv = $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances");
             this._terrain = numeral($(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value();
+            // Ajout pour fourmiliere et technologie
+            this._fourmiliere = numeral($(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value(); // Supposition: fourmilière est sur la 3ème ligne
+            this._technologie = numeral($(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value(); // Supposition: technologie est sur la 4ème ligne
+            const etatCell = $(html).find("table:eq(0)");
+            const etatText = etatCell.text();
+            console.log(`[Joueur] Texte d'état pour ${this._pseudo}: "${etatText}"`);
+            this._colonise = etatText.includes("Etat : Fourmilière soumise par "); // Utilisation de la chaîne exacte fournie par l'utilisateur
+
+            // Extraction du tag d'alliance
+            const allianceRow = $(html).find("table:eq(0) tr:contains('Alliance :')");
+            if (allianceRow.length > 0) {
+                let allianceTag = allianceRow.find("td:eq(1)").text().trim();
+                if (allianceTag === "-") {
+                    this._allianceTag = ""; // Ne pas enregistrer si le tag est "-"
+                } else {
+                    this._allianceTag = allianceTag;
+                }
+            } else {
+                this._allianceTag = ""; // Pas de ligne d'alliance trouvée
+            }
+
+            console.log(`[Joueur] Profil chargé pour ${this._pseudo}: X=${this._x}, Y=${this._y}, Terrain=${this._terrain}, Fourmiliere=${this._fourmiliere}, Technologie=${this._technologie}, Colonise=${this._colonise}, AllianceTag=${this._allianceTag}`);
+
             if(monProfil.pseudo == this._pseudo)
                 this.sauvegarder();
         }

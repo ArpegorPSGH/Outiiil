@@ -202,6 +202,7 @@ class PageForum
     */
     consulterSection(id)
     {
+        console.log(`[PageForum] Début de consulterSection pour ID: ${id}`);
         return $.ajax({
             type : "post",
             url : "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -209,7 +210,18 @@ class PageForum
                 "xajax" : "callGetForum",
                 "xajaxargs[]" : id,
                 "xajaxr" : moment().valueOf()
+            },
+            timeout: 10000 // Ajout d'un timeout de 10 secondes
+        }).then(data => {
+            console.log(`[PageForum] consulterSection succès pour ID: ${id}. Données reçues:`, data);
+            return data;
+        }).catch(error => {
+            if (error.statusText === "timeout") {
+                console.error(`[PageForum] consulterSection échec pour ID: ${id}. Erreur: Timeout de la requête.`);
+            } else {
+                console.error(`[PageForum] consulterSection échec pour ID: ${id}. Erreur:`, error);
             }
+            throw error; // Rejeter l'erreur pour qu'elle soit gérée par l'appelant
         });
     }
     /**
@@ -417,27 +429,35 @@ class PageForum
     */
     chargerJoueur(data)
     {
+        console.log("[PageForum] Début de chargerJoueur().");
         let response = $(data).find("cmd:eq(1)").text();
-        if(response.includes("Vous n'avez pas accès à ce forum."))
+        if(response.includes("Vous n'avez pas accès à ce forum.")) {
             $.toast({...TOAST_ERROR, text : "L'identifiant du sujet pour les membres est érroné."});
-        else{
+            console.log("[PageForum] chargerJoueur() - Accès refusé au forum. Retourne false.");
+            return false;
+        } else {
             let joueurs = {};
             $("<div/>").append(response).find("#form_cat tr:gt(0)").each((i, elt) => {
                 let titreSujet = $(elt).find("td:eq(1)").text().trim(), id = $(elt).find("input[name='topic[]']").val();
                 // les lignes des commandes ont 3 td et du contenu
                 if(titreSujet){
                     let infos = titreSujet.split(" / ");
-                    joueurs[infos[0]] = {id : infos[1], pseudo : infos[0], x : infos[2], y : infos[3], sujetForum : id};
-                    if(infos.length > 4){
-                        joueurs[infos[0]].rang = infos[4];
-                        joueurs[infos[0]].ordreRang = infos[5];
+                    // Vérifier si infos a suffisamment d'éléments avant d'accéder aux indices
+                    if (infos.length >= 4) {
+                        joueurs[infos[0]] = {id : infos[1], pseudo : infos[0], x : infos[2], y : infos[3], sujetForum : id};
+                        if(infos.length > 4){
+                            joueurs[infos[0]].rang = infos[4];
+                            joueurs[infos[0]].ordreRang = infos[5];
+                        }
+                    } else {
+                        console.warn(`[PageForum] chargerJoueur() - Format de titre de sujet inattendu pour le joueur: ${titreSujet}`);
                     }
                 }
             });
             this._monAlliance = new Alliance({tag : Utils.alliance, joueurs : joueurs});
+            console.log("[PageForum] chargerJoueur() - Joueurs chargés. Retourne true.");
             return true;
         }
-        return false;
     }
     /**
     *

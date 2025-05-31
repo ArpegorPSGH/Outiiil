@@ -34,9 +34,9 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
 - Si un joueur dont le coefficient est non nul n'a aucun recensement dans son sujet membres, ne pas mettre à jour les droits accumulés pour tous les joueurs de l'alliance et afficher une notification toast informant que la mise à jour est bloquée à cause de certains joueurs n'ayant pas effectué de recensement et indiquer leurs pseudos
 
 ## Plan d'Implémentation
-- Vérifier si la mise à jour automatique se fait même quand l’onglet n’est pas affiché
 
 ## Tests à effectuer
+- Vérifier si la mise à jour se fait dès lors que l'onglet est ouvert, même sans être dessus.
 
 ## Avancement
 - Les restrictions d'accès aux colonnes supplémentaires sur la page membres sous réserve de la présence d’un sujet pour le joueur dans la section membres ont été appliquées.

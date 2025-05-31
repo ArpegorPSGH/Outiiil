@@ -6,7 +6,7 @@
 /**
 * CONSTANTE
 */
-const VERSION            = "2.1.11";
+const VERSION            = "2.1.12";
 const CONSTRUCTION       = ["Champignonnière", "Entrepôt de Nourriture", "Entrepôt de Matériaux", "Couveuse", "Solarium", "Laboratoire", "Salle d'analyse", "Salle de combat", "Caserne", "Dôme", "Loge Impériale", "Etable à pucerons", "Etable à cochenilles"];
 const RECHERCHE          = ["Technique de ponte", "Bouclier Thoracique", "Armes", "Architecture", "Communication avec les animaux", "Vitesse de chasse", "Vitesse d'attaque", "Génétique", "Acide", "Poison"];
 const COUT_CONSTUCTION   = [90, 600, 600, 600, 2000, 1400, 1400, 300, 800, 3500, 5000, 1500, 10000];
@@ -170,6 +170,8 @@ const IMG_DEF            = "<img src='images/icone/icone_degat_defense.gif' alt=
 const IMG_GAUCHE         = "<img src='images/bouton/fleche-champs-gauche.gif' width='9' height='15' class='o_vAlign'/>";
 const IMG_DROITE         = "<img src='images/bouton/fleche-champs-droite.gif' width='9' height='15' class='o_vAlign'/>";
 const IMG_COPY           = "<img src='images/icone/feuille.gif' class='cliquable' title='Copier/Coller une armée' style='position:relative;top:3px' width='14' height='17'>";
+const IMG_VACANCES       = "<img src='images/icone/4rondbleu.gif' alt='Vacances' title='En vacances'/>";
+const IMG_COLONISE       = "<img src='images/icone/attention.gif' alt='Colonisé' title='Colonisé'/>";
 // Image pour l'extension
 const IMG_CHANGE         = chrome.runtime.getURL("images/change.png");
 const IMG_ACTUALISER     = chrome.runtime.getURL("images/actualize_on_01.png");

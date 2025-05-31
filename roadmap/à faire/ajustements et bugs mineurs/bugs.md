@@ -4,10 +4,9 @@
 Corriger divers bugs mineurs pour des raisons esthétiques ou d'ergonomie.
 
 ## Fonctionnement Détaillé
-- Corriger bug attaque par soi-même tableau membres
-- Corriger bug pas de rechargement des colonnes ajoutées par l’extension après l’actualisation de l’alliance lorsque le joueur n’a pas de sujet membre
-- Corriger bug toutes les colonnes deviennent visibles après l’actualisation de l’alliance lorsque le joueur a un sujet membres
+- Corriger bug lors de l'actualisation de l'alliance ou l'attribution d'un rang
 - Corriger bug lancement flood après un changement de mode lorsque le nombre d'attaques diminue
+- Corriger le problème de classement des dates et des durées dans les tableaux
 
 ## Plan d'Implémentation
 
