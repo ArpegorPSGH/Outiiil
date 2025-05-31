@@ -283,3 +283,11 @@ Le dossier roadmap contient toutes les nouvelles fonctionnalités prévues. Il e
 - Lors de la complétion de l'objectif d'un fichier, celui-ci doit être transféré du dossier "en cours" vers celui "terminé", en conservant l'arborescence dans laquelle il se trouve.
 - Si l'arborescence du fichier existe déjà partiellement ou totalement dans le dossier de destination, elle est réutilisée.
 - Si un dossier de fonctionnalité se retrouve vide après transfert, le supprimer.
+
+# Ajout de nouvelles fonctionnalités d'alliance (utilisant des données stockées sur le forum)
+- En restreindre l'accès aux joueurs possédant un sujet dans la section Outiiil_membre
+- L'intégrer au système de droits des joueurs pour permettre d'en bloquer l'accès ou de bloquer l'affichage des données sensibles des autres joueurs
+- L'intégrer au système de restrictions d'accès en fonction de la version de l'extension
+
+# Ajout d'une nouvelle section
+- Reprendre la procédure de création et accès aux sections existantes
