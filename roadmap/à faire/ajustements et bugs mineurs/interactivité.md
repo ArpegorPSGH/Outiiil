@@ -6,6 +6,7 @@ Rajouter de l'interactivité à divers affichages.
 ## Fonctionnement Détaillé
 - Ajouter un lien vers la page du joueur aux pseudos dans les nouveaux tableaux.
 - Ajouter un lien vers la page de l'alliance aux tags dans les nouveaux tableaux.
+- Ajouter un lien vers la page d'attaque du joueur en terrain à l'icône d'attaque dans le tableau des membres.
 - Rafraîchir le tableau des commandes lorsque le joueur crée une commande.
 - Rafraîchir le tableau des commandes lorsque le joueur annule un convoi.
 

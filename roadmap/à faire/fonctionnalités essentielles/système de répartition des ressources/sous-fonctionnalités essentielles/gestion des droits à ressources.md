@@ -28,8 +28,10 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
 - Ajouter aux restrictions accès colonnes supplémentaires membres la présence d’un sujet pour le joueur dans la section membres
 - Donner possibilité modifier manuellement coefficient et droit accumulés à ceux ayant droit d’administration de l’alliance (utiliser la boîte rang actuelle)
 - A chaque chargement de page, enregistrer dans l’extension la date, heure et minute de la prochaine récolte (affichée sur la page ressources)
-- Mise à jour :
+- Mise à jour (permettre la mise à jour à n'importe quel moment (pas nécessairement début de minute) si elle date de plus d'une demi-heure) :
     - A chaque début de minute de récolte (sur la base de la prochaine récolte enregistrée et le fait qu’elles ont lieu toutes les demi-heures), mettre à jour toutes les colonnes présentées dans l’image, de gauche à droite (sauf les colonnes de TdC à la dernière mise à jour et date de la dernière mise à jour qui sont mises à jour en dernier).
+    - Si lors de la récupération des dates de dernière mise à jour sur le forum, elles ne sont pas identiques pour tous les membres, interrompre le traitement car un autre joueur est en train d'effectuer la mise à jour
+    - Si nécessaire, afficher un message pour demander au joueur de ne pas fermer la page/fourmizzz/le navigateur
     - Lorsque le coefficient ou la liberté d’ajustement sont changés pour un joueur, mettre à jour les parts des joueurs ajustées
 - Si un joueur dont le coefficient est non nul n'a aucun recensement dans son sujet membres, ne pas mettre à jour les droits accumulés pour tous les joueurs de l'alliance et afficher une notification toast informant que la mise à jour est bloquée à cause de certains joueurs n'ayant pas effectué de recensement et indiquer leurs pseudos
 

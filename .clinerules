@@ -280,7 +280,7 @@ Le dossier roadmap contient toutes les nouvelles fonctionnalités prévues. Il e
     - Une section "Avancement" dans laquelle est détaillé ce qui a été fait du plan d'implémentation, ce qu'il reste à faire, et les éventuels bugs repérés
 - Mettre à jour la roadmap consiste à compléter les sections "Fonctionnement Détaillé" et/ou "Plan d'Implémentation" et/ou "Avancement" d'un fichier en fonction du travail qui vient d'être effectué, ainsi qu'éventuellement à le déplacer.
 - Lorsque l'on commence à travailler sur le contenu d'un fichier de la roadmap, celui-ci doit être transféré du dossier "à faire" vers celui "en cours", en conservant l'arborescence dans laquelle il se trouve.
-- Lors de la complétion de l'objectif d'un fichier, celui-ci doit être transféré du dossier "en cours" vers celui "terminé", en conservant l'arborescence dans laquelle il se trouve.
+- Lors de la complétion de l'objectif d'un fichier, celui-ci doit être transféré du dossier "en cours" vers celui "terminé", en conservant l'arborescence dans laquelle il se trouve. Pour être complété, un objectif doit avoir été implémenté et testé.
 - Si l'arborescence du fichier existe déjà partiellement ou totalement dans le dossier de destination, elle est réutilisée.
 - Si un dossier de fonctionnalité se retrouve vide après transfert, le supprimer.
 
@@ -291,3 +291,8 @@ Le dossier roadmap contient toutes les nouvelles fonctionnalités prévues. Il e
 
 # Ajout d'une nouvelle section
 - Reprendre la procédure de création et accès aux sections existantes
+
+# Robustesse des fonctionnalités
+- S'assurer que chaque fonctionnalité est robuste par rapport à une imprécision d'une seconde sur la date d'arrivée prévue des convois, attaques et chasses.
+- S'assurer qu'un mécanisme d'anti-collision sur le forum est mis en place quand nécessaire.
+- s'assurer que les données sont rafraîchies avant leur utilisation lorsqu'elles peuvent avoir été modifiées par autre chose que l'instance de la page affichée.
