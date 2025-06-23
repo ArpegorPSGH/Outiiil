@@ -450,7 +450,6 @@ class PageAlliance
         const pseudoDisplay = joueur.allianceTag
             ? `${joueur.pseudo} (${joueur.allianceTag})`
             : joueur.pseudo;
-        console.log(`[PageAlliance] Affichage du joueur extérieur ${joueur.pseudo}. Tag d'alliance: ${joueur.allianceTag}`);
 
         const rangDisplay = joueur.rang !== undefined && joueur.rang !== "" ? joueur.rang : "N/C";
         const terrainDisplay = joueur.terrain !== -1 ? numeral(joueur.terrain).format() : "N/C";

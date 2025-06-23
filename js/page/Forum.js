@@ -97,7 +97,6 @@ class PageForum
             });
 
             if (sujetsAConsulter.length === 0) {
-                console.log("[PageForum] Aucun sujet récent à consulter pour les convois.");
                 return [];
             }
 
@@ -108,11 +107,9 @@ class PageForum
                     const responseSujet = $(dataSujet).find("cmd:eq(1)").text();
                     const messages = $("<div/>").append(responseSujet).find(".messageForum");
 
-                    const destinatairePseudo = commandes[sujetInfo.id] ? commandes[sujetInfo.id].demandeur.pseudo : "Inconnu"; // Récupérer le destinataire depuis les commandes chargées
-
                     messages.each((i, messageElt) => {
                         const messageText = $(messageElt).text();
-                        const auteurElement = $(messageElt).prevAll(".auteurForum");
+                        const auteurElement = $(messageElt).prev(".auteurForum");
                         const auteurHtml = auteurElement.html();
                         let auteurMessage = "Inconnu";
                         // Regex pour extraire le texte entre les balises <a>
@@ -124,33 +121,14 @@ class PageForum
                         const dateMessage = Utils.parseForumDate(dateMessageText);
 
                         // Déterminer le pattern exact pour identifier un message de convoi
-                        // Basé sur la méthode toUtilitaire de la classe Convoi si elle existe et est pertinente
-                        // Déterminer le pattern exact pour identifier un message de convoi
-                        // Modification pour accepter les quantités négatives
-                        const convoiMatch = messageText.match(/\s*- Vous allez livrer (-?\d+) nourritures et (-?\d+) materiaux à (.+?) dans (.+?) - Retour le (.+)$/);
+                        // Modification pour accepter les quantités négatives et l'ID d'annulation optionnel
+                        // Créer un objet Convoi en utilisant la nouvelle méthode statique
+                        const convoi = Convoi.fromUtilitaireString(messageText, auteurMessage, sujetInfo.id, dateMessage.toDate());
 
-                        if (convoiMatch) {
-                            const nourriture = parseInt(convoiMatch[1], 10);
-                            const materiaux = parseInt(convoiMatch[2], 10);
-                            const destinataire = convoiMatch[3];
-                            const dateRetourText = convoiMatch[5]; // Capture group 5 is the return date string
-
-                            // Parse the return date directly
-                            const dateArrivee = moment(dateRetourText, "D MMM YYYY à HH[h]mm");
-
+                        if (convoi) {
                             // Vérifier si la date d'arrivée est dans le futur ou dans la minute actuelle
                             // Utiliser une tolérance pour les dates passées très récentes
-                            if (dateArrivee.diff(maintenant) >= -60000) { // -60000 ms = -1 minute
-                                // Créer un objet Convoi en utilisant la classe Convoi
-                                const convoi = new Convoi({
-                                    expediteur: auteurMessage,
-                                    destinataire: destinataire,
-                                    nourriture: nourriture,
-                                    materiaux: materiaux,
-                                    dateArrivee: dateArrivee.toDate(), // Stocker comme objet Date
-                                    idCommande: sujetInfo.id // Lier au sujet de commande
-                                });
-
+                            if (moment(convoi.dateArrivee).diff(maintenant) >= -60000) { // -60000 ms = -1 minute
                                 convois.push(convoi);
                             }
                         }
@@ -368,27 +346,11 @@ class PageForum
             sujetElements.each((i, elt) => {
                 let titreSujet = $(elt).find("td:eq(1)").text().trim();
                 if (titreSujet) {
-                    let etat = titreSujet.split("] ")[0].split("[")[1];
-                    // Filtrer les sujets selon les états souhaités
-                    // Inclure les commandes "Nouvelle", "En cours", "En attente" et "Terminée" (si récente)
-                    if (etat === "Nouvelle" || etat === "En cours" || etat === "En attente" || etat === "Terminée") {
-                        let id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
-                        // Pour les commandes terminées, vérifier si elles sont récentes
-                        if (etat === "Terminée") {
-                            // Créer une instance temporaire de Commande pour utiliser estTermineRecent
-                            // On ne peut pas encore parser complètement la commande ici car on n'a pas toutes les infos
-                            // On va donc charger toutes les commandes terminées et filtrer après le parse complet
-                            // Ou, mieux, on va s'assurer que la logique de PageCommerce gère les cas où la commande n'est pas trouvée
-                            // et que chargerCommande charge toutes les commandes nécessaires pour la gestion des convois.
-                            // Pour l'instant, chargeons toutes les commandes terminées et laissons PageCommerce gérer le filtrage par date de dernière mise à jour.
-                            sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat });
-                        } else {
-                            sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat });
-                        }
-                    }
+                    let etat = titreSujet.split("] ")[0].split("[")[1]; // Réintroduire la définition de 'etat'
+                    let id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
+                    sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat });
                 }
             });
-
             if (sujetsAConsulter.length === 0) {
                 // Aucune commande à afficher
                 return true;

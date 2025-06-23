@@ -69,48 +69,244 @@ class PageCommerce
                         // chargerCommande retourne maintenant une Promise
                         this._utilitaire.chargerCommande(data).then(() => {
                             this.afficherCommande();
-                            console.log("[PageCommerce] Appel de chargerConvois après chargement des commandes.");
                             // Charger les convois du forum après les commandes
                             return this._utilitaire.chargerConvois(this._utilitaire.commande);
                         }).then((convoisForum) => {
-                            console.log("[PageCommerce] chargerConvois terminé. Convois du forum reçus:", convoisForum);
-
-                            // Extraire les convois actifs de la page commerce
-                            const convoisActifsPage = this.getConvoisActifsPage();
-                            console.log("[PageCommerce] Convois actifs de la page extraits:", convoisActifsPage);
-
-                            // Appeler la nouvelle méthode pour gérer les annulations (étapes 2 à 7)
-                            this.gererAnnulationsConvois(convoisForum, convoisActifsPage);
-
                             // Actualiser le tableau des convois après le chargement initial
                             this.actualiserConvois(); // Cette fonction utilise toujours this._utilitaire.chargerConvois() en interne, ce qui est correct pour afficher les convois du forum.
-
+                            // Attacher les listeners pour les liens d'annulation de convoi
+                            this._attacherListenersAnnulationConvoi();
+                            // Traiter le convoi après l'envoi dans le jeu (au rechargement de la page)
+                            this._traiterConvoiApresEnvoiJeu();
+                            // Traiter l'annulation de convoi après le rechargement de la page
+                            this._traiterAnnulationConvoiApresRechargement();
                         }).catch((error) => {
                             // Gérer les erreurs de chargement des commandes ou des convois
-                            console.error("[PageCommerce] Erreur lors du chargement des commandes ou des convois:", error);
                         });
                     }, (jqXHR, textStatus, errorThrown) => {
                         $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes."});
                     });
                     this.formulaireConvoi();
                 } else {
-                    console.log("[PageCommerce] Sujet membre non trouvé. Le tableau des commandes et des convois ne sera pas affiché.");
                     // Optionnel: Afficher un message à l'utilisateur
                     // $.toast({...TOAST_INFO, text : "Votre sujet membre n'a pas été trouvé. Le tableau des commandes n'est pas disponible."});
                 }
             }).catch(error => {
-                console.error("[PageCommerce] Erreur lors de la vérification du sujet membre:", error);
                 // Optionnel: Afficher un message d'erreur
                 // $.toast({...TOAST_ERROR, text : "Erreur lors de la vérification de votre sujet membre."});
             });
         } else {
-             console.log("[PageCommerce] Paramètres forumCommande ou forumMembre non configurés. Le tableau des commandes ne sera pas affiché.");
              // Optionnel: Afficher un message à l'utilisateur
              // $.toast({...TOAST_INFO, text : "Les paramètres du forum ne sont pas configurés. Le tableau des commandes n'est pas disponible."});
         }
 
         return this;
     }
+
+    /**
+     * Gère le traitement d'un convoi après qu'il ait été envoyé dans le jeu,
+     * en le postant sur le forum et en mettant à jour les commandes.
+     * Cette méthode est appelée au rechargement de la page si des données de convoi
+     * sont présentes dans le localStorage.
+     *
+     * @private
+     * @method _traiterConvoiApresEnvoiJeu
+     */
+    async _traiterConvoiApresEnvoiJeu() {
+        console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Début de _traiterConvoiApresEnvoiJeu.");
+        const convoiAPosterString = localStorage.getItem('outiiil_convoi_a_poster');
+        const idsAnnulationApresRechargementInitialString = localStorage.getItem('outiiil_ids_annulation_apres_rechargement_initial');
+
+        if (convoiAPosterString && !idsAnnulationApresRechargementInitialString) {
+            // Premier rechargement après l'interception du clic
+            const convoiData = JSON.parse(convoiAPosterString);
+            
+            // Compléter les champs du formulaire de convoi
+            $("#pseudo_convoi").val(convoiData.destinataire);
+            $("#input_nbNourriture").val(numeral(convoiData.nourriture).format());
+            $("#nbNourriture").val(convoiData.nourriture);
+            $("#input_nbMateriaux").val(numeral(convoiData.materiaux).format());
+            $("#nbMateriaux").val(convoiData.materiaux);
+            $("#input_nbOuvriere").val(numeral(convoiData.ouvrieres).format());
+            $("#nbOuvriere").val(convoiData.ouvrieres);
+            $("#o_idCommande").val(convoiData.idCommande);
+
+            // Récupérer les IDs d'annulation des convois actuellement affichés sur la page
+            const idsActuelsPage = this.getConvoiAnnulationIds();
+            localStorage.setItem('outiiil_ids_annulation_apres_rechargement_initial', JSON.stringify(idsActuelsPage));
+
+            // Simuler le clic sur le bouton de soumission original pour inclure le paramètre 'name=convoi'
+            $("input[name='convoi']").click();
+            // Ne pas effacer les clés localStorage ici, elles seront utilisées après le second rechargement
+            return; // Arrêter l'exécution ici, la page va se recharger
+        } else if (convoiAPosterString && idsAnnulationApresRechargementInitialString) {
+            // Second rechargement après le forward du clic
+            console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Second rechargement détecté.");
+            const convoiData = JSON.parse(convoiAPosterString);
+            const idsAvantEnvoi = JSON.parse(idsAnnulationApresRechargementInitialString);
+            const monConvoi = new Convoi(convoiData);
+
+            const idsApresEnvoi = this.getConvoiAnnulationIds();
+            console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] IDs d'annulation avant second envoi: ${idsAvantEnvoi.join(', ')}`);
+            console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] IDs d'annulation après second envoi: ${idsApresEnvoi.join(', ')}`);
+
+            const nouvelIdAnnulation = idsApresEnvoi.find(id => !idsAvantEnvoi.includes(id));
+            console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Nouvel ID d'annulation trouvé: ${nouvelIdAnnulation}`);
+
+            try {
+                if (nouvelIdAnnulation) {
+                    monConvoi.idAnnulation = nouvelIdAnnulation;
+                    console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Convoi mis à jour avec idAnnulation: ${monConvoi.idAnnulation}`);
+
+                    let idCommande = monConvoi.idCommande;
+                    idCommande = parseInt(idCommande);
+
+                    await this._utilitaire.envoyerMessage(idCommande, monConvoi.toUtilitaire());
+                    console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Convoi envoyé sur le forum.");
+
+                    this._utilitaire.commande[idCommande].ajouteConvoi(monConvoi);
+                    console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Commande ${idCommande} mise à jour en mémoire. Tentative de modification du sujet sur le forum.`);
+                    await this._utilitaire.modifierSujet(this._utilitaire.commande[idCommande].toUtilitaire(), " ", idCommande);
+                    $.toast({...TOAST_SUCCESS, text : "Commande mise à jour sur le forum."});
+
+                    let cmdSuivante = 99999999999999999;
+                    let foundActiveCommand = false;
+                    for(let id in this._utilitaire.commande){
+                        if(this._utilitaire.commande[id].etat === ETAT_COMMANDE["En cours"]){
+                            foundActiveCommand = true;
+                            break;
+                        }
+                        if(this._utilitaire.commande[id].etat === ETAT_COMMANDE["En attente"] && id < cmdSuivante)
+                            cmdSuivante = id;
+                    }
+                    if(!foundActiveCommand && cmdSuivante !== 99999999999999999){
+                        this._utilitaire.commande[cmdSuivante].etat = ETAT_COMMANDE["En cours"];
+                        await this._utilitaire.modifierSujet(this._utilitaire.commande[cmdSuivante].toUtilitaire(), " ", cmdSuivante);
+                        $.toast({...TOAST_SUCCESS, text : "Nouvelle commande en cours à jour."});
+                    }
+
+                    this.actualiserConvois();
+                    this.actualiserCommande();
+
+                } else {
+                    console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Aucun nouvel ID d'annulation détecté. Le convoi ne sera pas posté par Outiiil.");
+                    $.toast({...TOAST_INFO, text : "Aucun nouvel ID d'annulation détecté après l'envoi du convoi. Le convoi n'a pas été posté sur le forum par Outiiil."});
+                }
+            } catch (error) {
+                console.error(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Erreur lors du traitement du convoi après envoi:`, error);
+                $.toast({...TOAST_ERROR, text : `Erreur lors du traitement du convoi après envoi: ${error.message || error}`});
+            } finally {
+                console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Nettoyage du localStorage.");
+                localStorage.removeItem('outiiil_convoi_a_poster');
+                localStorage.removeItem('outiiil_ids_annulation_apres_rechargement_initial');
+                console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] localStorage nettoyé.");
+            }
+        } else {
+            console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Pas de données de convoi ou d'IDs d'annulation dans le localStorage. Fin de la fonction.");
+        }
+    }
+
+    /**
+     * Gère le traitement d'une annulation de convoi après le rechargement de la page.
+     * Cette méthode est appelée au rechargement de la page si un ID d'annulation
+     * est présent dans le localStorage.
+     *
+     * @private
+     * @method _traiterAnnulationConvoiApresRechargement
+     */
+    async _traiterAnnulationConvoiApresRechargement() {
+        const idAnnulationPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
+
+        if (idAnnulationPending) {
+            
+            // Récupérer les IDs d'annulation de tous les convois actuellement affichés sur la page
+            const idsActuelsPage = this.getConvoiAnnulationIds();
+
+            // Si l'ID d'annulation stocké est toujours présent dans la liste actuelle, cela signifie que le jeu n'a pas encore traité l'annulation.
+            if (idsActuelsPage.includes(idAnnulationPending)) {
+                localStorage.setItem('outiiil_convoi_annulation_forwarded_id', idAnnulationPending);
+                // Trouver le lien d'annulation correspondant et simuler un clic
+                $("a[href*='commerce.php?annuler=" + idAnnulationPending + "']").get(0).click();
+                // Ne pas effacer outiiil_convoi_annulation_pending_id ici, il sera effacé après le second rechargement
+                return; // Arrêter l'exécution ici, la page va se recharger
+            } else {
+                // Si l'ID d'annulation stocké n'est PAS présent dans la liste actuelle, cela signifie que le convoi a été annulé côté jeu.
+                const idAnnulationForwarded = localStorage.getItem('outiiil_convoi_annulation_forwarded_id');
+
+                if (idAnnulationForwarded === idAnnulationPending) {
+                    // C'est le second rechargement après un forward du clic
+                    try {
+                        // Charger tous les convois en cours depuis le forum
+                        const tousLesConvoisForum = await this._utilitaire.chargerConvois(this._utilitaire.commande);
+
+                        // Rechercher le convoi annulé parmi les convois chargés en utilisant uniquement l'ID d'annulation
+                        const convoiAnnuleForum = tousLesConvoisForum.find(convoi => convoi.idAnnulation === idAnnulationPending);
+
+                        if (convoiAnnuleForum) {
+                            
+                            // Créer un nouvel objet Convoi avec des quantités négatives pour les ressources "nourriture" et "matériaux"
+                            const convoiNegatif = new Convoi({
+                                expediteur: convoiAnnuleForum.expediteur,
+                                destinataire: convoiAnnuleForum.destinataire,
+                                nourriture: -convoiAnnuleForum.nourriture,
+                                materiaux: -convoiAnnuleForum.materiaux,
+                                dateArrivee: convoiAnnuleForum.dateArrivee,
+                                idCommande: convoiAnnuleForum.idCommande,
+                                idAnnulation: convoiAnnuleForum.idAnnulation, // Conserver l'ID d'annulation
+                                ouvrieres: convoiAnnuleForum.ouvrieres // Ajouter les ouvrières négatives
+                            });
+
+                            // Récupérer la commande associée
+                            const commandeAssociee = this._utilitaire.commande[convoiAnnuleForum.idCommande];
+
+                            if (commandeAssociee) {
+                                
+                                // Poster le convoi négatif sur le forum
+                                await this._utilitaire.envoyerMessage(commandeAssociee.id, convoiNegatif.toUtilitaire());
+                                $.toast({...TOAST_SUCCESS, text : "Annulation de convoi enregistrée sur le forum."});
+
+                                // Mettre à jour la quantité livrée de la commande associée en mémoire
+                                commandeAssociee.nourritureLivree += convoiNegatif.nourriture; // Ajoute une valeur négative
+                                commandeAssociee.materiauxLivres += convoiNegatif.materiaux; // Ajoute une valeur négative
+
+                                // S'assurer que les quantités livrées ne deviennent pas négatives
+                                commandeAssociee.nourritureLivree = Math.max(0, commandeAssociee.nourritureLivree);
+                                commandeAssociee.materiauxLivres = Math.max(0, commandeAssociee.materiauxLivres);
+
+                                // Si la commande était "Terminée" et que la quantité livrée redevient inférieure à la quantité demandée, repasser son statut en "En cours".
+                                if (commandeAssociee.etat === ETAT_COMMANDE.Terminée && 
+                                    (commandeAssociee.nourritureLivree < commandeAssociee.totalNourritureDemandee || 
+                                     commandeAssociee.materiauxLivres < commandeAssociee.totalMateriauxDemandes)) {
+                                    commandeAssociee.etat = ETAT_COMMANDE["En cours"];
+                                }
+
+                                // Sauvegarder l'état mis à jour de la commande sur le forum
+                                await this._utilitaire.modifierSujet(commandeAssociee.toUtilitaire(), " ", commandeAssociee.id);
+
+                                // Actualiser les affichages
+                                this.actualiserConvois();
+                                this.actualiserCommande();
+
+                            } else {
+                                $.toast({...TOAST_WARNING, text : "Commande associée introuvable pour le convoi annulé sur le forum."});
+                            }
+                        } else {
+                            $.toast({...TOAST_WARNING, text : "Convoi annulé introuvable sur le forum."});
+                        }
+                    } catch (error) {
+                        console.error(`[PageCommerce][_traiterAnnulationConvoiApresRechargement] Erreur lors du traitement de l'annulation:`, error);
+                        $.toast({...TOAST_ERROR, text : `Erreur lors du traitement de l'annulation du convoi: ${error.message || error}`});
+                    }
+                } else {
+                    $.toast({...TOAST_INFO, text : "Le convoi a déjà été annulé ou n'est plus annulable. Aucune action Outiiil nécessaire."});
+                }
+            }
+            // Dans tous les cas, effacer les clés du localStorage
+            localStorage.removeItem('outiiil_convoi_annulation_pending_id');
+            localStorage.removeItem('outiiil_convoi_annulation_forwarded_id');
+        } 
+    } // Fin de _traiterAnnulationConvoiApresRechargement();
+
 	/**
 	* Affiche les retours, et sauvegarde les convois en cours pour la boite compte plus.
     *
@@ -143,182 +339,61 @@ class PageCommerce
         // Verification si les données sont deja enregistrées
         if(listeConvoi.length) this.saveConvoi(listeConvoi);
         return this;
-	}
+	} // Fin de plus();
+    
     /**
-    * Gère l'identification et le traitement des annulations de convois.
-    * Correspond aux étapes 2 à 7 du plan d'implémentation.
+    * Attache des listeners aux liens d'annulation de convoi.
     *
     * @private
-    * @method gererAnnulationsConvois
-    * @param {Array} convoisForum - Liste de tous les convois en cours extraits du forum.
-    * @param {Array} convoisActifsPage - Liste des convois actuellement actifs affichés sur la page commerce du joueur.
+    * @method _attacherListenersAnnulationConvoi
     */
-    gererAnnulationsConvois(convoisForum, convoisActifsPage) {
-        console.log("[PageCommerce] Début de gererAnnulationsConvois");
-        console.log("Convois du forum:", convoisForum);
-        console.log("Convois actifs de la page:", convoisActifsPage);
+    _attacherListenersAnnulationConvoi() {
 
-        // Étape 2: Filtrage et Groupement des Convois du Forum
-        const convoisForumJoueur = convoisForum.filter(convoi => convoi.expediteur === monProfil.pseudo);
-        console.log("Convois du forum du joueur actuel:", convoisForumJoueur);
-
-        const groupesForum = new Map();
-        convoisForumJoueur.forEach(convoi => {
-            const absNourriture = Math.abs(convoi.nourriture);
-            const absMateriaux = Math.abs(convoi.materiaux);
-            const key = `${convoi.destinataire}-${absNourriture}-${absMateriaux}-${moment(convoi.dateArrivee).format("YYYYMMDDHHmm")}`;
-
-            if (!groupesForum.has(key)) {
-                groupesForum.set(key, { count_forum: 0, absNourriture: absNourriture, absMateriaux: absMateriaux, destinataire: convoi.destinataire, dateArrivee: convoi.dateArrivee, idCommande: convoi.idCommande });
+        $("a[href*='commerce.php?annuler=']").on('click', async (e) => {
+            // Si un ID d'annulation est déjà en attente, cela signifie que nous sommes dans un cycle de rechargement.
+            // Ne rien faire pour éviter une boucle infinie.
+            if (localStorage.getItem('outiiil_convoi_annulation_pending_id')) {
+                return;
             }
 
-            // Un convoi est considéré comme négatif si au moins une de ses quantités est négative.
-            if (convoi.nourriture < 0 || convoi.materiaux < 0) {
-                groupesForum.get(key).count_forum--;
-                console.log(`[gererAnnulationsConvois] Convoi négatif soustrait du groupe ${key}. count_forum: ${groupesForum.get(key).count_forum}`);
-            } else { // Sinon, c'est un convoi positif ou nul.
-                groupesForum.get(key).count_forum++;
-                console.log(`[gererAnnulationsConvois] Convoi positif ajouté au groupe ${key}. count_forum: ${groupesForum.get(key).count_forum}`);
+            e.preventDefault(); // Empêcher le comportement par défaut du lien
+
+            const originalHref = $(e.currentTarget).attr('href');
+            const convoiIdMatch = originalHref.match(/annuler=(\d+)/);
+            if (!convoiIdMatch) {
+                $.toast({...TOAST_ERROR, text : "Erreur: Impossible d'identifier le convoi à annuler."});
+                return;
             }
+            const convoiId = convoiIdMatch[1];
+            // Stocker l'ID d'annulation dans le localStorage avant de recharger la page
+            localStorage.setItem('outiiil_convoi_annulation_pending_id', convoiId);
+            // Le rechargement de la page doit toujours se produire, même en cas d'erreur
+            window.location.href = "commerce.php";
         });
-        console.log("[gererAnnulationsConvois] Groupes de convois attendus (forum) après traitement:", groupesForum);
-
-        // Étape 3: Groupement et Comptage des Convois Actifs
-        const groupesPage = new Map();
-        convoisActifsPage.forEach(convoi => {
-             // Utiliser la même clé unique pour le groupement
-            const key = `${convoi.cible}-${convoi.nou}-${convoi.mat}-${moment(convoi.exp).format("YYYYMMDDHHmm")}`;
-             if (!groupesPage.has(key)) {
-                groupesPage.set(key, { count_page: 0, convoi: convoi }); // Stocker une référence au convoi
-            }
-            groupesPage.get(key).count_page++;
-            console.log(`[gererAnnulationsConvois] Convoi actif ajouté au groupe de page ${key}. count_page: ${groupesPage.get(key).count_page}`);
-        });
-        console.log("[gererAnnulationsConvois] Groupes de convois réels (page) après traitement:", groupesPage);
-
-        // Étape 4: Comparaison des Groupes et Identification des Annulations
-        const annulationsIdentifiees = [];
-        groupesForum.forEach((forumGroup, key) => {
-            const pageGroup = groupesPage.get(key);
-            const countForum = forumGroup.count_forum;
-            const countPage = pageGroup ? pageGroup.count_page : 0;
-
-            console.log(`[gererAnnulationsConvois] Comparaison pour la clé ${key}: countForum=${countForum}, countPage=${countPage}`);
-
-            if (countForum > countPage) {
-                const nombreAnnulations = countForum - countPage;
-                console.log(`[gererAnnulationsConvois] Annulation identifiée pour ${key}. Nombre d'annulations: ${nombreAnnulations}`);
-
-                annulationsIdentifiees.push({
-                    destinataire: forumGroup.destinataire,
-                    nourriture: forumGroup.absNourriture, // Quantité d'un seul convoi (positive)
-                    materiaux: forumGroup.absMateriaux,   // Quantité d'un seul convoi (positive)
-                    dateArrivee: forumGroup.dateArrivee,
-                    idCommande: forumGroup.idCommande,
-                    nombreAnnulations: nombreAnnulations
-                });
-            }
-        });
-        console.log("[gererAnnulationsConvois] Annulations identifiées après comparaison:", annulationsIdentifiees);
-
-        // Étape 5: Traitement des Annulations (Mise à jour en mémoire et post sur le forum)
-        annulationsIdentifiees.forEach(annulation => {
-            const commande = this._utilitaire.commande[annulation.idCommande];
-            if (commande) {
-                console.log(`Traitement annulation pour commande ${commande.id}:`, annulation);
-
-                // Soustraire la quantité annulée de la quantité déjà livrée pour chaque convoi annulé
-                commande.nourritureLivree -= (annulation.nourriture * annulation.nombreAnnulations);
-                commande.materiauxLivres -= (annulation.materiaux * annulation.nombreAnnulations);
-
-                // S'assurer que les quantités livrées ne deviennent pas négatives
-                commande.nourritureLivree = Math.max(0, commande.nourritureLivree);
-                commande.materiauxLivres = Math.max(0, commande.materiauxLivres);
-
-                // Si la commande était terminée et que la quantité livrée est maintenant inférieure à la quantité commandée, la remettre en "en cours"
-                if (commande.etat === ETAT_COMMANDE.Terminée && (commande.nourritureLivree < commande.totalNourritureDemandee || commande.materiauxLivres < commande.totalMateriauxDemandes)) {
-                    commande.etat = ETAT_COMMANDE["En cours"];
-                    console.log(`Commande ${commande.id} repassée en statut "En cours" suite à annulation.`);
-                }
-
-                // Pour chaque convoi annulé, préparer et poster un message de "livraison négative"
-                for (let i = 0; i < annulation.nombreAnnulations; i++) {
-                    const convoiAnnulation = new Convoi({
-                        expediteur: monProfil.pseudo,
-                        destinataire: annulation.destinataire,
-                        nourriture: -annulation.nourriture, // Quantité négative d'un seul convoi
-                        materiaux: -annulation.materiaux,   // Quantité négative d'un seul convoi
-                        dateArrivee: annulation.dateArrivee,
-                        idCommande: annulation.idCommande
-                    });
-
-                    const messageForum = convoiAnnulation.toUtilitaire();
-                    console.log(`Message forum à envoyer pour convoi annulé ${i + 1}:`, messageForum);
-
-                    this._utilitaire.envoyerMessage(annulation.idCommande, messageForum).then(() => {
-                        console.log(`Message d'annulation posté pour commande ${annulation.idCommande} (convoi ${i + 1}/${annulation.nombreAnnulations}).`);
-                        // Optionnel: Afficher une notification à l'utilisateur après le dernier message
-                        if (i === annulation.nombreAnnulations - 1) {
-                            $.toast({...TOAST_INFO, text : `Annulation(s) de convoi(s) enregistrée(s) pour la commande ${annulation.idCommande}.`});
-                        }
-                    }).catch(error => {
-                        console.error(`Erreur lors du post du message d'annulation pour commande ${annulation.idCommande} (convoi ${i + 1}/${annulation.nombreAnnulations}):`, error);
-                        $.toast({...TOAST_ERROR, text : `Erreur lors de l'enregistrement de l'annulation pour la commande ${annulation.idCommande}.`});
-                    });
-                }
-
-                // Sauvegarder l'état mis à jour de la commande sur le forum
-                this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then(() => {
-                    console.log(`Commande ${commande.id} mise à jour sur le forum après annulation.`);
-                }).catch(error => {
-                    console.error(`Erreur lors de la mise à jour de la commande ${commande.id} sur le forum après annulation:`, error);
-                    $.toast({...TOAST_ERROR, text : `Erreur lors de la mise à jour de la commande ${commande.id} sur le forum.`});
-                });
-
-            } else {
-                console.warn(`Commande avec ID ${annulation.idCommande} non trouvée pour traiter l'annulation.`, annulation);
-            }
-        });
-
-        // Étape 7: Mise à jour locale des données
-        // Les données des commandes (this._utilitaire.commande) ont été mises à jour en mémoire à l'étape 5.
-        // Elles seront conservées pour la session actuelle.
-
-        console.log("[PageCommerce] Fin de gererAnnulationsConvois");
-    }
+    } // Fin de _attacherListenersAnnulationConvoi();
     /**
-    * Extrait les convois actuellement actifs affichés sur la page commerce.
+    * Récupère les IDs d'annulation de tous les convois affichés sur la page.
     *
     * @private
-    * @method getConvoisActifsPage
-    * @return {Array} Liste des convois actifs extraits.
+    * @method getConvoiAnnulationIds
+    * @returns {Array<string>} Un tableau de chaînes de caractères représentant les IDs d'annulation.
     */
-    getConvoisActifsPage() {
-        let listeConvoi = new Array(), nombres = new Array();
-		$("#centre > strong").each((i, elt) => {
-            // Affichage du retour des convois (cette partie n'est pas nécessaire pour l'extraction, mais je la laisse pour l'instant)
-            if($(elt).next().text().indexOf("Retour") == -1)
-                $(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(Utils.timeToInt($(elt).text().split("dans")[1].trim())).format("D MMM YYYY à HH[h]mm")}</span>`);
-            nombres = $(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
-            listeConvoi.push({
-                "cible" : $(elt).find("a").text(),
-                "sens" : $(elt).text().includes("livrer"),
-                "nou" : parseInt(nombres[0]), // Convertir en nombre
-                "mat" : parseInt(nombres[1]), // Convertir en nombre
-                "exp" : Utils.roundMinute(Utils.timeToInt($(elt).text().split("dans")[1].trim()))
-            });
+    getConvoiAnnulationIds() {
+        const annulationIds = [];
+        $("a[href*='commerce.php?annuler=']").each((i, elt) => {
+            const href = $(elt).attr('href');
+            const convoiIdMatch = href.match(/annuler=(\d+)/);
+            if (convoiIdMatch && convoiIdMatch[1]) {
+                annulationIds.push(convoiIdMatch[1]);
+            }
         });
-        // tri les convois par ordre d'arrivée (pas strictement nécessaire pour l'étape 1, mais peut être utile plus tard)
-        listeConvoi.sort((a, b) => {return moment(a.exp).diff(moment(b.exp));});
-
-        return listeConvoi;
-    }
-	/**
+        return annulationIds;
+    } // Fin de getConvoiAnnulationIds();
+    /**
 	* Sauvegarde les convois en cours.
     *
 	* @private
 	* @method saveConvoi
-	* @param {Array} liste des convois en cours.
 	*/
 	saveConvoi(liste)
 	{
@@ -328,7 +403,7 @@ class PageCommerce
             this._boiteComptePlus.sauvegarder().majConvoi();
         }
         return this;
-	}
+	} // Fin de saveConvoi();
     /**
 	* Affiche les commandes en cours issu de l'utilitaire.
     *
@@ -338,7 +413,138 @@ class PageCommerce
 	*/
 	afficherCommande()
 	{
-        let total = 0, totalRouge = 0, tabCommandeAff = new Array(), tabCommandePersoEnCours = new Array();
+        // Vérifier si le tableau des commandes existe déjà
+        if ($("#o_tableListeCommande").length === 0) {
+            // Créer la structure HTML du tableau (sans les lignes de données)
+            let contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
+                <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Évolution</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Échéance</th><th>Statut</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>
+                <tfoot><tr class='gras'><td colspan='13' id='o_footerCommande'></td></tr></tfoot></table></div><br/>`;
+
+            $("#centre .Bas").before(contenu);
+
+            // Initialiser DataTables pour le tableau des commandes
+            $("#o_tableListeCommande").DataTable({
+                data: [], // Les données seront ajoutées par actualiserCommande
+                bInfo : false,
+                bPaginate : false,
+                bAutoWidth : false,
+                dom : "Bfrti",
+                buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+                order : [[7, "desc"]], // Index de colonne ajusté pour l'échéance
+                stripeClasses : ["", "ligne_paire"],
+                responsive : true,
+                language : {
+                    zeroRecords : "Aucune commande trouvée",
+                    infoEmpty : "Aucun enregistrement",
+                    infoFiltered : "(Filtré par _MAX_ enregistrements)",
+                    search : "Rechercher : ",
+                    buttons : {colvis : "Colonne"}
+                },
+                columnDefs : [
+                    {targets: 1, title: "Date commande", visible: false}, // Nouvelle colonne Date commande
+                    {targets: 2, title: "Évolution", visible: false}, // Nouvelle colonne Évolution
+                    {type : "quantite-grade", targets : [5, 6]}, // Indices ajustés
+                    {type : "moment-D MMM YYYY", targets : 7}, // Indice ajusté
+                    {type : "time-unformat", targets : 10}, // Indice ajusté
+                    {sortable : false, targets : [11, 12]}, // Indices ajustés
+                    {visible: false, targets: [3, 4]} // Indices ajustés pour les quantités demandées
+                ]
+            });
+
+            $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
+            $("#o_ajouterCommande").click((e) => {
+                let boiteCommande = new BoiteCommande(new Commande(), this._utilitaire, this);
+                boiteCommande.afficher();
+            });
+
+            // Attacher les événements aux boutons "Livrer", "Modifier", "Supprimer" via la délégation d'événements
+            $("#o_tableListeCommande").on('click', "a[id^='o_commande']", (e) => {
+                e.preventDefault();
+                const commandeId = $(e.currentTarget).attr('id').replace('o_commande', '');
+                const commande = this._utilitaire.commande[commandeId];
+
+                let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2)));
+                let materialsToPrefill = Math.min(commande.materiaux, transportCapacity);
+                let nourishmentToPrefill = Math.min(commande.nourriture, transportCapacity - materialsToPrefill);
+
+                $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
+                $("#nbMateriaux").val(materialsToPrefill);
+
+                $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
+                $("#nbNourriture").val(nourishmentToPrefill);
+                $("#pseudo_convoi").val(commande.demandeur.pseudo);
+                $("#o_idCommande").val(commande.id);
+                $("html").animate({scrollTop : 0}, 600);
+                return false;
+            });
+
+            $("#o_tableListeCommande").on('click', "a[id^='o_modifierCommande']", (e) => {
+                e.preventDefault();
+                const commandeId = $(e.currentTarget).attr('id').replace('o_modifierCommande', '');
+                const commande = this._utilitaire.commande[commandeId];
+                let boiteCommande = new BoiteCommande(commande, this._utilitaire, this);
+                boiteCommande.afficher();
+                return false;
+            });
+
+            $("#o_tableListeCommande").on('click', "a[id^='o_supprimerCommande']", (e) => {
+                const commandeId = $(e.currentTarget).attr('id').replace('o_supprimerCommande', '');
+                const commande = this._utilitaire.commande[commandeId];
+                if(confirm("Supprimer cette commande ?")){
+                    commande.etat = ETAT_COMMANDE.Supprimée;
+                    this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then((data) => {
+                        $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
+                        this.actualiserCommande();
+                    }, (jqXHR, textStatus, errorThrown) => {
+                        $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
+                    });
+                }
+                return false;
+            });
+
+            // Créer la structure HTML du tableau des convois
+            let contenuConvois = `<div id="o_listeConvoi" class="simulateur centre o_marginT15"><h2>Convois en cours</h2><table id='o_tableListeConvoi' class="o_maxWidth" cellspacing=0>
+                <thead><tr class="ligne_paire"><th>Expéditeur</th><th>Destinataire</th><th>${IMG_POMME}</th><th>${IMG_MAT}</th><th>Arrivée</th></tr></thead>
+                <tbody></tbody></table></div><br/>`;
+
+            $("#o_listeCommande").after(contenuConvois); // Ajouter après le tableau des commandes
+
+            // Initialiser DataTables pour le tableau des convois
+            $("#o_tableListeConvoi").DataTable({
+                data: [], // Les données seront ajoutées par actualiserConvois
+                bInfo : false,
+                bPaginate : false,
+                bAutoWidth : false,
+                dom : "Bfrti",
+                buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+                order : [[4, "asc"]], // Trier par date d'arrivée
+                stripeClasses : ["", "ligne_paire"],
+                responsive : true,
+                language : {
+                    zeroRecords : "Aucun convoi en cours",
+                    infoEmpty : "Aucun enregistrement",
+                    infoFiltered : "(Filtré par _MAX_ enregistrements)",
+                    search : "Rechercher : ",
+                    buttons : {colvis : "Colonne"}
+                },
+                columnDefs : [
+                    {type : "quantite-grade", targets : [2, 3]},
+                    {type : "moment-D MMM YYYY à HH[h]mm", targets : 4}
+                ]
+            });
+        }
+        // Appeler actualiserCommande pour remplir le tableau
+        this.actualiserCommande();
+    } // Fin de afficherCommande();
+
+    /**
+    * Actualise le tableau des commandes en cours.
+    *
+    * @private
+	* @method actualiserCommande
+    */
+    actualiserCommande() {
+        let total = 0, totalRouge = 0, tabCommandeAff = new Array();
         let tableData = []; // Tableau pour les données de DataTables
 
         for(let id in this._utilitaire.commande){
@@ -388,135 +594,17 @@ class PageCommerce
                 if(commande.estHorsTard()) totalRouge += parseInt(commande.materiaux);
                 tabCommandeAff.push(id);
             }
-            // ajout des commandes à verifier pour vois les convois
-            // on affiche les convois pour nos commandes en cours
-            // on affiche les conboi pour les commandes terminés de moins de 1 jour
-            if(this._utilitaire.commande[id].demandeur.pseudo == monProfil.pseudo)
-                if(this._utilitaire.commande[id].etat == ETAT_COMMANDE["En cours"] || (this._utilitaire.commande[id].etat == ETAT_COMMANDE["Terminée"] && this._utilitaire.commande[id].estTermineRecent()))
-                    tabCommandePersoEnCours.push(id);
         }
 
-        // Créer la structure HTML du tableau (sans les lignes de données)
-        let contenu = `<div id="o_listeCommande" class="simulateur centre o_marginT15"><h2>Commandes</h2><table id='o_tableListeCommande' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Pseudo</th><th>Date commande</th><th>Évolution</th><th>Qté demandée ${IMG_POMME}</th><th>Qté demandée ${IMG_MAT}</th><th>Qté à livrer ${IMG_POMME}</th><th>Qté à livrer ${IMG_MAT}</th><th>Échéance</th><th>Statut</th><th>État</th><th>Temps de trajet</th><th>Livrer</th><th>Options</th></tr></thead>
-            <tfoot><tr class='gras ${tabCommandeAff.length % 2 ? "ligne_paire" : ""}'><td colspan='13'>${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !</td></tr></tfoot></table></div><br/>`;
+        // Mettre à jour le tableau DataTables existant
+        const table = $("#o_tableListeCommande").DataTable();
+        table.clear().rows.add(tableData).draw();
 
-        $("#centre .Bas").before(contenu);
+        // Mettre à jour le footer
+        $("#o_footerCommande").html(`${tabCommandeAff.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !`);
+        $("#o_footerCommande").parent().toggleClass("ligne_paire", tabCommandeAff.length % 2 !== 0);
+    } // Fin de actualiserCommande();
 
-        // Initialiser DataTables avec les données
-        $("#o_tableListeCommande").DataTable({
-            data: tableData, // Passer les données ici
-            bInfo : false,
-            bPaginate : false,
-            bAutoWidth : false,
-            dom : "Bfrti",
-            buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            order : [[7, "desc"]], // Index de colonne ajusté pour l'échéance
-            stripeClasses : ["", "ligne_paire"],
-            responsive : true,
-            language : {
-                zeroRecords : "Aucune commande trouvée",
-                infoEmpty : "Aucun enregistrement",
-                infoFiltered : "(Filtré par _MAX_ enregistrements)",
-                search : "Rechercher : ",
-                buttons : {colvis : "Colonne"}
-            },
-            columnDefs : [
-                {targets: 1, title: "Date commande", visible: false}, // Nouvelle colonne Date commande
-                {targets: 2, title: "Évolution", visible: false}, // Nouvelle colonne Évolution
-                {type : "quantite-grade", targets : [5, 6]}, // Indices ajustés
-                {type : "moment-D MMM YYYY", targets : 7}, // Indice ajusté
-                {type : "time-unformat", targets : 10}, // Indice ajusté
-                {sortable : false, targets : [11, 12]}, // Indices ajustés
-                {visible: false, targets: [3, 4]} // Indices ajustés pour les quantités demandées
-            ],
-            // Ajouter des render functions pour attacher les événements si nécessaire
-            // ou utiliser la délégation d'événements après l'initialisation du tableau
-            createdRow: (row, data, dataIndex) => {
-                // Attacher les événements aux boutons "Livrer", "Modifier", "Supprimer"
-                const commandeId = tabCommandeAff[dataIndex]; // Récupérer l'ID de la commande correspondant à la ligne
-                const commande = this._utilitaire.commande[commandeId];
-
-                $(row).find(`#o_commande${commandeId}`).on('click', (e) => {
-                    e.preventDefault();
-                    let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2)));
-                    let materialsToPrefill = Math.min(commande.materiaux, transportCapacity);
-                    let nourishmentToPrefill = Math.min(commande.nourriture, transportCapacity - materialsToPrefill);
-
-                    $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
-                    $("#nbMateriaux").val(materialsToPrefill);
-
-                    $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
-                    $("#nbNourriture").val(nourishmentToPrefill);
-                    $("#pseudo_convoi").val(commande.demandeur.pseudo);
-                    $("#o_idCommande").val(commande.id);
-                    $("html").animate({scrollTop : 0}, 600);
-                    return false;
-                });
-
-                $(row).find(`#o_modifierCommande${commandeId}`).on('click', (e) => {
-                    e.preventDefault();
-                    let boiteCommande = new BoiteCommande(commande, this._utilitaire, this);
-                    boiteCommande.afficher();
-                    return false;
-                });
-
-                $(row).find(`#o_supprimerCommande${commandeId}`).on('click', (e) => {
-                    if(confirm("Supprimer cette commande ?")){
-                        commande.etat = ETAT_COMMANDE.Supprimée;
-                        this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then((data) => {
-                            $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
-                            this.actualiserCommande();
-                        }, (jqXHR, textStatus, errorThrown) => {
-                            $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
-                        });
-                    }
-                    return false;
-                });
-            }
-        });
-
-        // Supprimer la boucle d'ajout d'événements après l'initialisation de DataTables
-        // for(let id of tabCommandeAff)
-        //      this._utilitaire.commande[id].ajouterEvent(this, this._utilitaire);
-
-        $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
-        $("#o_ajouterCommande").click((e) => {
-            let boiteCommande = new BoiteCommande(new Commande(), this._utilitaire, this);
-            boiteCommande.afficher();
-        });
-
-        // Créer la structure HTML du tableau des convois
-        let contenuConvois = `<div id="o_listeConvoi" class="simulateur centre o_marginT15"><h2>Convois en cours</h2><table id='o_tableListeConvoi' class="o_maxWidth" cellspacing=0>
-            <thead><tr class="ligne_paire"><th>Expéditeur</th><th>Destinataire</th><th>${IMG_POMME}</th><th>${IMG_MAT}</th><th>Arrivée</th></tr></thead>
-            <tbody></tbody></table></div><br/>`;
-
-        $("#o_listeCommande").after(contenuConvois); // Ajouter après le tableau des commandes
-
-        // Initialiser DataTables pour le tableau des convois
-        $("#o_tableListeConvoi").DataTable({
-            data: [], // Les données seront ajoutées par actualiserConvois
-            bInfo : false,
-            bPaginate : false,
-            bAutoWidth : false,
-            dom : "Bfrti",
-            buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            order : [[4, "asc"]], // Trier par date d'arrivée
-            stripeClasses : ["", "ligne_paire"],
-            responsive : true,
-            language : {
-                zeroRecords : "Aucun convoi en cours",
-                infoEmpty : "Aucun enregistrement",
-                infoFiltered : "(Filtré par _MAX_ enregistrements)",
-                search : "Rechercher : ",
-                buttons : {colvis : "Colonne"}
-            },
-            columnDefs : [
-                {type : "quantite-grade", targets : [2, 3]},
-                {type : "moment-D MMM YYYY à HH[h]mm", targets : 4}
-            ]
-        });
-    }
     /**
     * Actualise le tableau des convois en cours.
     *
@@ -538,10 +626,9 @@ class PageCommerce
             // Mettre à jour le tableau DataTables existant
             $("#o_tableListeConvoi").DataTable().clear().rows.add(tableDataConvois).draw();
         }).catch((error) => {
-            console.error("Erreur lors de l'actualisation des convois:", error);
             // Gérer l'erreur si nécessaire
         });
-    }
+    } // Fin de actualiserConvois();
     /**
 	* Modifie le bouton d'envoie des convois pour prendre ne compte l'utilitaire.
     *
@@ -552,6 +639,16 @@ class PageCommerce
 	{
         $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>").after(` <button id='o_resetConvoi'>Effacer</button>`).click((e) => {
             let idCommande = $("#o_idCommande").val();
+            let convoiAPosterString = localStorage.getItem('outiiil_convoi_a_poster');
+
+            if (idCommande != -1 && convoiAPosterString) {
+                // Si un idCommande est défini (convoi Outiiil) ET que des données de convoi sont déjà dans le localStorage,
+                // cela signifie que nous sommes dans le second rechargement après le clic simulé par _traiterConvoiApresEnvoiJeu.
+                // Dans ce cas, nous voulons que le formulaire soit soumis normalement au jeu, sans interception.
+                console.log("[PageCommerce][formulaireConvoi] Détection du second rechargement, laisser le formulaire se soumettre au jeu.");
+                return true; // Laisser l'événement se propager et le formulaire se soumettre
+            }
+
             let materiaux = numeral($("#nbMateriaux").val()).value();
             let nourriture = numeral($("#nbNourriture").val()).value();
 
@@ -561,50 +658,28 @@ class PageCommerce
                 return false;
             }
 
-            if(idCommande != -1){ // Enrengistrement du convoi
-                e.preventDefault();
+            if(idCommande != -1){ // Enregistrement du convoi
+                e.preventDefault(); // Empêcher la soumission immédiate du formulaire par le jeu.
+                
+                let destinatairePseudo = $("#pseudo_convoi").val();
+                let dateArriveeCalculee = moment().add(monProfil.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
+
                 let monConvoi = new Convoi({
                     expediteur  : monProfil.pseudo,
-                    destinataire : $("#pseudo_convoi").val(),
-                    materiaux   : numeral($("#nbMateriaux").val()).value(),
-                    nourriture  : numeral($("#nbNourriture").val()).value(),
+                    destinataire : destinatairePseudo,
+                    materiaux   : materiaux,
+                    nourriture  : nourriture,
                     idCommande  : numeral(idCommande).value(),
-                    dateArrivee : moment().add(monProfil.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's')
+                    dateArrivee : dateArriveeCalculee,
+                    ouvrieres   : numeral($("#nbOuvriere").val()).value() // Ajout du nombre d'ouvrières
                 });
-                // enregistrement
-                this._utilitaire.envoyerMessage(idCommande, monConvoi.toUtilitaire()).then((data) => {
-                    // Mise a jour des commandes
-                    this._utilitaire.commande[idCommande].ajouteConvoi(monConvoi);
-                    this._utilitaire.modifierSujet(this._utilitaire.commande[idCommande].toUtilitaire(), " ", idCommande).then((data) => {
-                        // si la commande est terminé on passe la suivante en attente en cours si il n'y a pas d'autres en cours
-                        let cmdSuivante = 99999999999999999;
-                        for(let id in this._utilitaire.commande){
-                            if(this._utilitaire.commande[id].etat == ETAT_COMMANDE["En cours"]){
-                                cmdSuivante = 99999999999999999
-                                break;
-                            }
-                            if(this._utilitaire.commande[id].etat == ETAT_COMMANDE["En attente"] && id < cmdSuivante)
-                                cmdSuivante = id;
-                        }
-                        if(cmdSuivante != 99999999999999999){
-                            this._utilitaire.commande[cmdSuivante].etat = ETAT_COMMANDE["En cours"];
-                            this._utilitaire.modifierSujet(this._utilitaire.commande[cmdSuivante].toUtilitaire(), " ", cmdSuivante).then((data) => {
-                                $.toast({...TOAST_SUCCESS, text : "Nouvelle commande en cours à jour."});
-                            }, (jqXHR, textStatus, errorThrown) => {
-                                $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
-                            });
-                        }
-                        // Lancement du convoi dans fourmizzz
-                        $("input[name='convoi']").trigger("click");
-                        // Actualiser le tableau des convois après l'envoi
-                        this.actualiserConvois();
-                    }, (jqXHR, textStatus, errorThrown) => {
-                         $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
-                    });
-                }, (jqXHR, textStatus, errorThrown) => {
-                    $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de l'enregistrement de votre convoi."});
-                });
-                $("#o_idCommande").val("-1");
+                
+                // Enregistrer les données du convoi dans le localStorage
+                localStorage.setItem('outiiil_convoi_a_poster', JSON.stringify(monConvoi.toObject()));
+                
+                // Recharger la page
+                window.location.href = "commerce.php";
+                return false; // Empêcher toute autre action après le rechargement
             }
         });
         $("#o_resetConvoi").click((e) => {
@@ -613,5 +688,5 @@ class PageCommerce
             return false;
         });
         return this;
-	}
-}
+	} // Fin de formulaireConvoi();
+} // Fin de la classe PageCommerce

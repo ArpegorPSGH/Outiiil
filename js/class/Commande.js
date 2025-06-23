@@ -401,14 +401,33 @@ class Commande
     */
     ajouteConvoi(convoi)
     {
+        console.log(`[Commande][ajouteConvoi] Début de l'ajout du convoi à la commande ${this._id}.`);
+        console.log(`[Commande][ajouteConvoi] Convoi à ajouter: Nourriture=${convoi.nourriture}, Matériaux=${convoi.materiaux}`);
+        console.log(`[Commande][ajouteConvoi] État actuel de la commande: Nourriture livrée=${this._nourritureLivree}, Matériaux livrés=${this._materiauxLivres}`);
+        console.log(`[Commande][ajouteConvoi] Quantités demandées: Nourriture=${this._totalNourritureDemandee}, Matériaux=${this._totalMateriauxDemandes}`);
+
         // on ajoute la nourriture livrée
         this._nourritureLivree += convoi.nourriture;
-        if (this._nourritureLivree > this._totalNourritureDemandee) this._nourritureLivree = this._totalNourritureDemandee;
+        console.log(`[Commande][ajouteConvoi] Nourriture livrée après ajout: ${this._nourritureLivree}`);
+        if (this._nourritureLivree > this._totalNourritureDemandee) {
+            console.log(`[Commande][ajouteConvoi] Nourriture livrée (${this._nourritureLivree}) dépasse la demande (${this._totalNourritureDemandee}). Ajustement.`);
+            this._nourritureLivree = this._totalNourritureDemandee;
+        }
         // on ajoute les materiaux livrés
         this._materiauxLivres += convoi.materiaux;
-        if (this._materiauxLivres > this._totalMateriauxDemandes) this._materiauxLivres = this._totalMateriauxDemandes;
+        console.log(`[Commande][ajouteConvoi] Matériaux livrés après ajout: ${this._materiauxLivres}`);
+        if (this._materiauxLivres > this._totalMateriauxDemandes) {
+            console.log(`[Commande][ajouteConvoi] Matériaux livrés (${this._materiauxLivres}) dépasse la demande (${this._totalMateriauxDemandes}). Ajustement.`);
+            this._materiauxLivres = this._totalMateriauxDemandes;
+        }
         // on met a jour le status si tout est livré
-        if(!this.nourriture && !this.materiaux) this._etat = ETAT_COMMANDE.Terminée;
+        if(!this.nourriture && !this.materiaux) {
+            console.log(`[Commande][ajouteConvoi] Toutes les ressources ont été livrées. Changement de l'état de la commande à "Terminée".`);
+            this._etat = ETAT_COMMANDE.Terminée;
+        } else {
+            console.log(`[Commande][ajouteConvoi] Ressources restantes: Nourriture=${this.nourriture}, Matériaux=${this.materiaux}. L'état de la commande reste inchangé.`);
+        }
+        console.log(`[Commande][ajouteConvoi] Fin de l'ajout du convoi. Nouvel état de la commande: Nourriture livrée=${this._nourritureLivree}, Matériaux livrés=${this._materiauxLivres}, État=${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === this._etat)}`);
         return this;
     }
 }

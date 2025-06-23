@@ -155,7 +155,15 @@ class Utils
 	*/
 	static roundMinute(temps)
 	{
-        return moment().add(temps, 's').add(1, "minute").startOf("minute");
+        if (moment.isMoment(temps)) {
+            // Si c'est un objet moment, arrondir au début de la minute suivante
+            return temps.add(1, 'minute').startOf('minute');
+        } else if (typeof temps === 'number') {
+            // Si c'est un entier (durée en secondes), appliquer la logique actuelle
+            return moment().add(temps, 's').add(1, "minute").startOf("minute");
+        }
+        // Retourne null ou gère l'erreur si le type n'est pas pris en charge
+        return null;
 	}
 	/**
 	* Decremente un chrono dynamique toutes les secondes.
