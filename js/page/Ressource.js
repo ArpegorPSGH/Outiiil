@@ -233,7 +233,7 @@ class PageRessource
             $(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
         });
         // Sauvegarde de la chasse en cours
-		if(listeChasse.length) this.saveChasse(listeChasse);
+		this.saveChasse(listeChasse);
         let affection = parseInt(monProfil.parametre["affectationRessource"].valeur);
         // Ajout de la pref pour l'affectation auto
         $("#ChangeRessource").parent().parent().before(`<tr>
@@ -284,11 +284,9 @@ class PageRessource
 	*/
 	saveChasse(listeChasse)
 	{
-        if(!this._boiteComptePlus.hasOwnProperty("chasse") || this._boiteComptePlus.chasse.length != listeChasse.length || this._boiteComptePlus.chasse[0]["quantite"] != listeChasse[0]["quantite"] || listeChasse[0]["exp"].diff(this._boiteComptePlus.chasse[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length){
-            this._boiteComptePlus.chasse = listeChasse;
-            this._boiteComptePlus.startChasse = moment();
-            this._boiteComptePlus.sauvegarder().majChasse();
-        }
+        this._boiteComptePlus.chasse = listeChasse;
+        this._boiteComptePlus.startChasse = moment();
+        this._boiteComptePlus.sauvegarder().majChasse();
         return this;
 	}
 }

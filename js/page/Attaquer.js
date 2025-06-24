@@ -101,7 +101,7 @@ class PageAttaquer
             this.lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
-        // Bonton de sonde
+        // Bouton de sonde
         $("#o_sonder").click((e) => {
             let premiereUnite = true;
             e.preventDefault();
@@ -129,7 +129,7 @@ class PageAttaquer
         setTimeout(() => {$("input[name='ChoixArmee']").click();}, attente * 1000);
     }
     /**
-	* Formulaire de lancemenet de flood.
+	* Formulaire de lancement de flood.
     *
 	* @private
 	* @method formulaireFlood
@@ -298,8 +298,7 @@ class PageAttaquer
             }else // renfort
                 $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
-        // Verification si les données sont deja enregistré
-		if(listeAttaque.length) this.saveAttaque(listeAttaque);
+		this.saveAttaque(listeAttaque);
 	}
     /**
 	* Verifie les attaques en cours avec ce qui est sauvegarder.
@@ -310,15 +309,13 @@ class PageAttaquer
 	saveAttaque(listeAttaque)
 	{
         let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
-        if(!dataEvo.hasOwnProperty("attaque") || dataEvo.attaque.length != listeAttaque.length || dataEvo.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(dataEvo.attaque[0]["exp"], 's') > 1){
-            dataEvo.attaque = listeAttaque;
-            dataEvo.startAttaque = moment();
-            localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
-            if(!Utils.comptePlus && $("#boiteComptePlus").length){
-                this._boiteComptePlus.attaque = dataEvo.attaque;
-                this._boiteComptePlus.startAttaque = dataEvo.startAttaque;
-                this._boiteComptePlus.majAttaque();
-            }
+        dataEvo.attaque = listeAttaque;
+        dataEvo.startAttaque = moment();
+        localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
+        if(!Utils.comptePlus && $("#boiteComptePlus").length){
+            this._boiteComptePlus.attaque = dataEvo.attaque;
+            this._boiteComptePlus.startAttaque = dataEvo.startAttaque;
+            this._boiteComptePlus.majAttaque();
         }
 	}
 }

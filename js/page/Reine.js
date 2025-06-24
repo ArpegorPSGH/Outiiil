@@ -76,8 +76,7 @@ class PageReine
                 temps = Utils.timeToInt($(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(3)").text());
 			listePonte.push({"unite" : unite.substr(0,1).toUpperCase() + unite.substr(1), "nombre" : nombre, "exp" : moment().add(temps, 's')});
 		}
-        // Verification si les données sont deja enregistré
-		if(listePonte.length) this.savePonte(listePonte);
+        this.savePonte(listePonte);
 	}
 	/**
 	* Sauvegarde la ponte en cours.
@@ -85,11 +84,9 @@ class PageReine
 	*/
 	savePonte(listePonte)
 	{
-        if(!this._boiteComptePlus.ponte || this._boiteComptePlus.ponte.length != listePonte.length || listePonte[0]["exp"].diff(this._boiteComptePlus.ponte[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length){
-            this._boiteComptePlus.ponte = listePonte;
-            this._boiteComptePlus.startPonte = moment();
-            this._boiteComptePlus.sauvegarder().majPonte();
-        }
+        this._boiteComptePlus.ponte = listePonte;
+        this._boiteComptePlus.startPonte = moment();
+        this._boiteComptePlus.sauvegarder().majPonte();
         return this;
 	}
 }

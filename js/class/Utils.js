@@ -158,7 +158,7 @@ class Utils
         if (moment.isMoment(temps)) {
             // Si c'est un objet moment, arrondir au début de la minute suivante
             return temps.add(1, 'minute').startOf('minute');
-        } else if (typeof temps === 'number') {
+        } else {
             // Si c'est un entier (durée en secondes), appliquer la logique actuelle
             return moment().add(temps, 's').add(1, "minute").startOf("minute");
         }

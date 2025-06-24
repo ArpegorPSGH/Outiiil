@@ -291,7 +291,7 @@ class PageCommerce
                                 $.toast({...TOAST_WARNING, text : "Commande associée introuvable pour le convoi annulé sur le forum."});
                             }
                         } else {
-                            $.toast({...TOAST_WARNING, text : "Convoi annulé introuvable sur le forum."});
+                            $.toast({...TOAST_WARNING, text : "Convoi annulé considéré hors système."});
                         }
                     } catch (error) {
                         console.error(`[PageCommerce][_traiterAnnulationConvoiApresRechargement] Erreur lors du traitement de l'annulation:`, error);
@@ -332,12 +332,12 @@ class PageCommerce
             if($(elt).next().text().indexOf("Retour") == -1)
                 $(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(Utils.timeToInt($(elt).text().split("dans")[1].trim())).format("D MMM YYYY à HH[h]mm")}</span>`);
             nombres = $(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
-            listeConvoi.push({"cible" : $(elt).find("a").text(), "sens" : $(elt).text().includes("livrer"), "nou" : nombres[0], "mat" : nombres[1], "exp" : moment().add(Utils.timeToInt($(elt).text().split("dans")[1].trim()), 's')});
+            let convoiData = {"cible" : $(elt).find("a").text(), "sens" : $(elt).text().includes("livrer"), "nou" : nombres[0], "mat" : nombres[1], "exp" : moment().add(Utils.timeToInt($(elt).text().split("dans")[1].trim()), 's')};
+            listeConvoi.push(convoiData);
         });
         // tri les convois par ordre d'arrivée
         listeConvoi.sort((a, b) => {return moment(a.exp).diff(moment(b.exp));});
-        // Verification si les données sont deja enregistrées
-        if(listeConvoi.length) this.saveConvoi(listeConvoi);
+        this.saveConvoi(listeConvoi);
         return this;
 	} // Fin de plus();
     
@@ -397,11 +397,9 @@ class PageCommerce
 	*/
 	saveConvoi(liste)
 	{
-        if(!this._boiteComptePlus.hasOwnProperty("convoi") || this._boiteComptePlus.convoi.length != liste.length || this._boiteComptePlus.convoi[0]["cible"] != liste[0]["cible"] || liste[0]["exp"].diff(this._boiteComptePlus.convoi[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length){
-            this._boiteComptePlus.convoi = liste;
-            this._boiteComptePlus.startConvoi = moment();
-            this._boiteComptePlus.sauvegarder().majConvoi();
-        }
+        this._boiteComptePlus.convoi = liste;
+        this._boiteComptePlus.startConvoi = moment();
+        this._boiteComptePlus.sauvegarder().majConvoi();
         return this;
 	} // Fin de saveConvoi();
     /**
