@@ -1,0 +1,16 @@
+# Bonus de droits multiples
+
+## Objectifs
+Permettre d'ajouter autant de bonus indépendants que voulu.
+
+## Fonctionnement Détaillé
+- Sur la page alliance, permettre d'ajouter des paires de colonnes supplémentaires de coefficient et ajustement
+- Chaque bonus/malus est calculé indépendamment par rapport aux droits de base
+- Ils sont ensuite additionnés aux droits issus du bonus précédent (ou base s'il n'y en a pas)
+- Ils sont ensuite ajustés selon la règle du bonus
+
+## Plan d'Implémentation
+
+## Tests à effectuer
+
+## Avancement

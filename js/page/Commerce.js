@@ -658,6 +658,15 @@ class PageCommerce
 
             if(idCommande != -1){ // Enregistrement du convoi
                 e.preventDefault(); // Empêcher la soumission immédiate du formulaire par le jeu.
+
+                const commande = this._utilitaire.commande[idCommande];
+                const destinataireConvoi = $("#pseudo_convoi").val();
+
+                if (commande && commande.demandeur.pseudo !== destinataireConvoi) {
+                    // Le destinataire du convoi ne correspond pas au demandeur de la commande
+                    $.toast({...TOAST_ERROR, text : `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${commande.demandeur.pseudo}).`});
+                    return false; // Empêcher l'envoi du convoi
+                }
                 
                 let destinatairePseudo = $("#pseudo_convoi").val();
                 let dateArriveeCalculee = moment().add(monProfil.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
