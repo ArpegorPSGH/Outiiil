@@ -1,7 +1,7 @@
 # Active Context: Outiiil
 
 ## Current Focus
-Déplacement du bouton "Recensement" pour qu'il soit conditionné par l'existence du sujet membre du joueur, et non plus par les droits d'administration. Finalisation de la fonctionnalité "Recensement" et correction de l'affichage conditionnel des boutons d'administration sur la page Alliance.
+Documentation du plan d'implémentation et des tests pour la fonctionnalité de mise à jour automatique de l'extension.
 
 ## Recent Changes
 - **Déplacement du Bouton "Recensement":** Le bouton et sa logique associée ont été déplacés de `js/boite/ComptePlus.js` vers `js/page/Alliance.js`. Il est maintenant ajouté **entre** les boutons "Actualiser l'alliance" et "Colonne" sur la page des membres de l'alliance (`/alliance.php?Membres`).
@@ -45,8 +45,9 @@ Déplacement du bouton "Recensement" pour qu'il soit conditionné par l'existenc
     - Le problème persiste, indiquant que `monProfil.sujetForum` n'est pas mis à jour comme prévu ou qu'il y a un autre souci. Prochaine étape : ajouter des logs dans `js/page/Forum.js` (`verifierSujetMembre`) pour déboguer. (2025-05-03)
 
 ## Next Steps
+- **Implémentation de la Mise à Jour Automatique :** Commencer l'implémentation de la fonctionnalité de mise à jour automatique en suivant le plan détaillé dans `roadmap/en cours/fonctionnalités essentielles/mise à jour automatiques.md`.
 - **Débogage Affichage Tableau Alliance:** Ajouter des logs dans `js/page/Forum.js` (`verifierSujetMembre`) pour comprendre pourquoi `monProfil.sujetForum` n'est pas mis à jour correctement après la création du sujet membre lors de l'actualisation de l'alliance.
-- **Tests Utilisateur:** Vérifier le bon functioning de la fonctionnalité "Recensement" sur la page Membres Alliance.
+- **Tests Utilisateur:** Vérifier le bon fonctionnement de la fonctionnalité "Recensement" sur la page Membres Alliance.
 - **Validation Finale:** Confirmer que le bouton Recensement s'affiche correctement, a le bon style, et que la fonctionnalité de post est opérationnelle.
 - **Validation Colonne Évolution:** Vérifier que la colonne "Évolution" s'affiche correctement lorsqu'elle est rendue visible via le bouton "Colonne" de DataTables et que les informations affichées sont correctes.
 - **Validation Nouvelle Condition d'Affichage:** Vérifier que le tableau des commandes sur la page Commerce et les colonnes supplémentaires sur la page membres s'affichent correctement uniquement lorsque les conditions (paramètres configurés ET sujet membre existant) sont remplies.
@@ -75,3 +76,4 @@ Déplacement du bouton "Recensement" pour qu'il soit conditionné par l'existenc
 - **Plan Affichage Convois:** Le plan détaillé pour l'affichage des convois en cours sur la page Commerce a été défini et documenté dans la roadmap (`roadmap/à faire/fonctionnalités essentielles/système de répartition des ressources/sous-fonctionnalités essentielles/affichage des convois en cours.md`).
 - **Affichage des Convois en Cours :** Implémentation complète et validation de la fonctionnalité d'affichage des convois en cours sur la page Commerce. Cela inclut la récupération et le parsing des informations depuis les messages du forum (`js/page/Forum.js`), l'intégration dans le flux de chargement de la page Commerce (`js/page/Commerce.js`), la création et la mise à jour du tableau DataTables dédié, et la suppression des logs de débogage temporaires. La fonctionnalité est maintenant opérationnelle et validée par les tests. (2025-05-19)
 - **Gestion de l'annulation des convois :** Implémentation de la logique pour détecter les convois annulés par le joueur sur la page Commerce. Cela implique de comparer les convois listés sur la page avec ceux extraits du forum. Pour chaque groupe de convois annulés identifié, la quantité livrée correspondante sur la commande en mémoire est réduite, et si la commande était terminée, son statut est repassé en "En cours". Un message d'annulation, formaté de manière identique aux messages de convoi normaux mais avec des quantités négatives (en utilisant `Convoi.toUtilitaire()`), est posté sur le fil de discussion de la commande sur le forum via `PageForum.envoyerMessage`. (2025-05-20)
+- **Documentation Mise à Jour Automatique :** Le plan d'implémentation et les tests pour la fonctionnalité de mise à jour automatique ont été documentés dans `roadmap/en cours/fonctionnalités essentielles/mise à jour automatiques.md`. (2025-06-25)
