@@ -346,9 +346,12 @@ class PageForum
             sujetElements.each((i, elt) => {
                 let titreSujet = $(elt).find("td:eq(1)").text().trim();
                 if (titreSujet) {
-                    let etat = titreSujet.split("] ")[0].split("[")[1]; // Réintroduire la définition de 'etat'
-                    let id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
-                    sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat });
+                    const match = titreSujet.match(/^\[([^\]]+)\]\s*(.*)$/);
+                    let etat = match ? match[1] : ""; // Extrait l'état ou vide si non trouvé
+                    let infosPart = match ? match[2] : ""; // Extrait la partie infos ou vide
+                    let id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0]; // L'ID est considéré comme toujours valide
+
+                    sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet, etat: etat, infosPart: infosPart });
                 }
             });
             if (sujetsAConsulter.length === 0) {
@@ -362,8 +365,8 @@ class PageForum
                 results.forEach((sujetData, index) => {
                     let sujetInfo = sujetsAConsulter[index];
                     let commande = new Commande();
-                    let infos = sujetInfo.titreSujet.split("] ")[1].split(" / ");
-                    let etat = sujetInfo.titreSujet.split("] ")[0].split("[")[1];
+                    let infos = sujetInfo.infosPart.split(" / "); // Utilise la partie infos déjà extraite
+                    let etat = sujetInfo.etat; // Utilise l'état déjà extrait
 
                     // Extraire la date du premier message
                     let sujetHtml = $("<div/>").append($(sujetData).find("cmd:eq(1)").text());
@@ -403,13 +406,20 @@ class PageForum
                 let titreSujet = $(elt).find("td:eq(1)").text().trim(), id = $(elt).find("input[name='topic[]']").val();
                 // les lignes des commandes ont 3 td et du contenu
                 if(titreSujet){
-                    let infos = titreSujet.split(" / ");
-                    // Vérifier si infos a suffisamment d'éléments avant d'accéder aux indices
-                    if (infos.length >= 4) {
-                        joueurs[infos[0]] = {id : infos[1], pseudo : infos[0], x : infos[2], y : infos[3], sujetForum : id};
-                        if(infos.length > 4){
-                            joueurs[infos[0]].rang = infos[4];
-                            joueurs[infos[0]].ordreRang = infos[5];
+                    // Regex pour extraire pseudo, id, x, y, et optionnellement rang, ordreRang
+                    const match = titreSujet.match(/^(.+?)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)(?:\s*\/\s*(.+?)\s*\/\s*(\d+))?$/);
+                    if (match) {
+                        const pseudo = match[1];
+                        const joueurId = match[2];
+                        const x = match[3];
+                        const y = match[4];
+                        const rang = match[5] || null;
+                        const ordreRang = match[6] || null;
+
+                        joueurs[pseudo] = {id : joueurId, pseudo : pseudo, x : x, y : y, sujetForum : id};
+                        if(rang !== null){
+                            joueurs[pseudo].rang = rang;
+                            joueurs[pseudo].ordreRang = ordreRang;
                         }
                     } else {
                         console.warn(`[PageForum] chargerJoueur() - Format de titre de sujet inattendu pour le joueur: ${titreSujet}`);
@@ -542,7 +552,10 @@ class PageForum
                         let titreSujet = $(elt).find("td:eq(1)").text().trim(), id = $(elt).find("input[name='topic[]']").val();
                         if(titreSujet){
                             let commande = new Commande();
-                            commande.parseUtilitaire(id, $(elt).next().find("a").text(), titreSujet.split("] ")[0].split("[")[1], titreSujet.split("] ")[1].split(" / "));
+                            const match = titreSujet.match(/^\[([^\]]+)\]\s*(.*)$/);
+                            let etat = match ? match[1] : "";
+                            let infos = (match ? match[2] : "").split(" / ");
+                            commande.parseUtilitaire(id, $(elt).next().find("a").text(), etat, infos, $(elt).find("td:last :not(a)").contents().filter(function(){return (this.nodeType === 3);}).text());
                             commande.etat = $("#o_selectEtatCommande").val();
                             promiseCmdModif.push(this.modifierSujet(commande.toUtilitaire(), " ", id));
                         }
