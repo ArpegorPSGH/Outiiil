@@ -8,12 +8,12 @@ Fichiers :
     - Les versions minimales nécessaires à l'accès à chaque partie du forum au moment de la sortie de la version sont stockées en interne dans un fichier de l'extension. Les versions sont définies indépendamment au global, pour tous les titres de sujets au global, pour tous les contenus de sujets au global, par section, pour les titres des sujets pour chaque section, et pour les contenus des sujets pour chaque section. Les section sont désignées par leur nom.
     - Dans un autre fichier sont stockés les liens entre chaque fonctionnalité (désignée par son nom), les parties du forum utilisées par la fonctionnalité (désignées par leur noms), et les fonctions implémentant cette fonctionnalité (désignées par leur noms).
 - Forum :
-    - Sur le forum, une section Outiiil_version est créée lors de la mise en place du SdC, et enregistrée dans l'utilitaire (identiquement à ce qui est fait pour les autres sections). La fonction d'update de la section est ensuite lancée :
+    - Sur le forum, une section Versions Outiiil est créée lors de la mise en place du SdC, et enregistrée dans l'utilitaire (identiquement à ce qui est fait pour les autres sections). La fonction d'update de la section est ensuite lancée :
         - Les versions minimales du forum sont chargées, en ignorant les sujets dont toutes les données ne peuvent pas être extraites
         - Si une section présente dans le fichier interne des versions minimales n'est pas présente dans les versions extraites du forum, alors son sujet sur le forum est créé, en renseignant comme versions celles présentes dans le fichier interne, et une notification est envoyée. Les versions minimales associées sont alors chargées avec les autres.
         - Si pour une partie de forum, la version minimale interne est supérieure à la version sur le forum, mettre la version interne à la place et afficher un message de notification. Mettre également à jour la version minimale dans la structure chargée.
-    - La section Outiiil_version contient un sujet pour les versions minimales d'accès au forum globales (forum entier, juste les titres de sujets, juste les contenus de sujets), plus un sujet pour chaque section présente dans le fichier interne des versions minimales, précisant les versions minimales d'accès à cette section (section entière, juste les titres de sujets, juste les contenus de sujets). Les informations sont contenues dans le titre des sujets, qui ont tous le même format.
-    - Si jamais la section Outiiil_version existe déjà lorsque l'utilisateur clique sur le bouton de mise en place du SdC, alors la fonction d'update de la section est lancée sans recréation de la section (identiquement à ce qui est fait pour les autres sections).
+    - La section Versions Outiiil contient un sujet pour les versions minimales d'accès au forum globales (forum entier, juste les titres de sujets, juste les contenus de sujets), plus un sujet pour chaque section présente dans le fichier interne des versions minimales, précisant les versions minimales d'accès à cette section (section entière, juste les titres de sujets, juste les contenus de sujets). Les informations sont contenues dans le titre des sujets, qui ont tous le même format.
+    - Si jamais la section Versions Outiiil existe déjà lorsque l'utilisateur clique sur le bouton de mise en place du SdC, alors la fonction d'update de la section est lancée sans recréation de la section (identiquement à ce qui est fait pour les autres sections).
 - Page de fonctionnalité :
     - Au moment du chargement d'une page, dans la fonction constructor, une instance de point d'accès forum (PageForum) est créée, qui elle-même lance à sa création la fonction d'update.
     - Chaque fonction membre de la classe de la page lancée dans executer, l'est via la fonction de vérification de versions dans une nouvelle classe dédiée, dans un nouveau fichier :
@@ -59,7 +59,7 @@ Fichiers :
                 "contenus": "1.0.0"
               },
               "sections": {
-                "Outiiil_membre": {
+                "Membres Outiiil": {
                   "section": "1.0.0",
                   "titres": "1.0.0",
                   "contenus": "1.0.0"
@@ -102,7 +102,7 @@ Fichiers :
     *   **Action 2.1.2 : Implémenter le constructeur de `VersionManager`**
         *   Charger `versions_minimales.json` et `liens_fonctionnalites.json` au moment de l'instanciation. Utiliser `fetch` ou `XMLHttpRequest` pour charger ces fichiers de manière asynchrone.
     *   **Action 2.1.3 : Implémenter la méthode `calculerVersionMinimaleReelle(cheminPartieForum)`**
-        *   Prendre en entrée un chemin comme "sections.Outiiil_membre.titres".
+        *   Prendre en entrée un chemin comme "sections.Membres Outiiil.titres".
         *   Parcourir les contenances définies (global, titres globaux, contenus globaux, section spécifique, titres de section, contenus de section).
         *   Pour chaque partie contenante, récupérer sa version minimale.
         *   Retourner la version la plus récente (la plus restrictive) parmi toutes les versions pertinentes. Utiliser une fonction utilitaire pour comparer les versions (ex: `Utils.compareVersions('1.0.0', '1.1.0')`).
@@ -129,7 +129,7 @@ Fichiers :
         *   Ex: `this.versionsForum = {};`
     *   **Action 2.2.2 : Implémenter la méthode `updateVersionSection()` dans `PageForum`**
         *   **Sous-action 2.2.2.1 : Extraire les versions existantes du forum**
-            *   Parcourir la section `Outiiil_version` sur le forum.
+            *   Parcourir la section `Versions Outiiil` sur le forum.
             *   Extraire les versions minimales des titres des sujets (global, titres, contenus, sections spécifiques).
             *   Stocker ces versions dans `this.versionsForum`, en ignorant les sujets dont les données ne peuvent pas être extraites.
         *   **Sous-action 2.2.2.2 : Comparer et mettre à jour les versions**
@@ -189,39 +189,39 @@ Fichiers :
 
 *   **Préparation Générale :**
     *   Avoir une version de l'extension installée dans un navigateur (ex: Chrome, Firefox).
-    *   Avoir accès à un forum de test où la section `Outiiil_version` peut être manipulée (créée, modifiée manuellement).
+    *   Avoir accès à un forum de test où la section `Versions Outiiil` peut être manipulée (créée, modifiée manuellement).
     *   Connaître la version actuelle de l'extension.
     *   Avoir une console de développement ouverte pour observer les logs et les notifications.
 
-*   **4.1 Scénarios de Test de la Section `Outiiil_version` sur le Forum**
-    *   **4.1.1 Création initiale de la section `Outiiil_version`**
+*   **4.1 Scénarios de Test de la Section `Versions Outiiil` sur le Forum**
+    *   **4.1.1 Création initiale de la section `Versions Outiiil`**
         *   **Procédure :**
-            1.  Assurer que la section `Outiiil_version` n'existe pas sur le forum de test.
+            1.  Assurer que la section `Versions Outiiil` n'existe pas sur le forum de test.
             2.  Lancer l'extension et déclencher la fonction de mise en place du SdC (ex: via un bouton ou une action spécifique dans l'extension).
             3.  **Vérification :**
-                *   Observer que la section `Outiiil_version` est créée sur le forum.
+                *   Observer que la section `Versions Outiiil` est créée sur le forum.
                 *   Vérifier que les sujets pour `global` et toutes les `sections` définies dans `versions_minimales.json` sont présents dans cette section.
                 *   Vérifier que les titres des sujets contiennent les versions initiales correctes définies dans `versions_minimales.json`.
                 *   Vérifier les logs de la console pour toute notification ou message d'erreur.
     *   **4.1.2 Mise à jour des versions sur le forum par l'extension**
         *   **Procédure :**
-            1.  Assurer que la section `Outiiil_version` existe sur le forum avec des versions *antérieures* à celles définies dans `versions_minimales.json` (ex: `versions_minimales.json` a "1.1.0", forum a "1.0.0").
-            2.  Lancer l'extension et déclencher la fonction de mise à jour de la section `Outiiil_version` (via le SdC ou un appel direct si exposé).
+            1.  Assurer que la section `Versions Outiiil` existe sur le forum avec des versions *antérieures* à celles définies dans `versions_minimales.json` (ex: `versions_minimales.json` a "1.1.0", forum a "1.0.0").
+            2.  Lancer l'extension et déclencher la fonction de mise à jour de la section `Versions Outiiil` (via le SdC ou un appel direct si exposé).
             3.  **Vérification :**
                 *   Observer que les titres des sujets correspondants sur le forum sont mis à jour avec les versions plus récentes de `versions_minimales.json`.
                 *   Vérifier que des messages de notification appropriés sont affichés à l'utilisateur.
                 *   Vérifier les logs de la console.
     *   **4.1.3 Extraction correcte des versions depuis le forum**
         *   **Procédure :**
-            1.  Assurer que la section `Outiiil_version` contient diverses versions sur le forum (certaines à jour, certaines anciennes, certaines avec des formats valides).
+            1.  Assurer que la section `Versions Outiiil` contient diverses versions sur le forum (certaines à jour, certaines anciennes, certaines avec des formats valides).
             2.  Lancer l'extension et naviguer vers une page qui utilise `PageForum` et `VersionManager`.
             3.  **Vérification :**
                 *   Observer le comportement de l'extension : si aucune notification de mise à jour n'est affichée et que la fonctionnalité de la page s'exécute correctement, cela indique que les versions ont été correctement lues et interprétées.
                 *   (Optionnel, si possible via la console) : Inspecter l'objet `pageForumInstance.versionsForum` pour confirmer qu'il reflète fidèlement les versions du forum.
     *   **4.1.4 Gestion des sujets incomplets ou mal formés sur le forum**
         *   **Procédure :**
-            1.  Manuellement, introduire des sujets dans la section `Outiiil_version` avec des titres mal formatés (ex: "Version:1.0", "Global_Forum_V1.0.0", "Section_X_V1.0.0_Titre_MalFormé").
-            2.  Lancer l'extension et déclencher la mise à jour de la section `Outiiil_version`.
+            1.  Manuellement, introduire des sujets dans la section `Versions Outiiil` avec des titres mal formatés (ex: "Version:1.0", "Global_Forum_V1.0.0", "Section_X_V1.0.0_Titre_MalFormé").
+            2.  Lancer l'extension et déclencher la mise à jour de la section `Versions Outiiil`.
             3.  **Vérification :**
                 *   Vérifier que l'extension ne plante pas.
                 *   Vérifier que les sujets valides sont toujours traités correctement.

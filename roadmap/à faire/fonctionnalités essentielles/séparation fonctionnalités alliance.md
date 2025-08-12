@@ -9,6 +9,8 @@ Rendre les fonctionnalités sur la page alliance indépendantes les unes des aut
 - Préserver le comportement lié à la présence ou non d'un sujet membre, l'existence de la section et celui lié aux droits d'administration
 - Lancer cette fonction depuis executer
 - L'encapsuler avec checkVersion
+- Sur la page membres, les droits d'administration Fourmizzz by-passent les droits Outiiil.
+- Ajouter une fonctionnalité d'interaction avec le gestionnaire de droits
 
 ## Plan d'Implémentation
 

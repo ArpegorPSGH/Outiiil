@@ -6,7 +6,7 @@ Permettre à chaque joueur de partager toutes ses données avec l'alliance en un
 ## Fonctionnement Détaillé
 - Sur la page membres ajouter en haut avec les autres un bouton recensement
 - L'accès au bouton est conditionné par l'existence d'un ID section membres et la présence d’un sujet pour le joueur dans cette section
-- Lorsque le joueur clique sur le bouton, ses données sont postées sur son sujet dans outiiil_membre :
+- Lorsque le joueur clique sur le bouton, ses données sont postées sur son sujet dans Membres Outiiil :
     - « Nourriture : quantité »
     - « Matériaux : quantité »
     - « Terrain de Chasse : quantité »
