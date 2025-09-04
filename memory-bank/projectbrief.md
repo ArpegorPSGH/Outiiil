@@ -9,7 +9,7 @@ L'extension centralise les informations dispersées et simplifie les tâches ré
 ## Fonctionnement
 L'extension s'injecte dans les pages du jeu pour :
 - Centraliser les informations clés (couvées, constructions, recherches, mouvements de troupes) dans une boîte dédiée.
-- Ajouter des outils contextuels (boutons, calculateurs) sur des pages spécifiques (Armée, Ressources, Forum, Profils, Commerce, Alliance). L'accès à certaines fonctionnalités avancées (tableau des commandes, colonnes supplémentaires sur la page Alliance) est conditionné par la configuration des paramètres `forumCommande` et `forumMembre` ET l'existence d'un sujet dédié au joueur dans la section membres du forum configurée.
+- Ajouter des outils contextuels (boutons, calculateurs) sur des pages spécifiques (Armée, Ressources, Forum, Profils, Commerce, Alliance). L'accès à certaines fonctionnalités avancées (tableau des commandes, colonnes supplémentaires sur la page Alliance) est conditionné par la configuration des paramètres `Commandes Outiiil` et `Membres Outiiil` ET l'existence d'un sujet dédié au joueur dans la section membres du forum configurée.
 - Faciliter la communication et la coordination d'alliance via le forum interne (ex: gestion SDC, fonction "Recensement").
 
 ## Expérience Utilisateur Visée

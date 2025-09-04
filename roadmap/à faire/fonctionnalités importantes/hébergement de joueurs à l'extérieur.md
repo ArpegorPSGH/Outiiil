@@ -24,6 +24,7 @@ Maintenir les fonctionnalités d'alliance de l'extension même lorsque le joueur
 - Automatiquement désencrypter/réencrypter lors de la modification d'un sujet ou message
 - Offrir la possibilité d'encrypter (alliés) ou non (CA) le forum partagé
 - Si la copie n'est pas possible, simplement transférer les sujets sur le forum partagé, en les encyptant ou non, au moment du partage. A la fin du partage, retransférer les sujets, en les décryptant si nécessaire, sur le forum interne (recréeer les sections si nécessaire).
+- Donner la possibilité de lire et écrire manuellement des sujets et messages cryptés et d'automatiquement reporter les modifications sur la copie (et dans l'autre sens aussi).
 
 ## Plan d'Implémentation
 

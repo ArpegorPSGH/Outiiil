@@ -8,7 +8,8 @@ Permettre à un même joueur de définir l'ordre dans lequel il souhaite recevoi
 - Permettre au joueur de le définir et modifier de la même façon que les autres attibuts actuellement accessibles
 - Ce doit être un nombre
 - Par défaut il vaut 0 si le joueur n'a aucune commande de statut "nouvelle", "en attente ou "en cours", sinon il vaut la priorité de la commande la plus élevée additionné de 1 et arrondi à l'entier inférieur
-- Rajouter une colonne masquée par défaut "Priorité du rang" affichant cet attribut
+- Rajouter une colonne masquée par défaut "Priorité de la commande" affichant cet attribut
+- Si deux convois parallèles peuvent être livrés dans n'importe quel ordre, leur mettre la même valeur de priorité
 
 ## Plan d'Implémentation
 

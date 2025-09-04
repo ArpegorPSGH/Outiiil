@@ -10,6 +10,8 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Retirer les icônes d'attaque vers soi-même dans le tableau des membres (ajoutées par C+)
 - Ajouter popups "Fourmilières pouvant m'attaquer" et "Attaquer cette Fourmilière" aux icônes d'attaque
 - S'assurrer qu'un message d'erreur est toujours affiché en cas de mise à jour auto impossible, que le rechargement se fasse ou non
+- Mettre à jour le code de la couleur lors de la sélection via le picker dans les paramètres
+- Afficher des toasts lorsqu'une fonctionalité est bloquée et dire pourquoi
 
 ## Plan d'Implémentation
 

@@ -18,7 +18,7 @@ La fonctionnalité doit :
 
 ## Plan d'Implémentation
 1.  **Créer une nouvelle méthode asynchrone `chargerConvois` dans `js/page/Forum.js`**. Cette méthode prendra en paramètre la liste des commandes chargées (ou pourra y accéder via `this._utilitaire.commande`).
-    *   À l'intérieur de `chargerConvois`, récupérer l'ID de la section commande (`monProfil.parametre["forumCommande"].valeur`).
+    *   À l'intérieur de `chargerConvois`, récupérer l'ID de la section commande (`monProfilUtilisateur.parametre["Commandes Outiiil"].valeur`).
     *   Utiliser `this._utilitaire.consulterSection(idSectionCommande)` pour obtenir la liste des sujets.
     *   Filtrer les sujets dont la dernière activité remonte à moins de 24h.
     *   Pour chaque sujet filtré, utiliser `this._utilitaire.consulterSujet(idSujet)` pour obtenir le contenu du sujet.

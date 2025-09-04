@@ -5,6 +5,7 @@ Introduire un mécanisme permettant d'assurer le bon fonctionement du versioning
 
 ## Fonctionnement Détaillé
 - Voir à condenser les deux fonctions de vérification du gestionnaire de versions en une seule.
+- Modifier le mécanisme d'ancrage
 
 ## Plan d'Implémentation
 

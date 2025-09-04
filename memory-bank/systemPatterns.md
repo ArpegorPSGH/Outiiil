@@ -56,16 +56,16 @@ The extension follows a **Content Script** model for Chrome extensions. The main
     3.  Parsing of HTML response via `Armee.parseHtml()`.
     4.  Retrieval of other data via `Utils` and `monProfil`.
     5.  Message formatting.
-    6.  Check `monProfil.sujetForum`.
+    6.  Check `monProfilJoueur.sujetForum`.
     7.  If ID absent:
-        a. Retrieve `idSection` from `monProfil.parametre`.
+        a. Retrieve `idSection` from `monProfilUtilisateur.parametre`.
         b. Call `forumManager.consulterSection(idSection)`.
         c. Parse response to find `idSujet`.
     8.  Call `forumManager.envoyerMessage(idSujet, message)`.
     9.  Display notification (`$.toast`).
 - **Command Loading Flow**:
     1.  Navigate to Commerce page (`PageCommerce.js`).
-    2.  Check if `forumCommande` and `forumMembre` parameters are configured.
+    2.  Check if `Commandes Outiiil` and `Membres Outiiil` parameters are configured.
     3.  If configured, call `PageForum.verifierSujetMembre` to check for the player's topic in the members section.
     4.  If the topic exists:
         a. Call `forumManager.consulterSection` to get the list of topics in the command section.
@@ -87,7 +87,7 @@ The extension follows a **Content Script** model for Chrome extensions. The main
     5.  If parameters are not configured or the player's topic does not exist, the command and convoy tables are not displayed.
 - **Alliance Members Page Flow (Partial Update)**:
     1.  Navigate to Alliance page (`PageAlliance.js`).
-    2.  Check if `forumMembre` parameter is configured.
+    2.  Check if `Membres Outiiil` parameter is configured.
     3.  If configured, call `PageForum.verifierSujetMembre` to check for the player's topic in the members section.
     4.  If the topic exists:
         a. Call `forumManager.consulterSection` to get member data.

@@ -10,7 +10,6 @@ Rendre les fonctionnalités sur la page alliance indépendantes les unes des aut
 - Lancer cette fonction depuis executer
 - L'encapsuler avec checkVersion
 - Sur la page membres, les droits d'administration Fourmizzz by-passent les droits Outiiil.
-- Ajouter une fonctionnalité d'interaction avec le gestionnaire de droits
 
 ## Plan d'Implémentation
 
