@@ -59,7 +59,7 @@ class PageArmee
         this.recupereArmeeDome();
         this.recupereArmeeLoge();
         // Affichage du nombre d'attaque restante
-        $("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(monProfil.niveauRecherche[6] + 1 - this._nbAttaque)}.</p>`);
+        $("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(monProfilJoueur.niveauRecherche[6] + 1 - this._nbAttaque)}.</p>`);
         // Affichage du nombre total d'unité
         $("h3:first").append(` (${numeral(this._armeeTdc.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeLoge.getSommeUnite()).format()})</p>`);
         // Bouton antisonde
@@ -69,9 +69,9 @@ class PageArmee
                 let premiereUnite = this.indicePremiereUnite();
                 let nbUniteDispo = this._armeeLoge.unite[premiereUnite] + this._armeeDome.unite[premiereUnite] + this._armeeTdc.unite[premiereUnite];
                 // si j'ai assez d'unité pour mettre les antisonde en param
-                if(nbUniteDispo >= monProfil.parametre["uniteAntisondeDome"].valeur + monProfil.parametre["uniteAntisondeTerrain"].valeur){
+                if(nbUniteDispo >= monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur + monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur){
                     // si les unités en terrain et dome ne sont pas dans les bornes dasn antisonde on replace tout sinon on est bon
-                    if(!this.estPlacePourAntiSonde(premiereUnite, monProfil.parametre["uniteAntisondeTerrain"].valeur, monProfil.parametre["uniteAntisondeDome"].valeur))
+                    if(!this.estPlacePourAntiSonde(premiereUnite, monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur, monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur))
                         this.placerAntisondeSuffisant(premiereUnite, nbUniteDispo);
                     else
                         $.toast({...TOAST_INFO, text : "Votre armée est déjà placée correctement."});
@@ -88,7 +88,7 @@ class PageArmee
 
         if(!Utils.comptePlus) this.plus();
         // Affichage du temps Hof de votre armée
-        $(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(monProfil.getTDP()) + this._armeeDome.getTemps(monProfil.getTDP()) + this._armeeLoge.getTemps(monProfil.getTDP())) + "</span></td></tr>");
+        $(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(monProfilJoueur.getTDP()) + this._armeeDome.getTemps(monProfilJoueur.getTDP()) + this._armeeLoge.getTemps(monProfilJoueur.getTDP())) + "</span></td></tr>");
         // Affichage des statistiques detaillés
         this.afficherStatistique();
         return this;
@@ -184,12 +184,12 @@ class PageArmee
         $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [1, 2, 3 , 4 , 5, 6, 14, 7, 8, 9, 10, 13, 11, 12];
             // si on a pas assez de troupes on prend un nombre au hasard
-            let nbTroupes = Math.round(Math.random() * (monProfil.parametre["uniteAntisondeDome"].valeur - monProfil.parametre["uniteAntisondeDome"].valeur * 0.9) + monProfil.parametre["uniteAntisondeDome"].valeur * 0.9);
+            let nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur - monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9);
             if(nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
             // on place l'antisonde en dome
             $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
                 nbTroupeDispo -= nbTroupes;
-                nbTroupes = Math.round(Math.random() * (monProfil.parametre["uniteAntisondeTerrain"].valeur - monProfil.parametre["uniteAntisondeTerrain"].valeur * 0.9) + monProfil.parametre["uniteAntisondeTerrain"].valeur * 0.9);
+                nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur - monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur * 0.9);
                 // si on a pas assez de troupes on prend un nombre au hasard
                 if(nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
                 $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
@@ -265,7 +265,7 @@ class PageArmee
 	*/
 	afficherLigneVie()
 	{
-		let bouclier = monProfil.niveauRecherche[1];
+		let bouclier = monProfilJoueur.niveauRecherche[1];
 		let line = `<tr align='center' class='vie cursor'>
 			 <td>Vie (AB)</td>
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeTdc.getTotalVie(bouclier)).format()}</td>
@@ -289,7 +289,7 @@ class PageArmee
 	*/
 	afficherLigneAttaque()
 	{
-		let armes = monProfil.niveauRecherche[2];
+		let armes = monProfilJoueur.niveauRecherche[2];
 		let line = `<tr align="center" class="att ligne_paire cursor">
 			 <td>Dégâts en Attaque (AB)</td>
 			 <td colspan=3>${IMG_ATT} ${numeral(this._armeeTdc.getTotalAtt(armes)).format()}</td>
@@ -313,7 +313,7 @@ class PageArmee
 	*/
 	afficherLigneDefense()
 	{
-		let armes = monProfil.niveauRecherche[2];
+		let armes = monProfilJoueur.niveauRecherche[2];
 		let line = `<tr align="center" class="def cursor">
 			 <td>Dégâts en Défense (AB)</td>
 			 <td colspan=3>${IMG_DEF} ${numeral(this._armeeTdc.getTotalDef(armes)).format()}</td>
@@ -350,7 +350,7 @@ class PageArmee
     */
     afficherStatistique()
     {
-        let bouclier = monProfil.niveauRecherche[1], armes = monProfil.niveauRecherche[2];
+        let bouclier = monProfilJoueur.niveauRecherche[1], armes = monProfilJoueur.niveauRecherche[2];
         $(".simulateur:first").after(`<br/><div id="o_statArmee" class="simulateur">
             <h3>Statistiques</h3>
             <table class="centre o_maxWidth" cellspacing=0>

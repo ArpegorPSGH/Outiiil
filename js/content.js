@@ -6,7 +6,6 @@
 /**
 * CONSTANTE
 */
-const VERSION            = "2.1.15";
 const CONSTRUCTION       = ["Champignonnière", "Entrepôt de Nourriture", "Entrepôt de Matériaux", "Couveuse", "Solarium", "Laboratoire", "Salle d'analyse", "Salle de combat", "Caserne", "Dôme", "Loge Impériale", "Etable à pucerons", "Etable à cochenilles"];
 const RECHERCHE          = ["Technique de ponte", "Bouclier Thoracique", "Armes", "Architecture", "Communication avec les animaux", "Vitesse de chasse", "Vitesse d'attaque", "Génétique", "Acide", "Poison"];
 const COUT_CONSTUCTION   = [90, 600, 600, 600, 2000, 1400, 1400, 300, 800, 3500, 5000, 1500, 10000];
@@ -222,10 +221,17 @@ const DATEPICKER_OPTION  = {
 *
 * @class Main
 */
-!function()
+!async function()
 {
+
 	// si l'utilisateur est identifié
 	if ($(".boite_connexion_titre:first").text() != "Connexion"){
+        // Récupération de la version depuis manifest.json
+        const manifestURL = chrome.runtime.getURL('manifest.json');
+        const manifestResponse = await fetch(manifestURL);
+        const manifest = await manifestResponse.json();
+        window.VERSION = manifest.version;
+
         // Modification du theme jquery humanity
         $("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
 		// Chargement du language francais
@@ -236,17 +242,15 @@ const DATEPICKER_OPTION  = {
         $.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => {return parseInt(d.replace(/\s/g, ''));};
         $.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => {return moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix();};
         $.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => {return Utils.timeToInt(d);};
+        
+        await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
-        // Initialisation du profil du joueur en cours
-        monProfil = new Joueur({pseudo : $("#pseudo").text()});
-        // chargement des parametre
-        monProfil.getParametre();
-        // des qu'on les inos constructions/recherches et profil on affiches les outils
-        Promise.all([monProfil.getConstruction(), monProfil.getLaboratoire(), monProfil.getProfilCourant()]).then((values) => {
+        // des qu'on a les infos constructions/recherches et profil on affiches les outils
+        Promise.all([monProfilJoueur.getConstruction(), monProfilJoueur.getLaboratoire(), monProfilJoueur.getProfilCourant()]).then(async (values) => {
             // chargement des données du joueur
-            if(values[0]) monProfil.chargerConstruction(values[0]);
-            if(values[1]) monProfil.chargerRecherche(values[1]);
-            if(values[2]) monProfil.chargerProfil(values[2]);
+            if(values[0]) monProfilJoueur.chargerConstruction(values[0]);
+            if(values[1]) monProfilJoueur.chargerRecherche(values[1]);
+            if(values[2]) monProfilJoueur.chargerProfil(values[2]);
 
             // Ajout des outils
             let boite = new Dock();
@@ -259,13 +263,13 @@ const DATEPICKER_OPTION  = {
             boiteRadar.afficher();
 
             // Traceur
-            if(monProfil.parametre["cleTraceur"].valeur){
-                let traceur1 = new TraceurJoueur(monProfil.parametre["etatTraceurJoueur"].valeur, monProfil.parametre["intervalleTraceurJoueur"].valeur, monProfil.parametre["nbPageTraceurJoueur"].valeur);
+            if(monProfilUtilisateur.parametre["cleTraceur"].valeur){
+                let traceur1 = new TraceurJoueur(monProfilUtilisateur.parametre["etatTraceurJoueur"].valeur, monProfilUtilisateur.parametre["intervalleTraceurJoueur"].valeur, monProfilUtilisateur.parametre["nbPageTraceurJoueur"].valeur);
                 traceur1.tracer();
-                let traceur2 = new TraceurAlliance(monProfil.parametre["etatTraceurAlliance"].valeur, monProfil.parametre["intervalleTraceurAlliance"].valeur);
+                let traceur2 = new TraceurAlliance(monProfilUtilisateur.parametre["etatTraceurAlliance"].valeur, monProfilUtilisateur.parametre["intervalleTraceurAlliance"].valeur);
                 traceur2.tracer();
             }
-
+            
             let uri = location.pathname, page = null;
             // Routing
             switch (true){
@@ -319,6 +323,10 @@ const DATEPICKER_OPTION  = {
                     page = new PageDescription(boiteRadar);
                     page.executer();
                     break;
+                case (uri == "/colonies.php") :
+                    page = new TestPage();
+                    await page.init();
+                    break;
                 case (location.href.indexOf("/ennemie.php?Attaquer") > 0) :
                 case (location.href.indexOf("/ennemie.php?annuler") > 0) :
                     page = new PageAttaquer(boiteComptePlus);
@@ -329,7 +337,7 @@ const DATEPICKER_OPTION  = {
                     $("#tabEnnemie tr:eq(0) th:eq(5)").after("<th class='centre'>Temps</th>");
                     $("#tabEnnemie tr:gt(0)").each((i, elt) => {
                         let distance = parseInt($(elt).find("td:eq(5)").text());
-                        $(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, monProfil.niveauRecherche[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
+                        $(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, monProfilJoueur.niveauRecherche[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
                     });
                     break;
                 default:
@@ -338,3 +346,142 @@ const DATEPICKER_OPTION  = {
         });
     }
 }();
+
+/**
+ * Initialise les composants centraux du framework d'alliance.
+ * Cette fonction est conçue pour être appelée au démarrage de l'extension
+ * ou pour réparer un état global corrompu.
+ */
+async function initialiserFrameworkGlobal() {
+    console.log("Initialisation du framework global...");
+
+    // 1a. Construire le registre global de classes
+    window.registreClasses = {
+        FonctionnaliteAlliance: new Map(),
+        ObjetForum: new Map()
+    };
+
+    const manifestURL = chrome.runtime.getURL('manifest.json');
+    const manifestResponse = await fetch(manifestURL);
+    const manifest = await manifestResponse.json();
+
+    const allScripts = manifest.content_scripts.flatMap(script => script.js);
+    
+    // Dossiers susceptibles de contenir des classes pour le framework
+    const classFolders = ['js/class/']; 
+
+    const classFiles = allScripts.filter(path => 
+        classFolders.some(folder => path.startsWith(folder))
+    );
+
+    // Regex pour trouver les déclarations de classes héritant de ObjetForum ou FonctionnaliteAlliance
+    const classRegex = /class\s+([a-zA-Z0-9_]+)\s+extends\s+(ObjetForum|FonctionnaliteAlliance)/g;
+
+    for (const filePath of classFiles) {
+        try {
+            const fileURL = chrome.runtime.getURL(filePath);
+            const fileResponse = await fetch(fileURL);
+            const fileContent = await fileResponse.text();
+            
+            let match;
+            while ((match = classRegex.exec(fileContent)) !== null) {
+                const className = match[1];
+                const parentName = match[2];
+                const ClassConstructor = window[className];
+
+                if (typeof ClassConstructor === 'function') {
+                    console.log(`  Found class ${className} extending ${parentName}`);
+                    if (parentName === 'ObjetForum') {
+                        registreClasses.ObjetForum.set(className, ClassConstructor);
+                        console.log(`      Added ${className} to ObjetForum registry.`);
+                    } else if (parentName === 'FonctionnaliteAlliance') {
+                        registreClasses.FonctionnaliteAlliance.set(className, ClassConstructor);
+                        console.log(`      Added ${className} to FonctionnaliteAlliance registry.`);
+                    }
+                } else {
+                     console.warn(`  Found class declaration for ${className} but constructor is not on window object.`);
+                }
+            }
+        } catch (error) {
+            console.error(`Erreur lors de l'analyse du fichier ${filePath}:`, error);
+        }
+    }
+
+    console.log("Registre des classes 'ObjetForum':", registreClasses.ObjetForum);
+    console.log("Registre des classes 'FonctionnaliteAlliance':", registreClasses.FonctionnaliteAlliance);
+
+
+    // 1b. Créer la "carte des types" des variables globales
+    window.carteDesTypes = new Map();
+    const initURL = chrome.runtime.getURL('js/content.js');
+    const initResponse = await fetch(initURL);
+    const initContent = await initResponse.text();
+
+    try {
+        const ast = acorn.parse(initContent, {ecmaVersion: 2020});
+
+        // Simple AST traversal to find assignments to 'global'
+        function traverse(node) {
+            if (!node) return;
+
+            if (node.type === 'AssignmentExpression' &&
+                node.left.type === 'MemberExpression' &&
+                node.left.object.type === 'Identifier' &&
+                node.left.object.name === 'window' &&
+                node.right.type === 'NewExpression') {
+                
+                const globalVarName = `window.${node.left.property.name}`;
+                const className = node.right.callee.name;
+                carteDesTypes.set(globalVarName, className);
+            }
+
+            for (const key in node) {
+                if (node[key] && typeof node[key] === 'object') {
+                    if (Array.isArray(node[key])) {
+                        node[key].forEach(traverse);
+                    } else {
+                        traverse(node[key]);
+                    }
+                }
+            }
+        }
+
+        traverse(ast);
+    } catch (error) {
+        console.error("Erreur lors de l'analyse AST de init.js:", error);
+    }
+
+    console.log("Carte des types des variables globales:", carteDesTypes);
+
+    // 1c. Initialiser les caches globaux
+    window.dependancesObjetForumsCache = new Map();
+    window.cacheObjetForums = new Map(); // Nouvelle variable globale
+    window.pageForum = new PageForum(); // Nouvelle variable globale
+
+    // Création de la liste globale des sections
+    window.nomsSectionsRequis = new Set();
+    registreClasses.ObjetForum.forEach(ClasseObjetForum => {
+        if (Array.isArray(ClasseObjetForum.LOCATION_HISTORY) && ClasseObjetForum.LOCATION_HISTORY.length > 0) {
+            const dernierLieu = ClasseObjetForum.LOCATION_HISTORY[ClasseObjetForum.LOCATION_HISTORY.length - 1];
+            if (dernierLieu.section) {
+                nomsSectionsRequis.add(dernierLieu.section);
+            }
+        }
+    });
+    nomsSectionsRequis.add('Versions Outiiil');
+    console.log("Sections requises découvertes :", nomsSectionsRequis);
+
+    // Initialisation du profil du joueur en cours
+    window.monProfilUtilisateur = new ProfilUtilisateur();
+    // chargement des parametre
+    await monProfilUtilisateur.getParametre();
+
+    window.monProfilJoueur = new Joueur({pseudo : $("#pseudo").text()})
+
+    // Créer les instances globales des gestionnaires
+    window.gestionnaireDroits = new GestionnaireDroits();
+    window.gestionnaireVersions = new GestionnaireVersions();
+    await gestionnaireVersions.rafraichir(); // Assurez-vous que les versions sont chargées avant utilisation
+
+    console.log("Framework global initialisé.");
+}

@@ -47,11 +47,11 @@ class BoiteCombat extends Boite
 	css()
 	{
         super.css();
-        $("#o_resultatCombat tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor, #o_calculatriceCombat tr:even").css("background-color", monProfil.parametre["couleur2"].valeur);
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfil.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfil.parametre["couleurTexte"].valeur);
+        $("#o_resultatCombat tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor, #o_calculatriceCombat tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
-        let matches = monProfil.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
+        let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
         $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
             (e) => {$(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => {return parseInt(m, 16);}).concat('0.5') + ")");},
             (e) => {$(e.currentTarget).css("color", "inherit");}
@@ -127,14 +127,14 @@ class BoiteCombat extends Boite
             </td><td valign="top">
                 <table id="o_simulateurNiveau">
                 <tr class="gras entete"><td id="o_bonusAtt" class="cursor">${IMG_FLECHE} Attaquant ${IMG_FLECHE}</td><td colspan="2"></td><td id="o_bonusDef" class="cursor">${IMG_FLECHE} Défenseur ${IMG_FLECHE}</td>
-                <tr><td><input id="o_bouclier1" value='${monProfil.niveauRecherche[1]}' size='6' name='o_bouclier1'/></td><td colspan="2">Bouclier</td><td><input id="o_bouclier2" value='${monProfil.niveauRecherche[1]}' size='6' name='o_bouclier2'/></td></tr>
-                <tr><td><input id="o_armes1" value='${monProfil.niveauRecherche[2]}' size='6' name='o_armes1'/></td><td colspan="2">Armes</td><td><input id="o_armes2" value='${monProfil.niveauRecherche[2]}' size='6' name='o_armes2'/></td></tr>
-                <tr><td><input id="o_etable1" value='${monProfil.niveauConstruction[12]}' size='6' name='o_etable1'/></td><td colspan="2">Etable à cochenilles</td><td><input id="o_etable2" value='${monProfil.niveauConstruction[12]}' size='6' name='o_etable2'/></td></tr>
+                <tr><td><input id="o_bouclier1" value='${monProfilJoueur.niveauRecherche[1]}' size='6' name='o_bouclier1'/></td><td colspan="2">Bouclier</td><td><input id="o_bouclier2" value='${monProfilJoueur.niveauRecherche[1]}' size='6' name='o_bouclier2'/></td></tr>
+                <tr><td><input id="o_armes1" value='${monProfilJoueur.niveauRecherche[2]}' size='6' name='o_armes1'/></td><td colspan="2">Armes</td><td><input id="o_armes2" value='${monProfilJoueur.niveauRecherche[2]}' size='6' name='o_armes2'/></td></tr>
+                <tr><td><input id="o_etable1" value='${monProfilJoueur.niveauConstruction[12]}' size='6' name='o_etable1'/></td><td colspan="2">Etable à cochenilles</td><td><input id="o_etable2" value='${monProfilJoueur.niveauConstruction[12]}' size='6' name='o_etable2'/></td></tr>
                 <tr><td colspan="4" height="20"></td></tr>
                 <tr class="gras entete centre"><td id="o_bonusLieu" colspan="4" class="cursor">${IMG_FLECHE} Lieu ${IMG_FLECHE}</td></tr>
                 <tr><td></td><td class="right"><input id="o_terrain" type="radio" name="o_lieu" value="${LIEU.TERRAIN}" checked></td><td class="left">Terrain</td><td></td></tr>
-                <tr><td></td><td class="right"><input id="o_dome" type="radio" value="${LIEU.DOME}" name="o_lieu"></td><td class="left">Dome</td><td><input id="o_domeNiveau" value='${monProfil.niveauConstruction[9]}' size='6' name='o_dome'/></td></tr>
-                <tr><td></td><td class="right"><input id="o_loge" type="radio" value="${LIEU.LOGE}" name="o_lieu"></td><td class="left">Loge</td><td><input id="o_logeNiveau" value='${monProfil.niveauConstruction[10]}' size='6' name='o_loge'/></td></tr>
+                <tr><td></td><td class="right"><input id="o_dome" type="radio" value="${LIEU.DOME}" name="o_lieu"></td><td class="left">Dome</td><td><input id="o_domeNiveau" value='${monProfilJoueur.niveauConstruction[9]}' size='6' name='o_dome'/></td></tr>
+                <tr><td></td><td class="right"><input id="o_loge" type="radio" value="${LIEU.LOGE}" name="o_lieu"></td><td class="left">Loge</td><td><input id="o_logeNiveau" value='${monProfilJoueur.niveauConstruction[10]}' size='6' name='o_loge'/></td></tr>
                 <tr><td colspan="4" height="20"></td></td></tr>
                 <tr class="gras entete centre"><td colspan="5">Position</td></tr>
                 <tr><td id="o_positionAtt" class="gras">Attaquant</td><td colspan="2"><div id="o_positionJoueur"></div></td><td id="o_positionDef">Défenseur</td></tr>
@@ -210,16 +210,16 @@ class BoiteCombat extends Boite
         $("#o_copierDef").click((e) => {this.copierCollerArmee("DEF");});
         // event sur les bonus joueurs
         $("#o_bonusAtt").click((e) => {
-            $("#o_armes1").spinner("value", $("#o_armes1").spinner("value") == monProfil.niveauRecherche[2] ? 0 : monProfil.niveauRecherche[2]);
-            $("#o_bouclier1").spinner("value", $("#o_bouclier1").spinner("value") == monProfil.niveauRecherche[1] ? 0 : monProfil.niveauRecherche[1]);
-            $("#o_etable1").spinner("value", $("#o_etable1").spinner("value") == monProfil.niveauConstruction[12] ? 0 : monProfil.niveauConstruction[12]);
+            $("#o_armes1").spinner("value", $("#o_armes1").spinner("value") == monProfilJoueur.niveauRecherche[2] ? 0 : monProfilJoueur.niveauRecherche[2]);
+            $("#o_bouclier1").spinner("value", $("#o_bouclier1").spinner("value") == monProfilJoueur.niveauRecherche[1] ? 0 : monProfilJoueur.niveauRecherche[1]);
+            $("#o_etable1").spinner("value", $("#o_etable1").spinner("value") == monProfilJoueur.niveauConstruction[12] ? 0 : monProfilJoueur.niveauConstruction[12]);
             this.actualiserStatistique();
             return false;
         });
         $("#o_bonusDef").click((e) => {
-            $("#o_armes2").spinner("value", $("#o_armes2").spinner("value") ==  monProfil.niveauRecherche[2] ? 0 : monProfil.niveauRecherche[2]);
-            $("#o_bouclier2").spinner("value", $("#o_bouclier2").spinner("value") == monProfil.niveauRecherche[1] ? 0 : monProfil.niveauRecherche[1]);
-            $("#o_etable2").spinner("value", $("#o_etable2").spinner("value") == monProfil.niveauConstruction[12] ? 0 : monProfil.niveauConstruction[12]);
+            $("#o_armes2").spinner("value", $("#o_armes2").spinner("value") ==  monProfilJoueur.niveauRecherche[2] ? 0 : monProfilJoueur.niveauRecherche[2]);
+            $("#o_bouclier2").spinner("value", $("#o_bouclier2").spinner("value") == monProfilJoueur.niveauRecherche[1] ? 0 : monProfilJoueur.niveauRecherche[1]);
+            $("#o_etable2").spinner("value", $("#o_etable2").spinner("value") == monProfilJoueur.niveauConstruction[12] ? 0 : monProfilJoueur.niveauConstruction[12]);
             this.actualiserStatistique();
             return false;
         });
@@ -230,8 +230,8 @@ class BoiteCombat extends Boite
         // event bonus lieu
         $("#o_simulateurNiveau input[name='o_lieu']").change((e) => {this.actualiserStatistique();});
         $("#o_bonusLieu").click((e) => {
-            $("#o_domeNiveau").spinner("value", $("#o_domeNiveau").spinner("value") == monProfil.niveauConstruction[9] ? 0 : monProfil.niveauConstruction[9]);
-            $("#o_logeNiveau").spinner("value", $("#o_logeNiveau").spinner("value") == monProfil.niveauConstruction[10] ? 0 : monProfil.niveauConstruction[10]);
+            $("#o_domeNiveau").spinner("value", $("#o_domeNiveau").spinner("value") == monProfilJoueur.niveauConstruction[9] ? 0 : monProfilJoueur.niveauConstruction[9]);
+            $("#o_logeNiveau").spinner("value", $("#o_logeNiveau").spinner("value") == monProfilJoueur.niveauConstruction[10] ? 0 : monProfilJoueur.niveauConstruction[10]);
             this.actualiserStatistique();
             return false;
         });
@@ -452,14 +452,14 @@ class BoiteCombat extends Boite
     {
         $("#o_placementJ").click(() => {
             // si les infos sont deja renseigné on vide
-            if($("#o_pseudoTemps").val() == monProfil.pseudo){
+            if($("#o_pseudoTemps").val() == monProfilJoueur.pseudo){
                 $("#o_pseudoTemps").val("");
                 $("#o_vaTemps").val(0);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(0));
             }else{
-                $("#o_pseudoTemps").val(monProfil.pseudo);
-                $("#o_vaTemps").val(monProfil.niveauRecherche[6]);
-                $("#o_indicationTemps").text(this.calculerLimiteTemps(monProfil.niveauRecherche[6]));
+                $("#o_pseudoTemps").val(monProfilJoueur.pseudo);
+                $("#o_vaTemps").val(monProfilJoueur.niveauRecherche[6]);
+                $("#o_indicationTemps").text(this.calculerLimiteTemps(monProfilJoueur.niveauRecherche[6]));
             }
         });
         $("#o_pseudoTemps").autocomplete({
@@ -596,7 +596,7 @@ class BoiteCombat extends Boite
     */
     afficherTemps()
     {
-        $("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfil.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
+        $("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
         $("#o_infosTemps").DataTable({
             bInfo : false,
             bAutoWidth : false,
@@ -621,10 +621,10 @@ class BoiteCombat extends Boite
                 {type : "time-unformat", targets : 2},
             ],
             rowCallback : (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfil.parametre["couleur2"].valeur);
+                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback : (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfil.parametre["couleurTexte"].valeur);
+                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         return this;

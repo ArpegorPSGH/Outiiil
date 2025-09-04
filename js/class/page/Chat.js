@@ -122,7 +122,7 @@ class PageChat
         $("#formulaireChat").append(`<div class='o_group_bouton o_group_bouton_chat'><span id='o_msgUp' class='option_gestion'>aA</span><span id='o_msgDown' class='option_gestion'>Aa</span></div>
             <div class='o_group_bouton o_group_bouton_chat'><span id='o_msgB' class='option_gestion gras' onclick="miseEnForme('message','gras');">B</span><span id='o_msgI' class='option_gestion' onclick="miseEnForme('message','italic');"><em>I</em></span><span id='o_msgU' class='option_gestion' onclick="miseEnForme('message','souligne');" style='text-decoration:underline'>U</span></div>
             <div class='o_group_bouton o_group_bouton_chat'><span id='o_msgImg' class='option_gestion' onclick="miseEnForme('message','img');"><img height='12' src='images/BBCode/picture.png' title='Image' /></span><span id='o_msgLink' class='option_gestion' class='btn' onclick="miseEnForme('message','url');"><img height='12' src='images/BBCode/link.png' title='Lien' /></span><span id='o_msgPlay' class='option_gestion' onclick="miseEnForme('message','player');"><img height='12' src='images/BBCode/membre.gif' title='Pseudo'/></span><span id='o_msgAlly' class='option_gestion' onclick="miseEnForme('message','ally');"><img height='12' src='images/BBCode/groupe.gif' title='Alliance'/></span></div>`);
-        $(".o_group_bouton span").css("background-color", monProfil.couleur1);
+        $(".o_group_bouton span").css("background-color", monProfilJoueur.couleur1);
 
 		$("#o_msgUp").click((e) => {
 			e.preventDefault();
@@ -200,14 +200,14 @@ class PageChat
 	*/
 	couleur()
     {
-		$("#inputCouleur").val(monProfil.parametre["couleurChat"].valeur.substring(1));
+		$("#inputCouleur").val(monProfilUtilisateur.parametre["couleurChat"].valeur.substring(1));
 		$("#boutonCouleur").remove();
-		$("#smileySuivant0").after(`<span><input id='color' type='color' name='couleur' value='${monProfil.parametre["couleurChat"].valeur}'/></span>`);
+		$("#smileySuivant0").after(`<span><input id='color' type='color' name='couleur' value='${monProfilUtilisateur.parametre["couleurChat"].valeur}'/></span>`);
 		$("#color").change((e) => {
             let color = e.currentTarget.value;
 			$("#inputCouleur").val(color.substring(1));
-			monProfil.parametre["couleurChat"].valeur = color;
-            monProfil.parametre["couleurChat"].sauvegarde();
+			monProfilUtilisateur.parametre["couleurChat"].valeur = color;
+            monProfilUtilisateur.parametre["couleurChat"].sauvegarde();
 		});
 	}
 	/**

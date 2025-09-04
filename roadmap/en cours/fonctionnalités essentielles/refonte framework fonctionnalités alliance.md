@@ -11,7 +11,7 @@ Le framework repose sur trois piliers pour assurer la robustesse et la flexibili
 
 1.  **Gestion Centralisée des Droits :** Un `GestionnaireDroits` unique contrôle l'accès de chaque joueur à chaque fonctionnalité.
 2.  **Gestion Centralisée des Versions :** Un `GestionnaireVersions` unique valide la compatibilité des formats de données entre l'extension et le forum.
-3.  **Découverte Dynamique :** Le système identifie automatiquement les fonctionnalités et leurs dépendances (`Objets`) sans nécessiter de déclaration manuelle, allégeant ainsi le travail de développement.
+3.  **Découverte Dynamique :** Le système identifie automatiquement les fonctionnalités et leurs dépendances (`ObjetForums`) sans nécessiter de déclaration manuelle, allégeant ainsi le travail de développement.
 
 #### **1. Gestion des Droits et Restrictions**
 
@@ -41,63 +41,60 @@ classDiagram
 
     class FonctionnaliteAlliance {
         +String abréviation
-        +GestionnaireDroits droits
-        +GestionnaireVersions versions
-        +Array<Objet> objetsDependants
+        +Array<ObjetForum> objetsDependants
         +page: Page
         +constructor(page)
-        +_decouvrirObjetsDependants()
+        +_decouvrirObjetForumsDependants()
         +verifierVersionSuffisanteEtPresenceSections()
         +verifierPresenceSujetMembre()
         +verifierDroits()
-        +chargerObjetsMultiples(classeObjet)
+        +chargerObjetForumsMultiples(classeObjetForum)
     }
 
     Page <|-- FonctionnaliteAlliance
 
-    class Objet {
+    class ObjetForum {
         +int[] idSection
         +int idSujet
-        +Parametre[] parametres
+        +ParametreObjetForum[] parametres
         +Object[] CLASSES_PARAMETRES
-        +Objet[] objetsContenus
-        +String classeObjetsContenus
+        +ObjetForum[] objetsForumContenus
+        +String classeObjetsForumContenus
         +Boolean estNouveau
-        +constructor(optional valeursParametres)
+        +constructor(optional valeursParametreObjetForums)
         +chargerDepuisForum(exclusions)
-        +chargerObjetsContenus()
-        +chargerDepuisString(contenu)
-        +enregistrerSurForum()
+        +async chargerObjetForumsContenus(): Promise<void>
+        +async chargerDepuisString(contenu): Promise<Boolean>
+        +async enregistrerSurForum(): Promise<void>
         +afficher()
-        +lireChaqueParametre(peutVoirDonneesRestreintes)
-        +ecrireChaqueParametre(valeursParametres)
-        +lireParametre()
-        +ecrireParametre()
-        +verifierVersionSuffisanteEtPresenceSection()
+        +async lireChaqueParametreObjetForum(peutVoirDonneesRestreintes): Promise<Object>
+        +async ecrireChaqueParametreObjetForum(valeursParametreObjetForums): Promise<void>
+        +async lireParametreObjetForum(): Promise<any>
+        +async ecrireParametreObjetForum(): Promise<void>
+        +async verifierVersionSuffisanteEtPresenceSection(): Promise<Boolean>
     }
 
-    class Parametre {
+    class ParametreObjetForum {
         +any valeur
         +String stringRestriction
         +Object[] FORMAT_HISTORY
         +objetParent
         +constructor()
-        +chargerDepuisForum(exclusions)
-        +chargerDepuisString(contenu)
-        +enregistrer()
-        +_call_()
-        +Ecrire(valeur)
-        +verifierVersionSuffisante()
+        +async chargerDepuisString(contenu): Promise<Boolean>
+        +async genererStringPourEnregistrement(): Promise<String>
+        +async Lire(): Promise<any>
+        +async Ecrire(valeur): Promise<void>
+        +async verifierVersionSuffisante(): Promise<Boolean>
     }
 
     class GestionnaireDroits {
-        +Objet[] droitsParJoueur
+        +ObjetForum[] droitsParJoueur
         +Object[] FORMAT_LIEU_DROITS_STATIQUE
         +String[] NIVEAUX_ORDONNES
         +constructor()
         +verifierDroit(niveauRequis)
-        +lireChaqueParametre(Joueur)
-        +ecrireChaqueParametre(Joueur, valeursDroits)
+        +lireChaqueParametreObjetForum(Joueur)
+        +ecrireChaqueParametreObjetForum(Joueur, valeursDroits)
         +afficher(Joueur)
         +rafraîchir()
     }
@@ -106,35 +103,35 @@ classDiagram
         +Array<Object> versionsObjetsForum
         +Array<Object> versionsParamsForum
         +constructor()
-        +verifierCompatibiliteObjet(objet)
-        +verifierCompatibiliteParametre(parametre)
+        +verifierCompatibiliteObjetForum(objet)
+        +verifierCompatibiliteParametreObjetForum(parametre)
         +rafraîchir()
     }
 
     FonctionnaliteAlliance o-- GestionnaireDroits
     FonctionnaliteAlliance o-- GestionnaireVersions
-    Objet "1" *-- "*" Parametre : contient
-    Objet "1" *-- "*" Objet : peut contenir
+    ObjetForum "1" *-- "*" ParametreObjetForum : contient
+    ObjetForum "1" *-- "*" ObjetForum : peut contenir
 ```
 
 #### **3. Processus Clés**
 
 ##### **Initialisation et Lancement**
 
-Au démarrage de l'extension, une fonction globale (`initialiserFrameworkGlobal`) construit un registre de toutes les classes `Objet` et `FonctionnaliteAlliance` et prépare les gestionnaires centraux (`GestionnaireDroits`, `GestionnaireVersions`). Au chargement d'une page du forum, la classe `Page` correspondante s'assure que cet état global est valide, puis instancie et initialise les fonctionnalités d'alliance dont elle a besoin.
+Au démarrage de l'extension, une fonction globale (`initialiserFrameworkGlobal`) construit un registre de toutes les classes `ObjetForum` et `FonctionnaliteAlliance` et prépare les gestionnaires centraux (`GestionnaireDroits`, `GestionnaireVersions`). Au chargement d'une page du forum, la classe `Page` correspondante s'assure que cet état global est valide, puis instancie et initialise les fonctionnalités d'alliance dont elle a besoin.
 
 ##### **Séquence de Vérification d'une Fonctionnalité**
 
 Avant de s'exécuter, chaque `FonctionnaliteAlliance` suit une séquence de validation stricte pour garantir la robustesse :
-1.  **Vérification des Versions et Dépendances :** Elle vérifie récursivement la compatibilité de tous les `Objets` dont elle dépend. Pour chaque objet, la validation couvre la présence de sa section sur le forum, la version de sa logique, le format de ses paramètres et la compatibilité de ses objets contenus.
+1.  **Vérification des Versions et Dépendances :** Elle vérifie récursivement la compatibilité de tous les `ObjetForums` dont elle dépend. Pour chaque objet, la validation couvre la présence de sa section sur le forum, la version de sa logique, le format de ses paramètres et la compatibilité de ses objets contenus.
 2.  **Présence du Joueur :** Elle s'assure que le joueur actuel est bien un membre de l'alliance.
 3.  **Vérification des Droits :** Elle interroge le `GestionnaireDroits` pour confirmer que le joueur a au minimum le droit 'Restreint' (`R`).
 
 ##### **Chargement des Données**
 
 Le framework fournit des méthodes optimisées pour lire les données du forum :
-*   **Chargement de Masse (`chargerObjetsMultiples`) :** Permet de récupérer toutes les instances d'un type d'objet (ex: tous les `Joueur`) en une seule fois, en groupant les requêtes par section du forum.
-*   **Chargement Imbriqué (`chargerObjetsContenus`) :** Gère le cas où des objets sont contenus dans d'autres (ex: des `Commande` dans un `SujetDeCommandes`).
+*   **Chargement de Masse (`chargerObjetForumsMultiples`) :** Permet de récupérer toutes les instances d'un type d'objet (ex: tous les `Joueur`) en une seule fois, en groupant les requêtes par section du forum.
+*   **Chargement Imbriqué (`chargerObjetForumsContenus`) :** Gère le cas où des objets sont contenus dans d'autres (ex: des `Commande` dans un `SujetDeCommandes`).
 *   **Mise en Cache :** Un cache au niveau de la `Page` évite de recharger plusieurs fois les mêmes données au sein d'une même page.
 
 ##### **Affichage Sécurisé**
@@ -143,21 +140,26 @@ Toute méthode d'affichage (`afficher`) doit d'abord vérifier le niveau de droi
 
 ##### **Découverte Dynamique des Dépendances**
 
-Pour éviter la déclaration manuelle et les oublis, le framework s'appuie sur une analyse statique du code. Lorsqu'une `FonctionnaliteAlliance` est initialisée, elle analyse son propre code source (via un Arbre Syntaxique Abstrait - AST) pour identifier de manière fiable toutes les classes `Objet` qu'elle utilise. Ce mécanisme robuste garantit que toutes les dépendances sont automatiquement prises en compte dans les vérifications de version.
+Pour éviter la déclaration manuelle et les oublis, le framework s'appuie sur une analyse statique du code. Lorsqu'une `FonctionnaliteAlliance` est initialisée, elle analyse son propre code source (via un Arbre Syntaxique Abstrait - AST) pour identifier de manière fiable toutes les classes `ObjetForum` qu'elle utilise. Ce mécanisme robuste garantit que toutes les dépendances sont automatiquement prises en compte dans les vérifications de version.
+
+##### **Transfert de Sujet**
+
+Une fonction sera ajoutée à la page forum pour permettre le transfert d'un sujet existant vers une nouvelle section. Cette fonction prendra en argument l'ID du sujet à transférer et l'ID de la section de destination.
 
 ## Plan d'Implémentation
 
 ### **Lancement Global**
 
-Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisation globale unique qui peut être appelée à la fois au démarrage de l'extension et pour se "réparer" si l'état global est perdu.
+Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisation globale unique qui peut être appelée à la fois au démarrage de l'extension et au chargement d'une page.
 
 1.  **Fonction `initialiserFrameworkGlobal()`**
     *   **Rôle :** Centraliser toute la logique de démarrage.
     *   **Actions :**
-        a.  Construit le **registre global de classes** en scannant le `manifest.json` pour créer une `Map` de toutes les classes `FonctionnaliteAlliance` et `Objet`.
-        b.  Analyse le code d'initialisation pour créer la **"carte des types"** des variables globales (ex: `global.gd` -> `GestionnaireDroits`).
-        c.  Crée les instances globales des gestionnaires (`GestionnaireDroits`, `GestionnaireVersions`) et les stocke dans l'objet `global`.
-        d.  Initialise les caches globaux (`global.dependancesObjetsCache`).
+        a.  Construit le **registre global de classes** en scannant le `manifest.json` pour créer une `Map` de toutes les classes `FonctionnaliteAlliance` et `ObjetForum`.
+        b.  Analyse le code d'initialisation pour créer la **"carte des types"** des variables globales (ex: `window.gd` -> `GestionnaireDroits`).
+        c.  Crée les instances globales des gestionnaires (`GestionnaireDroits`, `GestionnaireVersions`) et les stocke dans l'objet `window`.
+        d.  Initialise les caches globaux (`window.dependancesObjetForumsCache`, `window.cacheObjetForums`, `window.pageForum`).
+        e.  Crée la liste des noms de section requis.
     *   Cette fonction est appelée une première fois au démarrage de l'extension.
 
 ### **Plan Détaillé : Classe `Page`**
@@ -166,7 +168,6 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 
 | Nom | Type | Portée | Description | Initialisation |
 | :--- | :--- | :--- | :--- | :--- |
-| `cacheObjets` | `Map<String, Array<Objet>>` | `instance` | Cache pour les listes d'objets chargés depuis le forum, avec le nom de la classe comme clé. | `new Map()` |
 | `fonctionnalitesAlliance` | `Array<Class>` | `instance` | **Configuration déclarative.** Liste des classes de `FonctionnaliteAlliance` à lancer pour cette page. Doit être surchargée par la classe fille. | `[]` |
 | `fonctionnalitesLocales` | `Array<Function>` | `instance` | **Configuration déclarative.** Liste des méthodes de la classe fille à exécuter comme fonctionnalités locales. Doit être surchargée. | `[]` |
 
@@ -177,245 +178,438 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 *   **Signature :** `async init(): Promise<void>`
 *   **Objectif :** Orchestrer l'initialisation de toutes les fonctionnalités (d'alliance et locales) déclarées dans les attributs de la classe en garantissant que l'état global du framework est présent.
 *   **Logique Détaillée :**
-    1.  **Vérification et Réparation de l'État Global :**
-        a.  La méthode vérifie la présence des gestionnaires globaux (ex: `if (!global.gestionnaireDroits || !global.gestionnaireVersions)`).
-        b.  Si l'un d'eux est manquant, elle appelle `await initialiserFrameworkGlobal()` pour reconstruire l'état complet du framework.
-    2.  L'instance globale de `GestionnaireVersions` est rafraîchie.
+    1.  **Construction de l'État Global :**
+        a.  La méthode appelle `await initialiserFrameworkGlobal()` pour construire l'état complet du framework. (fait dans `content.js`)
     3.  **Initialisation des Fonctionnalités d'Alliance :**
-        a.  La méthode parcourt la liste `this.fonctionnalitesAlliance`.
-        b.  Pour chaque `ClasseFonctionnalite` dans la liste :
+        a.  Appeler `await window.gestionnaireVersions.verifierPresenceSectionVersions()`. Si la méthode retourne `false`, sauter l'initialisation des fonctionnalités d'alliance.
+        b.  L'instance globale de `GestionnaireVersions` est rafraîchie : `await window.gestionnaireVersions.rafraichir();`.
+        c.  La méthode parcourt la liste `this.fonctionnalitesAlliance`.
+        d.  Pour chaque `ClasseFonctionnalite` dans la liste :
             i.  Elle l'instancie en se passant elle-même en référence : `const instance = new ClasseFonctionnalite(this);`.
             ii. Elle appelle sa méthode d'initialisation asynchrone : `await instance.init();`.
     4.  **Lancement des Fonctionnalités Locales :**
         a.  La méthode parcourt la liste `this.fonctionnalitesLocales`.
         b.  Pour chaque `fonctionLocale` dans la liste, elle l'exécute dans le contexte de l'instance de la page : `fonctionLocale.call(this);`.
 
-### **Plan Détaillé : Classe `Objet`**
+### **Plan Détaillé : Classe `FonctionnaliteAlliance`**
+
+#### **Attributs**
+
+| Nom | Type | Portée | Description |
+| :--- | :--- | :--- | :--- |
+| `ABREVIATIONS_HISTORY` | `Array<String>` | `static` | **Configuration déclarative.** Liste des abréviations de la fonctionnalité, de la plus ancienne à la plus récente. Doit être surchargée dans la classe fille. |
+| `objetsDependants` | `Array<ObjetForum>` | `instance` | Liste des instances des classes `ObjetForum` utilisées par la fonctionnalité. |
+| `page` | `Page` | `instance` | Référence à l'instance de la page qui a créé cette fonctionnalité. |
+
+#### **Méthodes**
+
+##### **1. `constructor(page)`**
+
+*   **Signature :** `constructor(page: Page)`
+*   **Objectif :** Effectuer l'initialisation **synchrone** de la fonctionnalité.
+*   **Logique Détaillée :**
+    1.  Le constructeur reçoit une référence à son instance de page parente et la stocke : `this.page = page;`.
+
+##### **2. `init()`**
+
+*   **Signature :** `async init(): Promise<Boolean>`
+*   **Objectif :** Gérer la séquence d'initialisation **asynchrone** de la fonctionnalité.
+*   **Logique Détaillée :**
+    1.  Débuter la séquence de vérification dans un bloc `try...catch` pour gérer les erreurs potentielles.
+    2.  Appeler `this.verifierVersionSuffisanteEtPresenceSections()`. Si la méthode retourne `false`, arrêter l'exécution et retourner `false`.
+    3.  Si succès, appeler `await this.verifierPresenceSujetMembre()`. Si `false`, arrêter l'exécution et retourner `false`.
+    4.  Si succès, appeler `await this.verifierDroits()`. Si `false`, arrêter l'exécution et retourner `false`.
+    5.  Si toutes les vérifications réussissent, appeler une méthode `run()` (qui sera implémentée par la classe fille) pour démarrer la logique métier spécifique.
+    6.  Retourner `true` pour indiquer que l'initialisation a réussi.
+    7.  En cas d'échec dans le `try...catch`, retourner `false`.
+
+##### **2. `_decouvrirObjetForumsDependants()` (Méthode privée)**
+
+*   **Signature :** `_decouvrirObjetForumsDependants(): void`
+*   **Logique Détaillée :**
+    1.  **Vérification du Cache Global :**
+        a.  Récupère le nom de la classe de la fonctionnalité (ex: `'SystemeDeCommerce'`).
+        b.  Si ce nom existe comme clé dans `window.dependancesObjetForumsCache`, peuple `this.objetsDependants` avec les instances du cache et termine.
+    2.  **Découverte par Analyse Statique (si non trouvé dans le cache) :**
+        a.  **Prérequis :** Au démarrage de l'extension, une **"carte des types"** a été créée en analysant les initialisations globales (ex: `window.gd = new GestionnaireDroits()`), mappant les variables globales à leur nom de classe (`'window.gd'` -> `'GestionnaireDroits'`).
+        b.  **Analyse AST :**
+            i.  Récupère et concatène les codes sources de la classe de la fonctionnalité et de sa classe mère.
+            ii. Utilise une bibliothèque de parsing (ex: `acorn`) pour générer un Arbre Syntaxique Abstrait (AST).
+            iii. Parcourt l'AST pour collecter tous les `Identifiants` (noms de variables/classes) dans un `Set` pour garantir l'unicité.
+        c.  **Résolution et Validation :**
+            i.  Initialise une liste temporaire `let dependancesTrouvees = new Set()`.
+            ii. Parcourt les identifiants collectés. Pour chaque `nomTrouve` :
+                -   Vérifie si `nomTrouve` est une clé dans le registre global des classes `ObjetForum`. Si oui, ajoute le nom de la classe à `dependancesTrouvees`.
+                -   Vérifie si `nomTrouve` correspond à une variable globale dans la "carte des types". Si oui, récupère le nom de la classe correspondant et l'ajoute à `dependancesTrouvees` s'il constitue une clé dans le registre global des classes `ObjetForum`.
+        d.  **Instanciation :**
+            i.  Crée une liste `let instancesDependances = []`.
+            ii. Pour chaque nom de classe unique dans `dependancesTrouvees`, récupère son constructeur depuis le registre et crée une instance en passant la référence de la fonctionnalité actuelle (`this`) comme `fonctionnaliteCreatrice` : `instancesDependances.push(new ClasseDependance(this));`.
+    3.  **Mise en Cache et Utilisation :**
+        a.  Stocke la liste `instancesDependances` dans le cache global : `window.dependancesObjetForumsCache.set(nomClasse, instancesDependances);`.
+        b.  Peuple `this.objetsDependants` avec le contenu de `instancesDependances`.
+
+##### **3. `verifierVersionSuffisanteEtPresenceSections()`**
+
+*   **Signature :** `verifierVersionSuffisanteEtPresenceSections(): Boolean`
+*   **Logique Détaillée :**
+    1.  Appeler `this._decouvrirObjetForumsDependants()` pour peupler la liste des dépendances.
+    2.  Parcourir chaque `objet` dans le tableau `this.objetsDependants`.
+    3.  Pour chaque `objet`, appeler sa méthode `objet.verifierVersionSuffisanteEtPresenceSection()`.
+    4.  Si l'un de ces appels retourne `false`, la boucle s'interrompt et la méthode retourne immédiatement `false`.
+    5.  Si la boucle se termine sans échec, la méthode retourne `true`.
+
+##### **4. `verifierPresenceSujetMembre()`**
+
+*   **Signature :** `async verifierPresenceSujetMembre(): Promise<Boolean>`
+*   **Objectif :** Vérifier si le joueur a un sujet membre en utilisant la liste des joueurs mise en cache.
+*   **Logique Détaillée :**
+    1.  **Chargement des Joueurs :**
+        a.  La méthode appelle `await this.chargerObjetForumsMultiples(Joueur)` pour obtenir la liste des joueurs de l'alliance. Grâce au cache, cette opération ne contactera le forum que la première fois.
+    2.  **Vérification :**
+        a.  Elle récupère le pseudo du joueur actuel depuis les variables globales de l'extension.
+        b.  Elle cherche une correspondance pour ce pseudo dans la liste des joueurs chargée.
+    3.  **Retour :**
+        a.  Retourne `true` si une correspondance est trouvée, `false` sinon.
+
+##### **5. `rafraichirDroits()`**
+
+*   **Signature :** `async rafraichirDroits(): Promise<void>`
+*   **Objectif :** Encapsuler l'appel au rafraîchissement du gestionnaire de droits, en lui passant la référence à l'instance de la fonctionnalité actuelle. Conforme au principe de ne pas exposer les détails d'implémentation des appels externes.
+*   **Logique Détaillée :**
+    1.  Appelle `await window.GestionnaireDroits.rafraichir(this)`.
+
+##### **6. `verifierDroit(niveauRequis)`**
+
+*   **Signature :** `verifierDroit(niveauRequis: String): Boolean`
+*   **Objectif :** Encapsuler l'appel au gestionnaire de droits pour vérifier un niveau de droit spécifique, en ajoutant automatiquement l'abréviation de la fonctionnalité. Cette méthode est destinée à être utilisée par les classes filles pour leurs logiques de droits internes.
+*   **Logique Détaillée :**
+    1.  Récupérer l'abréviation la plus récente de la fonctionnalité : `const abrev = this.constructor.ABREVIATIONS_HISTORY[this.constructor.ABREVIATIONS_HISTORY.length - 1];`.
+    2.  Appeler `window.GestionnaireDroits.verifierDroit(abrev, niveauRequis)`.
+    3.  Retourner directement le résultat booléen de cet appel.
+
+##### **7. `verifierDroits()`**
+
+*   **Signature :** `async verifierDroits(): Promise<Boolean>`
+*   **Objectif :** Vérifier que le joueur a les droits suffisants pour l'initialisation de la fonctionnalité.
+*   **Logique Détaillée :**
+    1.  Appeler `await this.rafraichirDroits()`.
+    2.  Appeler `this.verifierDroit('R')` pour s'assurer que le joueur a le droit minimum requis ('Restreint') pour utiliser la fonctionnalité.
+    3.  Retourner directement le résultat booléen de cet appel.
+
+##### **8. `chargerObjetForumsMultiples(ClasseObjetForum)`**
+
+*   **Signature :** `async chargerObjetForumsMultiples(ClasseObjetForum: new () => T, chargerContenus: Boolean = true): Promise<Array<T>>`
+*   **Objectif :** Centraliser et optimiser la lecture du forum pour charger en masse toutes les instances d'un type d'objet, en utilisant un cache au niveau de la page pour éviter les chargements redondants.
+*   **Logique Détaillée :**
+    1.  **Vérification du Cache :**
+        a.  Récupère le nom de la classe demandée : `const nomClasse = ClasseObjetForum.name;`.
+        b.  Vérifie si une entrée pour cette classe existe déjà dans le cache de la page : `if (cacheObjetForums.has(nomClasse))`.
+        c.  Si c'est le cas, la méthode retourne immédiatement la liste d'objets depuis le cache : `return cacheObjetForums.get(nomClasse);`.
+
+    2.  **Initialisation du Chargement (si non trouvé dans le cache) :**
+        a.  Initialise `let objetsCharges = [];` et `let tousLesSujets = [];`.
+
+    3.  **Récupération des Sections :**
+        a.  Crée une instance temporaire `new ClasseObjetForum()` pour accéder à sa configuration statique.
+        b.  Récupère la liste complète des IDs de section depuis `instance.idsSection`. Si la liste est vide, retourne un tableau vide.
+
+    4.  **Lecture Groupée du Forum :**
+        a.  Parcourt chaque `idSection` dans la liste récupérée.
+        b.  Pour chaque ID, appelle `pageForum.recupererSujetsSection(idSection)` pour obtenir la liste des sujets.
+        c.  La méthode `recupererSujetsSection` retourne déjà une liste de sujets contenant `{id, derniere_activite, contenu}`.
+        d.  Concatène les sujets récupérés à la liste `tousLesSujets`.
+
+    5.  **Boucle de Chargement en Mémoire :**
+        a.  Parcourt la liste agrégée `tousLesSujets`.
+        b.  Pour chaque `sujet` :
+            i.  Crée une nouvelle instance en passant la référence de la fonctionnalité actuelle et un objet d'options contenant l'id du sujet : `let instance = new ClasseObjetForum(this, { idSujet: parseInt(sujet.id, 10) });`.
+            ii. `const chargementReussi = await instance.rafraîchir(chargerContenus);`
+            iii. **Si le chargement réussit :**
+                -   **Transfert du sujet si nécessaire :**
+                    -   Récupère le dernier ID de section de l'objet : `const idDerniereSection = instance.idsSection[instance.idsSection.length - 1];`.
+                    -   Si l'ID de la section actuelle du sujet (`idSection`) est différent de `idDerniereSection` :
+                        -   Appelle `await pageForum.transfererSujet(instance.idSujet, idDerniereSection);`.
+                -   Ajoute l'instance au tableau `objetsCharges`.
+
+    6.  **Mise en Cache et Retour :**
+        a.  Une fois le chargement terminé, la méthode stocke la liste nouvellement créée dans le cache de la page : `cacheObjetForums.set(nomClasse, objetsCharges);`.
+        b.  Retourne le tableau `objetsCharges` complet.
+
+### **Plan Détaillé : Classe `ObjetForum`**
 
 #### **Attributs**
 
 | Nom | Type | Portée | Description | Initialisation |
 | :--- | :--- | :--- | :--- | :--- |
 | `VERSION_LOGIQUE` | `String` | `static` | **Configuration déclarative.** Version de la logique de fonctionnement de l'objet. Ex: `'1.0'`. Doit être surchargée dans chaque classe fille si l'objet est versionné. | `null` |
-| `CLASSES_PARAMETRES` | `Array<Array<Class>>` | `static` | **Configuration déclarative.** Liste de listes des classes de `Parametre`. Chaque liste interne représente les paramètres utilisés par une version spécifique de l'objet, de la plus ancienne à la plus récente. Doit être surchargée dans chaque classe fille. | `[]` (tableau vide). |
-| `FORMATS_LIEUX` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des lieux de stockage de l'objet. Chaque élément est un dictionnaire : `{'section': 'nom_section', 'lieu': 'titre' ou 'message'}`. Doit être surchargé dans chaque classe fille. | `[]` |
-| `parametres` | `Array<Parametre>` | `instance` | Conteneur des instances de `Parametre`, peuplé par le constructeur. | `[]` (tableau vide). |
+| `CLASSES_PARAMETRES` | `Array<Array<Class>>` | `static` | **Configuration déclarative.** Liste de listes des classes de `ParametreObjetForum`. Chaque liste interne représente les paramètres utilisés par une version spécifique de l'objet, de la plus ancienne à la plus récente. Doit être surchargée dans chaque classe fille. | `[]` (tableau vide). |
+| `LOCATION_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des lieux de stockage de l'objet. Chaque élément est un dictionnaire : `{'section': 'nom_section', 'lieu': 'titre' ou 'message'}`. Doit être surchargé dans chaque classe fille. | `[]` |
+| `parametres` | `Array<ParametreObjetForum>` | `instance` | Conteneur des instances de `ParametreObjetForum`, peuplé par le constructeur. | `[]` (tableau vide). |
 | `idsSection` | `Array<Number>` | `instance` | Liste des IDs de section où les données de cet objet peuvent être trouvées. | `[]` (tableau vide). |
 | `idSujet` | `Number` | `instance` | L'ID du sujet spécifique sur le forum contenant les données de l'instance. | `null`. |
-| `numeroMessage` | `Number` | `instance` | Le numéro du message spécifique dans le sujet contenant les données de l'instance. | `null`. |
-| `objetsContenus` | `Array<Objet>` | `instance` | Liste d'autres instances d'`Objet` imbriquées. | `[]` (tableau vide). |
-| `mapParametres` | `Map<String, Parametre>` | `instance` | Cache pour un accès rapide aux paramètres par n'importe quel de leurs noms. | `new Map()` |
-| `classeObjetsContenus` | `Class` | `static` | Spécifie le type d'objet contenu. | `null`. |
-| `estModifie` | `Boolean` | `instance` | Indique si l'objet a été modifié depuis son dernier chargement/enregistrement. | `true`. |
+| `idMessage` | `Number` | `instance` | L'id du message spécifique dans le sujet contenant les données de l'instance. | `null`. |
+| `objetsForumContenus` | `Array<ObjetForum>` | `instance` | Liste d'autres instances d'`ObjetForum` imbriquées. | `[]` (tableau vide). |
+| `mapParametreObjetForums` | `Map<String, ParametreObjetForum>` | `instance` | Cache pour un accès rapide aux paramètres par n'importe quel de leurs noms. | `new Map()` |
+| `classeObjetsForumContenus` | `Class` | `static` | Spécifie le type d'objet contenu. | `null`. |
+| `estModifie` | `Boolean` | `getter/setter` | Indique si l'objet a été modifié depuis son dernier chargement/enregistrement. Le getter retourne le OU logique des `estModifie` des paramètres de la dernière version de l'objet. Le setter (appelé avec `false`) remet à `false` les `estModifie` des paramètres de la dernière version de l'objet. | N/A |
+| `fonctionnaliteCreatrice` | `FonctionnaliteAlliance` | `instance` | Référence à l'instance de la fonctionnalité qui a créé cet objet. | `null`. |
+| `objetParent` | `ObjetForum` | `instance` | Référence à l'instance de l'objet qui a créé cet objet. | `null`. |
+| `_readerCount` | `Number` | `instance` | Compteur de lecteurs actifs. | `0` |
+| `_writerWaiting` | `Boolean` | `instance` | Indique si un writer est en attente d'acquérir le verrou. | `false` |
+| `_writerCount` | `Number` | `instance` | Compteur de writers actifs. | `0` |
+| `_readerQueue` | `Array<Function>` | `instance` | File d'attente pour les lecteurs en attente. | `[]` |
+| `_writerQueue` | `Array<Function>` | `instance` | File d'attente pour les writers en attente. | `[]` |
 
 #### **Méthodes**
 
 ##### **1. `constructor()`**
 
-*   **Signature :** `constructor(donneesInitiales?: Object)` (le paramètre est optionnel).
-*   **Objectif :** Initialiser l'objet, et optionnellement, peupler ses paramètres avec des valeurs fournies.
+*   **Signature :** `constructor(fonctionnaliteCreatrice, options = {})`
+*   **Objectif :** Initialiser l'objet, stocker ses références et optionnellement, peupler ses paramètres avec des valeurs fournies via un objet d'options.
 *   **Logique Détaillée :**
-    1.  **Vérification de la Configuration :** Le constructeur accède à la propriété statique `CLASSES_PARAMETRES` de la classe fille. Il s'attend à ce que ce soit une liste de listes.
+    1.  **Stockage des Références :** Le constructeur stocke la référence `this.fonctionnaliteCreatrice = fonctionnaliteCreatrice;`. Les autres références sont extraites de l'objet `options` : `this.objetParent = options.objetParent || null;`, `this.idSujet = options.idSujet || null;`, `this.idMessage = options.idMessage || null;`.
+    2.  **Vérification de la Configuration :** Le constructeur accède à la propriété statique `CLASSES_PARAMETRES` de la classe fille. Il s'attend à ce que ce soit une liste de listes.
 
     2.  **Création de la liste unique de paramètres :**
         a.  Il aplatit la liste de listes (`CLASSES_PARAMETRES`) en un seul tableau contenant toutes les classes de paramètres de toutes les versions.
-        b.  Il supprime les doublons de ce tableau pour obtenir une liste unique de toutes les classes de `Parametre` que l'objet peut potentiellement utiliser, quelle que soit la version.
+        b.  Il supprime les doublons de ce tableau pour obtenir une liste unique de toutes les classes de `ParametreObjetForum` que l'objet peut potentiellement utiliser, quelle que soit la version.
 
-    3.  **Instanciation et Liaison des Paramètres :** Le constructeur parcourt cette **liste unique**. Pour chaque `ClasseDeParametre`, il effectue la séquence suivante pour assurer une liaison correcte :
-        a.  Il instancie le paramètre : `const nouveauParametre = new ClasseDeParametre();`.
-        b.  Il établit la liaison parent-enfant en injectant la référence de l'objet conteneur dans le paramètre : `nouveauParametre.objetParent = this;`.
-        c.  Il ajoute le paramètre fraîchement lié à sa liste interne : `this.parametres.push(nouveauParametre);`.
-        d.  **Mise en cache des noms :** Il parcourt le `FORMAT_HISTORY` du `nouveauParametre` et ajoute chaque `nom` historique à la `mapParametres` de l'objet, avec une référence au `nouveauParametre`. Cela accélère considérablement les recherches futures.
+    3.  **Instanciation et Liaison des Paramètres :** Le constructeur parcourt cette **liste unique**. Pour chaque `ClasseDeParametreObjetForum`, il effectue la séquence suivante pour assurer une liaison correcte :
+        a.  Il instancie le paramètre en lui passant la référence de l'objet conteneur : `const nouveauParametreObjetForum = new ClasseDeParametreObjetForum(this);`.
+        b.  Il ajoute le paramètre fraîchement lié à sa liste interne : `this.parametres.push(nouveauParametreObjetForum);`.
+        c.  **Mise en cache des noms :** Il parcourt le `FORMAT_HISTORY` du `nouveauParametreObjetForum` et ajoute chaque `nom` historique à la `mapParametreObjetForums` de l'objet, avec une référence au `nouveauParametreObjetForum`. Cela accélère considérablement les recherches futures.
             ```javascript
-            nouveauParametre.constructor.FORMAT_HISTORY.forEach(format => {
-                this.mapParametres.set(format.nom, nouveauParametre);
+            nouveauParametreObjetForum.constructor.FORMAT_HISTORY.forEach(format => {
+                this.mapParametreObjetForums.set(format.nom, nouveauParametreObjetForum);
             });
             ```
+            **Note :** Le `FORMAT_HISTORY` est généré dynamiquement dans le constructeur de `ParametreObjetForum` à partir de `NAME_HISTORY` et `FORMATS`.
 
     4.  **Peuplement Optionnel des Paramètres :**
-        a.  Le constructeur vérifie si l'argument `donneesInitiales` a été fourni et s'il s'agit bien d'un objet.
-        b.  Si c'est le cas, il appelle `this.ecrireChaqueParametre(donneesInitiales)` pour peupler les paramètres qui viennent d'être instanciés avec les valeurs fournies.
+        a.  Le constructeur vérifie si `options.donneesInitiales` a été fourni et s'il s'agit bien d'un objet.
+        b.  Si c'est le cas, il appelle `this.ecrireChaqueParametreObjetForum(options.donneesInitiales)` pour peupler les paramètres qui viennent d'être instanciés avec les valeurs fournies.
 
-    5.  **Initialisation des IDs de Section :** Le constructeur accède à la propriété statique `FORMATS_LIEUX` de la classe fille, convertit les noms de section en IDs numériques, et stocke ces IDs uniques dans le tableau `this.idsSection`.
+    5.  **Initialisation des IDs de Section :** Le constructeur accède à la propriété statique `LOCATION_HISTORY` de la classe fille, convertit les noms de section en IDs numériques, et stocke ces IDs uniques dans le tableau `this.idsSection`.
 
-Le constructeur de la classe fille se résume alors à une unique instruction : `super()` (ou `super(donneesInitiales)`), qui déclenche toute cette logique.
+
+Le constructeur de la classe fille se résume alors à une unique instruction : `super(this, options)`, qui déclenche toute cette logique.
 
 ##### **2. `verifierVersionSuffisanteEtPresenceSection()`**
 
-*   **Signature :** `verifierVersionSuffisanteEtPresenceSection(): Boolean`
+*   **Signature :** `async verifierVersionSuffisanteEtPresenceSection()`
 *   **Objectif :** Orchestrer la validation de l'objet et de ses dépendances (paramètres, objets contenus).
 *   **Logique Détaillée :**
-    1.  **Validation de la Présence de la Section :**
-        a.  Si `this.idsSection` n'est pas vide, la méthode vérifie que le dernier ID de section est valide (entier positif correspondant à une section existante et accessible du forum). Si ce n'est pas le cas, elle retourne `false`.
+    1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
+    2.  **Validation de la Présence de la Section :**
+        a.  Si `this.idsSection` n'est pas vide, la méthode tente de consulter la section correspondante au dernier ID de section via `window.pageForum.consulterSection()`. Si cette consultation lève une erreur, ou le titre de la section retourné ne correspond pas à celui attendu, la section est considérée comme invalide et la méthode retourne `false`.
 
-    2.  **Validation des Paramètres :**
+    3.  **Validation des Paramètres :**
         a.  La méthode parcourt `this.parametres` et appelle `parametre.verifierVersionSuffisante()` pour chacun.
         b.  Cette étape garantit que toutes les définitions de version des paramètres sont créées/mises à jour sur le forum et que le cache du `GestionnaireVersions` est peuplé avec leurs `idSujet` respectifs.
         c.  Si un seul de ces appels retourne `false`, la méthode retourne immédiatement `false`.
 
-    3.  **Validation de l'Objet lui-même (Exécutée après les paramètres) :**
-        a.  La méthode vérifie si l'objet est un objet versionné (`this.constructor.VERSION_LOGIQUE` et `this.constructor.FORMATS_LIEUX` sont définis).
-        b.  **Si c'est le cas**, elle appelle `global.gestionnaireVersions.verifierCompatibiliteObjet(this)`. Si cet appel retourne `false`, la méthode retourne `false`.
+    4.  **Validation de l'ObjetForum lui-même (Exécutée après les paramètres) :**
+        a.  La méthode vérifie si l'objet est un objet versionné (`this.constructor.VERSION_LOGIQUE`, `this.constructor.LOCATION_HISTORY` et `this.constructor.CLASSES_PARAMETRES` sont définis).
+        b.  **Si c'est le cas**, elle appelle `window.gestionnaireVersions.verifierCompatibiliteObjetForum(this)`. Si cet appel retourne `false`, la méthode retourne `false`.
         c.  **Sinon**, cette étape est sautée.
 
-    4.  **Validation Récursive des Objets Contenus :**
-        a.  Si les validations précédentes ont réussi et que `classeObjetsContenus` est défini, la méthode appelle récursivement la vérification sur une instance du sous-objet.
+    5.  **Validation Récursive des ObjetForums Contenus :**
+        a.  Si les validations précédentes ont réussi et que `classeObjetsForumContenus` est défini, la méthode appelle récursivement la vérification sur une instance du sous-objet.
         b.  Si cet appel retourne `false`, la méthode retourne `false`.
 
-    5.  **Résultat Final :**
+    6.  **Résultat Final :**
         a.  Retourne `true` si toutes les étapes ont réussi.
+    
+    7.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
 
 ##### **3. `rafraîchir()`**
 
-*   **Nouvelle Signature :** `rafraîchir(chargerContenus: Boolean = true): Boolean`
+*   **Signature :** `async rafraichir(chargerContenus = true): Promise<Boolean>`
 *   **Objectif :** Mettre à jour (rafraîchir) une instance d'objet **déjà identifiée** (dont `idSujet` est connu) en lisant uniquement le titre du sujet correspondant.
 *   **Prérequis :**
     *   L'attribut `this.idSujet` doit être un entier positif.
     *   L'objet doit être un objet conteneur, dont les données sont stockées dans le titre d'un sujet.
 *   **Logique Détaillée :**
-    1.  **Vérification des prérequis :** Si `this.idSujet` est `null` ou invalide, la méthode retourne `false`.
-    2.  **Lecture du Titre :**
-        a.  Lit le titre du sujet correspondant à `this.idSujet`.
-        b.  Si la lecture échoue, retourne `false`.
-    3.  **Délégation au Parsing :**
-        a.  Appelle `this.chargerDepuisString(titreLu, chargerContenus)`.
-    4.  **Retour Final :** Retourne le résultat (`true` ou `false`) de l'appel à `chargerDepuisString`.
+    1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Vérification des prérequis :** Si `this.idSujet` est `null` ou invalide, la méthode retourne `false`.
+        b.  **Lecture du Titre et des Messages :**
+            i.  Appelle `const { titre, messages } = await window.pageForum.consulterSujetAvecMessagesEtIds(this.idSujet);`.
+            ii. Si la lecture échoue, retourne `false`.
+        c.  **Délégation au Parsing du Titre :**
+            i.  `const titreCharge = await this.chargerDepuisString(titre);`
+            ii. Si `titreCharge` est `false`, retourne `false`.
+        d.  **Chargement des Objets Contenus (si pertinent) :**
+            i.  Si `chargerContenus` est `true` :
+                -   `const contenusCharges = await this.chargerObjetForumsContenus(messages);`
+                -   Si `contenusCharges` est `false`, retourne `false`.
+        e.  **Retour Final :** Retourne `true`.
+    3.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
 
-##### **4. `chargerObjetsContenus()`**
+##### **4. `chargerObjetForumsContenus()`**
 
-*   **Signature :** `chargerObjetsContenus(): void`
-*   **Objectif :** Peupler le tableau `this.objetsContenus` en lisant tous les messages d'un sujet de forum et en les transformant en instances d'un sous-objet.
+*   **Signature :** `protected async chargerObjetForumsContenus(messages): Promise<Boolean>`
+*   **Objectif :** Peupler le tableau `this.objetsForumContenus` en transformant les messages fournis en instances d'un sous-objet.
 *   **Prérequis :**
     1.  L'objet principal (celui qui appelle cette méthode) doit déjà avoir été chargé et posséder un `idSujet` valide.
+    2.  La liste des `messages` doit être fournie.
 *   **Logique Détaillée :**
-    1.  **Vérification des Prérequis :**
-        a.  La méthode vérifie que `this.idSujet` n'est pas `null` et `classeObjetsContenus` est défini.
-        b.  Elle vérifie que `this.constructor.classeObjetsContenus` est bien une classe valide (héritant d'`Objet`). Si l'un des prérequis est manquant, la méthode se termine sans rien faire, éventuellement en affichant un avertissement.
+    1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Vérification des Prérequis :**
+            i.  La méthode vérifie que `this.constructor.classeObjetsForumContenus` est une classe valide héritant d'`ObjetForum`. Si ce n'est pas le cas, la méthode retourne `false`.
 
-    2.  **Récupération des Données Brutes :**
-        a.  La méthode effectue une requête à une instance de PageForum pour récupérer le contenu de **tous les messages** du sujet identifié par `this.idSujet`.
-
-    3.  **Synchronisation et Chargement Efficaces :**
-        a.  **Création d'une Map pour les objets existants :** La méthode crée une `Map` des objets déjà présents dans `this.objetsContenus`, en utilisant leur `numeroMessage` comme clé. Cela permet une recherche en temps constant (O(1)).
-        b.  **Itération sur les messages récupérés :** La méthode crée une nouvelle liste et parcourt la liste des messages (`listeMessages`) récupérés du forum.
-        c.  **Mise à jour ou Création :** Pour chaque `message` :
-            i.  Si un objet avec le même `numeroMessage` existe dans la `Map`, elle le met à jour en appelant `chargerDepuisString`, et l'ajoute à la nouvelle liste.
-            ii. Sinon, elle crée une nouvelle instance de `this.constructor.classeObjetsContenus`, la charge, lui injecte son numeroMessage, et l'ajoute à une nouvelle liste.
-        d.  **Remplacement :** La liste `this.objetsContenus` est remplacée par la nouvelle liste synchronisée. Les objets qui n'existent plus sur le forum sont ainsi automatiquement supprimés.
+        b.  **Synchronisation et Chargement :**
+            i.  Initialise `const nouveauxObjetForumsContenus = [];`.
+            ii. Crée une `Map` des objets existants par leur `idMessage` pour une réutilisation basée sur l'ID : `const objetsExistantsMap = new Map(this.objetsForumContenus.map(obj => [obj.idMessage, obj]));`.
+            iii. La méthode itère sur les `messages` trouvés. Pour chaque `message` :
+                -   Elle extrait son `idMessage` directement depuis `message.id`.
+                -   Elle tente de réutiliser un objet existant avec cet `idMessage` depuis `objetsExistantsMap`. Si aucun n'existe, elle en crée un nouveau en passant les références parentes : `new this.constructor.classeObjetsForumContenus(this.fonctionnaliteCreatrice, {objetParent:this, idMessage:message.id})`.
+                -   `const chargementReussi = await instance.chargerDepuisString(message.contenu);`
+                -   Si `chargementReussi` est `false`, la méthode retourne `false`.
+                -   Si le chargement réussit, elle l'ajoute à `nouveauxObjetForumsContenus`.
+            iv. **Remplacement :** Une fois tous les messages traités, la liste `this.objetsForumContenus` est complètement remplacée par la nouvelle liste synchronisée. Les objets dont les messages n'existent plus sont ainsi automatiquement supprimés.
+        v.  **Retour Final :** Retourne `true`.
+    3.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
 
 ##### **5. `chargerDepuisString(contenu)`**
 
-*   **Nouvelle Signature :** `chargerDepuisString(contenu: String, chargerContenus: Boolean = true): Boolean`
-*   **Objectif :** Orchestrateur central du chargement à partir d'une chaîne. Peuple les paramètres de l'objet, puis lance le chargement de ses objets contenus.
+*   **Signature :** `protected async chargerDepuisString(contenu): Promise<Boolean>`
+*   **Objectif :** Orchestrateur central du chargement à partir d'une chaîne. Peuple les paramètres de l'objet.
 *   **Logique Détaillée :**
-    1.  **Chargement des Paramètres Propres :**
-        a.  La méthode parcourt `this.parametres` et appelle `parametre.chargerDepuisString(contenu)` pour chacun.
-        b.  Si un seul de ces appels retourne `false`, le chargement de l'objet principal échoue. La méthode retourne immédiatement `false`.
-    2.  **Migration des Données Anciennes :**
-        a.  La méthode appelle `this.completerChargementPourVersionsAnterieures()` pour s'assurer que les données chargées sont migrées vers le format le plus récent.
-    3.  **Succès du Chargement Principal :**
-        a.  Si tous les paramètres propres sont chargés, la méthode met à jour l'état : `this.estModifie = false;`.
-    4.  **Chargement des Objets Contenus :**
-        a.  La méthode vérifie si l'argument `chargerContenus` est `true` et si la classe a des objets contenus (`this.constructor.classeObjetsContenus` est défini).
-        b.  Si c'est le cas, elle appelle `this.chargerObjetsContenus()`.
-    5.  **Retour Final :** La méthode retourne `true`, indiquant que l'objet et (le cas échéant) ses enfants ont été chargés avec succès.
+    1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
+    2.  **Bloc `try...catch` :**
+        a.  **Chargement des Paramètres Propres :**
+            i.  La méthode parcourt `this.parametres` et appelle `parametre.chargerDepuisString(contenu)` pour chacun.
+        b.  **Validation du Chargement :**
+            i.  La méthode appelle `this._determinerVersionChargee()` pour identifier la version des paramètres chargés.
+            ii. Elle crée un `Set` des classes de tous les paramètres qui ont été chargés avec succès (en se basant sur leur flag `estCharge`).
+            iii. Si l'ensemble des paramètres chargés est vide (`classesChargees.size === 0`) ou si `_determinerVersionChargee()` retourne `-1` (aucune correspondance exacte avec une version), la méthode retourne `false`.
+            c.  **Succès du Chargement Principal :**
+                i.  L'état `estModifie` des paramètres individuels est géré par `ParametreObjetForumFramework.chargerDepuisString`. L'objet principal est considéré comme chargé avec succès.
+        d.  **Migration des Données Anciennes :**
+            i.  La méthode appelle `this.completerChargementPourVersionsAnterieures()` pour s'assurer que les données chargées sont migrées vers le format le plus récent.
+        e.  **Retour Final :** La méthode retourne `true`, indiquant que l'objet a été chargé avec succès.
+    3.  **Gestion des erreurs :** En cas d'erreur, la méthode retourne `false`.
+    4.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
 
 ##### **6. `afficher()`**
 
-*   **Objectif :** Générer directement les chaînes de caractères HTML pour la ligne d'en-tête (`<thead>`) et la ligne de corps (`<tbody>`) d'un tableau.
-*   **Signature :** `afficher(liste: Array<String> = null): {en_tete_html: String, corps_html: String}`
+*   **Objectif :** Générer directement les chaînes de caractères HTML pour la ligne d'en-tête (`<thead>`) et la ligne de corps (`<tbody>`) d'un tableau, en respectant l'ordre des colonnes spécifié.
+*   **Signature :** `afficher(liste = null)`
 *   **Logique Détaillée :**
     1.  **Vérification des Droits et Lecture des Données :**
         a.  Appelle le `GestionnaireDroits` pour savoir si l'utilisateur peut voir les données restreintes (`peutVoirDonneesRestreintes`).
-        b.  Appelle `this.lireChaqueParametre(peutVoirDonneesRestreintes, liste)` pour obtenir un objet des données sécurisées.
-    2.  **Construction de l'En-tête HTML (`en_tete_html`) :**
+        b.  Appelle `this.lireChaqueParametreObjetForum(peutVoirDonneesRestreintes, liste)` pour obtenir un dictionnaire des données sécurisées.
+    2.  **Détermination de l'Ordre d'Affichage :**
+        a.  Initialise `let ordreAffichage;`.
+        b.  Si `liste` est fournie, `ordreAffichage = liste;`.
+        c.  Sinon (ordre par défaut), `ordreAffichage` est construit en récupérant les noms d'affichage les plus récents des paramètres de la **dernière version** de l'objet.
+            ```javascript
+            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+            const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
+            ordreAffichage = classesDerniereVersion.map(classe => {
+                const p = mapClasseInstance.get(classe);
+                return p.constructor.getDernierNom();
+            });
+            ```
+    3.  **Construction de l'En-tête HTML (`en_tete_html`) :**
         a.  Initialise `let en_tete_html = '<tr>';`.
-        b.  Parcourt les **clés** (noms des paramètres) de l'objet de données.
-        c.  Pour chaque clé, elle ajoute une cellule d'en-tête : `en_tete_html += '<th>' + cle + '</th>';`.
-        d.  Finalise la chaîne : `en_tete_html += '</tr>';`.
-    3.  **Construction du Corps HTML (`corps_html`) :**
+        b.  Parcourt `ordreAffichage`. Pour chaque `nomParametreObjetForum` :
+            i.  Récupère le nom d'affichage : `const nomAffiche = donnees[nomParametreObjetForum].nom_affiche;`.
+            ii. Ajoute une cellule d'en-tête : `en_tete_html += '<th>' + nomAffiche + '</th>';`.
+        c.  Finalise la chaîne : `en_tete_html += '</tr>';`.
+    4.  **Construction du Corps HTML (`corps_html`) :**
         a.  Initialise `let corps_html = '<tr>';`.
-        b.  Parcourt les **valeurs** de l'objet de données.
-        c.  Pour chaque valeur, elle ajoute une cellule de données : `corps_html += '<td>' + valeur + '</td>';`.
-        d.  Finalise la chaîne : `corps_html += '</tr>';`.
-    4.  **Retour :** Retourne l'objet `{ en_tete_html: en_tete_html, corps_html: corps_html }`.
+        b.  Parcourt `ordreAffichage`. Pour chaque `nomParametreObjetForum` :
+            i.  Récupère la valeur : `const valeur = donnees[nomParametreObjetForum].valeur;`.
+            ii. Ajoute une cellule de données : `corps_html += '<td>' + valeur + '</td>';`.
+        c.  Finalise la chaîne : `corps_html += '</tr>';`.
+    5.  **Retour :** Retourne l'objet `{ en_tete_html: en_tete_html, corps_html: corps_html }`.
 *   **Note sur la personnalisation :**
     *   Une classe fille pourra surcharger cette méthode pour insérer des éléments interactifs (comme des `<select>`) dans les cellules du `corps_html` au lieu de simple texte.
 
-##### **7. `lireChaqueParametre(peutVoirDonneesRestreintes, liste)`**
+##### **7. `lireChaqueParametreObjetForum(peutVoirDonneesRestreintes, liste)`**
 
-*   **Signature :** `lireChaqueParametre(peutVoirDonneesRestreintes: Boolean = true, liste: Array<String> = null): Object`
-*   **Objectif :** Agréger les valeurs des paramètres de l'objet en un seul objet JavaScript simple (clé-valeur), en utilisant le nom d'affichage le plus récent comme clé. Si une `liste` est fournie, seuls les paramètres de cette liste sont retournés, dans l'ordre spécifié.
+*   **Signature :** `async lireChaqueParametreObjetForum(peutVoirDonneesRestreintes = true, liste = null)`
+*   **Objectif :** Agréger les valeurs des paramètres en un dictionnaire. Garantit que chaque paramètre est unique. Si une `liste` est fournie, la clé est le nom de la liste ; sinon, c'est le nom d'affichage le plus récent.
 *   **Logique Détaillée :**
-    1.  **Initialisation :** La méthode crée un objet vide, `let donnees = {};`.
-    2.  **Détermination de la liste des paramètres à traiter :**
-        a.  Initialise `let parametresATraiter = new Set();`.
-        b.  Si `liste` est fournie, elle parcourt la `liste`. Pour chaque `nomParametre`, elle utilise la `mapParametres` pour trouver le paramètre correspondant en O(1) et l'ajoute à l'ensemble `parametresATraiter` pour garantir l'unicité.
-        c.  Sinon (si `liste` n'est pas fournie), elle peuple `parametresATraiter` avec tous les paramètres de `this.parametres`.
-    3.  **Itération sur les Paramètres :** Elle parcourt l'ensemble `parametresATraiter`.
-    4.  **Lecture Sécurisée :** Pour chaque `parametre` :
-        a.  Elle récupère la valeur (en respectant les droits) en appelant `parametre(peutVoirDonneesRestreintes)`.
-        b.  Elle récupère le nom d'affichage de la **dernière version** disponible pour ce paramètre : `const nomAffiche = parametre.constructor.FORMAT_HISTORY[parametre.constructor.FORMAT_HISTORY.length - 1].nom;`.
-        c.  Elle utilise ce `nomAffiche` comme clé pour peupler l'objet `donnees` avec la valeur retournée.
-    5.  **Retour des Données :** La méthode retourne l'objet `donnees` complet.
+    1.  **Initialisation :** `let donnees = {};`.
+    2.  **Si une `liste` est fournie :**
+        a.  Parcourt la `liste`. Pour chaque `nomParametreObjetForum` :
+            i.  Vérifie si le paramètre a déjà été ajouté pour garantir l'unicité : `if (!donnees.hasOwnProperty(nomParametreObjetForum))`.
+            ii. Trouve l'instance `parametre` via `this.mapParametreObjetForums`.
+            iii. Si un `parametre` est trouvé :
+                -   Récupère la `valeur` et le `nomAffiche` le plus récent.
+                -   Peuple le dictionnaire : `donnees[nomParametreObjetForum] = { valeur: valeur, nom_affiche: nomAffiche };`.
+            iv. Sinon, peuple le dictionnaire avec des éléments `null`.
+    3.  **Si aucune `liste` n'est fournie (cas par défaut) :**
+        a.  Parcourt tous les `this.parametres` de l'objet.
+        b.  Pour chaque `parametre` :
+            i.  Récupère la `valeur` et le `nomAffiche` le plus récent.
+            ii. Utilise `nomAffiche` comme clé : `donnees[nomAffiche] = { valeur: valeur, nom_affiche: nomAffiche };`.
+    4.  **Retour des Données :** La méthode retourne l'objet `donnees` complet.
 
-##### **8. `ecrireChaqueParametre(donnees)`**
+##### **8. `ecrireChaqueParametreObjetForum(donnees)`**
 
-*   **Signature :** `ecrireChaqueParametre(donnees: Object): void`
+*   **Signature :** `async ecrireChaqueParametreObjetForum(donnees)`
 *   **Objectif :** Mettre à jour rapidement les valeurs des paramètres de l'objet à partir d'un objet clé-valeur.
 *   **Logique Détaillée :**
-    1.  **Itération sur les Données Fournies :** La méthode parcourt les clés (`nomParametre`) de l'objet `donnees`.
-    2.  **Recherche et Écriture Rapides :** Pour chaque `nomParametre` :
-        a.  Elle utilise la `mapParametres` pour trouver le `parametre` correspondant en O(1).
-        b.  Si un `parametre` est trouvé, elle appelle `parametre.Ecrire(donnees[nomParametre])` et marque l'objet comme modifié (`this.estModifie = true;`).
+    1.  **Itération sur les Données Fournies :** La méthode parcourt les clés (`nomParametreObjetForum`) de l'objet `donnees`.
+    2.  **Recherche et Écriture Rapides :** Pour chaque `nomParametreObjetForum` :
+        a.  Elle utilise la `mapParametreObjetForums` pour trouver le `parametre` correspondant en O(1).
+        b.  Si un `parametre` est trouvé, elle appelle `parametre.Ecrire(donnees[nomParametreObjetForum])`.
 
 ##### **9. `enregistrerSurForum()`**
 
-*   **Signature :** `async enregistrerSurForum(): Promise<void>`
+*   **Signature :** `async enregistrerSurForum()`
 *   **Objectif :** Point d'entrée unique pour écrire l'état de l'objet sur le forum. Gère la création et la mise à jour pour les objets principaux et les objets contenus.
 *   **Logique Détaillée :**
-    1.  **Vérification de Modification :** Si `this.estModifie` est `false`, la méthode se termine immédiatement sans rien faire.
+    1.  **Acquisition du verrou d'écriture :** `await this._acquireWriteLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Vérification de Modification :** Si `this.estModifie` est `false`, l'enregistrement de l'objet principal est sauté.
 
-    2.  **Enregistrement de l'objet principal :**
-        a.  **Génération de la chaîne de contenu :**
-            i.  Récupère la liste des classes de paramètres de la **dernière version** depuis la configuration statique : `const classesDerniereVersion = new Set(this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1]);`.
-            ii. Filtre les paramètres de l'instance pour ne garder que ceux qui appartiennent à la dernière version : `const parametresAEnregistrer = this.parametres.filter(p => classesDerniereVersion.has(p.constructor));`.
-            iii. Génère la chaîne `contenuFinal` en appelant `genererStringPourEnregistrement()` sur chaque paramètre dans `parametresAEnregistrer` et en concaténant les résultats.
-        b.  Récupère le `{section, lieu}` le plus récent depuis `FORMATS_LIEUX`.
-        c.  **Logique d'écriture selon le `lieu` :**
-            *   **Si `lieu` est `'titre'` :**
-                -   Si `this.idSujet` est `null` (création), appelle `PageForum.creerSujet(contenuFinal, '', idSection)`. Stocke le nouvel ID dans `this.idSujet`.
-                -   Sinon (mise à jour), appelle `PageForum.modifierSujet(contenuFinal, '', this.idSujet)`.
-            *   **Si `lieu` est `'message'` :**
-                -   Si `this.objetParent.idSujet` est `null`, lève une erreur.
-                -   Si `this.numeroMessage` est `null` (création), appelle `PageForum.envoyerMessage(this.objetParent.idSujet, contenuFinal)`. Stocke le nouveau numéro dans `this.numeroMessage`.
-                -   Sinon (mise à jour), appelle `PageForum.modifierMessage(this.objetParent.idSujet, this.numeroMessage, contenuFinal)`.
-        d.  Met `this.estModifie = false;`.
+        b.  **Enregistrement de l'objet principal :**
+            i.  **Génération de la chaîne de contenu :**
+                -   Récupère la liste des classes de paramètres de la **dernière version** depuis la configuration statique : `const classesDerniereVersion = new Set(this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1]);`.
+                -   Filtre les paramètres de l'instance pour ne garder que ceux qui appartiennent à la dernière version : `const parametresAEnregistrer = this.parametres.filter(p => classesDerniereVersion.has(p.constructor));`.
+                -   Génère la chaîne `contenuFinal` en appelant `genererStringPourEnregistrement()` sur chaque paramètre dans `parametresAEnregistrer` et en concaténant les résultats.
+            ii. Récupère le `{section, lieu}` le plus récent depuis `LOCATION_HISTORY`.
+            iii. **Logique d'écriture selon le `lieu` :**
+                -   **Si `lieu` est `'titre'` :**
+                    -   Si `this.idSujet` est `null` (création), appelle `PageForum.creerSujetEtRetournerId(contenuFinal, '', idSection)`. Stocke le nouvel ID dans `this.idSujet`.
+                    -   Sinon (mise à jour), appelle `PageForum.modifierSujet(contenuFinal, '', this.idSujet)`.
+                -   **Si `lieu` est `'message'` :**
+                    -   Si `this.objetParent.idSujet` est `null`, lève une erreur.
+                    -   Si `this.idMessage` est `null` (création), appelle `PageForum.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal)`. Stocke le nouvel ID dans `this.idMessage`.
+                    -   Sinon (mise à jour), appelle `PageForum.modifierMessage(this.idMessage, contenuFinal)`.
+            iv. Met `this.estModifie = false;`.
 
-    3.  **Enregistrement des objets contenus :**
-        a.  Parcourt `this.objetsContenus`.
-        b.  Pour chaque `sousObjet`, appelle `await sousObjet.enregistrerSurForum()`.
+        c.  **Enregistrement des objets contenus :**
+            i.  Parcourt `this.objetsForumContenus`.
+            ii. Pour chaque `sousObjetForum`, appelle `await sousObjetForum.enregistrerSurForum()`.
+    3.  **Libération du verrou d'écriture :** Dans le bloc `finally`, `this._releaseWriteLock();` est appelé.
 
-##### **10. `lireParametre(nomParametre)`**
+##### **10. `lireParametreObjetForum(nomParametreObjetForum)`**
 
-*   **Nouvelle Signature :** `lireParametre(nomParametre: String): any`
-*   **Objectif Modifié :** Fournir un accès direct et rapide en lecture à la valeur brute d'un paramètre.
+*   **Signature :** `async lireParametreObjetForum(nomParametreObjetForum)`
+*   **Objectif :** Fournir un accès direct et rapide en lecture à la valeur brute d'un paramètre.
 *   **Logique Détaillée :**
-    1.  **Recherche Rapide via Map :** La méthode utilise la `mapParametres` de l'objet pour trouver le paramètre en temps constant : `const parametre = this.mapParametres.get(nomParametre);`.
+    1.  **Recherche Rapide via Map :** La méthode utilise la `mapParametreObjetForums` de l'objet pour trouver le paramètre en temps constant : `const parametre = this.mapParametreObjetForums.get(nomParametreObjetForum);`.
     2.  **Lecture Directe :** Si le `parametre` est trouvé, elle retourne sa `valeur` brute.
     3.  **Retour par défaut :** Si non trouvé, retourne `null`.
 
-##### **11. `ecrireParametre(nomParametre, valeur)`**
+##### **11. `ecrireParametreObjetForum(nomParametreObjetForum, valeur)`**
 
-*   **Nouvelle Signature :** `ecrireParametre(nomParametre: String, valeur: any): void`
-*   **Objectif Modifié :** Fournir un accès direct et rapide en écriture à un paramètre.
+*   **Signature :** `async ecrireParametreObjetForum(nomParametreObjetForum, valeur)`
+*   **Objectif :** Fournir un accès direct et rapide en écriture à un paramètre.
 *   **Logique Détaillée :**
-    1.  **Recherche Rapide via Map :** La méthode trouve le paramètre en temps constant : `const parametre = this.mapParametres.get(nomParametre);`.
-    2.  **Écriture de la Valeur :** Si un `parametre` est trouvé, elle appelle sa méthode `Ecrire(valeur)` et marque l'objet comme modifié : `this.estModifie = true;`.
+    1.  **Recherche Rapide via Map :** La méthode trouve le paramètre en temps constant : `const parametre = this.mapParametreObjetForums.get(nomParametreObjetForum);`.
+    2.  **Écriture de la Valeur :** Si un `parametre` est trouvé, elle appelle sa méthode `Ecrire(valeur)`.
 
 ##### **12. `_determinerVersionChargee()`**
 
-*   **Signature :** `_determinerVersionChargee(): Number`
+*   **Signature :** `_determinerVersionChargee()`
 *   **Portée :** Protégée (interne à la classe et ses filles).
 *   **Objectif :** Analyser les paramètres qui ont été chargés pour déterminer à quelle version de l'objet ils correspondent, en s'assurant d'une correspondance exacte.
 *   **Logique Détaillée :**
@@ -441,11 +635,50 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
             iii. Si `estCorrespondanceExacte` est `true`, la méthode a trouvé la version unique et exacte. Elle retourne l'index `i`.
     3.  **Retour par Défaut :** Si la boucle se termine sans trouver de correspondance exacte, la méthode retourne `-1`.
 
-##### **13. `completerChargementPourVersionsAnterieures()`**
+##### **13. `_acquireReadLock()` (Méthode privée)**
+*   **Signature :** `async _acquireReadLock()`
+*   **Objectif :** Acquérir un verrou de lecture sur l'instance de l'objet. Permet à plusieurs lecteurs de s'exécuter simultanément, mais bloque si un writer est actif ou en attente.
+*   **Logique Détaillée :**
+    1.  Retourne une nouvelle promesse.
+    2.  Une fonction `tryAcquire` est définie :
+        a.  **Ré-entrée :** Si `this._readerCount > 0` (un verrou de lecture est déjà détenu par le contexte d'exécution actuel), le compteur est simplement incrémenté et la promesse est résolue immédiatement, permettant la ré-entrée.
+        b.  **Blocage :** Sinon, si un writer est actif (`this._writerCount > 0`) ou en attente (`this._writerWaiting`), la fonction `tryAcquire` est ajoutée à la `_readerQueue`.
+        c.  **Acquisition :** Dans tous les autres cas, `_readerCount` est incrémenté et la promesse est résolue.
+    3.  `tryAcquire` est appelée immédiatement.
 
-*   **Signature :** `completerChargementPourVersionsAnterieures(): void`
+##### **14. `_releaseReadLock()` (Méthode privée)**
+*   **Signature :** `_releaseReadLock()`
+*   **Objectif :** Libérer un verrou de lecture. Si aucun autre lecteur n'est actif et qu'il y a des writers en attente, le prochain writer est notifié.
+*   **Logique Détaillée :**
+    1.  `_readerCount` est décrémenté.
+    2.  Si `_readerCount` est `0` :
+        a.  Si `_writerQueue` n'est pas vide, le prochain writer en attente est débloqué.
+
+##### **15. `_acquireWriteLock()` (Méthode privée)**
+*   **Signature :** `async _acquireWriteLock()`
+*   **Objectif :** Acquérir un verrou d'écriture sur l'instance de l'objet. Bloque les lecteurs mais permet à plusieurs writers de s'exécuter simultanément.
+*   **Logique Détaillée :**
+    1.  Retourne une nouvelle promesse.
+    2.  Une fonction `tryAcquire` est définie :
+        a.  Si des lecteurs sont actifs (`this._readerCount > 0`), `this._writerWaiting` est mis à `true` (indiquant qu'un writer est en attente) et `tryAcquire` est ajoutée à la `_writerQueue`.
+        b.  Sinon, `this._writerCount` est incrémenté. Le flag `_writerWaiting` est mis à jour pour refléter si d'autres writers sont encore en attente dans la queue (`this._writerQueue.length > 0`). La promesse est résolue.
+    3.  `tryAcquire` est appelée immédiatement.
+
+##### **16. `_releaseWriteLock()` (Méthode privée)**
+*   **Signature :** `_releaseWriteLock()`
+*   **Objectif :** Libérer un verrou d'écriture. Notifie les lecteurs ou le prochain writer en attente si aucun writer n'est actif.
+*   **Logique Détaillée :**
+    1.  `this._writerCount` est décrémenté.
+    2.  Si `this._writerCount` est `0` (le dernier writer a libéré son verrou) :
+        a.  Le flag `_writerWaiting` est mis à jour pour refléter si des writers sont encore en attente dans la queue (`this._writerQueue.length > 0`).
+        b.  Si `_readerQueue` n'est pas vide, tous les lecteurs en attente sont débloqués.
+        c.  Sinon, si `_writerQueue` n'est pas vide, le prochain writer en attente est débloqué.
+
+##### **17. `completerChargementPourVersionsAnterieures()`**
+
+*   **Signature :** `completerChargementPourVersionsAnterieures()`
 *   **Portée :** Publique, destinée à être surchargée dans les classes filles.
-*   **Objectif :** Contenir la logique de migration pour calculer les valeurs des paramètres des versions récentes à partir des données d'une version plus ancienne qui a été chargée. La méthode de la classe mère `Objet` est vide.
+*   **Objectif :** Contenir la logique de migration pour calculer les valeurs des paramètres des versions récentes à partir des données d'une version plus ancienne qui a été chargée. La méthode de la classe mère `ObjetForum` est vide.
 *   **Exemple d'implémentation dans une classe fille :**
     ```javascript
     completerChargementPourVersionsAnterieures() {
@@ -473,109 +706,187 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         }
     }
     ```
-
-### **Plan Détaillé : Classe `Parametre`**
+### **Plan Détaillé : Classe `ParametreObjetForum`**
 
 #### **Attributs**
 
 | Nom | Type | Portée | Valeur Initiale | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `FORMAT_HISTORY` | `Array<Object>` | `static` | `[]` | **Configuration déclarative.** Liste des versions du format. Chaque élément est un dictionnaire : `{'nom': 'Nom unique', 'format': 'template string avec {valeur}'}`. **Doit être surchargée** dans chaque classe fille. |
+| `NAME_HISTORY` | `Array<String>` | `static` | `[]` | **Configuration déclarative.** Liste des noms historiques du paramètre, du plus ancien au plus récent. **Doit être surchargée** dans chaque classe fille. |
+| `FORMATS` | `Array<Object>` | `static` | `['(nom): (valeur) | ']` | **Configuration déclarative.** Liste des formats de template string disponibles pour le paramètre : `'template string avec (nom) et (valeur)'`. **Doit être surchargée** dans la classe mère. |
 | `stringRestriction` | `String` | `static` | `null` | **Configuration déclarative.** Chaîne à afficher si l'accès est restreint. Si `null`, la donnée n'est pas restreinte. **Doit être surchargée** dans la classe fille si nécessaire. |
 | `valeur` | `any` | `instance` | `null` | Valeur réelle de la donnée. La valeur initiale est définie directement dans la déclaration de la classe fille (ex: `valeur = 0;` ou `valeur = '';`). |
-| `objetParent` | `Objet` | `instance` | `null` | Référence à l'instance de l'`Objet` qui contient ce paramètre. Cette liaison est établie par le constructeur de l'`Objet`. |
+| `objetParent` | `ObjetForum` | `instance` | `null` | Référence à l'instance de l'`ObjetForum` qui contient ce paramètre. Cette liaison est établie par le constructeur de l'`ObjetForum`. |
 | `estCharge` | `Boolean` | `instance` | `false` | Passe à `true` uniquement lorsque le paramètre a réussi à charger une valeur depuis le forum ou une chaîne. |
+| `typeValeur` | `String` | `getter` | N/A | Type de la valeur réelle de la donnée, extrait dynamiquement de la valeur actuelle de `valeur`. |
+| `_readLockCount` | `Number` | `instance` | `0` | Compteur de verrous de lecture actifs. |
+| `_loadLockCount` | `Number` | `instance` | `0` | Compteur de verrous de chargement actifs. |
+| `_exclusiveLockActive` | `Boolean` | `instance` | `false` | Indique si un verrou exclusif est actif. |
+| `_waitingReaders` | `Array<Function>` | `instance` | `[]` | File d'attente pour les opérations de lecture (`Lire`, `genererStringPourEnregistrement`). |
+| `_waitingLoaders` | `Array<Function>` | `instance` | `[]` | File d'attente pour les opérations de chargement (`chargerDepuisString`). |
+| `_waitingExclusives` | `Array<Function>` | `instance` | `[]` | File d'attente pour les opérations exclusives (`Ecrire`). |
 
 #### **Méthodes**
 
-##### **1. `constructor()`**
+##### **1. `constructor(objetParent)`**
 
-*   **Objectif :** Créer une instance "vierge" du paramètre. La configuration est entièrement gérée par les attributs statiques de la classe fille, et la liaison avec l'objet parent est effectuée par ce dernier.
-
+*   **Signature :** `constructor(objetParent: ObjetForum)`
+*   **Objectif :** Créer une instance du paramètre et établir la liaison avec son objet parent.
 *   **Logique Détaillée :**
-    *   Le constructeur de la classe `Parametre` est vide : `constructor() {}`.
+    1.  Le constructeur recevra `objetParent` et le stockera : `this.objetParent = objetParent;`.
+    2.  **Génération de `FORMAT_HISTORY` :**
+        a.  La méthode génère dynamiquement la propriété statique `FORMAT_HISTORY` en calculant le produit cartésien des valeurs uniques de `NAME_HISTORY` et `FORMATS` de la classe.
+        b.  Chaque élément de `FORMAT_HISTORY` sera un dictionnaire `{'nom': 'Nom unique', 'format': 'template string avec (nom) et (valeur)'}`.
+        c.  Cette propriété est ensuite utilisée par les méthodes `chargerDepuisString` et `genererStringPourEnregistrement`.
 
-##### **2. `verifierVersionSuffisante()`**
+##### **2. `_acquireReadLock()` (Méthode privée)**
+*   **Signature :** `async _acquireReadLock(): Promise<void>`
+*   **Objectif :** Acquérir un verrou de lecture sur l'instance du paramètre. Permet à plusieurs lecteurs de s'exécuter simultanément, mais bloque si un verrou exclusif ou un verrou de chargement est actif ou en attente.
+*   **Logique Détaillée :**
+    1.  L'opération attend si un verrou exclusif est actif (`this._exclusiveLockActive`), si des verrous de chargement sont actifs (`this._loadLockCount > 0`), ou si des opérations exclusives ou de chargement sont en attente (`this._waitingExclusives.length > 0 || this._waitingLoaders.length > 0`).
+    2.  Une fois le verrou acquis, `this._readLockCount` est incrémenté.
 
-*   **Classe :** `Parametre`
-*   **Signature :** `verifierVersionSuffisante(): Boolean`
+##### **3. `_releaseReadLock()` (Méthode privée)**
+*   **Signature :** `_releaseReadLock(): void`
+*   **Objectif :** Libérer un verrou de lecture. Déclenche la libération des opérations en attente si les conditions sont remplies.
+*   **Logique Détaillée :**
+    1.  `this._readLockCount` est décrémenté.
+    2.  Appelle `this._releaseWaitingOperations()` pour gérer la file d'attente.
+
+##### **4. `_acquireLoadLock()` (Méthode privée)**
+*   **Signature :** `async _acquireLoadLock(): Promise<void>`
+*   **Objectif :** Acquérir un verrou de chargement sur l'instance du paramètre. Permet à plusieurs chargeurs de s'exécuter simultanément, mais bloque si un verrou exclusif ou un verrou de lecture est actif ou en attente.
+*   **Logique Détaillée :**
+    1.  L'opération attend si un verrou exclusif est actif (`this._exclusiveLockActive`), si des verrous de lecture sont actifs (`this._readLockCount > 0`), ou si des opérations exclusives ou de lecture sont en attente (`this._waitingExclusives.length > 0 || this._waitingReaders.length > 0`).
+    2.  Une fois le verrou acquis, `this._loadLockCount` est incrémenté.
+
+##### **5. `_releaseLoadLock()` (Méthode privée)**
+*   **Signature :** `_releaseLoadLock(): void`
+*   **Objectif :** Libérer un verrou de chargement. Déclenche la libération des opérations en attente si les conditions sont remplies.
+*   **Logique Détaillée :**
+    1.  `this._loadLockCount` est décrémenté.
+    2.  Appelle `this._releaseWaitingOperations()` pour gérer la file d'attente.
+
+##### **6. `_acquireExclusiveLock()` (Méthode privée)**
+*   **Signature :** `async _acquireExclusiveLock(): Promise<void>`
+*   **Objectif :** Acquérir un verrou exclusif sur l'instance du paramètre. Bloque toutes les autres opérations.
+*   **Logique Détaillée :**
+    1.  L'opération attend si un verrou exclusif est actif (`this._exclusiveLockActive`), si des verrous de lecture sont actifs (`this._readLockCount > 0`), ou si des verrous de chargement sont actifs (`this._loadLockCount > 0`).
+    2.  Une fois le verrou acquis, `this._exclusiveLockActive` est mis à `true`.
+
+##### **7. `_releaseExclusiveLock()` (Méthode privée)**
+*   **Signature :** `_releaseExclusiveLock(): void`
+*   **Objectif :** Libérer un verrou exclusif. Déclenche la libération des opérations en attente si les conditions sont remplies.
+*   **Logique Détaillée :**
+    1.  `this._exclusiveLockActive` est mis à `false`.
+    2.  Appelle `this._releaseWaitingOperations()` pour gérer la file d'attente.
+
+##### **8. `_releaseWaitingOperations()` (Méthode privée)**
+*   **Signature :** `_releaseWaitingOperations(): void`
+*   **Objectif :** Gérer la libération des opérations en attente en respectant les priorités : exclusif > chargement (si pas de lecteurs) > lecture (si pas de chargeurs).
+*   **Logique Détaillée :**
+    1.  **Priorité aux verrous exclusifs :** Si des opérations exclusives sont en attente et qu'aucun autre verrou n'est actif, la première opération exclusive est débloquée.
+    2.  **Priorité aux verrous de chargement :** Si aucune opération exclusive n'est active et que des opérations de chargement sont en attente (et qu'aucun verrou de lecture n'est actif), toutes les opérations de chargement en attente sont débloquées.
+    3.  **Priorité aux verrous de lecture :** Si aucune opération exclusive ou de chargement n'est active et que des opérations de lecture sont en attente (et qu'aucun verrou de chargement n'est actif), toutes les opérations de lecture en attente sont débloquées.
+
+##### **9. `verifierVersionSuffisante()`**
+
+*   **Classe :** `ParametreObjetForum`
+*   **Signature :** `async verifierVersionSuffisante(): Promise<Boolean>`
 *   **Objectif :** Déléguer la vérification de compatibilité de version au `GestionnaireVersions` et retourner son verdict.
 *   **Logique Détaillée :**
-    1.  La méthode appelle la fonction `verifierCompatibiliteParametre()` de l'instance globale du `GestionnaireVersions`.
+    1.  La méthode appelle la fonction `verifierCompatibiliteParametreObjetForum()` de l'instance globale du `GestionnaireVersions`.
     2.  Elle se passe elle-même en argument (`this`) pour que le gestionnaire puisse accéder à sa configuration statique (`FORMAT_HISTORY`).
     3.  Elle retourne directement le résultat booléen (`true` ou `false`) de cet appel.
 
-##### **3. `chargerDepuisForum(idsExclus)`**
+##### **10. `chargerDepuisString(contenu)`**
 
-*   **Action :** **Supprimée.** La logique est transférée à la classe `Objet`.
-
-##### **4. `chargerDepuisString(contenu)`**
-
-*   **Classe :** `Parametre`
-*   **Signature :** `chargerDepuisString(contenu: String): Boolean`
-*   **Objectif :** Peupler la `valeur` du paramètre en parsant une chaîne de caractères fournie. Cette méthode est utilisée lorsque la donnée du paramètre est directement contenue dans une chaîne (par exemple, un message de forum pour un sous-objet), plutôt que d'être dans un sujet distinct.
+*   **Classe :** `ParametreObjetForum`
+*   **Signature :** `async chargerDepuisString(contenu: String): Promise<Boolean>`
+*   **Objectif :** Peupler la `valeur` du paramètre en parsant une chaîne de caractères fournie. Cette méthode est utilisée lorsque la donnée du paramètre est directement contenue dans une chaîne (par exemple, un message de forum pour un sous-objet), plutôt que d'être dans un sujet distinct. La valeur doit être convertie dans le type initialement détecté.
 *   **Logique Détaillée :**
-    1.  **Itération sur l'Historique des Formats :** La méthode parcourt sa `FORMAT_HISTORY` statique (du plus récent au plus ancien).
-    2.  **Application du Format :** Pour chaque `{lieu, format}` de l'historique :
-        a.  Elle dérive une expression régulière à partir de la concaténation des template string `nom` et `format` (en remplaçant `{valeur}` par un groupe capturant), puis l'applique sur la chaîne `contenu` fournie en argument.
-        b.  Elle ne se soucie pas du `lieu` ici, car la donnée est déjà dans la chaîne `contenu`.
-    3.  **Extraction et Stockage :** Dès qu'une correspondance est trouvée par l'expression régulière :
-        a.  Elle extrait la valeur correspondante.
-        b.  Elle stocke cette valeur dans `this.valeur`.
-        c.  Elle met à jour le flag de chargement : `this.estCharge = true;`.
-        d.  Elle retourne `true` pour indiquer le succès du chargement.
-    4.  **Échec du Chargement :** Si, après avoir parcouru toute la `FORMAT_HISTORY`, aucune correspondance n'est trouvée dans la chaîne `contenu`, la méthode retourne `false`.
+    1.  **Acquisition du verrou de chargement :** `await this._acquireLoadLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Itération sur l'Historique des Formats :** La méthode parcourt sa `FORMAT_HISTORY` statique (générée dynamiquement dans le constructeur) (du plus récent au plus ancien).
+        b.  **Application du Format :** Pour chaque `{nom, format}` de l'historique :
+            i.  Elle dérive une expression régulière à partir du `format` (en remplaçant `(nom)` par le `nom` actuel et `(valeur)` par un groupe capturant), puis l'applique sur la chaîne `contenu` fournie en argument.
+        c.  **Extraction et Conversion :** Dès qu'une correspondance est trouvée par l'expression régulière :
+            i.  Elle extrait la valeur correspondante (`rawValue`).
+            ii. Elle tente de convertir `rawValue` en `convertedValue` selon `this.typeValeur`.
+                -   Si `this.typeValeur` est `'number'`, utilise `Number(rawValue)`. Si le résultat est `NaN`, la conversion échoue.
+                -   Si `this.typeValeur` est `'boolean'`, convertit `'true'` ou `'1'` en `true`, `'false'` ou `'0'` en `false`. Toute autre valeur entraîne un échec de conversion.
+                -   Pour les autres types (ex: `'string'`), `convertedValue` est `rawValue`.
+            iii. **Validation de la Conversion :**
+                -   Si la conversion échoue, la méthode retourne `false` sans mettre à jour `this.valeur`.
+                -   Si la conversion réussit, elle stocke `convertedValue` dans `this.valeur` et met à jour le flag de chargement : `this.estCharge = true;`.
+                -   Elle retourne `true` pour indiquer le succès du chargement et de la conversion.
+        d.  **Échec du Chargement :** Si, après avoir parcouru toute la `FORMAT_HISTORY` (générée dynamiquement), aucune correspondance n'est trouvée dans la chaîne `contenu`, la méthode retourne `false`.
+    3.  **Libération du verrou de chargement :** Dans le bloc `finally`, `this._releaseLoadLock();` est appelé.
 
-##### **5. `enregistrer()`**
+##### **11. `genererStringPourEnregistrement()`**
 
-*   **Action :** **Supprimée.** La logique est transférée à la classe `Objet`.
-
-##### **6. `genererStringPourEnregistrement()`**
-
-*   **Classe :** `Parametre`
-*   **Signature :** `genererStringPourEnregistrement(): String`
+*   **Classe :** `ParametreObjetForum`
+*   **Signature :** `async genererStringPourEnregistrement(): Promise<String>`
 *   **Objectif :** Retourner la chaîne de caractères formatée pour ce paramètre, prête à être intégrée dans le contenu final par l'objet parent.
 *   **Logique Détaillée :**
-    1.  Récupère le format le plus récent depuis son `FORMAT_HISTORY`.
-    2.  Construit la chaîne en utilisant le `nom` et le `format` et en y injectant `this.valeur`.
-    3.  Retourne la chaîne (ex: `"Droit SDC: N\n"`).
+    1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
+    2.  **Bloc `try...finally` :**
+        a.  Récupère le format le plus récent depuis son `FORMAT_HISTORY` (générée dynamiquement dans le constructeur).
+        b.  Construit la chaîne en utilisant le `nom` et le `format` et en y injectant `this.valeur`.
+        c.  Retourne la chaîne (ex: `"Droit SDC: N\n"`).
+    3.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
 
-##### **7. `Ecrire(valeur)`**
+##### **12. `Ecrire(valeur)`**
 
-*   **Classe :** `Parametre`
-*   **Signature :** `Ecrire(valeur: any): void`
+*   **Classe :** `ParametreObjetForum`
+*   **Signature :** `async Ecrire(valeur: any): Promise<void>`
 *   **Objectif :** Mettre à jour la valeur interne du paramètre.
 *   **Logique Détaillée :**
-    1.  La méthode met à jour l'attribut `this.valeur` avec la `valeur` fournie en argument.
-    2.  Elle ne retourne rien.
+    1.  **Acquisition du verrou exclusif :** `await this._acquireExclusiveLock();`
+    2.  **Bloc `try...finally` :**
+        a.  La méthode met à jour l'attribut `this.valeur` avec la `valeur` fournie en argument.
+        b.  Elle ne retourne rien.
+    3.  **Libération du verrou exclusif :** Dans le bloc `finally`, `this._releaseExclusiveLock();` est appelé.
 
-##### **8. `_call_()`**
+##### **13. `Lire()`**
 
-*   **Classe :** `Parametre`
-*   **Signature :** `_call_(peutVoirDonneesRestreintes: Boolean = True): any`
+*   **Classe :** `ParametreObjetForum`
+*   **Signature :** `async Lire(peutVoirDonneesRestreintes: Boolean = True): Promise<any>`
 *   **Objectif :** Fournir un accès direct en lecture à la valeur du paramètre, en respectant les restrictions d'affichage basées sur les droits de l'utilisateur.
 *   **Logique Détaillée :**
-    1.  Si `this.stringRestriction` n'est pas `null` (le paramètre est configuré pour être restreint) ET `peutVoirDonneesRestreintes` est `false` (l'utilisateur n'a pas les droits suffisants pour voir les données restreintes) :
-        a.  Retourne `this.stringRestriction`.
-    2.  Sinon (le paramètre n'est pas restreint, ou l'utilisateur a les droits suffisants) :
-        a.  Retourne `this.valeur`.
+    1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
+    2.  **Bloc `try...finally` :**
+        a.  Si `this.stringRestriction` n'est pas `null` (le paramètre est configuré pour être restreint) ET `peutVoirDonneesRestreintes` est `false` (l'utilisateur n'a pas les droits suffisants pour voir les données restreintes) :
+            i.  Retourne `this.stringRestriction`.
+        b.  Sinon (le paramètre n'est pas restreint, ou l'utilisateur a les droits suffisants) :
+            i.  Retourne `this.valeur`.
+    3.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
+
+##### **14. `getDernierNom()`**
+
+*   **Classe :** `ParametreObjetForum`
+*   **Signature :** `static getDernierNom(): String`
+*   **Objectif :** Retourner le nom le plus récent du paramètre à partir de son `NAME_HISTORY`.
+*   **Logique Détaillée :**
+    1.  Retourne le dernier élément du tableau statique `NAME_HISTORY` : `return this.NAME_HISTORY[this.NAME_HISTORY.length - 1];`.
 
 
 
 ### **Plan Détaillé : Classe `GestionnaireDroits`**
 
 #### **Héritage**
-Hérite de la classe `Objet`.
+Hérite de la classe `ObjetForum`.
 
 #### **Attributs**
 
 | Nom | Type | Portée | Description | Initialisation |
 | :--- | :--- | :--- | :--- | :--- |
+| `VERSION_LOGIQUE` | `String` | `static` | **Configuration déclarative.** Version de la logique de fonctionnement du gestionnaire de droits. | `'1.0.0'` |
 | `NIVEAUX_ORDONNES` | `Array<String>` | `static` | Liste ordonnée des niveaux de droits. | `['B', 'R', 'N', 'A']` |
-| `FORMATS_LIEUX_DROITS_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des formats et lieux pour les paramètres de droits, du plus ancien au plus récent. | `[{'section': 'Droits Outiiil', 'lieu': 'titre', 'format': 'droit_{abrev}'}]` |
-| `objetsContenus` | `Array<Objet>` | `instance` | Contiendra la liste des instances d'`Objet` représentant les droits pour chaque joueur. | `[]` |
-| `mapDroits` | `Map<String, Objet>` | `instance` | Cache qui associe un pseudo de joueur à son instance `ObjetDroit` pour un accès O(1). | `new Map()` |
-| `classeObjetsContenus` | `Class` | `static` | Spécifie le type d'objet contenu. La classe `ObjetDroits` créée dynamiquement sera assignée ici. | `null` |
+| `LOCATION_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des noms et lieux pour les paramètres de droits, du plus ancien au plus récent. | `[{'section': 'Droits Outiiil', 'lieu': 'titre', 'nom': 'droit_{abrev}'}]` |
+| `objetsForumContenus` | `Array<ObjetForum>` | `instance` | Contiendra la liste des instances d'`ObjetForum` représentant les droits pour chaque joueur. | `[]` |
+| `mapDroits` | `Map<String, ObjetForum>` | `instance` | Cache qui associe un pseudo de joueur à son instance `ObjetForumDroit` pour un accès O(1). | `new Map()` |
+| `classeObjetsForumContenus` | `Class` | `static` | Spécifie le type d'objet contenu. La classe `ObjetForumDroits` créée dynamiquement sera assignée ici. | `null` |
 
 #### **Méthodes**
 
@@ -583,22 +894,25 @@ Hérite de la classe `Objet`.
 
 *   **Objectif :** Découvrir les fonctionnalités, créer dynamiquement les classes de droits et configurer le gestionnaire.
 *   **Logique Détaillée :** Le constructeur exécute une séquence d'opérations critiques pour dynamiquement construire l'architecture des droits.
+    *   Appelle `super(null)`. Le `GestionnaireDroits` étant une instance globale unique, il n'a pas de fonctionnalité créatrice directe. `null` est passé pour satisfaire le constructeur parent. Ses méthodes qui nécessitent ce contexte (comme `rafraîchir`) le reçoivent en paramètre.
 
-    1.  **Étape 1 : Création de la classe `ObjetDroits`**
-        a.  Le constructeur crée dynamiquement une nouvelle classe, `ObjetDroits`, qui hérite de la classe de base `Objet`.
-        b.  Il construit ensuite la propriété statique `FORMATS_LIEUX` pour cette nouvelle classe. Pour ce faire, il parcourt `FORMATS_LIEUX_DROITS_HISTORY`, extrait tous les couples `{section, lieu}` uniques, et les assigne à `ObjetDroits.FORMATS_LIEUX`. Cela garantit que l'objet saura où chercher les données de droits, quelle que soit leur version de format.
+    1.  **Étape 1 : Création de la classe `ObjetForumDroits`**
+        a.  Le constructeur crée dynamiquement une nouvelle classe, `ObjetForumDroits`, qui hérite de la classe de base `ObjetForum`.
+        b.  La propriété statique `VERSION_LOGIQUE` de `ObjetForumDroits` est peuplée avec la `VERSION_LOGIQUE` de `GestionnaireDroits`.
+        c.  Il construit ensuite la propriété statique `LOCATION_HISTORY` pour cette nouvelle classe. Pour ce faire, il parcourt `LOCATION_HISTORY`, extrait tous les couples `{section, lieu}` uniques, et les assigne à `ObjetForumDroits.LOCATION_HISTORY`. Cela garantit que l'objet saura où chercher les données de droits, quelle que soit leur version de format.
 
-    2.  **Étape 2 : Découverte des Fonctionnalités et Création des `ParametreDroit`**
-        a.  Le gestionnaire découvre toutes les `FonctionnaliteAlliance` disponibles via le registre global de l'extension.
-        b.  Pour chaque `FonctionnaliteAlliance` trouvée, il exécute les étapes suivantes pour créer une classe `ParametreDroit` sur mesure :
-            i.  **Création de la classe :** Il crée une nouvelle classe anonyme qui hérite de `Parametre`.
-            ii. **Construction de `FORMAT_HISTORY` :** Le point crucial est la construction de la propriété statique `FORMAT_HISTORY` de ce nouveau paramètre. La méthode calcule le **produit cartésien** entre les entrées uniques de `ABREVIATIONS_HISTORY` de la fonctionnalité et les entrées uniques de format de `FORMATS_LIEUX_DROITS_HISTORY` du gestionnaire.
+    2.  **Étape 2 : Découverte des Fonctionnalités et Création des `ParametreObjetForumDroit`**
+        a.  **Création du `ParametreObjetForumPseudo` :** Pour assurer la synchronisation, le constructeur crée d'abord une classe `ParametreObjetForumPseudo` dédiée. Son `FORMAT_HISTORY` est construit en extrayant tous les formats uniques depuis `LOCATION_HISTORY` du gestionnaire et en utilisant le nom `pseudo`, garantissant que le pseudo est stocké de manière cohérente avec les autres paramètres de droits.
+        b.  **Découverte des fonctionnalités :** Le gestionnaire découvre toutes les `FonctionnaliteAlliance` disponibles via le registre global de l'extension.
+        c.  **Création des `ParametreObjetForumDroit` :** Pour chaque `FonctionnaliteAlliance` trouvée, il exécute les étapes suivantes pour créer une classe `ParametreObjetForumDroit` sur mesure :
+            i.  **Création de la classe :** Il crée une nouvelle classe anonyme qui hérite de `ParametreObjetForum`.
+            ii. **Construction de `FORMAT_HISTORY` :** Le point crucial est la construction de la propriété statique `FORMAT_HISTORY` de ce nouveau paramètre. La méthode calcule le **produit cartésien** entre les entrées uniques de `ABREVIATIONS_HISTORY` de la fonctionnalité et les valeurs uniques de `(nom)` de `LOCATION_HISTORY` du gestionnaire. Pour chaque combinaison, elle construit un nom final (ex: `droit_sdc`) et l'affecte à `NAME_HISTORY`.
             iii. **Assignation de la Valeur par Défaut :** Il assigne la valeur par défaut `'B'` (Bloqué) à la propriété `valeur` de la classe nouvellement créée. Cela garantit que toute nouvelle instance de ce paramètre de droit sera initialisée avec le droit le plus restrictif.
-            iv. La classe `ParametreDroit` nouvellement créée est ajoutée à une liste temporaire.
+            iv. La classe `ParametreObjetForumDroit` nouvellement créée est ajoutée à une liste temporaire.
 
-    3.  **Étape 3 : Finalisation de la classe `ObjetDroits`**
-        a.  La liste temporaire de toutes les classes `ParametreDroit` est assignée à la propriété statique `ObjetDroits.CLASSES_PARAMETRES`.
-        b.  La classe `ObjetDroits` entièrement configurée est assignée à la propriété statique `this.constructor.classeObjetsContenus` pour être utilisée par les autres méthodes du gestionnaire (comme `rafraîchir`), se conformant ainsi au modèle d'un objet conteneur standard.
+    3.  **Étape 3 : Finalisation de la classe `ObjetForumDroits`**
+        a.  La liste temporaire de toutes les classes `ParametreObjetForumDroit` est assignée à la propriété statique `ObjetForumDroits.CLASSES_PARAMETRES`.
+        b.  La classe `ObjetForumDroits` entièrement configurée est assignée à la propriété statique `this.constructor.classeObjetsForumContenus` pour être utilisée par les autres méthodes du gestionnaire (comme `rafraîchir`), se conformant ainsi au modèle d'un objet conteneur standard.
 
 ##### **2. `verifierDroit(niveauRequis)`**
 
@@ -607,60 +921,56 @@ Hérite de la classe `Objet`.
 *   **Logique Détaillée :**
     1.  **Identifier le Joueur Actuel :**
         a.  Elle récupère le pseudo du joueur actuel à partir des variables globales de l'extension.
-    2.  **Trouver l'Objet de Droits du Joueur :**
+    2.  **Trouver l'ObjetForum de Droits du Joueur :**
         a.  Elle utilise la `mapDroits` pour un accès direct à l'objet de droits du joueur : `const objetDroit = this.mapDroits.get(pseudoJoueur);`.
         b.  Si l'objet n'est pas trouvé, elle retourne `false` par sécurité.
     3.  **Trouver le Droit Spécifique à la Fonctionnalité :**
-        a.  Une fois l'objet de droits du joueur trouvé, elle récupère la valeur du paramètre voulu en utilisant la fonction `lireParametre(abrevFonctionnalite)` de l'objet.
-        b.  Elle récupère la `valeur` de ce paramètre, qui est le niveau de droit actuel du joueur pour cette fonctionnalité (ex: 'N').
+        a.  La méthode construit le nom du paramètre à rechercher. Pour ce faire, elle récupère le dernier format de nom depuis `LOCATION_HISTORY` (ex: `'droit_{abrev}'`) et y injecte l'`abrevFonctionnalite` fournie.
+        b.  Une fois l'objet de droits du joueur trouvé, elle récupère la valeur du paramètre en utilisant le nom construit et la fonction `lireParametreObjetForum()` de l'objet.
+        c.  Elle récupère la `valeur` de ce paramètre, qui est le niveau de droit actuel du joueur pour cette fonctionnalité (ex: 'N').
     5.  **Comparaison des Droits :**
         a.  Elle utilise la liste statique `NIVEAUX_ORDONNES` pour comparer le niveau de droit du joueur avec le `niveauRequis`.
         b.  Elle trouve l'index du droit du joueur (ex: `NIVEAUX_ORDONNES.indexOf('N')`) et l'index du droit requis (ex: `NIVEAUX_ORDONNES.indexOf('R')`).
         c.  Si l'index du joueur est supérieur ou égal à l'index requis, la méthode retourne `true`. Sinon, elle retourne `false`.
     6.  **Cas par Défaut :** Si l'objet de droits du joueur ou le paramètre de droit spécifique n'est pas trouvé, la méthode retourne `false` par sécurité.
 
-##### **3. `lireChaqueParametre(joueur)`**
+##### **3. `_getObjetForumDroit(joueur)` (Méthode privée)**
+
+*   **Objectif :** Factoriser la logique de récupération de l'objet de droits pour un joueur donné.
+*   **Signature :** `_getObjetForumDroit(joueur: Joueur | String): ObjetForum | null`
+*   **Logique Détaillée :**
+    1.  Extrait le pseudo du joueur, que l'argument soit un objet `Joueur` ou une chaîne.
+    2.  Recherche l'objet de droits correspondant dans la `mapDroits`.
+    3.  Retourne l'objet trouvé ou `null`.
+
+##### **4. `lireChaqueParametreObjetForum(joueur)`**
 
 *   **Objectif :** Obtenir un objet JavaScript simple représentant l'ensemble des droits (ex: `{ pseudo: 'Joueur1', sdc: 'N', pex: 'A' }`) pour **un seul joueur spécifique**.
-*   **Signature :** `lireChaqueParametre(joueur: Joueur | String): Object | null`
-    *   Le paramètre `joueur` peut être soit une instance de la classe `Joueur`, soit directement une chaîne de caractères contenant son pseudo.
-    *   La méthode retourne un objet représentant les droits, ou `null` si le joueur n'est pas trouvé.
+*   **Signature :** `lireChaqueParametreObjetForum(joueur: Joueur | String): Object | null`
 *   **Logique Détaillée :**
-    1.  **Identifier le Pseudo Cible :** La méthode détermine d'abord le pseudo du joueur à rechercher. Si l'argument `joueur` est un objet, elle accède à sa propriété `pseudo`. Si c'est une chaîne, elle l'utilise directement.
-    2.  **Rechercher l'Objet de Droits du Joueur :** Elle utilise la `mapDroits` pour un accès direct : `const objetDroit = this.mapDroits.get(pseudoCible);`.
-    3.  **Déléguer l'Appel :**
-        *   Si un `objetDroit` est trouvé, elle appelle la méthode `lireChaqueParametre()` de **cet `objetDroit` spécifique**.
-        *   Comme `ObjetDroit` surcharge cette méthode, l'appel retournera un objet formaté avec les abréviations des fonctionnalités comme clés (ex: `{ sdc: 'N', ... }`).
-    5.  **Retourner le Résultat :** La méthode retourne l'objet de droits obtenu. Si aucun joueur correspondant n'est trouvé après avoir parcouru toute la liste, elle retourne `null`.
+    1.  **Rechercher l'ObjetForum de Droits :** Appelle la méthode privée `_getObjetForumDroit(joueur)` pour récupérer l'objet de droits. Si `null`, retourne `null`.
+    2.  **Déléguer l'Appel :** Appelle la méthode `lireChaqueParametreObjetForum()` de l'objet de droits trouvé.
+    3.  **Simplifier et Retourner :** Transforme la structure de données retournée en un objet simple (clé = abréviation, valeur = droit) et le retourne.
 
-##### **4. `ecrireChaqueParametre(joueur, nouvellesValeurs)`**
+##### **5. `ecrireChaqueParametreObjetForum(joueur, nouvellesValeurs)`**
 
-*   **Objectif :** Mettre à jour les droits pour **un seul joueur spécifique** à partir d'un objet JavaScript. Cette méthode modifie l'état en mémoire, mais ne sauvegarde pas automatiquement sur le forum.
-*   **Signature :** `ecrireChaqueParametre(joueur: Joueur | String, nouvellesValeurs: Object): Boolean`
-    *   `joueur` : Le joueur dont les droits doivent être modifiés.
-    *   `nouvellesValeurs` : Un objet où les clés sont les abréviations des fonctionnalités et les valeurs sont les nouveaux niveaux de droits (ex: `{ sdc: 'A', pex: 'R' }`).
-    *   La méthode retourne `true` si le joueur a été trouvé et les droits mis à jour, `false` sinon.
+*   **Objectif :** Mettre à jour les droits pour **un seul joueur spécifique** à partir d'un objet JavaScript.
+*   **Signature :** `ecrireChaqueParametreObjetForum(joueur: Joueur | String, nouvellesValeurs: Object): Boolean`
 *   **Logique Détaillée :**
-    1.  **Identifier le Pseudo Cible :** Identique à la méthode de lecture, elle extrait le pseudo du paramètre `joueur`.
-    2.  **Rechercher l'Objet de Droits du Joueur :** Elle utilise la `mapDroits` pour un accès direct : `const objetDroit = this.mapDroits.get(pseudoCible);`.
-    3.  **Déléguer la Mise à Jour :**
-        *   Si un `objetDroit` est trouvé, elle appelle la méthode `ecrireChaqueParametre(nouvellesValeurs)` de **cet `objetDroit`**.
-        *   Cette méthode (héritée de `Objet` et surchargée par `ObjetDroit`) parcourt l'objet `nouvellesValeurs` et met à jour chaque `ParametreDroit` correspondant.
-    4.  **Confirmer le Succès :** Si le joueur a été trouvé et la mise à jour effectuée, la méthode retourne `true`.
-    5.  **Gérer l'Échec :** Si aucun joueur correspondant n'est trouvé, la méthode ne fait rien et retourne `false`.
+    1.  **Rechercher l'ObjetForum de Droits :** Appelle la méthode privée `_getObjetForumDroit(joueur)`. Si `null`, retourne `false`.
+    2.  **Préparer les Données :** Transforme l'objet de droits simples (`{sdc: 'A'}`) en un objet complet attendu par la méthode de l'objet parent (`{droit_sdc: 'A'}`).
+    3.  **Déléguer la Mise à Jour :** Appelle `ecrireChaqueParametreObjetForum()` sur l'objet de droits trouvé avec les données complètes.
+    4.  **Confirmer le Succès :** Retourne `true`.
 
-##### **5. `afficher(joueur)`**
+##### **6. `afficher(joueur)`**
 
 *   **Objectif :** Obtenir la structure HTML complète (en-tête et corps) pour un joueur spécifique.
 *   **Signature :** `afficher(joueur: Joueur | String): {en_tete_html: String, corps_html: String} | null`
-    *   Retourne un objet contenant les deux chaînes HTML, ou `null` si le joueur n'est pas trouvé.
 *   **Logique Détaillée :**
-    1.  **Trouver l'Objet Droit :** Utilise la `mapDroits` pour trouver l'`ObjetDroit` correspondant au `joueur`. Si non trouvé, retourne `null`.
-    2.  **Déléguer l'Affichage :**
-        *   Appelle la méthode `afficher()` de l'objet `ObjetDroit` trouvé.
-    3.  **Retourner la Structure Complète :** Retourne directement l'objet `{ en_tete_html: "...", corps_html: "..." }` reçu de l'appel précédent.
+    1.  **Trouver l'ObjetForum Droit :** Appelle la méthode privée `_getObjetForumDroit(joueur)`. Si `null`, retourne `null`.
+    2.  **Déléguer l'Affichage :** Appelle la méthode `afficher()` de l'objet de droits trouvé et retourne directement son résultat.
 
-##### **6. `rafraîchir()`**
+##### **7. `rafraîchir()`**
 
 *   **Objectif :** Synchroniser complètement la liste des droits en mémoire avec la liste officielle des membres de manière performante.
 *   **Signature :** `async rafraîchir(fonctionnaliteAppelante: FonctionnaliteAlliance): Promise<void>`
@@ -669,8 +979,8 @@ Hérite de la classe `Objet`.
         a.  Lance en parallèle le chargement des droits existants et de la liste officielle des membres.
         ```javascript
         const [droitsActuels, membresOfficiels] = await Promise.all([
-            fonctionnaliteAppelante.chargerObjetsMultiples(this.classeObjetDroit),
-            fonctionnaliteAppelante.chargerObjetsMultiples(Joueur)
+            fonctionnaliteAppelante.chargerObjetForumsMultiples(this.classeObjetForumDroit),
+            fonctionnaliteAppelante.chargerObjetForumsMultiples(Joueur)
         ]);
         ```
 
@@ -679,22 +989,22 @@ Hérite de la classe `Objet`.
         b.  Initialise une nouvelle liste `droitsSynchronises` et une liste de promesses `promessesEnregistrement`.
         c.  Parcourt les `membresOfficiels`. Pour chaque `membre` :
             i.  Si le membre existe dans la `mapDroits` mise à jour, son objet de droits est ajouté à `droitsSynchronises`.
-            ii. Sinon (nouveau membre), crée une instance `ObjetDroit`, peuple le pseudo, et ajoute la promesse `nouvelObjetDroit.enregistrerSurForum()` à `promessesEnregistrement`. L'objet est aussi ajouté à `droitsSynchronises`.
+            ii. Sinon (nouveau membre), crée une instance `ObjetForumDroit` en lui passant la fonctionnalité appelante (`const nouvelObjetForumDroit = new this.classeObjetsForumContenus(fonctionnaliteAppelante, objetParent=this)`), peuple le pseudo, et ajoute la promesse `nouvelObjetForumDroit.enregistrerSurForum()` à `promessesEnregistrement`. L'objet est aussi ajouté à `droitsSynchronises`.
     
     3.  **Étape 3 : Enregistrement Parallèle des Nouveaux Membres.**
         a.  Exécute toutes les sauvegardes des nouveaux membres en parallèle : `await Promise.all(promessesEnregistrement);`.
 
     4.  **Étape 4 : Mise à Jour Finale.**
-        a.  Remplace l'ancienne liste : `this.objetsContenus = droitsSynchronises;`.
+        a.  Remplace l'ancienne liste : `this.objetsForumContenus = droitsSynchronises;`.
         b.  Reconstruit la map de cache pour un accès rapide :
             ```javascript
             this.mapDroits.clear();
-            this.objetsContenus.forEach(droit => {
-                const pseudo = droit.lireParametre('pseudo');
+            this.objetsForumContenus.forEach(droit => {
+                const pseudo = droit.lireParametreObjetForum('Pseudo');
                 if (pseudo) this.mapDroits.set(pseudo, droit);
             });
             ```
-        c.  Les droits des membres existants sont déjà à jour grâce au cache de `chargerObjetsMultiples`.
+        c.  Les droits des membres existants sont déjà à jour grâce au cache de `chargerObjetForumsMultiples`.
 
 ### **Plan Détaillé : Classe `GestionnaireVersions`**
 
@@ -702,8 +1012,10 @@ Hérite de la classe `Objet`.
 
 | Nom | Type | Portée | Description | Initialisation |
 | :--- | :--- | :--- | :--- | :--- |
-| `versionsObjetsForum` | `Array<Object>` | `instance` | Cache des versions d'objets lues sur le forum. Format : `{ idSujet, type, versionLogique, formatsLieuxHistory, parametresHistory }`. | `[]` |
-| `versionsParamsForum` | `Array<Object>` | `instance` | Cache des versions de paramètres lues sur le forum. Format : `{ idSujet, type, formatHistory }`. | `[]` |
+| `versionsObjetsForum` | `Array<Object>` | `instance` | Cache des versions d'objets lues sur le forum. Format : `{ idSujet, type, nomClasse, versionLogique, classesParametreObjetForums, formatsLieux }`. | `[]` |
+| `versionsParamsForum` | `Array<Object>` | `instance` | Cache des versions de paramètres lues sur le forum. Format : `{ idSujet, type, nomClasse, nameHistory, formats }`. | `[]` |
+| `_lockAcquired` | `Boolean` | `instance` | Indique si le verrou est actuellement acquis. | `false` |
+| `_lockQueue` | `Array<Function>` | `instance` | File d'attente pour les fonctions en attente d'acquérir le verrou. | `[]` |
 
 #### **Méthodes**
 
@@ -712,220 +1024,201 @@ Hérite de la classe `Objet`.
 *   **Signature :** `constructor()`
 *   **Objectif :** Initialiser le gestionnaire de versions.
 *   **Logique Détaillée :**
-    1.  Le constructeur appelle immédiatement la méthode `this.rafraichir()`.
+    1.  Le constructeur est vide. Le rafraîchissement est délégué à la méthode `init()` de la classe `Page`.
 
-##### **2. `rafraichir()`**
-
-*   **Signature :** `rafraichir(): Promise<void>`
-*   **Objectif :** Vider et reconstruire l'état du gestionnaire en lisant les titres des sujets de la section `Versions Outiiil`.
+##### **2. `_acquireLock()` (Méthode privée)**
+*   **Signature :** `async _acquireLock(): Promise<void>`
+*   **Objectif :** Acquérir un verrou unique sur l'instance du gestionnaire. Bloque toutes les autres tentatives d'acquisition jusqu'à ce qu'il soit libéré.
 *   **Logique Détaillée :**
-    1.  **Réinitialisation :** Vide `versionsObjetsForum` et `versionsParamsForum`.
-    2.  **Chargement :** Récupère tous les sujets de la section `Versions Outiiil`.
-    3.  **Parsing et Tri :** Pour chaque sujet :
-        a.  Parse le titre JSON : `let versionInfo = JSON.parse(sujet.titre);`.
-        b.  Vérifie la présence d'une clé `type`.
-        c.  Si `versionInfo.type === 'objet'`, ajoute `{ idSujet: sujet.id, ...versionInfo }` à `this.versionsObjetsForum`.
-        d.  Si `versionInfo.type === 'parametre'`, ajoute `{ idSujet: sujet.id, ...versionInfo }` à `this.versionsParamsForum`.
+    1.  Retourne une nouvelle promesse.
+    2.  Une fonction `tryAcquire` est définie :
+        a.  Si le verrou est déjà acquis (`this._lockAcquired`), la fonction `tryAcquire` est ajoutée à la `_lockQueue`.
+        b.  Sinon, `this._lockAcquired` est mis à `true` et la promesse est résolue.
+    3.  `tryAcquire` est appelée immédiatement.
 
-##### **3. `verifierCompatibiliteObjet(objet)`**
-
-*   **Signature :** `verifierCompatibiliteObjet(objet: Objet): Boolean`
-*   **Objectif :** Valider la compatibilité d'un `Objet` en séparant son identification (via ses dépendances) de sa comparaison de version (via `VERSION_LOGIQUE`).
+##### **3. `_releaseLock()` (Méthode privée)**
+*   **Signature :** `_releaseLock(): void`
+*   **Objectif :** Libérer le verrou unique. Notifie la prochaine fonction en attente dans la file.
 *   **Logique Détaillée :**
+    1.  `this._lockAcquired` est mis à `false`.
+    2.  Si `_lockQueue` n'est pas vide, la prochaine fonction en attente est débloquée.
 
-    *   **Phase 1 : Construction des "Empreintes" de Versions**
-        1.  **Construire l'Empreinte Locale :**
-            a.  Récupère l'historique de l'objet : `formatsLieuxHistory`.
-            b.  **Construit `parametresHistoryLocal` :**
-                i.  Crée une `Map` temporaire `mapAncreVersIdSujet` à partir du cache `this.versionsParamsForum` pour une recherche rapide (clé = ancre du paramètre, valeur = `idSujet`).
-                ii. Parcourt `objet.constructor.CLASSES_PARAMETRES` (liste de listes de classes).
-                iii. Pour chaque liste de classes, elle crée une liste d'`idSujet` correspondante en utilisant la `Map` pour la traduction.
-                iv. Le résultat est une liste de listes d'`idSujet`.
-        2.  **Trouver et Construire l'Empreinte Forum :**
-            a.  Parcourt `this.versionsObjetsForum` pour trouver la `versionForum` correspondante.
-            b.  L'ancrage se fait en comparant la **première version** de chaque historique : `formatsLieuxHistory[0]`, et `parametresHistoryLocal[0]`.
-            c.  Si une correspondance est trouvée, l'empreinte du forum est identifiée. Sinon, on passera au Scénario 4.
+##### **4. `verifierPresenceSectionVersions()`**
 
-    *   **Phase 2 : Synchronisation et Comparaison de Version**
-        *   Une fois la `versionForum` identifiée grâce à son empreinte :
-        *   **Scénario 1 (Extension obsolète) :**
-            - **Détection :** `versionForum.versionLogique` est sémantiquement supérieure à `objet.constructor.VERSION_LOGIQUE`, OU si l'un des historiques (`formatsLieuxHistory`, `parametresHistory`) du forum est plus long.
-            - **Action :** Tente de déclencher une mise à jour de l'extension. Retourne `false` si la mise à jour échoue, `true` sinon.
-        *   **Scénario 2 (Forum obsolète) :**
-            - **Détection :** `objet.constructor.VERSION_LOGIQUE` est supérieure à `versionForum.versionLogique`, OU si l'un des historiques locaux est plus long.
-            - **Action :** Construit un objet de données complet avec la `versionLogique` locale et les historiques locaux, ajoute `{ type: 'objet' }`, le sérialise en JSON, et met à jour le titre du sujet `versionForum.idSujet` et le cache en mémoire. Retourne `true`.
-        *   **Scénario 3 (Concordance parfaite) :**
-            - **Détection :** La `versionLogique` est identique ET les longueurs de tous les historiques correspondent.
-            - **Action :** Aucune. Retourne `true`.
-        *   **Scénario 4 (Nouvel objet) :**
-            - **Détection :** Aucune `versionForum` n'a été identifiée en Phase 1.
-            - **Action :** Crée un nouveau sujet sur le forum avec la `versionLogique` locale et les historiques locaux, ajoute `{ type: 'objet' }`, le sérialise en JSON, et ajoute la nouvelle entrée (avec son ID) au cache en mémoire. Retourne `true`.
-
-##### **4. `verifierCompatibiliteParametre(parametre)`**
-
-*   **Signature :** `verifierCompatibiliteParametre(parametre: Parametre): Boolean`
-*   **Objectif :** Valider la compatibilité d'un `Parametre` (format uniquement).
+*   **Signature :** `async verifierPresenceSectionVersions(): Promise<Boolean>`
+*   **Objectif :** Orchestrer la validation de la présence de la section de versionnement.
 *   **Logique Détaillée :**
-    *   **Phase 1 : Identification**
-        1.  Récupère la configuration locale : `formatHistoryLocal = parametre.constructor.FORMAT_HISTORY`.
-        2.  Cherche dans `this.versionsParamsForum` une `versionForum` correspondante. L'ancrage se fait sur le **premier format**.
-    *   **Phase 2 : Synchronisation (4 scénarios)**
-        *   **Scénario 1 (Extension obsolète) :** `versionForum.formatHistory` est plus long. Tente une MAJ de l'extension. Retourne `false` si elle échoue, `true`sinon.
-        *   **Scénario 2 (Forum obsolète) :** `formatHistoryLocal` est plus long. Met à jour sa représentation en mémoire dans `this.versionsParamsForum` et le titre du sujet sur le forum avec `{ type: 'parametre', formatHistory: formatHistoryLocal }`. Retourne `true`.
-        *   **Scénario 3 (Concordance) :** Les longueurs correspondent. Retourne `true`.
-        *   **Scénario 4 (Nouveau paramètre) :** Pas de correspondance. Crée un nouveau sujet avec le titre JSON `{ type: 'parametre', formatHistory: formatHistoryLocal }`. Ajoute la nouvelle entrée avec son `idSujet` à `this.versionsParamsForum`. Retourne `true`.
+    1.  **Acquisition du verrou :** `await this._acquireLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Validation de la Présence de la Section :**
+            i.  La méthode tente de consulter la section correspondante au dernier ID de section via `window.pageForum.consulterSection()`. Si cette consultation lève une erreur, ou le titre de la section retourné ne correspond pas à celui attendu, la section est considérée comme invalide et la méthode retourne `false`.
+    3.  **Libération du verrou :** Dans le bloc `finally`, `this._releaseLock();` est appelé.
 
-### **Plan Détaillé : Classe `FonctionnaliteAlliance`**
+##### **5. `rafraichir()`**
 
-#### **Contexte d'Exécution (Flux de Démarrage de l'extension)**
-
-1.  **Au démarrage de l'extension :**
-    a.  Le **registre global de classes** est construit. Un script de démarrage scanne le `manifest.json`, importe tous les fichiers JS, et inspecte les exports pour créer deux `Map` globales :
-        - Une des classes qui héritent d'`Objet` (`Map<NomClasse, Constructeur>`).
-        - Une des classes qui héritent de'`FonctionnaliteAlliance` (`Map<NomClasse, Constructeur>`).
-    b.  Il crée également une instance globale de chaque gestionnaire en écrasant leur potentielle ancienne version.
-
-
-#### **Attributs**
-
-| Nom | Type | Portée | Description |
-| :--- | :--- | :--- | :--- |
-| `ABREVIATIONS_HISTORY` | `Array<String>` | `static` | **Configuration déclarative.** Liste des abréviations de la fonctionnalité, de la plus ancienne à la plus récente. Doit être surchargée dans la classe fille. |
-| `droits` | `GestionnaireDroits` | `instance` | Référence à l'instance du gestionnaire de droits créée au chargement de la page. |
-| `versions` | `GestionnaireVersions` | `instance` | Référence à l'instance du gestionnaire de versions créée au chargement de la page. |
-| `objetsDependants` | `Array<Objet>` | `instance` | Liste des instances des classes `Objet` utilisées par la fonctionnalité. |
-| `page` | `Page` | `instance` | Référence à l'instance de la page qui a créé cette fonctionnalité. |
-
-#### **Méthodes**
-
-##### **1. `constructor(page)`**
-
-*   **Signature :** `constructor(page: Page)`
-*   **Objectif :** Effectuer l'initialisation **synchrone** de la fonctionnalité.
+*   **Signature :** `async rafraichir(): Promise<void>`
+*   **Objectif :** Vider et reconstruire l'état du gestionnaire en lisant les titres des sujets de la section `Versions Outiiil`, en considérant que les données dans les messages peuvent être dans n'importe quel ordre.
 *   **Logique Détaillée :**
-    1.  Le constructeur reçoit une référence à son instance de page parente et la stocke : `this.page = page;`.
-    2.  Assigner les instances globales des gestionnaires aux attributs de l'instance : `this.droits = global.gestionnaireDroits;` et `this.versions = global.gestionnaireVersions;`.
+    1.  **Acquisition du verrou :** `await this._acquireLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Réinitialisation :** Vide `versionsObjetsForum` et `versionsParamsForum`.
+        b.  **Chargement des Sujets :** Récupère tous les sujets de la section `Versions Outiiil` en utilisant `window.pageForum.recupererSujetsSection(idSectionVersion)`.
+        c.  **Parsing des Sujets et Messages :** Pour chaque `sujet` (où `sujet.contenu` est le titre) :
+            i.  **Extraction du Type et Nom de Classe :** `sujet.contenu` est parsé pour extraire le `type` (ex: 'objet', 'parametre') et le `nomClasse` (ex: 'TestObjetForumCommande', 'TestParametreObjetForumQuantite'). Le `nomClasse` est à titre indicatif pour l'utilisateur.
+            ii. **Lecture des Messages :** Appelle `const { messages } = await window.pageForum.consulterSujetAvecMessagesEtIds(sujet.id);` pour obtenir le contenu de tous les messages du sujet, avec leurs IDs.
+            iii. **Extraction des Données Spécifiques (ordre indépendant) :**
+                -   Initialise des variables temporaires pour stocker les données extraites : `let versionLogique, classesParametreObjetForums, formatsLieux, nameHistory, formats;`.
+                -   **Pour chaque `message` dans `messages` :**
+                    -   Tente de parser `versionLogique` : `versionLogique = versionLogique || this._parseVersionLogique(message.contenu);`
+                    -   Tente de parser `classesParametreObjetForums` : `classesParametreObjetForums = classesParametreObjetForums || this._parseClassesParametreObjetForums(message.contenu);`
+                    -   Tente de parser `formatsLieux` : `formatsLieux = formatsLieux || this._parseLieux(message.contenu);`
+                    -   Tente de parser `nameHistory` : `nameHistory = nameHistory || this._parseNameHistory(message.contenu);`
+                    -   Tente de parser `formats` : `formats = formats || this._parseFormats(message.contenu);`
+                -   **Si `type === 'objet'` :**
+                    -   Ajoute `{ idSujet: sujet.id, type, nomClasse, versionLogique, classesParametreObjetForums, formatsLieux }` à `this.versionsObjetsForum`.
+                -   **Si `type === 'parametre'` :**
+                    -   Ajoute `{ idSujet: sujet.id, type, nomClasse, nameHistory, formats }` à `this.versionsParamsForum`.
+    3.  **Libération du verrou :** Dans le bloc `finally`, `this._releaseLock();` est appelé.
 
-##### **2. `init()` (Nouvelle méthode)**
+*   **Nouvelles Méthodes Privées pour le Parsing :**
+    *   `_parseVersionLogique(contenu: String): String | null`
+        *   Utilise une regex pour extraire la `versionLogique` (ex: `VERSION_LOGIQUE: "1.0"`).
+    *   `_parseClassesParametreObjetForums(contenu: String): Array<Array<Number>> | null`
+        *   Utilise une regex pour extraire `classesParametreObjetForums` (JSON string d'une liste de listes d'idSujet de paramètres).
+    *   `_parseLieux(contenu: String): Array<Object> | null`
+        *   Utilise une regex pour extraire `formatsLieux` (JSON string d'une liste d'objets `{section, lieu}`).
+    *   `_parseNameHistory(contenu: String): Array<String> | null`
+        *   Utilise une regex pour extraire `nameHistory` (JSON string d'une liste de noms).
+    *   `_parseFormats(contenu: String): Array<String> | null`
+        *   Utilise une regex pour extraire `formats` (JSON string d'une liste de formats).
 
-*   **Signature :** `async init(): Promise<Boolean>`
-*   **Objectif :** Gérer la séquence d'initialisation **asynchrone** de la fonctionnalité.
+##### **6. `verifierCompatibiliteObjetForum(objet)`**
+
+*   **Signature :** `verifierCompatibiliteObjetForum(objet: ObjetForum): Boolean`
+*   **Objectif :** Valider la compatibilité d'un `ObjetForum` en séparant son identification (via ses dépendances) de sa comparaison de version (via `VERSION_LOGIQUE`).
 *   **Logique Détaillée :**
-    1.  Débuter la séquence de vérification dans un bloc `try...catch` pour gérer les erreurs potentielles.
-    2.  Appeler `this.verifierVersionSuffisanteEtPresenceSections()`. Si la méthode retourne `false`, arrêter l'exécution et retourner `false`.
-    3.  Si succès, appeler `await this.verifierPresenceSujetMembre()`. Si `false`, arrêter l'exécution et retourner `false`.
-    4.  Si succès, appeler `await this.verifierDroits()`. Si `false`, arrêter l'exécution et retourner `false`.
-    5.  Si toutes les vérifications réussissent, appeler une méthode `run()` (qui sera implémentée par la classe fille) pour démarrer la logique métier spécifique.
-    6.  Retourner `true` pour indiquer que l'initialisation a réussi.
-    7.  En cas d'échec dans le `try...catch`, retourner `false`.
+    1.  **Acquisition du verrou :** `await this._acquireLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Phase 1 : Construction des "Empreintes" de Versions**
+            i.  **Construire l'Empreinte Locale :**
+                -   Récupère le nom de la classe de l'objet : `nomClasse = objet.constructor.name`.
+                -   Récupère la `versionLogique` locale : `versionLogiqueLocale = objet.constructor.VERSION_LOGIQUE`.
+                -   **Construit `classesParametreObjetForumsLocales` :**
+                    -   Crée une `Map` temporaire `mapClasseParametreObjetForumVersIdSujet` à partir du cache `this.versionsParamsForum` pour une recherche rapide. La clé de cette map est une ancre (chaîne JSON) construite à partir du premier élément du `nameHistory` et du premier élément des `formats` du paramètre de version. La valeur est l'`idSujet` du sujet de version du paramètre.
+                    -   Parcourt `objet.constructor.CLASSES_PARAMETRES` (liste de listes de classes de paramètres).
+                    -   Pour chaque liste de classes de paramètres, elle crée une liste d'`idSujet` correspondante. Pour chaque `classeParam`, elle construit une ancre locale (basée sur `classeParam.NAME_HISTORY[0]` et `classeParam.FORMATS[0]`) et utilise cette ancre pour rechercher l'`idSujet` dans `mapClasseParametreObjetForumVersIdSujet`.
+                    -   Le résultat est une liste de listes d'`idSujet` de paramètres.
+                -   Récupère les `formatsLieux` locaux : `formatsLieuxLocaux = objet.constructor.LOCATION_HISTORY`.
+            ii. **Trouver l'Empreinte Forum :**
+                -   Parcourt `this.versionsObjetsForum` pour trouver la `versionForum` correspondante.
+                -   L'ancrage (identification) se fait en comparant la **première entrée** de `formatsLieuxLocaux` et la **première entrée** de `classesParametreObjetForumsLocales` (qui sont des `idSujet`s). Le `nomClasse` dans le titre du sujet est à titre indicatif et n'est pas utilisé pour l'ancrage.
+                -   Si une correspondance est trouvée, l'empreinte du forum est identifiée. Sinon, on passera au Scénario 4.
 
-##### **2. `_decouvrirObjetsDependants()` (Méthode privée)**
+        b.  **Phase 2 : Synchronisation et Comparaison de Version**
+            *   Une fois la `versionForum` identifiée grâce à son empreinte :
+            *   **Scénario 1 (Extension obsolète) :**
+                - **Détection :** `versionForum.versionLogique` est sémantiquement supérieure à `versionLogiqueLocale`, OU si l'un des historiques (`classesParametreObjetForums`, `formatsLieux`) du forum est plus long.
+                - **Action :** Tente de déclencher une mise à jour de l'extension. Retourne `false` si la mise à jour échoue, `true` sinon.
+            *   **Scénario 2 (Forum obsolète) :**
+                - **Détection :** `versionLogiqueLocale` est supérieure à `versionForum.versionLogique`, OU si l'un des historiques locaux est plus long.
+                - **Action :** Met à jour le titre du sujet `versionForum.idSujet` avec le `type` et `nomClasse` (pour affichage), et les messages du sujet avec `versionLogiqueLocale`, `classesParametreObjetForumsLocales`, et `formatsLieuxLocaux`. Met à jour le cache en mémoire. Retourne `true`.
+            *   **Scénario 3 (Concordance parfaite) :**
+                - **Détection :** La `versionLogique` est identique ET les longueurs de tous les historiques correspondent.
+                - **Action :** Aucune. Retourne `true`.
+            *   **Scénario 4 (Nouvel objet) :**
+                - **Détection :** Aucune `versionForum` n'a été identifiée en Phase 1.
+                - **Action :** Crée un nouveau sujet sur le forum avec le titre `type: 'objet', nomClasse: nomClasse` (pour affichage). Crée des messages pour `versionLogiqueLocale`, `classesParametreObjetForumsLocales`, et `formatsLieuxLocaux`. Ajoute la nouvelle entrée (avec son ID) au cache en mémoire. Retourne `true`.
+    3.  **Libération du verrou :** Dans le bloc `finally`, `this._releaseLock();` est appelé.
 
-*   **Signature :** `_decouvrirObjetsDependants(): void`
+##### **7. `verifierCompatibiliteParametreObjetForum(parametre)`**
+
+*   **Signature :** `verifierCompatibiliteParametreObjetForum(parametre: ParametreObjetForum): Boolean`
+*   **Objectif :** Valider la compatibilité d'un `ParametreObjetForum` (format uniquement).
 *   **Logique Détaillée :**
-    1.  **Vérification du Cache Global :**
-        a.  Récupère le nom de la classe de la fonctionnalité (ex: `'SystemeDeCommerce'`).
-        b.  Si ce nom existe comme clé dans `global.dependancesObjetsCache`, peuple `this.objetsDependants` avec les instances du cache et termine.
-    2.  **Découverte par Analyse Statique (si non trouvé dans le cache) :**
-        a.  **Prérequis :** Au démarrage de l'extension, une **"carte des types"** a été créée en analysant les initialisations globales (ex: `global.gd = new GestionnaireDroits()`), mappant les variables globales à leur nom de classe (`'global.gd'` -> `'GestionnaireDroits'`).
-        b.  **Analyse AST :**
-            i.  Récupère et concatène les codes sources de la classe de la fonctionnalité et de sa classe mère.
-            ii. Utilise une bibliothèque de parsing (ex: `acorn`) pour générer un Arbre Syntaxique Abstrait (AST).
-            iii. Parcourt l'AST pour collecter tous les `Identifiants` (noms de variables/classes) et `Literals` (chaînes de caractères) dans un `Set` pour garantir l'unicité.
-        c.  **Résolution et Validation :**
-            i.  Initialise une liste temporaire `let dependancesTrouvees = new Set()`.
-            ii. Parcourt les identifiants/chaînes collectés. Pour chaque `nomTrouve` :
-                -   Vérifie si `nomTrouve` est une clé dans le registre global des classes `Objet`. Si oui, ajoute le nom de la classe à `dependancesTrouvees`.
-                -   Vérifie si `nomTrouve` correspond à une variable globale dans la "carte des types". Si oui, récupère le nom de la classe correspondant et l'ajoute à `dependancesTrouvees` si il constitue une clé dans le registre global des classes `Objet`.
-        d.  **Instanciation :**
-            i.  Crée une liste `let instancesDependances = []`.
-            ii. Pour chaque nom de classe unique dans `dependancesTrouvees`, récupère son constructeur depuis le registre et crée une instance, qui est ajoutée à `instancesDependances`.
-    3.  **Mise en Cache et Utilisation :**
-        a.  Stocke la liste `instancesDependances` dans le cache global : `global.dependancesObjetsCache.set(nomClasse, instancesDependances);`.
-        b.  Peuple `this.objetsDependants` avec le contenu de `instancesDependances`.
+    1.  **Acquisition du verrou :** `await this._acquireLock();`
+    2.  **Bloc `try...finally` :**
+        a.  **Phase 1 : Identification**
+            i.  Récupère le nom de la classe du paramètre : `nomClasse = parametre.constructor.name`.
+            ii. Récupère le `nameHistory` local : `nameHistoryLocal = parametre.constructor.NAME_HISTORY`.
+            iii. Récupère les `formats` locaux : `formatsLocaux = parametre.constructor.FORMATS`.
+            iv. Cherche dans `this.versionsParamsForum` une `versionForum` correspondante.
+                L'ancrage (identification) se fait en comparant la **première entrée** de `nameHistoryLocal` et la **première entrée** de `formatsLocaux`. Le `nomClasse` dans le titre du sujet est à titre indicatif et n'est pas utilisé pour l'ancrage.
+        b.  **Phase 2 : Synchronisation (4 scénarios)**
+            *   **Scénario 1 (Extension obsolète) :** `versionForum.nameHistory` ou `versionForum.formats` est plus long. Tente une MAJ de l'extension. Retourne `false` si elle échoue, `true` sinon.
+            *   **Scénario 2 (Forum obsolète) :** `nameHistoryLocal` ou `formatsLocaux` est plus long. Met à jour le titre du sujet `versionForum.idSujet` avec le `type` et `nomClasse` (pour affichage), et les messages du sujet avec `nameHistoryLocal` et `formatsLocaux`. Met à jour le cache en mémoire. Retourne `true`.
+            *   **Scénario 3 (Concordance) :** Les longueurs correspondent. Retourne `true`.
+            *   **Scénario 4 (Nouveau paramètre) :** Pas de correspondance. Crée un nouveau sujet avec le titre `type: 'parametre', nomClasse: nomClasse` (pour affichage). Crée des messages pour `nameHistoryLocal` et `formatsLocaux`. Ajoute la nouvelle entrée avec son `idSujet` à `this.versionsParamsForum`. Retourne `true`.
+    3.  **Libération du verrou :** Dans le bloc `finally`, `this._releaseLock();` est appelé.
 
-##### **3. `verifierVersionSuffisanteEtPresenceSections()`**
 
-*   **Signature :** `verifierVersionSuffisanteEtPresenceSections(): Boolean`
-*   **Logique Détaillée :**
-    1.  Appeler `this._decouvrirObjetsDependants()` pour peupler la liste des dépendances.
-    2.  Parcourir chaque `objet` dans le tableau `this.objetsDependants`.
-    3.  Pour chaque `objet`, appeler sa méthode `objet.verifierVersionSuffisanteEtPresenceSection()`.
-    4.  Si l'un de ces appels retourne `false`, la boucle s'interrompt et la méthode retourne immédiatement `false`.
-    5.  Si la boucle se termine sans échec, la méthode retourne `true`.
+### **Point 8 : Gestion Dynamique des Sections du Forum**
 
-##### **4. `verifierPresenceSujetMembre()`**
+**Contexte :** Pour augmenter la flexibilité et réduire la maintenance, la création et la gestion des sections du forum (ex: 'Membres Outiiil', 'Droits Outiiil') doivent être automatisées. Le système doit dynamiquement découvrir toutes les sections requises à partir de la configuration statique des classes `ObjetForum` et s'assurer qu'elles existent, en créant les sections et les paramètres de configuration associés si nécessaire.
 
-*   **Signature :** `async verifierPresenceSujetMembre(): Promise<Boolean>`
-*   **Objectif :** Vérifier si le joueur a un sujet membre en utilisant la liste des joueurs mise en cache.
-*   **Logique Détaillée :**
-    1.  **Chargement des Joueurs :**
-        a.  La méthode appelle `await this.chargerObjetsMultiples(Joueur)` pour obtenir la liste des joueurs de l'alliance. Grâce au cache, cette opération ne contactera le forum que la première fois.
-    2.  **Vérification :**
-        a.  Elle récupère le pseudo du joueur actuel depuis les variables globales de l'extension.
-        b.  Elle cherche une correspondance pour ce pseudo dans la liste des joueurs chargée.
-    3.  **Retour :**
-        a.  Retourne `true` si une correspondance est trouvée, `false` sinon.
+**Plan Détaillé : `initialiserFrameworkGlobal()` (`js/content.js`)**
 
-##### **5. `rafraichirDroits()`**
+*   **Logique (à ajouter à la fin de la fonction) :**
+    1.  **Création de la liste globale des sections :**
+        a.  Initialiser une nouvelle variable globale : `window.nomsSectionsRequis = new Set();`.
+        b.  Parcourir la `Map` des classes `ObjetForum` déjà construite : `window.registreClasses.ObjetForum.forEach(ClasseObjetForum => { ... });`.
+        c.  Pour chaque `ClasseObjetForum`, si sa propriété statique `LOCATION_HISTORY` existe et est un tableau, récupérer le dernier `lieu` dans ce tableau.
+        d.  Ajouter `lieu.section` au `Set` `window.nomsSectionsRequis`.
+        e.  Ajouter systématiquement la section `'Versions Outiiil'` au `Set` pour s'assurer qu'elle est toujours présente.
+        f.  Ajouter un log pour vérifier le contenu : `console.log("Sections requises découvertes :", window.nomsSectionsRequis);`.
 
-*   **Signature :** `async rafraichirDroits(): Promise<void>`
-*   **Objectif :** Encapsuler l'appel au rafraîchissement du gestionnaire de droits, en lui passant la référence à l'instance de la fonctionnalité actuelle. Conforme au principe de ne pas exposer les détails d'implémentation des appels externes.
-*   **Logique Détaillée :**
-    1.  Appelle `await this.droits.rafraichir(this)`.
+**Plan Détaillé : Classe `PageForum` (`js/page/Forum.js`)**
 
-##### **6. `verifierDroit(niveauRequis)`**
+*   **Méthodes :**
 
-*   **Signature :** `verifierDroit(niveauRequis: String): Boolean`
-*   **Objectif :** Encapsuler l'appel au gestionnaire de droits pour vérifier un niveau de droit spécifique, en ajoutant automatiquement l'abréviation de la fonctionnalité. Cette méthode est destinée à être utilisée par les classes filles pour leurs logiques de droits internes.
-*   **Logique Détaillée :**
-    1.  Récupérer l'abréviation la plus récente de la fonctionnalité : `const abrev = this.constructor.ABREVIATIONS_HISTORY[this.constructor.ABREVIATIONS_HISTORY.length - 1];`.
-    2.  Appeler `this.droits.verifierDroit(abrev, niveauRequis)`.
-    3.  Retourner directement le résultat booléen de cet appel.
+    *   **`traitementSection(element)` (à refactoriser) :**
+        1.  Remplacer la logique de vérification manuelle par une boucle unique sur la liste globale : `for (const nomSection of window.nomsSectionsRequis) { ... }`.
+        2.  La logique interne de la boucle reste la même : trouver l'élément, comparer les IDs, et mettre à jour `monProfilUtilisateur.parametre` si nécessaire.
 
-##### **7. `verifierDroits()`**
+    *   **`optionAdmin()` (à refactoriser) :**
+        1.  Dans le gestionnaire d'événement de `$("#o_creerUtilitaire").click()`, remplacer les blocs de création individuels par une boucle sur `window.nomsSectionsRequis`.
+        2.  La logique interne de la boucle reste la même : vérifier si la section existe, sinon appeler `creerSectionEtRetournerId`, puis mettre à jour le paramètre et masquer la section.
 
-*   **Signature :** `async verifierDroits(): Promise<Boolean>`
-*   **Objectif :** Vérifier que le joueur a les droits suffisants pour l'initialisation de la fonctionnalité.
-*   **Logique Détaillée :**
-    1.  Appeler `await this.rafraichirDroits()`.
-    2.  Appeler `this.verifierDroit('R')` pour s'assurer que le joueur a le droit minimum requis ('Restreint') pour utiliser la fonctionnalité.
-    3.  Retourner directement le résultat booléen de cet appel.
+     *   **`transfererSujet(idSujet: Number, idSectionDestination: Number): Promise<Boolean>`**
+        1.  **Objectif :** Transférer un sujet existant vers une nouvelle section du forum.
+        2.  **Logique Détaillée :**
+            a.  Effectuer une requête AJAX pour modifier le sujet en spécifiant le nouvel `idSectionDestination`.
+            b.  Gérer les réponses du serveur (succès/échec).
+            c.  Retourner `true` en cas de succès, `false` en cas d'échec.
 
-##### **8. `chargerObjetsMultiples(ClasseObjet)`**
+     *   **`modifierMessage(idMessage: Number, nouveauContenu: String): Promise<Boolean>`**
+        1.  **Objectif :** Modifier le contenu d'un message existant dans un sujet de forum.
+        2.  **Logique Détaillée :**
+            a.  Effectuer une requête AJAX pour modifier le message en spécifiant l'`idMessage` et le `nouveauContenu`.
+            b.  Gérer les réponses du serveur (succès/échec).
+            c.  Retourner `true` en cas de succès, `false` en cas d'échec.
 
-*   **Signature :** `async chargerObjetsMultiples(ClasseObjet: new () => T, chargerContenus: Boolean = true): Promise<Array<T>>`
-*   **Objectif :** Centraliser et optimiser la lecture du forum pour charger en masse toutes les instances d'un type d'objet, en utilisant un cache au niveau de la page pour éviter les chargements redondants.
-*   **Logique Détaillée :**
-    1.  **Vérification du Cache :**
-        a.  Récupère le nom de la classe demandée : `const nomClasse = ClasseObjet.name;`.
-        b.  Vérifie si une entrée pour cette classe existe déjà dans le cache de la page : `if (this.page.cacheObjets.has(nomClasse))`.
-        c.  Si c'est le cas, la méthode retourne immédiatement la liste d'objets depuis le cache : `return this.page.cacheObjets.get(nomClasse);`.
+     *   **`consulterSujetAvecMessagesEtIds(idSujet: Number): Promise<{titre: String, messages: Array<{id: Number, contenu: String}>}>`**
+        1.  **Objectif :** Récupérer le titre d'un sujet et le contenu de tous ses messages, incluant leurs IDs.
+        2.  **Logique Détaillée :**
+            a.  Effectuer une requête AJAX pour consulter le sujet spécifié par `idSujet`.
+            b.  Parser la réponse HTML pour extraire :
+                i.  Le titre du sujet.
+                ii. Pour chaque message contenant au moins un caractère visible, son ID (à partir de l'attribut `onclick` du lien de modification, ex: `xajax_editMessage(ID_MESSAGE)`) et son contenu HTML.
+            c.  Retourner un objet `{titre: String, messages: Array<{id: Number, contenu: String}>}`. Gérer les erreurs et retourner un format approprié en cas d'échec.
 
-    2.  **Initialisation du Chargement (si non trouvé dans le cache) :**
-        a.  Initialise `let objetsCharges = [];` et `let tousLesSujets = [];`.
+     *   **`recupererSujetsSection(idSection: Number): Promise<Array<{id: Number, derniere_activite: Date, contenu: String}>>`**
+        1.  **Objectif :** Récupérer la liste des sujets (ID, date de dernière activité et titre/contenu) d'une section donnée.
+        2.  **Logique Détaillée :**
+            a.  Effectuer une requête AJAX pour consulter la section spécifiée par `idSection`.
+            b.  Parser la réponse HTML pour extraire une liste de sujets contenant `{id, derniere_activite, contenu}` pour chaque sujet.
+            c.  Retourner un tableau d'objets `{id: Number, derniere_activite: Date, contenu: String}`. Gérer les erreurs et retourner un tableau vide en cas d'échec.
 
-    3.  **Récupération des Sections :**
-        a.  Crée une instance temporaire `new ClasseObjet()` pour accéder à sa configuration statique.
-        b.  Récupère la liste complète des IDs de section depuis `instance.idsSection`. Si la liste est vide, retourne un tableau vide.
+**Plan Détaillé : Classe `BoiteParametreObjetForum` (`js/boite/ParametreObjetForums.js`)**
 
-    4.  **Lecture Groupée du Forum :**
-        a.  Parcourt chaque `idSection` dans la liste récupérée.
-        b.  Pour chaque ID, effectue un appel pour récupérer la liste de tous les sujets de cette section.
-        c.  Concatène les sujets récupérés à la liste `tousLesSujets`.
+*   **Attributs :**
+    *   Modifier `_paramUtilitaire`: `_paramUtilitaire = [];`
 
-    5.  **Boucle de Chargement en Mémoire :**
-        a.  Parcourt la liste agrégée `tousLesSujets`.
-        b.  Pour chaque `sujet` :
-            i.  Crée une nouvelle instance : `let instance = new ClasseObjet();`.
-            ii. Appelle `instance.chargerDepuisString(sujet.titre, chargerContenus)`.
-            iii. **Si le chargement réussit :**
-                -   Assigne l'ID du sujet à l'instance : `instance.idSujet = sujet.id;`.
-                -   Ajoute l'instance au tableau `objetsCharges`.
-
-    6.  **Mise en Cache et Retour :**
-        a.  Une fois le chargement terminé, la méthode stocke la liste nouvellement créée dans le cache de la page : `this.page.cacheObjets.set(nomClasse, objetsCharges);`.
-        b.  Retourne le tableau `objetsCharges` complet.
+*   **Méthodes :**
+    *   **`parametreUtilitaire()` (à modifier) :**
+        1.  **Avant de générer le contenu HTML**, peupler `this._paramUtilitaire` directement depuis la liste globale : `this._paramUtilitaire = Array.from(window.nomsSectionsRequis);`.
+        2.  **Pour chaque `nomSection` dans cette liste :**
+            a.  Vérifier si `monProfilUtilisateur.parametre[nomSection]` existe. Si non, instancier un nouveau `ParametreObjetForum` et l'ajouter à `monProfilUtilisateur.parametre`.
+        3  La boucle existante qui génère le HTML fonctionnera ensuite avec cette liste dynamique.
 
 ## Tests à effectuer
 
@@ -943,8 +1236,8 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 3.  **Préparer les Fichiers de Test** dans le code de l'extension :
     *   Créer une `TestPage.js` qui hérite de `Page` et déclare les fonctionnalités de test.
     *   Créer `TestFonctionnaliteSDC.js` et `TestFonctionnalitePEX.js`.
-    *   Créer `TestObjetCommande.js` (qui peut contenir des `TestObjetLigneCommande`) et `TestObjetPEX.js`.
-    *   Créer les classes `TestParametre...js` nécessaires.
+    *   Créer `TestObjetForumCommande.js` (qui peut contenir des `TestObjetForumLigneCommande`) et `TestObjetForumPEX.js`.
+    *   Créer les classes `TestParametreObjetForum...js` nécessaires.
 
 ---
 
@@ -955,17 +1248,17 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 #### **Procédure 1.1 : Cycle de vie complet (Création, Lecture, Mise à Jour)**
 *   **Contexte** : Valider le flux nominal de bout en bout pour un objet simple.
 1.  **Préparation (Code)** :
-    *   Dans `TestParametreQuantite.js`, définir `FORMAT_HISTORY = [{'nom': 'Quantité', 'format': 'Quantité: {valeur}'}]`.
-    *   Dans `TestParametreCoordonnees.js`, définir `FORMAT_HISTORY = [{'nom': 'Coordonnées', 'format': ' | Coordonnées: {valeur}'}]` et `stringRestriction = 'Confidentiel'`.
-    *   Dans `TestObjetCommande.js`, définir `CLASSES_PARAMETRES = [[TestParametreQuantite, TestParametreCoordonnees]]` et `FORMATS_LIEUX` pour pointer vers la section `Données Test SDC`.
-    *   Dans `TestFonctionnaliteSDC.js`, s'assurer que la découverte automatique de dépendances identifiera `TestObjetCommande`.
+    *   Dans `TestParametreObjetForumQuantite.js`, définir `NAME_HISTORY = ['Quantité']`.
+    *   Dans `TestParametreObjetForumCoordonnees.js`, définir `NAME_HISTORY = ['Coordonnées']` et `stringRestriction = 'Confidentiel'`.
+    *   Dans `TestObjetForumCommande.js`, définir `CLASSES_PARAMETRES = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees]]` et `LOCATION_HISTORY` pour pointer vers la section `Données Test SDC`.
+    *   Dans `TestFonctionnaliteSDC.js`, s'assurer que la découverte automatique de dépendances identifiera `TestObjetForumCommande`.
     *   Dans `TestPage.js`, déclarer `fonctionnalitesAlliance = [TestFonctionnaliteSDC]`.
 2.  **Phase 1 : Création**
     *   **Action** :
         a.  Dans la méthode `run()` de `TestFonctionnaliteSDC`, insérer le code suivant :
             ```javascript
             console.log('TEST: Début création...');
-            const nouvelleCommande = new TestObjetCommande({ 'Quantité': 100, 'Coordonnées': '1:1:1' });
+            const nouvelleCommande = new TestObjetForumCommande({ 'Quantité': 100, 'Coordonnées': '1:1:1' });
             await nouvelleCommande.enregistrerSurForum();
             console.log('TEST: Fin création.');
             ```
@@ -979,9 +1272,9 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
         a.  Remplacer le code de `run()` par :
             ```javascript
             console.log('TEST: Début lecture/MAJ...');
-            const commandes = await this.chargerObjetsMultiples(TestObjetCommande);
+            const commandes = await this.chargerObjetForumsMultiples(TestObjetForumCommande);
             const commandeChargee = commandes[0];
-            commandeChargee.ecrireParametre('Quantité', 200);
+            commandeChargee.ecrireParametreObjetForum('Quantité', 200);
             await commandeChargee.enregistrerSurForum();
             console.log('TEST: Fin lecture/MAJ.');
             ```
@@ -994,23 +1287,51 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 #### **Procédure 1.2 : Gestion des objets contenus**
 *   **Contexte** : Valider la relation parent-enfant où les enfants sont des messages dans le sujet du parent.
 1.  **Préparation (Code)** :
-    *   Configurer `TestObjetCommande` pour qu'il soit un conteneur : `classeObjetsContenus = TestObjetLigneCommande`.
-    *   Configurer `TestObjetLigneCommande` pour qu'il soit stocké dans un message (`'lieu': 'message'`) et qu'il ait un `ParametreProduit`.
+    *   Configurer `TestObjetForumCommande` pour qu'il soit un conteneur : `classeObjetsForumContenus = TestObjetForumLigneCommande`.
+    *   Configurer `TestObjetForumLigneCommande` pour qu'il soit stocké dans un message (`'lieu': 'message'`) et qu'il ait un `ParametreObjetForumProduit`.
 2.  **Action** :
     *   Dans `run()`, charger la commande existante.
-    *   Ajouter le code pour instancier deux `TestObjetLigneCommande` (`{ 'Produit': 'TDC' }` et `{ 'Produit': 'Ouvrières' }`).
-    *   Pour chaque ligne, lier au parent (`ligne.objetParent = commandeChargee`) et appeler `ligne.enregistrerSurForum()`.
-    *   Ensuite, appeler `commandeChargee.chargerObjetsContenus()`.
+    *   Ajouter le code pour instancier deux `TestObjetForumLigneCommande` en passant `objetParent` dans les options du constructeur :
+        ```javascript
+        const ligne1 = new TestObjetForumLigneCommande(this, {donneesInitiales: { 'Produit': 'TDC' }, objetParent: commandeChargee});
+        commandeChargee.objetsForumContenus.push(ligne1);
+
+        const ligne2 = new TestObjetForumLigneCommande(this, {donneesInitiales: { 'Produit': 'Ouvrières' }, objetParent: commandeChargee});
+        commandeChargee.objetsForumContenus.push(ligne2);
+
+        await commandeChargee.enregistrerSurForum();
+        ```
+    *   **Note** : La vérification du chargement des objets contenus se fera en rechargeant la page, car `chargerObjetForumsContenus()` est appelée lors de l'initialisation de l'objet parent.
 3.  **Vérification** :
     *   **Critère de succès 1** : Le sujet de la commande sur le forum contient maintenant deux messages, avec le contenu `Produit: TDC` et `Produit: Ouvrières`.
-    *   **Critère de succès 2** : Ajouter un `console.log(commandeChargee.objetsContenus.length)` à la fin de `run()`. La console doit afficher `2`.
+    *   **Critère de succès 2** : Ajouter un `console.log(commandeChargee.objetsForumContenus.length)` à la fin de `run()`. La console doit afficher `2`.
 
 #### **Procédure 1.3 : Robustesse au parsing (données corrompues)**
 *   **Contexte** : Le framework doit ignorer les données invalides sans planter.
 1.  **Préparation (Forum)** : Manuellement, éditer le titre du sujet de la commande pour qu'il soit invalide : `Quantité: ABC | Coordonnées: 1:1:1`.
-2.  **Action** : Lancer la page de test avec le code de `run()` qui exécute `chargerObjetsMultiples(TestObjetCommande)`.
+2.  **Action** : Lancer la page de test avec le code de `run()` qui exécute `chargerObjetForumsMultiples(TestObjetForumCommande)`.
 3.  **Vérification** :
-    *   **Critère de succès** : La méthode `chargerObjetsMultiples` doit retourner un tableau vide. L'extension ne doit afficher aucune erreur fatale dans la console.
+    *   **Critère de succès** : La méthode `chargerObjetForumsMultiples` doit retourner un tableau vide. L'extension ne doit afficher aucune erreur fatale dans la console.
+
+#### **Procédure 1.4 : Rafraîchissement d'un objet depuis le forum**
+*   **Contexte** : Valider que la méthode `rafraîchir()` met correctement à jour une instance d'objet avec des données modifiées manuellement sur le forum.
+1.  **Préparation (Forum)** :
+    a.  S'assurer qu'une commande existe sur le forum avec le titre `Quantité: 200 | Coordonnées: 1:1:1`. Noter son `idSujet`.
+    b.  Manuellement, éditer le titre de ce sujet pour qu'il devienne `Quantité: 500 | Coordonnées: 2:2:2`.
+2.  **Action** :
+    a.  Dans `run()`, insérer le code suivant :
+        ```javascript
+        console.log('TEST: Début rafraîchissement...');
+        const commandes = await this.chargerObjetForumsMultiples(TestObjetForumCommande);
+        const commandeARafraichir = commandes.find(c => c.idSujet === ID_SUJET_MODIFIE); // Remplacer par l'ID réel
+        await commandeARafraichir.rafraîchir();
+        console.log('TEST: Fin rafraîchissement.');
+        console.log('Quantité après rafraîchissement:', commandeARafraichir.lireParametreObjetForum('Quantité'));
+        console.log('Coordonnées après rafraîchissement:', commandeARafraichir.lireParametreObjetForum('Coordonnées'));
+        ```
+    b.  Lancer la page de test.
+3.  **Vérification** :
+    *   **Critère de succès** : La console doit afficher "Quantité après rafraîchissement: 500" et "Coordonnées après rafraîchissement: 2:2:2".
 
 ---
 
@@ -1039,13 +1360,13 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 1.  **Préparation (Forum)** :
     a. La liste des membres de l'alliance contient "JoueurA" et "JoueurB".
     b. Seul "JoueurA" a un sujet de droits dans `Droits Outiiil`.
-2.  **Action** : Lancer une page qui appelle `this.droits.rafraichir(this)` dans la `TestFonctionnaliteSDC`.
+2.  **Action** : Lancer une page qui appelle `window.GestionnaireDroits.rafraichir(this)` dans la `TestFonctionnaliteSDC`.
 3.  **Vérification** :
     *   **Critère de succès** : Un nouveau sujet de droits a été créé sur le forum pour "JoueurB" avec les droits par défaut.
 4.  **Préparation 2** : Retirer "JoueurA" de la liste des membres de l'alliance sur le forum.
 5.  **Action 2** : Relancer la page pour exécuter `rafraichirDroits()` à nouveau.
 6.  **Vérification 2** :
-    *   **Critère de succès** : Ajouter un `console.log(this.droits.objetsContenus.length)` après le rafraîchissement. La console doit afficher `1` (seul le droit de JoueurB reste en mémoire).
+    *   **Critère de succès** : Ajouter un `console.log(window.GestionnaireDroits.objetsForumContenus.length)` après le rafraîchissement. La console doit afficher `1` (seul le droit de JoueurB reste en mémoire).
 
 ---
 
@@ -1053,26 +1374,108 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 
 **Objectif** : Valider la capacité du système à gérer des évolutions complexes de la structure des données.
 
-#### **Procédure 3.1 : Migration d'un objet de v1 à v2 avec logique de calcul**
-*   **Contexte** : Valider la migration de données avec une transformation logique.
-1.  **Préparation (Code)** :
-    a. Créer `TestObjetCommandeV2` avec `CLASSES_PARAMETRES = [[ParamV1], [ParamV2a, ParamV2b]]`.
-    b. Implémenter `completerChargementPourVersionsAnterieures()` pour que si la v1 est chargée, la valeur du `ParamV1` soit utilisée pour calculer et peupler `ParamV2a` et `ParamV2b`.
-2.  **Préparation (Forum)** :
-    a. Dans `Versions Outiiil`, créer un sujet pour `TestObjetCommandeV2` décrivant le format v1.
-    b. Dans `Données Test SDC`, créer un sujet de commande au format v1.
-3.  **Action** : Lancer une page qui charge cet objet, puis le ré-enregistre.
-4.  **Vérification** :
-    *   **Critère 1 (Migration en mémoire)** : Ajouter un log dans `run()` pour afficher les valeurs des paramètres v2a et v2b après le chargement. Elles doivent être correctement calculées.
-    *   **Critère 2 (Mise à jour sur le forum)** : Le sujet de la commande sur le forum doit être réécrit au format v2.
-    *   **Critère 3 (Mise à jour de la version)** : Le sujet de version dans `Versions Outiiil` doit être mis à jour pour décrire le format v2.
+#### **Procédure 3.1 : Migration d'un objet de v1 à v2 avec logique de calcul, changement de section et de format de paramètre**
+*   **Contexte** : Valider la migration de données avec une transformation logique, incluant un changement de version logique de l'objet, un changement de ses paramètres, un déplacement de sa section d'enregistrement, et une évolution du nom et du format d'un de ses paramètres.
+1.  **Préparation (Code - Initial)** :
+    a.  **Modifier `js/framework/ParametreObjetForum.js`** : S'assurer que la classe `ParametreObjetForum` contient la propriété statique `FORMATS` avec le format initial :
+        ```javascript
+        // Dans js/framework/ParametreObjetForum.js
+        static FORMATS = ['(nom): (valeur) | '];
+        ```
+    b.  Créer `TestParametreObjetForumQuantite.js` avec :
+        *   `NAME_HISTORY = ['Quantité']`
+        *   `valeur = 0;`
+        *   **Ne PAS définir `FORMATS` ici.**
+    c.  Créer `TestParametreObjetForumCoordonnees.js` avec :
+        *   `NAME_HISTORY = ['Coordonnées']`
+        *   `stringRestriction = 'Confidentiel'`
+        *   `valeur = '';`
+        *   **Ne PAS définir `FORMATS` ici.**
+    d.  Créer `TestParametreObjetForumStatut.js` avec :
+        *   `NAME_HISTORY = ['Statut']`
+        *   `valeur = '';`
+        *   **Ne PAS définir `FORMATS` ici.**
+    e.  Créer `TestObjetForumCommandeV1.js` (héritant d'`ObjetForum`) avec :
+        *   `VERSION_LOGIQUE = '1.0'`
+        *   `CLASSES_PARAMETRES = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees]]`
+        *   `LOCATION_HISTORY = [{'section': 'Données Test SDC', 'lieu': 'titre'}]`
+        *   `completerChargementPourVersionsAnterieures()` vide.
+    f.  Créer `TestObjetForumCommandeV2.js` (héritant d'`ObjetForum`) avec :
+        *   `VERSION_LOGIQUE = '2.0'`
+        *   `CLASSES_PARAMETRES = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees], [TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees, TestParametreObjetForumStatut]]`
+        *   `LOCATION_HISTORY = [{'section': 'Données Test SDC', 'lieu': 'titre'}, {'section': 'Données Test SDC V2', 'lieu': 'titre'}]`
+        *   Implémenter `completerChargementPourVersionsAnterieures()` pour que si la v1 est chargée (`this._determinerVersionChargee() === 0`) :
+            *   La valeur de `TestParametreObjetForumQuantite` (nom 'Quantité') soit utilisée pour calculer et peupler `TestParametreObjetForumQuantite` (nom 'NouvelleQuantite') (ex: `this.ecrireParametreObjetForum('NouvelleQuantite', this.lireParametreObjetForum('Quantité') * 2)`).
+            *   La valeur de `TestParametreObjetForumCoordonnees` soit copiée vers `TestParametreObjetForumCoordonnees` (ex: `this.ecrireParametreObjetForum('Coordonnées', this.lireParametreObjetForum('Coordonnées'))`).
+            *   `TestParametreObjetForumStatut` soit initialisé avec une valeur par défaut (ex: `this.ecrireParametreObjetForum('Statut', 'Nouveau')`).
+    g.  Dans `TestFonctionnaliteSDC.js`, s'assurer que la découverte automatique de dépendances identifiera `TestObjetForumCommandeV1` pour la Phase 1, puis `TestObjetForumCommandeV2` pour la Phase 2.
+    h.  Dans `TestPage.js`, déclarer `fonctionnalitesAlliance = [TestFonctionnaliteSDC]`.
 
-#### **Procédure 3.2 : Introduction d'un nouvel objet versionné**
-*   **Contexte** : Le système doit détecter et enregistrer les nouveaux types d'objets.
-1.  **Préparation** : Le `TestObjetPEX` est nouveau et n'a pas de sujet de version dans `Versions Outiiil`.
-2.  **Action** : Lancer une page dont la fonctionnalité (`TestFonctionnalitePEX`) dépend de `TestObjetPEX`. L'initialisation déclenchera `verifierCompatibiliteObjet`.
-3.  **Vérification** :
-    *   **Critère de succès** : Un nouveau sujet est créé dans `Versions Outiiil` pour `TestObjetPEX`, contenant le JSON de sa configuration de version initiale.
+2.  **Préparation (Forum)** :
+    a.  S'assurer que les sections `Versions Outiiil`, `Données Test SDC` et `Données Test SDC V2` existent.
+
+3.  **Phase 1 : Création et Vérification de l'ObjetForum V1**
+    *   **Action** :
+        a.  Dans la méthode `run()` de `TestFonctionnaliteSDC`, insérer le code suivant :
+            ```javascript
+            console.log('TEST V1: Début création et vérification...');
+            const commandeV1 = new TestObjetForumCommandeV1(this, { 'donneesInitiales': { 'Quantité': 100, 'Coordonnées': '1:1:1' } });
+            await commandeV1.enregistrerSurForum();
+            console.log('TEST V1: Fin création.');
+
+            // Recharger pour s'assurer que les versions sont bien prises en compte
+            const commandesChargeesV1 = await this.chargerObjetForumsMultiples(TestObjetForumCommandeV1);
+            const commandeVerifieeV1 = commandesChargeesV1[0];
+
+            console.log('TEST V1: Quantité chargée:', commandeVerifieeV1.lireParametreObjetForum('Quantité'));
+            console.log('TEST V1: Coordonnées chargées:', commandeVerifieeV1.lireParametreObjetForum('Coordonnées'));
+            console.log('TEST V1: Version logique de l\'objet:', commandeVerifieeV1.constructor.VERSION_LOGIQUE);
+            ```
+        b.  Lancer la page de test.
+    *   **Vérification** :
+        a.  Consulter la console du navigateur. Les logs doivent afficher les valeurs correctes pour 'Quantité' et 'Coordonnées', et la version logique '1.0'.
+        b.  Naviguer vers la section `Données Test SDC` sur le forum.
+        c.  **Critère de succès 1** : Un nouveau sujet doit exister avec le titre exact `Quantité: 100 | Coordonnées: 1:1:1`.
+        d.  Naviguer vers la section `Versions Outiiil`.
+        e.  **Critère de succès 2 (Version ObjetForum)** : Un sujet pour `TestObjetForumCommandeV1` doit exister, décrivant le format v1 (avec `versionLogique: '1.0'`, `formatsLieuxHistory` pointant vers `Données Test SDC`, et `parametresHistory` correspondant aux IDs des paramètres `TestParametreObjetForumQuantite` et `TestParametreObjetForumCoordonnees` dans leur version V1).
+        f.  **Critère de succès 3 (Versions Paramètres)** : Des sujets pour `TestParametreObjetForumQuantite` et `TestParametreObjetForumCoordonnees` doivent exister, décrivant  `ParametreObjetForum.FORMATS` et `NAME_HISTORY`.
+
+4.  **Phase 2 : Évolution du Framework et Migration vers V2**
+    *   **Action (Code - Évolution du Framework)** :
+        a.  **Modifier `js/framework/ParametreObjetForum.js`** pour inclure le nouveau format générique :
+            ```javascript
+            // Dans js/framework/ParametreObjetForum.js
+            static FORMATS = ['(nom): (valeur) | ', '(nom)=(valeur) #']; // Ajout du nouveau format
+            ```
+        b.  **Modifier `TestParametreObjetForumQuantite.js`** pour inclure le nouveau nom :
+            ```javascript
+            // Dans TestParametreObjetForumQuantite.js
+            NAME_HISTORY = ['Quantité', 'NouvelleQuantite'];
+            ```
+        c.  Modifier le code de `run()` de `TestFonctionnaliteSDC` pour qu'il utilise `TestObjetForumCommandeV2` :
+            ```javascript
+            console.log('TEST V2: Début migration et vérification...');
+            // Charger l'objet V1 existant, qui sera migré en mémoire vers V2
+            const commandesV2 = await this.chargerObjetForumsMultiples(TestObjetForumCommandeV2);
+            const commandeMigreeV2 = commandesV2[0];
+
+            console.log('TEST V2: NouvelleQuantite après migration:', commandeMigreeV2.lireParametreObjetForum('NouvelleQuantite'));
+            console.log('TEST V2: Coordonnées après migration:', commandeMigreeV2.lireParametreObjetForum('Coordonnées'));
+            console.log('TEST V2: Statut après migration:', commandeMigreeV2.lireParametreObjetForum('Statut'));
+            console.log('TEST V2: Version logique de l\'objet:', commandeMigreeV2.constructor.VERSION_LOGIQUE);
+
+            // Ré-enregistrer l'objet pour qu'il soit mis à jour sur le forum au format V2 et dans la nouvelle section
+            await commandeMigreeV2.enregistrerSurForum();
+            console.log('TEST V2: Fin migration et enregistrement.');
+            ```
+        d.  Lancer la page de test.
+    *   **Vérification** :
+        a.  Consulter la console du navigateur. Les logs doivent afficher les valeurs correctement migrées/calculées pour `NouvelleQuantite`, `Coordonnées` et `Statut`, et la version logique '2.0'.
+        b.  Naviguer vers la section `Données Test SDC V2` sur le forum.
+        c.  **Critère de succès 1 (ObjetForum transféré et mis à jour)** : Le sujet de la commande doit maintenant se trouver dans la section `Données Test SDC V2` avec le titre au format v2 (ex: `NouvelleQuantite=200 # Coordonnées=1:1:1 # Statut=Nouveau #`). Le sujet original dans `Données Test SDC` doit avoir été supprimé ou déplacé.
+        d.  Naviguer vers la section `Versions Outiiil`.
+        e.  **Critère de succès 2 (Version ObjetForum mise à jour)** : Le sujet de version pour `TestObjetForumCommandeV2` doit être mis à jour pour décrire le format v2 (avec `versionLogique: '2.0'`, `formatsLieuxHistory` incluant `Données Test SDC V2`, et `parametresHistory` correspondant aux IDs des paramètres `TestParametreObjetForumQuantite`, `TestParametreObjetForumCoordonnees`, `TestParametreObjetForumStatut` dans leur version V2).
+        f.  **Critère de succès 3 (Versions Paramètres)** : Les sujets de version pour `TestParametreObjetForumQuantite`, `TestParametreObjetForumCoordonnees` et `TestParametreObjetForumStatut` doivent exister et décrire leurs `formatHistory` respectifs, reflétant les noms et formats utilisés dans la V2, générés à partir du `ParametreObjetForum.FORMATS` mis à jour et de leurs `NAME_HISTORY`.
 
 ---
 
@@ -1080,18 +1483,257 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 
 **Objectif** : Tester la résilience du framework face à des états inattendus.
 
-#### **Procédure 4.1 : Réparation de l'état global**
-*   **Contexte** : Simuler la perte de l'état global (ex: rechargement de l'extension).
-1.  **Préparation** : Au tout début de la méthode `init()` de `TestPage`, ajouter : `global.gestionnaireDroits = null; console.log('TEST: État global supprimé.');`.
-2.  **Action** : Lancer la page de test.
-3.  **Vérification** :
-    *   **Critère de succès** : La console doit afficher "État global supprimé", puis les logs indiquant que `initialiserFrameworkGlobal` a été appelé, et enfin la fonctionnalité doit s'exécuter normalement.
-
-#### **Procédure 4.2 : Gestion d'une section de forum manquante**
+#### **Procédure 4.1 : Gestion d'une section de forum manquante**
 *   **Contexte** : Une section configurée dans un objet peut ne pas exister.
-1.  **Préparation** : Configurer `TestObjetCommande.js` pour utiliser une section `FORMATS_LIEUX` pointant vers "Section Inexistante".
+1.  **Préparation** : Configurer `TestObjetForumCommande.js` pour utiliser une section `LOCATION_HISTORY` pointant vers "Section Inexistante".
 2.  **Action** : Lancer la page qui dépend de cet objet.
 3.  **Vérification** :
     *   **Critère de succès** : L'initialisation de la `TestFonctionnaliteSDC` doit échouer. Ajouter un log dans la condition `if (!instance.init())` de `Page.js` pour confirmer que l'échec est bien capturé. L'extension ne doit pas planter.
 
+#### **Procédure 4.2 : Test de Concurrence Simple (Chargement vs Enregistrement)**
+*   **Contexte** : Valider que le mécanisme de verrouillage empêche les opérations concurrentes.
+1.  **Préparation (Code)** :
+    *   Dans `TestObjetForumCommande.js`, s'assurer que le mécanisme de verrouillage est implémenté dans `rafraichir()` et `enregistrerSurForum()`.
+2.  **Action** :
+    *   Dans la méthode `run()` de `TestFonctionnaliteSDC`, insérer le code suivant :
+        ```javascript
+        console.log('TEST: Début test concurrence...');
+        const commande = new TestObjetForumCommande(this, { 'Quantité': 100, 'Coordonnées': '1:1:1' });
+        await commande.enregistrerSurForum(); // Enregistre une première fois
+
+        // Lancer rafraichir et enregistrer en "parallèle" (ils devraient s'exécuter séquentiellement grâce au verrou)
+        const promesseRafraichir = commande.rafraichir();
+        commande.ecrireParametreObjetForum('Quantité', 300); // Modifie l'objet pendant que rafraichir est "en cours"
+        const promesseEnregistrer = commande.enregistrerSurForum();
+
+        await Promise.all([promesseRafraichir, promesseEnregistrer]);
+        console.log('TEST: Fin test concurrence.');
+        ```
+    *   Lancer la page de test.
+3.  **Vérification** :
+    *   **Critère de succès** :
+        a.  Consulter la console du navigateur. Les logs doivent montrer que les opérations se sont exécutées séquentiellement (par exemple, le log de `rafraichir` avant celui de `enregistrerSurForum` ou vice-versa, mais pas d'entrelacement qui indiquerait une corruption).
+        b.  Le titre du sujet sur le forum doit refléter la dernière modification (`Quantité: 300 | Coordonnées: 1:1:1`), indiquant que l'enregistrement final a bien eu lieu après le rafraîchissement.
+        c.  Aucune erreur de concurrence ne doit être affichée dans la console.
+
+#### **Procédure 4.3 : Test de Concurrence Avancé (Lecture, Écriture, Enregistrement, Chargement)**
+*   **Contexte** : Valider que le mécanisme de verrouillage Reader-Writer gère correctement les opérations concurrentes de lecture (`lireParametreObjetForum`, `rafraîchir`), d'écriture (`ecrireParametreObjetForum`), d'enregistrement (`enregistrerSurForum`) et de chargement (`chargerDepuisString` via `rafraîchir`) sans corruption de données ni interblocage.
+1.  **Préparation (Code)** :
+    *   S'assurer que `TestObjetForumCommande.js` est configuré comme dans la Procédure 1.1 (un objet simple avec `Quantité` et `Coordonnées`).
+    *   S'assurer que les méthodes `lireParametreObjetForum`, `ecrireParametreObjetForum`, `enregistrerSurForum`, et `rafraîchir` de la classe `ObjetForum` (et donc de `TestObjetForumCommande`) utilisent les verrous Reader-Writer (`_acquireReadLock`, `_releaseReadLock`, `_acquireWriteLock`, `_releaseWriteLock`).
+2.  **Action** :
+    *   Dans la méthode `run()` de `TestFonctionnaliteSDC`, insérer le code suivant :
+        ```javascript
+        console.log('TEST: Début test concurrence avancée...');
+        const commande = new TestObjetForumCommande(this, { 'donneesInitiales': { 'Quantité': 100, 'Coordonnées': '1:1:1' } });
+        await commande.enregistrerSurForum(); // Enregistre une première fois
+
+        const operations = [];
+
+        // Opération 1: Lecture concurrente
+        operations.push(commande.lireParametreObjetForum('Quantité').then(val => console.log('Lecture 1 (Quantité):', val)));
+        operations.push(commande.lireParametreObjetForum('Coordonnées').then(val => console.log('Lecture 2 (Coordonnées):', val)));
+
+        // Opération 2: Écriture et enregistrement concurrents
+        operations.push((async () => {
+            commande.ecrireParametreObjetForum('Quantité', 200);
+            await commande.enregistrerSurForum();
+            console.log('Écriture/Enregistrement 1 (Quantité 200) terminé.');
+        })());
+
+        // Opération 3: Rafraîchissement (chargement) concurrent
+        operations.push(commande.rafraichir().then(() => console.log('Rafraîchissement 1 terminé.')));
+
+        // Opération 4: Nouvelle écriture et enregistrement
+        operations.push((async () => {
+            commande.ecrireParametreObjetForum('Quantité', 300);
+            await commande.enregistrerSurForum();
+            console.log('Écriture/Enregistrement 2 (Quantité 300) terminé.');
+        })());
+
+        // Opération 5: Lecture après toutes les opérations
+        operations.push(commande.lireParametreObjetForum('Quantité').then(val => console.log('Lecture finale (Quantité):', val)));
+
+        await Promise.all(operations);
+        console.log('TEST: Fin test concurrence avancée.');
+        ```
+    *   Lancer la page de test.
+3.  **Vérification** :
+    *   **Critère de succès** :
+        a.  Consulter la console du navigateur. Les logs doivent montrer que les opérations de lecture peuvent s'exécuter en parallèle, mais que les opérations d'écriture/enregistrement et de rafraîchissement sont sérialisées et respectent les verrous. Il ne doit pas y avoir d'interblocage.
+        b.  Le log "Lecture finale (Quantité):" doit afficher `300`, confirmant que la dernière écriture a bien été appliquée et que les verrous ont permis une exécution correcte.
+        c.  Consulter le sujet de la commande sur le forum. Son titre doit être `Quantité: 300 | Coordonnées: 1:1:1`, reflétant la dernière modification.
+        d.  Aucune erreur de concurrence ou de verrouillage ne doit être affichée dans la console.
+
+#### **Procédure 4.4 : Test de Concurrence (Rafraîchissement et Vérification du Gestionnaire de Versions)**
+*   **Contexte** : Valider que le mécanisme de verrouillage du `GestionnaireVersions` empêche les opérations concurrentes de rafraîchissement et de vérification de section.
+1.  **Préparation (Code)** :
+    *   S'assurer que le mécanisme de verrouillage (`_acquireLock`, `_releaseLock`) est implémenté dans `rafraichir()` et `verifierPresenceSectionVersions()` de la classe `GestionnaireVersions`.
+2.  **Action** :
+    *   Dans la méthode `run()` de `TestFonctionnaliteSDC`, insérer le code suivant :
+        ```javascript
+        console.log('TEST: Début test concurrence GestionnaireVersions...');
+        const promesseRafraichir = window.gestionnaireVersions.rafraichir().then(() => console.log('Rafraîchissement GestionnaireVersions terminé.'));
+        const promesseVerifier = window.gestionnaireVersions.verifierPresenceSectionVersions().then(() => console.log('Vérification section GestionnaireVersions terminée.'));
+
+        await Promise.all([promesseRafraichir, promesseVerifier]);
+        console.log('TEST: Fin test concurrence GestionnaireVersions.');
+        ```
+    *   Lancer la page de test.
+3.  **Vérification** :
+    *   **Critère de succès** :
+        a.  Consulter la console du navigateur. Les logs doivent montrer que les opérations se sont exécutées séquentiellement (par exemple, le log de `rafraichir` avant celui de `verifierPresenceSectionVersions` ou vice-versa, mais pas d'entrelacement qui indiquerait une corruption).
+        b.  Aucune erreur de concurrence ou de verrouillage ne doit être affichée dans la console.
+
 ## Avancement
+
+**Point 1 : `initialiserFrameworkGlobal()` - Terminé**
+
+- **Fichiers créés** :
+    - `js/framework/content.js` : Contient la fonction `initialiserFrameworkGlobal`.
+    - `js/framework/ParametreObjetForum.js` : Classe de base.
+    - `js/framework/ObjetForum.js` : Classe de base.
+    - `js/framework/GestionnaireVersions.js` : Classe de base.
+    - `js/framework/GestionnaireDroits.js` : Classe de base.
+    - `js/framework/Page.js` : Classe de base.
+    - `js/framework/FonctionnaliteAlliance.js` : Classe de base.
+- **Logique implémentée dans `initialiserFrameworkGlobal`** :
+    - **Action a (Registre de classes)** : La fonction scanne désormais le `manifest.json`, lit les fichiers de scripts pertinents, et utilise une expression régulière pour trouver les définitions de classes. Elle inspecte ensuite la chaîne de prototypes pour déterminer si une classe hérite de `ObjetForum` ou `FonctionnaliteAlliance` et les stocke dans `window.registreClasses`.
+    - **Action c (Instances des gestionnaires)** : Les instances globales `window.gestionnaireDroits` et `window.gestionnaireVersions` sont maintenant créées.
+    - **Action d (Cache global)** : Le cache `window.dependancesObjetForumsCache` est initialisé.
+- **Configuration** :
+    - Le `manifest.json` a été mis à jour pour inclure les nouveaux fichiers du framework dans le bon ordre de chargement.
+- **Action b (Carte des types)** : La bibliothèque `acorn.js` a été ajoutée au projet. La fonction `initialiserFrameworkGlobal` lit maintenant son propre code source, le parse avec `acorn` pour générer un AST, et parcourt cet arbre pour trouver les assignations aux variables globales (ex: `window.gestionnaireDroits = new GestionnaireDroits()`). Elle extrait le nom de la variable et le nom de la classe pour construire la `window.carteDesTypes`.
+- **Note** : L'implémentation de la fonction `initialiserFrameworkGlobal` est maintenant complète.
+
+**Point 2 : Classe `Page` - Terminé**
+- **Fichier modifié** : `js/framework/Page.js`.
+- **Logique implémentée** :
+    - La méthode `init()` a été entièrement implémentée conformément au plan. Elle gère la vérification de l'état global, le rafraîchissement des versions, et l'initialisation séquentielle des fonctionnalités d'alliance et locales.
+    - Le constructeur et les attributs sont conformes au plan.
+- **Note** : L'implémentation de la classe `Page` est maintenant complète.
+
+**Point 3 : Classe `FonctionnaliteAlliance` - Terminé**
+- **Fichier modifié** : `js/framework/FonctionnaliteAlliance.js`.
+- **Logique implémentée** :
+    - Le `constructor` a été implémenté pour stocker la référence à la page.
+    - La méthode `init` a été implémentée pour orchestrer la séquence de vérification complète (versions, présence membre, droits) et appeler `run()`.
+    - La méthode privée `_decouvrirObjetForumsDependants` a été ajoutée pour analyser le code via un AST et trouver les dépendances d'objets.
+    - Les méthodes de vérification `verifierVersionSuffisanteEtPresenceSections`, `verifierPresenceSujetMembre`, et `verifierDroits` (ainsi que ses helpers `rafraichirDroits` et `verifierDroit`) ont été implémentées.
+    - La méthode `chargerObjetForumsMultiples` a été implémentée pour charger en masse des objets avec un système de cache global.
+- **Note** : L'implémentation de la classe `FonctionnaliteAlliance` est maintenant complète.
+
+**Point 4 : Classe `ObjetForum` - Terminé**
+- **Fichier modifié** : `js/framework/ObjetForum.js`.
+- **Logique implémentée** :
+    - Le `constructor` a été refactorisé pour accepter un objet `options` pour une meilleure flexibilité et lisibilité.
+    - La méthode `verifierVersionSuffisanteEtPresenceSection` a été implémentée.
+    - La méthode `rafraichir` a été implémentée et intégrée au mécanisme de verrouillage, en utilisant `consulterSujetAvecMessagesEtIds` pour récupérer le titre et les messages, puis en déléguant le chargement à `chargerDepuisString` et `chargerObjetForumsContenus`.
+    - La méthode `chargerObjetForumsContenus` a été implémentée, avec mise à jour de l'appel au constructeur `ObjetForum` pour utiliser l'objet `options`, et pour gérer la synchronisation des objets contenus à partir d'une liste de messages fournie.
+    - La méthode `chargerDepuisString` a été implémentée et intégrée au mécanisme de verrouillage.
+    - La méthode `afficher` a été implémentée.
+    - Les méthodes `lireChaqueParametreObjetForum` et `ecrireChaqueParametreObjetForum` ont été implémentées.
+    - La méthode `enregistrerSurForum` a été implémentée et intégrée au mécanisme de verrouillage.
+    - Les méthodes `lireParametreObjetForum` et `ecrireParametreObjetForum` ont été implémentées.
+    - La méthode `_determinerVersionChargee` a été implémentée.
+    - La méthode `completerChargementPourVersionsAnterieures` a été ajoutée comme placeholder.
+    - La méthode privée `_acquireLock` a été remplacée par un mécanisme de verrouillage Reader-Writer (`_acquireReadLock`, `_releaseReadLock`, `_acquireWriteLock`, `_releaseWriteLock`) pour permettre la concurrence des opérations de lecture (`rafraichir`, `chargerObjetForumsContenus`) tout en garantissant l'exclusivité des opérations d'écriture (`enregistrerSurForum`).
+    - La logique de réutilisation des objets dans `chargerObjetForumsContenus` a été corrigée pour se baser sur `idMessage` plutôt que sur la position dans la liste, assurant une meilleure persistance de l'identité des objets.
+- **Note** : L'implémentation de la classe `ObjetForum` est maintenant complète.
+
+**Point 5 : Classe `ParametreObjetForum` - Terminé**
+- **Fichier modifié** : `js/framework/ParametreObjetForum.js`.
+- **Logique implémentée** :
+    - Le `constructor` a été implémenté.
+    - La méthode `verifierVersionSuffisante` a été implémentée.
+    - La méthode `chargerDepuisString` a été implémentée.
+    - La méthode `genererStringPourEnregistrement` a été implémentée.
+    - La méthode `Ecrire` a été implémentée.
+    - La méthode `Lire` (correspondant à `Lire`) a été implémentée.
+- **Note** : L'implémentation de la classe `ParametreObjetForum` est maintenant complète.
+
+**Point 6 : Classe `GestionnaireDroits` - Terminé**
+- **Fichier modifié** : `js/framework/GestionnaireDroits.js`.
+- **Logique implémentée** :
+    - Le `constructor` a été implémenté pour créer dynamiquement la classe `ObjetForumDroits` et les classes `ParametreObjetForumDroit` correspondantes, y compris un `ParametreObjetForumPseudo` nécessaire à la synchronisation.
+    - La méthode `verifierDroit` a été implémentée.
+    - Les méthodes `lireChaqueParametreObjetForum`, `ecrireChaqueParametreObjetForum`, et `afficher` ont été implémentées et refactorisées pour utiliser une méthode privée `_getObjetForumDroit` qui centralise la récupération de l'objet de droits d'un joueur.
+    - La méthode `rafraichir` a été implémentée pour synchroniser les droits avec la liste des membres de l'alliance.
+- **Note** : L'implémentation de la classe `GestionnaireDroits` est maintenant complète.
+
+**Point 7 : Classe `GestionnaireVersions` - Terminé**
+- **Fichier modifié** : `js/framework/GestionnaireVersions.js`.
+- **Logique implémentée** :
+    - Le `constructor` a été implémenté.
+    - La méthode `rafraichir` a été implémentée pour charger les versions depuis le forum, en considérant que les données dans les messages peuvent être dans n'importe quel ordre.
+    - Les méthodes privées `_parseVersionLogique`, `_parseClassesParametreObjetForums`, `_parseLieux`, `_parseNameHistory`, et `_parseFormats` ont été ajoutées pour extraire les données des messages de manière robuste.
+    - Les méthodes `verifierCompatibiliteObjetForum` et `verifierCompatibiliteParametreObjetForum` ont été implémentées pour gérer la synchronisation des versions entre l'extension et le forum.
+- **Note** : L'implémentation de la classe `GestionnaireVersions` est maintenant complète.
+
+**Point 8 : Gestion Dynamique des Sections du Forum - Terminé**
+- **Fichiers modifiés** : `js/content.js`, `js/page/Forum.js`, `js/boite/ParametreObjetForums.js`, `js/framework/FonctionnaliteAlliance.js`.
+- **Logique implémentée dans `initialiserFrameworkGlobal`** :
+    - **Action e (Liste des noms de section requis)** : La logique pour créer `window.nomsSectionsRequis` a été ajoutée.
+- **Logique implémentée dans `PageForum`** :
+    - La méthode `transfererSujet(idSujet, idSectionDestination)` a été ajoutée.
+- **Logique implémentée dans `FonctionnaliteAlliance`** :
+    - La méthode `chargerObjetForumsMultiples` inclut désormais la logique de transfert du sujet vers la dernière section de l'objet si nécessaire.
+- **Note** : La gestion dynamique des sections du forum est maintenant complète.
+
+**Point 9 : Fonctionnalités de modification de sujet/message - Terminé**
+- **Fichier modifié** : `js/page/Forum.js`.
+- **Logique implémentée** :
+    - La méthode `transfererSujet(idSujet, idSectionDestination)` a été ajoutée à la classe `PageForum`.
+    - La méthode `modifierMessage(idMessage, nouveauContenu)` a été ajoutée à la classe `PageForum`.
+- **Note** : Les fonctions de modification de sujet/message sont implémentées.
+
+**Point 10 : Fonctionnalité de consultation de sujet avec messages et IDs - Terminé**
+- **Fichiers modifiés** : `js/page/Forum.js`, `js/framework/ObjetForum.js`.
+- **Logique implémentée** :
+    - La méthode `consulterSujetAvecMessagesEtIds(idSujet)` a été ajoutée à la classe `PageForum`.
+    - La méthode `chargerObjetForumsContenus` de la classe `ObjetForum` a été mise à jour pour utiliser `window.pageForum.consulterSujetAvecMessagesEtIds` et pour extraire directement les IDs des messages.
+    - La méthode `rafraichir` de la classe `ObjetForum` a été mise à jour pour utiliser `window.pageForum.consulterSujetAvecMessagesEtIds` et extraire le titre du sujet.
+    - La méthode `getTitreSujet` a été supprimée de `js/page/Forum.js` car elle n'est plus utilisée.
+    - La méthode `rafraichir` de la classe `GestionnaireVersions` a été mise à jour pour utiliser `window.pageForum.consulterSujetAvecMessagesEtIds` pour la lecture des messages des sujets de version.
+- **Note** : La fonctionnalité de consultation de sujet avec messages et IDs est implémentée et intégrée.
+
+### Tests
+
+**Suite de Tests n°1, Procédure 1.1, Phase 1**
+    - Statut : validé
+
+**Suite de Tests n°1, Procédure 1.1, Phase 2**
+    - Statut : validé
+
+**Suite de Tests n°1, Procédure 1.2**
+    - Statut : validé
+
+**Suite de Tests n°1, Procédure 1.3**
+    - Statut : validé
+
+**Suite de Tests n°1, Procédure 1.4**
+    - Statut : validé
+
+**Suite de Tests n°2, Procédure 2.1**
+    - Statut : validé
+
+**Suite de Tests n°2, Procédure 2.2**
+    - Statut : validé (trivial car reconstruction intégrale à chaque chargement de page)
+
+**Suite de Tests n°3, Procédure 3.1,  Phase 1**
+    - Statut : validé
+
+**Suite de Tests n°3, Procédure 3.1,  Phase 2**
+    - Statut : validé
+
+**Suite de Tests n°4, Procédure 4.1**
+    - Statut : validé
+
+**Suite de Tests n°4, Procédure 4.2**
+    - Statut : validé
+
+**Suite de Tests n°4, Procédure 4.3**
+    - Statut : validé
+
+**Suite de Tests n°4, Procédure 4.4**
+    - Statut : validé

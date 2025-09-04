@@ -101,7 +101,7 @@ class Traceur
             type : "post",
             url : "http://outiiil.fr/fzzz/traceur",
             data : {
-                cle : monProfil.parametre["cleTraceur"].valeur,
+                cle : monProfilUtilisateur.parametre["cleTraceur"].valeur,
                 serveur : Utils.serveur,
                 type : this._type,
                 date : moment().format("DD-MM-YYYY HH:mm:ss"),

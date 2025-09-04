@@ -31,7 +31,7 @@ class Commande
         /**
         * personne qui fait la commande
         */
-        this._demandeur = parametres.hasOwnProperty("demandeur") ? new Joueur(parametres["demandeur"]) : monProfil;
+        this._demandeur = parametres.hasOwnProperty("demandeur") ? new Joueur(parametres["demandeur"]) : monProfilJoueur;
         /**
         * contruction ou recherche demanndée
         */
@@ -301,7 +301,7 @@ class Commande
     */
     estAFaire()
     {
-        return !(this._etat == ETAT_COMMANDE["Supprimée"] || this._etat == ETAT_COMMANDE["Annulée"] || this._etat == ETAT_COMMANDE["Terminée"] || (this._etat == ETAT_COMMANDE["Nouvelle"] && this._demandeur.pseudo != monProfil.pseudo));
+        return !(this._etat == ETAT_COMMANDE["Supprimée"] || this._etat == ETAT_COMMANDE["Annulée"] || this._etat == ETAT_COMMANDE["Terminée"] || (this._etat == ETAT_COMMANDE["Nouvelle"] && this._demandeur.pseudo != monProfilJoueur.pseudo));
     }
     /**
     *
@@ -353,9 +353,9 @@ class Commande
         // Etat
         html += `<td ${this._etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === this._etat)}</td>`;
         // Temps de trajet
-        html += `<td>${Utils.intToTime(monProfil.getTempsParcours2(this._demandeur))}</td>
+        html += `<td>${Utils.intToTime(monProfilJoueur.getTempsParcours2(this._demandeur))}</td>
             ${apres && this._etat == ETAT_COMMANDE["En cours"] ? "<td><a id='o_commande" + this._id + "' href=''><img src='" + IMG_LIVRAISON + "' alt='livrer'/></a></td>" : "<td></td>"}
-            ${(this._demandeur.pseudo == monProfil.pseudo) ? "<td><a id='o_modifierCommande" + this._id + "' href=''><img src='" + IMG_CRAYON + "' alt='modifier'/></a> <a id='o_supprimerCommande" + this._id + "' href=''><img src='" + IMG_CROIX + "' alt='supprimer'/></a></td></tr>" : "<td></td></tr>"}`;
+            ${(this._demandeur.pseudo == monProfilJoueur.pseudo) ? "<td><a id='o_modifierCommande" + this._id + "' href=''><img src='" + IMG_CRAYON + "' alt='modifier'/></a> <a id='o_supprimerCommande" + this._id + "' href=''><img src='" + IMG_CROIX + "' alt='supprimer'/></a></td></tr>" : "<td></td></tr>"}`;
         return html;
     }
     /**
@@ -364,7 +364,7 @@ class Commande
     ajouterEvent(page, utilitaire)
     {
         $("#o_commande" + this._id).click((e) => {
-            let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2)));
+            let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.niveauConstruction[11] / 2)));
             let materialsToPrefill = Math.min(this.materiaux, transportCapacity);
             let nourishmentToPrefill = Math.min(this.nourriture, transportCapacity - materialsToPrefill);
 

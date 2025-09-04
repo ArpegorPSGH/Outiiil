@@ -511,7 +511,7 @@ class Armee
 	*/
 	calculRatio(tdcDep, nbChasse, terrainChasse)
 	{
-		return this.getTotalAtt(monProfil.niveauRecherche[2]) / this.calculDifficulte(tdcDep, nbChasse, terrainChasse);
+		return this.getTotalAtt(monProfilJoueur.niveauRecherche[2]) / this.calculDifficulte(tdcDep, nbChasse, terrainChasse);
 	}
 	/**
 	* calcul la référence du ratio donné en paramétre si la chasse est paramétre manuellement.
@@ -574,7 +574,7 @@ class Armee
 	*/
 	calculPerte(ratioIndex, diff)
 	{
-		return {"MIN" : (PERTE_MIN_CHASSE[ratioIndex]) * diff / (10 + monProfil.niveauRecherche[1]) * 10, "MAX" : (PERTE_MAX_CHASSE[ratioIndex]) * diff / (10 + monProfil.niveauRecherche[1]) * 10, "AVG" :  (PERTE_MOY_CHASSE[ratioIndex]) * diff / (10 + monProfil.niveauRecherche[1]) * 10};
+		return {"MIN" : (PERTE_MIN_CHASSE[ratioIndex]) * diff / (10 + monProfilJoueur.niveauRecherche[1]) * 10, "MAX" : (PERTE_MAX_CHASSE[ratioIndex]) * diff / (10 + monProfilJoueur.niveauRecherche[1]) * 10, "AVG" :  (PERTE_MOY_CHASSE[ratioIndex]) * diff / (10 + monProfilJoueur.niveauRecherche[1]) * 10};
 	}
     /**
 	* Répartie l'armée sur les chasses souhaitées.
@@ -606,7 +606,7 @@ class Armee
 			// compute YD number. If Xp : Max * factor, Else dispatch
 			// between lasting hunts according to difficulty.
 			if(bXp)
-				this._repartition[iHuntNum][0] = Math.round(refMaxLoss * tabDiff[iHuntNum] / (10 + monProfil.niveauRecherche[1]) * 10 * securityFactor);
+				this._repartition[iHuntNum][0] = Math.round(refMaxLoss * tabDiff[iHuntNum] / (10 + monProfilJoueur.niveauRecherche[1]) * 10 * securityFactor);
 			else{
 				let iDiffLet = tabDiff[iHuntNum];
 				for(let iHL = iHuntNum - 1 ; iHL >= 0 ; iHL--)

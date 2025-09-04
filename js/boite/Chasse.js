@@ -38,10 +38,10 @@ class BoiteChasse extends Boite
 	css()
 	{
         super.css();
-        $("#o_resultatChasse tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfil.parametre["couleur2"].valeur);
-        $(".o_content a").css("color", monProfil.parametre["couleurTexte"].valeur);
+        $("#o_resultatChasse tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $(".o_content a").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
-        let matches = monProfil.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
+        let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
         $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
             (e) => {$(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => {return parseInt(m, 16);}).concat('0.5') + ")");},
             (e) => {$(e.currentTarget).css("color", "inherit");}
@@ -109,7 +109,7 @@ class BoiteChasse extends Boite
         html += "<option value='" + i + "' selected>Bilan</option></select></td></tr>";
         $("#o_resultatChasse").append(chasse.toHTMLBoite(true) + html);
 		// Style
-		$("#o_resultatChasse tr:even").css("background-color", monProfil.parametre["couleur2"].valeur);
+		$("#o_resultatChasse tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
 		$("#o_choixChasse").change((e) => {
 			let selection = e.currentTarget.value;
 			$("#o_resultatChasse tr:gt(0):lt(-1):visible").toggle();

@@ -30,9 +30,9 @@ class PageMessagerie
         // ajout des boutons pour les nouveaux messages
         if(!Utils.comptePlus) this.plus(0);
         // recupération des joueurs de l'utilitaire
-        if(monProfil.parametre["forumMembre"].valeur){
+        if(monProfilUtilisateur.parametre["Membres Outiiil"].valeur){
             // recuperation des commandes sur l'utilitaire
-            this._utilitaire.consulterSection(monProfil.parametre["forumMembre"].valeur).then((data) => {
+            this._utilitaire.consulterSection(monProfilUtilisateur.parametre["Membres Outiiil"].valeur).then((data) => {
                 if(this._utilitaire.chargerJoueur(data)) this.couleurMessageUtilitaire();
             }, (jqXHR, textStatus, errorThrown) => {
                 $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des membres."});
@@ -118,7 +118,7 @@ class PageMessagerie
     {
         let champsReponse = id != 0 ? "champ_reponse_" + id : "message_envoi";
         $("#smileySuivant" + id).after(` <span style='cursor:pointer;position:relative;top:3px;'>
-            <span style="position:relative;top:-4px"><input id="o_colorMess${champsReponse}" type="color" name="couleur" value="${monProfil.parametre["couleurMessagerie"].valeur}"/></span>
+            <span style="position:relative;top:-4px"><input id="o_colorMess${champsReponse}" type="color" name="couleur" value="${monProfilUtilisateur.parametre["couleurMessagerie"].valeur}"/></span>
             <img onclick='miseEnForme("${champsReponse}","gras");' title='Gras' src='images/BBCode/bold.png'>
             <img onclick='miseEnForme("${champsReponse}","italic");' title='Italique' src='images/BBCode/italic.png'>
             <img onclick='miseEnForme("${champsReponse}","souligne");' title='Souligné' src='images/BBCode/underline.png'>
@@ -131,8 +131,8 @@ class PageMessagerie
 		$("#o_colorMess" + champsReponse).change((e) => {
             let color = e.currentTarget.value;
 			$(this).val(color.substring(1));
-			monProfil.parametre["couleurMessagerie"].valeur = color;
-            monProfil.parametre["couleurMessagerie"].sauvegarde();
+			monProfilUtilisateur.parametre["couleurMessagerie"].valeur = color;
+            monProfilUtilisateur.parametre["couleurMessagerie"].sauvegarde();
 		});
         $(`#${id != 0 ? "repondre_tous_" + id : "bt_envoi_message"}`).click((e) => {
             let color = $("#o_colorMess" + champsReponse).val(), idChamps = `#${id != 0 ? "champ_reponse_" + id : "message_envoi"}`;
@@ -357,7 +357,7 @@ class PageMessagerie
             // on ajoute l'heure du RC
             html += "[b]" + $(elt).find(".expe span > span").text() + "[/b] " + texte + "\n";
             // si on veut le temps HOF
-            if(hof) html += `Perte ${monProfil.pseudo} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
+            if(hof) html += `Perte ${monProfilJoueur.pseudo} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
             // si on veut les bonus
             if(bonus) html += `${detail.find("#bonus_ennemie_" + id).text()}\n`;
         });

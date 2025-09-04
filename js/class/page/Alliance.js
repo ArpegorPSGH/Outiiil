@@ -32,7 +32,7 @@ class PageAlliance
             this.traitementMembre();
         else{
             // Ajout des infos sur le tableau des membres
-            let observer = new MutationObserver((mutationsList) => {
+            let observer = new MutationObserver(async (mutationsList) => { // Rendre la callback asynchrone
                 this.traitementMembre();
                 observer.disconnect();
             });
@@ -50,11 +50,11 @@ class PageAlliance
     {
         // S'assurer que les coordonnées du joueur courant sont chargées
         // S'assurer que les coordonnées du joueur courant sont chargées
-        // On force le rechargement du profil pour s'assurer que monProfil.x et monProfil.y sont à jour
+        // On force le rechargement du profil pour s'assurer que monProfilJoueur.x et monProfilJoueur.y sont à jour
         try {
-            const htmlProfil = await monProfil.getProfil(); // Utiliser getProfil() pour forcer le rechargement
+            const htmlProfil = await monProfilJoueur.getProfil(); // Utiliser getProfil() pour forcer le rechargement
             if (htmlProfil) {
-                monProfil.chargerProfil(htmlProfil);
+                monProfilJoueur.chargerProfil(htmlProfil);
             }
         } catch (error) {
             console.error("[PageAlliance] Erreur lors du chargement du profil courant:", error);
@@ -86,12 +86,12 @@ class PageAlliance
 		$("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmiliere</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
 
         // Si on dispose d'un utilitaire pour la gestion des membres ET que le joueur a un sujet dans la section membres
-        const idSectionMembre = monProfil.parametre["forumMembre"].valeur;
-        const pseudoJoueur = monProfil.pseudo;
+        const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"].valeur;
+        const pseudoJoueur = monProfilJoueur.pseudo;
 
         if (idSectionMembre) {
             try {
-                const sujetExiste = await this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur);
+                const sujetExiste = this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur);
                 if (sujetExiste) {
                     // recuperation des données sur l'utilitaire
                     const data = await this._utilitaire.consulterSection(idSectionMembre);
@@ -162,15 +162,15 @@ class PageAlliance
 
                                     messageLines.push("\n--- Constructions ---");
                                     CONSTRUCTION.forEach((nom, index) => {
-                                        if (monProfil.niveauConstruction[index] > -1) {
-                                            messageLines.push(`${nom}: ${monProfil.niveauConstruction[index]}`);
+                                        if (monProfilJoueur.niveauConstruction[index] > -1) {
+                                            messageLines.push(`${nom}: ${monProfilJoueur.niveauConstruction[index]}`);
                                         }
                                     });
 
                                     messageLines.push("\n--- Recherches ---");
                                     RECHERCHE.forEach((nom, index) => {
-                                        if (monProfil.niveauRecherche[index] > -1) {
-                                            messageLines.push(`${nom}: ${monProfil.niveauRecherche[index]}`);
+                                        if (monProfilJoueur.niveauRecherche[index] > -1) {
+                                            messageLines.push(`${nom}: ${monProfilJoueur.niveauRecherche[index]}`);
                                         }
                                     });
 
@@ -196,13 +196,13 @@ class PageAlliance
                                     const messageFormatte = messageLines.join("\n");
 
                                     // --- Étape 3: Envoyer au Forum ---
-                                    let idSujet = monProfil.sujetForum;
+                                    let idSujet = monProfilJoueur.sujetForum;
                                     const forumManager = new PageForum(); // Assumes PageForum is available globally or imported
 
                                     if (!idSujet) {
-                                        const idSection = monProfil.parametre["forumMembre"]?.valeur;
+                                        const idSection = monProfilUtilisateur.parametre["Membres Outiiil"]?.valeur;
                                         if (!idSection) {
-                                            throw new Error("ID de la section forum 'Outiiil_Membre' non trouvé dans les paramètres.");
+                                            throw new Error("ID de la section forum 'Membres Outiiil' non trouvé dans les paramètres.");
                                         }
 
                                         const htmlSectionData = await forumManager.consulterSection(idSection);
@@ -217,7 +217,7 @@ class PageAlliance
                                         $sectionContent.find("#form_cat tr:gt(0)").each((i, elt) => {
                                             const $row = $(elt);
                                             const titreSujet = $row.find("td:eq(1)").text().trim();
-                                            if (titreSujet.startsWith(monProfil.pseudo + " /")) {
+                                            if (titreSujet.startsWith(monProfilJoueur.pseudo + " /")) {
                                                 const onclickAttr = $row.find("a.topic_forum").attr("onclick");
                                                 if (onclickAttr) {
                                                     const match = onclickAttr.match(/callGetTopic\((\d+)\)/);
@@ -235,7 +235,7 @@ class PageAlliance
                                         });
 
                                         if (!foundId) {
-                                            throw new Error(`Sujet forum pour '${monProfil.pseudo}' non trouvé dans la section Outiiil_Membre.`);
+                                            throw new Error(`Sujet forum pour '${monProfilJoueur.pseudo}' non trouvé dans la section Membres Outiiil.`);
                                         }
                                         idSujet = foundId;
                                     }
@@ -352,7 +352,7 @@ class PageAlliance
                 // si nous avons les coordonnées on affiche les temps de trajet
                 $(elt).find("td:eq(1)").after(`<td align="center">${joueur.rang !== undefined ? joueur.rang : Utils.alliance}</td>`);
                 
-                const tempsParcours = monProfil.getTempsParcours2(joueur);
+                const tempsParcours = monProfilJoueur.getTempsParcours2(joueur);
                 
                 const tdtDisplay = Utils.intToTime(tempsParcours);
                 const retourDisplay = Utils.roundMinute(tempsParcours).format("D MMM à HH[h]mm");
@@ -456,7 +456,7 @@ class PageAlliance
         const technologieDisplay = joueur.technologie !== -1 ? numeral(joueur.technologie).format() : "N/C";
         const fourmiliereDisplay = joueur.fourmiliere !== -1 ? numeral(joueur.fourmiliere).format() : "N/C";
 
-        const tempsParcoursExterieur = (joueur.x !== -1 && joueur.y !== -1) ? monProfil.getTempsParcours2(joueur) : null;
+        const tempsParcoursExterieur = (joueur.x !== -1 && joueur.y !== -1) ? monProfilJoueur.getTempsParcours2(joueur) : null;
 
         const tdtDisplay = tempsParcoursExterieur !== null ? Utils.intToTime(tempsParcoursExterieur) : "N/C";
         const retourDisplay = tempsParcoursExterieur !== null ? Utils.roundMinute(tempsParcoursExterieur).format("D MMM à HH[h]mm") : "N/C";
@@ -579,10 +579,10 @@ class PageAlliance
                 $("#o_actualiserAlliance").click(async (e) => { // Utilisation de async
                     e.preventDefault(); // Empêcher l'action par défaut du lien
 
-                    const idSectionMembre = monProfil.parametre["forumMembre"]?.valeur;
+                    const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"]?.valeur;
 
                     if (!idSectionMembre) {
-                         $.toast({...TOAST_ERROR, text : "Le paramètre forumMembre n'est pas configuré."});
+                         $.toast({...TOAST_ERROR, text : "Le paramètre Membres Outiiil n'est pas configuré."});
                          return false;
                     }
 
@@ -624,7 +624,7 @@ class PageAlliance
                         await Promise.all(promiseForum); // Utilisation de await
 
                         // Après la création potentielle des sujets, vérifier à nouveau le sujet membre
-                        // pour s'assurer que monProfil.sujetForum est mis à jour si un sujet a été créé pour le joueur courant.
+                        // pour s'assurer que monProfilJoueur.sujetForum est mis à jour si un sujet a été créé pour le joueur courant.
                         await this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur);
 
                         $.toast({...TOAST_SUCCESS, text : "la mise à jour c'est correctement effectuée."});
@@ -690,7 +690,7 @@ class PageAlliance
         }
 
         // Réinitialiser DataTables.
-        if (monProfil.parametre["forumMembre"].valeur) { // Si l'utilitaire est configuré
+        if (monProfilUtilisateur.parametre["Membres Outiiil"].valeur) { // Si l'utilitaire est configuré
             this.tableauUtilitaire(); // Cela réinitialisera DataTables et ajoutera les colonnes SDC
         } else {
             this.tableau(); // Sinon, réinitialiser le tableau simple

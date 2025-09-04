@@ -12,6 +12,7 @@ class Joueur
 {
     constructor(parametres)
     {
+        console.log("[Joueur] Début du constructeur Joueur.");
         /**
         * id du joueur
         */
@@ -68,43 +69,6 @@ class Joueur
         *
         */
         this._ordreRang = parametres["ordreRang"] || 0;
-        /**
-        * Préférence du joueur.
-        *
-        * @private
-        * @property _parametre
-        * @type Object
-        */
-        this._parametre = {};
-        // parametres style des boites
-        this._parametre["couleur1"] = new Parametre("couleur1", "Couleur de fond", "color", "#d7c384");
-        this._parametre["couleur2"] = new Parametre("couleur2", "Couleur secondaire", "color", "#c9ad63");
-        this._parametre["couleur3"] = new Parametre("couleur3", "Couleur bordure", "color", "#bd8d46");
-        this._parametre["couleurTexte"] = new Parametre("couleurTexte", "Couleur du texte", "color", "#000000");
-        this._parametre["couleurTitre"] = new Parametre("couleurTitre", "Couleur des titres", "color", "#787423");
-        this._parametre["dockPosition"] = new Parametre("dockPosition", "Position des outils", "select", 0, ["Droite", "Bas"]);
-        this._parametre["dockVisible"] = new Parametre("dockVisible", "Outils toujours visible ?", "checkbox", true);
-        this._parametre["boiteShow"] = new Parametre("boiteShow", "Effet appariation des boites", "select", 0, EFFET);
-        this._parametre["boiteHide"] = new Parametre("boiteHide", "Effet disparition des boites", "select", 0, EFFET);
-        // parametres utilitaires
-        this._parametre["forumCommande"] = new Parametre("forumCommande", "Commande", "input");
-        this._parametre["forumMembre"] = new Parametre("forumMembre", "Membre", "input");
-        // parametres armée
-        this._parametre["methodeFlood"] = new Parametre("methodeFlood", "Méthode de flood", "select", 0, METHODE_FLOOD);
-        this._parametre["uniteAntisondeTerrain"] = new Parametre("uniteAntisondeTerrain", "Antisonde max en terrain", "number", 1);
-        this._parametre["uniteAntisondeDome"] = new Parametre("uniteAntisondeDome", "Antisonde max en dôme", "number", 0);
-        this._parametre["uniteSonde"] = new Parametre("uniteSonde", "Sonde vers l'ennemi", "number", 0);
-        // parametre divers
-        this._parametre["couleurChat"] = new Parametre("couleurChat", "Couleur chat", "color", "#000000");
-        this._parametre["couleurMessagerie"] = new Parametre("couleurMessagerie", "Couleur messagerie", "color", "#000000");
-        this._parametre["affectationRessource"] = new Parametre("affectationRessource", "Affectation des ressources", "select", 0, ["Non", "Materiaux", "Nourriture"]);
-        // parametres pour traceur
-        this._parametre["cleTraceur"] = new Parametre("cleTraceur", "Cle pour le serveur", "input");
-        this._parametre["etatTraceurJoueur"] = new Parametre("etatTraceurJoueur", "Traceur joueur actif ?", "checkbox", false);
-        this._parametre["intervalleTraceurJoueur"] = new Parametre("intervalleTraceurJoueur", "Intervalle entre chaque relevé (en mn)", "number", 5);
-        this._parametre["nbPageTraceurJoueur"] = new Parametre("nbPageTraceurJoueur", "Nombre de page à relever", "number", 1);
-        this._parametre["etatTraceurAlliance"] = new Parametre("etatTraceurAlliance", "Traceur alliance actif ?", "checkbox", false);
-        this._parametre["intervalleTraceurAlliance"] = new Parametre("intervalleTraceurAlliance", "Intervalle entre chaque relevé (en mn)", "number", 5);
         /**
         * Indique si le joueur est hébergé à l'extérieur (non présent sur la page Fourmizzz actuelle).
         */
@@ -359,16 +323,6 @@ class Joueur
         this._ordreRang = newOrdre;
     }
     /**
-    * Renvoie les joueurs et les alliances sous surveillance.
-    *
-    * @method Radar
-    * @return {Object} les joueurs et alliances format JSON.
-    */
-    get parametre()
-    {
-        return this._parametre;
-    }
-    /**
     *
     */
     toUtilitaire()
@@ -387,7 +341,7 @@ class Joueur
     */
     estJoueurCourant()
     {
-        return this._pseudo == monProfil.pseudo;
+        return this._pseudo == monProfilJoueur.pseudo;
     }
     /**
     *
@@ -413,7 +367,7 @@ class Joueur
     /**
     *
     */
-    getTempsParcours(x = monProfil.x, y = monProfil.y)
+    getTempsParcours(x = monProfilJoueur.x, y = monProfilJoueur.y)
     {
         return Math.ceil(Math.pow(0.9, this._niveauRecherche[6]) * 637200 * (1 - Math.exp(-(Math.sqrt(Math.pow(x - this._x, 2) + Math.pow(y - this._y, 2))/350))));
     }
@@ -441,17 +395,6 @@ class Joueur
     /**
     *
     */
-    getParametre()
-    {
-        let data = JSON.parse(localStorage.getItem("outiiil_parametre")) || {};
-		// Si des données sont deja presente et à jour on les charges
-        for(let cle in data)
-            this._parametre[cle].valeur = data[cle];
-        return this;
-    }
-    /**
-    *
-    */
     sauvegarder()
     {
         return localStorage.setItem("outiiil_joueur", JSON.stringify(this, ["id", "x", "y", "niveauConstruction", "niveauRecherche"]));
@@ -470,7 +413,7 @@ class Joueur
     getProfilCourant()
     {
         // si on est le joueur courant on a peut etre les infos dans le storage
-        if(monProfil.pseudo == this._pseudo){
+        if(monProfilJoueur.pseudo == this._pseudo){
             // si on est le joueur courant on regarde dans le localstorage
             let data = JSON.parse(localStorage.getItem("outiiil_joueur")) || {};
             // Si des données sont deja presente et à jour on les charges
@@ -523,7 +466,7 @@ class Joueur
 
             console.log(`[Joueur] Profil chargé pour ${this._pseudo}: X=${this._x}, Y=${this._y}, Terrain=${this._terrain}, Fourmiliere=${this._fourmiliere}, Technologie=${this._technologie}, Colonise=${this._colonise}, AllianceTag=${this._allianceTag}`);
 
-            if(monProfil.pseudo == this._pseudo)
+            if(monProfilJoueur.pseudo == this._pseudo)
                 this.sauvegarder();
         }
         return true;
@@ -769,7 +712,7 @@ class Joueur
                 if(radar.joueurs.hasOwnProperty(this._pseudo)){
                     $(e.currentTarget).tooltip({
                         position : {my : "left+10 center", at : "right center"},
-                        content : `<table><tr><td>Temps de trajet</td><td class="right">${Utils.intToTime(monProfil.getTempsParcours2(radar.joueurs[this._pseudo]))}</td></tr><td>Retour le</td><td class="right">${moment().add(monProfil.getTempsParcours2(radar.joueurs[this._pseudo]), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td><tr></tr></table>`,
+                        content : `<table><tr><td>Temps de trajet</td><td class="right">${Utils.intToTime(monProfilJoueur.getTempsParcours2(radar.joueurs[this._pseudo]))}</td></tr><td>Retour le</td><td class="right">${moment().add(monProfilJoueur.getTempsParcours2(radar.joueurs[this._pseudo]), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td><tr></tr></table>`,
                         hide : {effect: "fade", duration: 10},
                         tooltipClass : "warning-tooltip ui-tooltip-right"
                     });

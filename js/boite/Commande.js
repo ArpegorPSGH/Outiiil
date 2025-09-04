@@ -84,7 +84,7 @@ class BoiteCommande extends Boite
                 // si la commande n'est pas dans l'utilitaire on est en ajout
                 if(!this._utilitaire.commande.hasOwnProperty(this._commande.id)){
                     // si la commande n'est pas dans l'utilitaire c'est un ajout
-                    this._utilitaire.creerSujet(this._commande.toUtilitaire(), " ", monProfil.parametre["forumCommande"].valeur).then((data) => {
+                    this._utilitaire.creerSujet(this._commande.toUtilitaire(), " ", monProfilUtilisateur.parametre["Commandes Outiiil"].valeur).then((data) => {
                         let response = $(data).text();
                         if(response.includes("Accès refusé."))
                             $.toast({...TOAST_WARNING, text : response + " Vous n'avez pas les droits de créer de commandes."});

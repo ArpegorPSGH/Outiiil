@@ -85,7 +85,7 @@ class TraceurAlliance extends Traceur
     */
     afficher(id)
     {
-        $(id).append(`<table id='o_infosTraceurAlliance'><thead style="background-color:${monProfil.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Tag</th><th>Evènement</th></tr></thead></table>`);
+        $(id).append(`<table id='o_infosTraceurAlliance'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Tag</th><th>Evènement</th></tr></thead></table>`);
         $("#o_infosTraceurAlliance").DataTable({
             bInfo : false,
             bAutoWidth : false,
@@ -105,10 +105,10 @@ class TraceurAlliance extends Traceur
                 }
             },
             rowCallback : (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfil.parametre["couleur2"].valeur);
+                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback : (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfil.parametre["couleurTexte"].valeur);
+                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         this.getInformation().then((data) => {

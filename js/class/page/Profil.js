@@ -42,8 +42,8 @@ class PageProfil
             // si on a pas de compte+ on affiche le temps de trajet
             !Utils.comptePlus && this.plus();
             // Affichage du retour dynamique
-            $(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(monProfil.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(monProfil.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
-            Utils.incrementTime(monProfil.getTempsParcours2(this._profil), "o_tempsRetour", "o_tempsRetourRapport");
+            $(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(monProfilJoueur.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(monProfilJoueur.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
+            Utils.incrementTime(monProfilJoueur.getTempsParcours2(this._profil), "o_tempsRetour", "o_tempsRetourRapport");
         }
 
         // Ajout des options pour ajouter au radar et utiliser l'historique
@@ -85,7 +85,7 @@ class PageProfil
     plus()
     {
         // Affichage du temps de trajet
-        $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(monProfil.getTempsParcours2(this._profil))}</td></tr>`);
+        $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
         return this;
     }
 }

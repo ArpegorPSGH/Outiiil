@@ -198,7 +198,7 @@ class Convoi
     */
     estDestinataire()
     {
-        return this._destinataire == monProfil.pseudo;
+        return this._destinataire == monProfilJoueur.pseudo;
     }
     /**
     *

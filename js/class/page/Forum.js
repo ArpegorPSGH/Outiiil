@@ -21,6 +21,10 @@ class PageForum
         * liste des joueurs.
         */
         this._monAlliance = null;
+        /**
+         * Versions minimales du forum extraites des sujets de la section Versions Outiiil.
+         */
+        this.versionsForum = {};
     }
     /**
     *
@@ -59,9 +63,9 @@ class PageForum
     * @returns {Promise<Array<Convoi>>} Une promesse qui résout avec une liste d'objets Convoi.
     */
     async chargerConvois(commandes) {
-        const idSectionCommande = monProfil.parametre["forumCommande"].valeur;
+        const idSectionCommande = monProfilUtilisateur.parametre["Commandes Outiiil"].valeur;
         if (!idSectionCommande) {
-            console.warn("[PageForum] ID de la section commande non défini.");
+            console.warn("[PageForum][chargerConvois] ID de la section commande non défini. Retourne une liste vide.");
             return [];
         }
 
@@ -70,7 +74,7 @@ class PageForum
             const responseSection = $(dataSection).find("cmd:eq(1)").text();
 
             if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
-                console.warn("[PageForum] Accès refusé à la section forum des commandes.");
+                console.warn("[PageForum][chargerConvois] Accès refusé à la section forum des commandes. Retourne une liste vide.");
                 return [];
             }
 
@@ -80,17 +84,13 @@ class PageForum
 
             sujetElements.each((i, elt) => {
                 const titreSujet = $(elt).find("td:eq(1)").text().trim();
-                // Filtrer les sujets dont la dernière activité remonte à moins de 24h (approximatif)
-                // On pourrait affiner en parsant la date de dernière activité si nécessaire
-                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim(); // Supposons que la 3ème colonne contient la date
+                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
+                const dateMatch = dateDerniereActiviteText.match(/.*(\d+\s+\w+\.?\s+à[\s\u00A0]*\d+h\d+)/);
+                const datePartToParse = dateMatch ? dateMatch[1] : '';
+                console.log(`[PageForum][recupererSujetsSection] Raw date text: "${dateDerniereActiviteText}", Date match result: ${JSON.stringify(dateMatch)}, Extracted date part: "${datePartToParse}".`);
+                const dateDerniereActivite = Utils.parseForumDate(datePartToParse);
 
-                // Extraire la partie date et heure de la chaîne, en ignorant le début et en utilisant une regex flexible pour les espaces
-                const dateMatch = dateDerniereActiviteText.match(/(\d+\s+\w+\s+à\s*\d+h\d+)/); // Regex ajustée avec groupe de capture
-                const datePartToParse = dateMatch ? dateMatch[1] : ''; // dateMatch[1] contient la partie capturée
-
-                const dateDerniereActivite = Utils.parseForumDate(datePartToParse); // Utiliser la partie extraite
-
-                if (dateDerniereActivite && maintenant.diff(dateDerniereActivite, 'hours') < 24) {
+                if (dateDerniereActivite.isValid() && maintenant.diff(dateDerniereActivite, 'hours') < 24) {
                      const id = $(elt).find("a.topic_forum").attr("onclick").match(/\d+/)[0];
                      sujetsAConsulter.push({ id: id, element: elt, titreSujet: titreSujet });
                 }
@@ -112,7 +112,6 @@ class PageForum
                         const auteurElement = $(messageElt).prev(".auteurForum");
                         const auteurHtml = auteurElement.html();
                         let auteurMessage = "Inconnu";
-                        // Regex pour extraire le texte entre les balises <a>
                         const pseudoMatch = auteurHtml ? auteurHtml.match(/<a[^>]*>([^<]*)<\/a>/) : null;
                         if (pseudoMatch && pseudoMatch[1] !== undefined) {
                             auteurMessage = pseudoMatch[1].trim();
@@ -120,28 +119,22 @@ class PageForum
                         const dateMessageText = auteurElement.find("span").text().trim();
                         const dateMessage = Utils.parseForumDate(dateMessageText);
 
-                        // Déterminer le pattern exact pour identifier un message de convoi
-                        // Modification pour accepter les quantités négatives et l'ID d'annulation optionnel
-                        // Créer un objet Convoi en utilisant la nouvelle méthode statique
                         const convoi = Convoi.fromUtilitaireString(messageText, auteurMessage, sujetInfo.id, dateMessage.toDate());
 
                         if (convoi) {
-                            // Vérifier si la date d'arrivée est dans le futur ou dans la minute actuelle
-                            // Utiliser une tolérance pour les dates passées très récentes
-                            if (moment(convoi.dateArrivee).diff(maintenant) >= -60000) { // -60000 ms = -1 minute
+                            if (moment(convoi.dateArrivee).diff(maintenant) >= -60000) {
                                 convois.push(convoi);
                             }
                         }
                     });
                 } catch (error) {
-                    console.error(`[chargerConvois] Erreur lors de la consultation du sujet ${sujetInfo.id}:`, error);
-                    // Continuer avec le sujet suivant même en cas d'erreur sur un sujet
+                    console.error(`[PageForum][chargerConvois] Erreur lors de la consultation du sujet ${sujetInfo.id}:`, error);
                 }
             }
             return convois;
 
         } catch (error) {
-            console.error("[PageForum] Erreur lors du chargement des convois:", error);
+            console.error("[PageForum][chargerConvois] Erreur critique lors du chargement des convois:", error);
             return [];
         }
     }
@@ -159,6 +152,30 @@ class PageForum
                 "xajaxr" : moment().valueOf()
             }
         });
+    }
+    /**
+     * Crée une section et retourne son ID.
+     * @async
+     * @param {string} nomSection Le nom de la section à créer.
+     * @returns {Promise<number|null>} Une promesse qui résout avec l'ID de la section créée (null si non trouvé).
+     */
+    async creerSectionEtRetournerId(nomSection) {
+        try {
+            const data = await this.creerSection(nomSection);
+            const response = $("<div/>").append($(data).find("cmd:eq(1)").html());
+            const elementSection = response.find(`input[value='${nomSection}']`);
+            
+            if (elementSection.length) {
+                const idCat = elementSection.parent().attr("id").match(/\d+/)[0];
+                return parseInt(idCat, 10);
+            } else {
+                console.error(`[PageForum][creerSectionEtRetournerId] Impossible de trouver l'ID de la section nouvellement créée "${nomSection}".`);
+                return null;
+            }
+        } catch (error) {
+            console.error(`[PageForum][creerSectionEtRetournerId] Erreur lors de la création de la section "${nomSection}":`, error);
+            throw error;
+        }
     }
     /**
     *
@@ -180,6 +197,8 @@ class PageForum
     */
     consulterSection(id)
     {
+        const timerName = `consulterSection-${id}`;
+        console.time(timerName);
         console.log(`[PageForum] Début de consulterSection pour ID: ${id}`);
         return $.ajax({
             type : "post",
@@ -191,7 +210,8 @@ class PageForum
             },
             timeout: 10000 // Ajout d'un timeout de 10 secondes
         }).then(data => {
-            console.log(`[PageForum] consulterSection succès pour ID: ${id}. Données reçues:`, data);
+            console.log(`[PageForum] consulterSection succès pour ID: ${id}.`);
+            console.timeEnd(timerName);
             return data;
         }).catch(error => {
             if (error.statusText === "timeout") {
@@ -199,6 +219,7 @@ class PageForum
             } else {
                 console.error(`[PageForum] consulterSection échec pour ID: ${id}. Erreur:`, error);
             }
+            console.timeEnd(timerName);
             throw error; // Rejeter l'erreur pour qu'elle soit gérée par l'appelant
         });
     }
@@ -207,6 +228,7 @@ class PageForum
     */
     creerSujet(nomSujet, contenu, id, type = "normal")
     {
+        console.log(`[PageForum] Tentative de création de sujet: "${nomSujet}" dans la section ID: ${id}`);
         return $.ajax({
             type : "post",
             url : "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -215,13 +237,70 @@ class PageForum
                 "xajaxargs[]" : `<xjxquery><q>cat=${id}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&type=${type}&modifiable=envoyer&send=Envoyer&question=&reponse[]=&reponse[]=&reponse[]=</q></xjxquery>`,
                 "xajaxr" : moment().valueOf()
             }
+        }).then(data => {
+            console.log(`[PageForum] Réponse de création de sujet pour "${nomSujet}" (ID: ${id}):`, data);
+            return data;
+        }).catch(error => {
+            console.error(`[PageForum] Erreur lors de la création du sujet "${nomSujet}" (ID: ${id}):`, error);
+            throw error;
         });
+    }
+    /**
+     * Crée un sujet et retourne son ID.
+     * @async
+     * @param {string} nomSujet Le nom du sujet.
+     * @param {string} contenu Le contenu du premier message.
+     * @param {number|string} id L'ID de la section.
+     * @param {string} [type="normal"] Le type de sujet.
+     * @returns {Promise<number|null>} Une promesse qui résout avec l'ID du sujet créé (null si non trouvé).
+     */
+    async creerSujetEtRetournerId(nomSujet, contenu, id, type = "normal") {
+        try {
+            const data = await this.creerSujet(nomSujet, contenu, id, type);
+            const response = $(data).find("cmd:eq(1)").text();
+
+            if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
+                console.error("[PageForum][creerSujetEtRetournerId] Impossible de récupérer le contenu de la section après la création du sujet.");
+                return null;
+            }
+
+            const sujetElements = $("<div/>").append(response).find("#form_cat tr:gt(0)");
+            let idSujet = null;
+
+            console.log(`[PageForum][creerSujetEtRetournerId] Recherche de l'ID pour le sujet: "${nomSujet}".`);
+            sujetElements.each((i, elt) => {
+                const titreSujet = $(elt).find("td:eq(1)").text();
+                console.log(`[PageForum][creerSujetEtRetournerId] Comparaison: Sujet lu: "${titreSujet}" vs Sujet attendu: "${nomSujet}".`);
+                // Use startsWith for a more robust comparison, as the forum might add extra characters or formatting.
+                if (titreSujet.startsWith(nomSujet)) {
+                    const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                    if (onclickAttr) {
+                        const match = onclickAttr.match(/\d+/);
+                        if (match) {
+                            idSujet = parseInt(match[0], 10);
+                            console.log(`[PageForum][creerSujetEtRetournerId] ID trouvé: ${idSujet} pour le sujet: "${titreSujet}".`);
+                            return false; // break loop
+                        }
+                    }
+                }
+            });
+
+            if (idSujet === null) {
+                console.error(`[PageForum][creerSujetEtRetournerId] Impossible de trouver l'ID du sujet nouvellement créé "${nomSujet}" dans la liste des sujets de la section.`);
+            }
+
+            return idSujet;
+        } catch (error) {
+            console.error(`[PageForum][creerSujetEtRetournerId] Erreur lors de la création du sujet "${nomSujet}":`, error);
+            throw error;
+        }
     }
     /**
     *
     */
     modifierSujet(nomSujet, contenu, id)
     {
+        console.log(`[PageForum] Tentative de modification de sujet: "${nomSujet}" (ID: ${id})`);
         return $.ajax({
             type : "post",
             url : "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -230,22 +309,77 @@ class PageForum
                 "xajaxargs[]" : `<xjxquery><q>IDTopic=${id}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&modifiable=envoyer&send=Envoyer</q></xjxquery>`,
                 "xajaxr" : moment().valueOf()
             }
+        }).then(data => {
+            console.log(`[PageForum] Réponse de modification de sujet pour "${nomSujet}" (ID: ${id}):`, data);
+            return data;
+        }).catch(error => {
+            console.error(`[PageForum] Erreur lors de la modification du sujet "${nomSujet}" (ID: ${id}):`, error);
+            throw error;
         });
     }
     /**
     *
     */
-    consulterSujet(id)
-    {
+    /**
+     * Consulte un sujet et retourne le contenu HTML brut.
+     * @param {Number} id L'ID du sujet.
+     * @returns {Promise<String>} Une promesse qui résout avec le contenu HTML brut du sujet.
+     */
+    consulterSujet(id) {
+        const timerName = `consulterSujet-${id}`;
+        console.time(timerName);
         return $.ajax({
-            type : "post",
-            url : "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
-            data : {
-                "xajax" : "callGetTopic",
-                "xajaxargs[]" : id,
-                "xajaxr" : moment().valueOf()
+            type: "post",
+            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+            data: {
+                "xajax": "callGetTopic",
+                "xajaxargs[]": id,
+                "xajaxr": moment().valueOf()
             }
+        }).always(() => {
+            console.timeEnd(timerName);
         });
+    }
+
+    /**
+     * Consulte un sujet et retourne une liste d'objets message, incluant le contenu et l'ID de chaque message.
+     * @async
+     * @param {Number} idSujet L'ID du sujet à consulter.
+     * @returns {Promise<{titre: String, messages: Array<{id: Number, contenu: String}>}>} Une promesse qui résout avec un objet contenant le titre du sujet et un tableau d'objets message.
+     */
+    async consulterSujetAvecMessagesEtIds(idSujet) {
+        try {
+            const dataSujet = await this.consulterSujet(idSujet);
+            const response = $(dataSujet).find("cmd:eq(1)").text();
+            const sujetHtml = $("<div/>").append(response);
+            const titre = sujetHtml.find("h2").text(); // Extraire le titre du sujet
+            const messageElements = sujetHtml.find(".messageForum");
+            const messages = [];
+
+            messageElements.each((i, elt) => {
+                const messageContent = $(elt).text();
+                // Filtrer les messages qui ne contiennent que des espaces ou caractères invisibles
+                if (messageContent.trim().length === 0) {
+                    return true; // Continue à l'itération suivante dans .each()
+                }
+
+                const editLink = $(elt).find("a[onclick*='xajax_editMessage']");
+                let messageId = null;
+
+                if (editLink.length > 0) {
+                    const onclickAttr = editLink.attr('onclick');
+                    const match = onclickAttr.match(/xajax_editMessage\((\d+)\)/);
+                    if (match && match[1]) {
+                        messageId = parseInt(match[1], 10);
+                    }
+                }
+                messages.push({ id: messageId, contenu: messageContent });
+            });
+            return { titre: titre, messages: messages };
+        } catch (error) {
+            console.error(`[PageForum][consulterSujetAvecMessagesEtIds] Erreur lors de la consultation du sujet ${idSujet}:`, error);
+            throw error;
+        }
     }
     /**
     *
@@ -261,6 +395,43 @@ class PageForum
                 "xajaxr" : moment().valueOf()
             }
         });
+    }
+    /**
+     * Envoie un message dans un sujet et retourne l'ID du nouveau message.
+     * @async
+     * @param {number|string} idSujet L'ID du sujet.
+     * @param {string} message Le message à envoyer.
+     * @returns {Promise<number|null>} Une promesse qui résout avec l'ID du message envoyé (null si non trouvé).
+     */
+    async envoyerMessageEtRetournerId(idSujet, message) {
+        try {
+            const data = await this.envoyerMessage(idSujet, message);
+            const response = $(data).find("cmd:eq(1)").text();
+            
+            if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
+                console.error("[PageForum][envoyerMessageEtRetournerId] Impossible de récupérer le contenu du sujet après l'envoi du message.");
+                return null;
+            }
+
+            const messageElements = $("<div/>").append(response).find(".messageForum");
+            
+            // Le nouvel ID de message est celui du dernier message de la liste.
+            if (messageElements.length > 0) {
+                const lastMessageElement = messageElements.last();
+                const editLink = $(lastMessageElement).find("a[onclick*='xajax_editMessage']");
+                if (editLink.length > 0) {
+                    const onclickAttr = editLink.attr('onclick');
+                    const match = onclickAttr.match(/xajax_editMessage\((\d+)\)/);
+                    if (match && match[1]) {
+                        return parseInt(match[1], 10);
+                    }
+                }
+            }
+            return null; // Aucun ID de message trouvé
+        } catch (error) {
+            console.error(`[PageForum][envoyerMessageEtRetournerId] Erreur lors de l'envoi du message ou de la récupération de l'ID pour le sujet ${idSujet}:`, error);
+            throw error;
+        }
     }
     /**
     *
@@ -288,29 +459,21 @@ class PageForum
         // Vérification et mise à jour des IDs des sections Outiiil
         let idsUpdated = false;
 
-        // Vérification et mise à jour de l'ID de la section Outiiil_Commande
-        const commandeSection = $(element).find("span[class^='forum']:contains('Outiiil_Commande')");
-        if (commandeSection.length) {
-            const pageId = commandeSection.attr("class").match(/\d+/)[0];
-            const storedId = monProfil.parametre["forumCommande"].valeur;
-            if (storedId === undefined || storedId === null || storedId === '' || storedId != pageId) {
-                monProfil.parametre["forumCommande"].valeur = pageId;
-                monProfil.parametre["forumCommande"].sauvegarde();
-                idsUpdated = true;
-                console.log(`ID section Outiiil_Commande mis à jour vers ${pageId}.`);
-            }
-        }
-
-        // Vérification et mise à jour de l'ID de la section Outiiil_Membre
-        const membreSection = $(element).find("span[class^='forum']:contains('Outiiil_Membre')");
-        if (membreSection.length) {
-            const pageId = membreSection.attr("class").match(/\d+/)[0];
-            const storedId = monProfil.parametre["forumMembre"].valeur;
-            if (storedId === undefined || storedId === null || storedId === '' || storedId != pageId) {
-                monProfil.parametre["forumMembre"].valeur = pageId;
-                monProfil.parametre["forumMembre"].sauvegarde();
-                idsUpdated = true;
-                console.log(`ID section Outiiil_Membre mis à jour vers ${pageId}.`);
+        if (nomsSectionsRequis) {
+            for (const nomSection of nomsSectionsRequis) {
+                const sectionElement = $(element).find("span[class^='forum']").filter(function() { return $(this).text().trim() === nomSection; });
+                if (sectionElement.length) {
+                    const pageId = sectionElement.attr("class").match(/\d+/)[0];
+                    if (monProfilUtilisateur.parametre[nomSection]) {
+                        const storedId = monProfilUtilisateur.parametre[nomSection].valeur;
+                        if (storedId === undefined || storedId === null || storedId === '' || storedId != pageId) {
+                            monProfilUtilisateur.parametre[nomSection].valeur = pageId;
+                            monProfilUtilisateur.parametre[nomSection].sauvegarde();
+                            idsUpdated = true;
+                            console.log(`ID section ${nomSection} mis à jour vers ${pageId}.`);
+                        }
+                    }
+                }
             }
         }
 
@@ -320,7 +483,7 @@ class PageForum
         }
         // selon la section ACTIVE on ajoute les outils necessaires
         switch($(element).find("span[class^='forum'][class$='ligne_paire']").html()){
-            case "Outiiil_Commande" :
+            case "Commandes Outiiil" :
                 // on verifie si on n'est dans un sujet mais bien sur la liste des topics
                 if($("#form_cat").length && !$("#o_afficherEtat").length)
                     this.optionAdminCommande();
@@ -447,47 +610,51 @@ class PageForum
             // ajout de l'input pour la selection du tag alliance
             $("#alliance .simulateur").append(`<div id="o_formGuerre" style="display:none;"><input id="o_tagGuerre" type="text"/> <button id="o_creerSectionGuerre">Créer section</button></div>`);
             // Creation de l'utilitaire
-            $("#o_creerUtilitaire").click((e) => {
-                // Creation du sujet "Outiiil_Commande"
-                if(!$(`#cat_forum span:contains(Outiiil_Commande)`).length){
-                    this.creerSection("Outiiil_Commande").then((data) => {
-                        let response = $("<div/>").append($(data).find("cmd:eq(1)").html());
-                        let idCat = $(response).find(`input[value='Outiiil_Commande']`).parent().attr("id").match(/\d+/)[0];
-                        // Sauvegarde automatique de l'ID dans les paramètres
-                        monProfil.parametre["forumCommande"].valeur = idCat;
-                        monProfil.parametre["forumCommande"].sauvegarde();
-                        console.log(`ID section Outiiil_Commande (${idCat}) sauvegardé automatiquement.`);
-                        // on ne peut pas creer directement une section caché donc on cache aprés
-                        this.modifierSection("Outiiil_Commande", idCat, "cache").then((data) => {
-                            $.toast({...TOAST_SUCCESS, text : "La section commande a été correctement créée et son ID sauvegardé."}); // Message mis à jour
-                        }, (jqXHR, textStatus, errorThrown) => {
-                            $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la protection de la section commande."});
-                        });
-                    }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la création de la section commande."});
-                    });
-                }else
-                    $.toast({...TOAST_WARNING, text : "Section commande est déjà créée !"});
-                // creation de la section membre pour les membres de l'alliance
-                if(!$(`#cat_forum span:contains(Outiiil_Membre)`).length){
-                    this.creerSection("Outiiil_Membre").then((data) => {
-                        let response = $("<div/>").append($(data).find("cmd:eq(1)").html());
-                        let idCat = $(response).find(`input[value='Outiiil_Membre']`).parent().attr("id").match(/\d+/)[0];
-                        // Sauvegarde automatique de l'ID dans les paramètres
-                        monProfil.parametre["forumMembre"].valeur = idCat;
-                        monProfil.parametre["forumMembre"].sauvegarde();
-                        console.log(`ID section Outiiil_Membre (${idCat}) sauvegardé automatiquement.`);
-                        // on ne peut pas creer directement une section caché donc on cache aprés
-                        this.modifierSection("Outiiil_Membre", idCat, "cache").then((data) => {
-                            $.toast({...TOAST_SUCCESS, text : "La section membre a été correctement créée et son ID sauvegardé."}); // Message mis à jour
-                        }, (jqXHR, textStatus, errorThrown) => {
-                            $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la protection de la section membre."});
-                        });
-                    }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la création de la section membre."});
-                    });
-                }else
-                    $.toast({...TOAST_WARNING, text : "Section membre est déjà créée !"});
+            $("#o_creerUtilitaire").click(async (e) => {
+                console.log("[PageForum][o_creerUtilitaire] Clic sur 'Préparer le forum pour un SDC'.");
+                if (nomsSectionsRequis) {
+                    console.log("[PageForum][o_creerUtilitaire] Sections requises détectées:", nomsSectionsRequis);
+                    for (const nomSection of nomsSectionsRequis) {
+                        if (!$(`#cat_forum span:contains('${nomSection}')`).length) {
+                            console.log(`[PageForum][o_creerUtilitaire] Tentative de création de la section: ${nomSection}`);
+                            try {
+                                const idCat = await this.creerSectionEtRetournerId(nomSection);
+                                console.log(`[PageForum][o_creerUtilitaire] Section "${nomSection}" créée avec ID: ${idCat}`);
+                                if (idCat) {
+                                    if (monProfilUtilisateur.parametre[nomSection]) {
+                                        monProfilUtilisateur.parametre[nomSection].valeur = idCat;
+                                        monProfilUtilisateur.parametre[nomSection].sauvegarde();
+                                        console.log(`[PageForum][o_creerUtilitaire] ID section ${nomSection} (${idCat}) sauvegardé automatiquement dans monProfilUtilisateur.parametre.`);
+                                    }
+                                    
+                                    this.modifierSection(nomSection, idCat, "cache").then((data) => {
+                                        console.log(`[PageForum][o_creerUtilitaire] Section "${nomSection}" (ID: ${idCat}) modifiée en "cache" avec succès.`);
+                                        $.toast({...TOAST_SUCCESS, text : `La section ${nomSection} a été correctement créée et son ID sauvegardé.`});
+                                        // if (nomSection === 'Versions Outiiil') {
+                                        //     this.getVersionsFromForum();
+                                        // }
+                                    }, (jqXHR, textStatus, errorThrown) => {
+                                        console.error(`[PageForum][o_creerUtilitaire] Erreur lors de la modification de la section ${nomSection} (ID: ${idCat}):`, textStatus, errorThrown);
+                                        $.toast({...TOAST_ERROR, text : `Une erreur réseau a été rencontrée lors de la protection de la section ${nomSection}.`});
+                                    });
+                                } else {
+                                    console.warn(`[PageForum][o_creerUtilitaire] ID de section non retourné pour "${nomSection}".`);
+                                }
+                            } catch (error) {
+                                console.error(`[PageForum][o_creerUtilitaire] Erreur lors de la création de la section ${nomSection}:`, error);
+                                $.toast({...TOAST_ERROR, text : `Une erreur réseau a été rencontrée lors de la création de la section ${nomSection}.`});
+                            }
+                        } else {
+                            console.log(`[PageForum][o_creerUtilitaire] Section "${nomSection}" existe déjà. Ignoré.`);
+                            $.toast({...TOAST_WARNING, text : `Section ${nomSection} est déjà créée !`});
+                        }
+                    }
+                } else {
+                    console.warn("[PageForum][o_creerUtilitaire] nomsSectionsRequis n'est pas défini. Aucune section à créer.");
+                }
+                // if ($(`#cat_forum span:contains('Versions Outiiil')`).length) {
+                //     this.getVersionsFromForum();
+                // }
                 return false;
             });
             // Preparation d'une guerre
@@ -605,6 +772,119 @@ class PageForum
             console.error("Erreur lors de la vérification du sujet membre:", error);
             // En cas d'erreur, on considère que le sujet n'a pas pu être vérifié, donc on retourne false
             return false;
+        }
+    }
+
+    /**
+     * Transfère un sujet existant vers une nouvelle section du forum.
+     * @async
+     * @param {Number} idSujet L'ID du sujet à transférer.
+     * @param {Number} idSectionDestination L'ID de la section de destination.
+     * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
+     */
+    async transfererSujet(idSujet, idSectionDestination) {
+        console.log(`[PageForum] Tentative de transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}.`);
+        try {
+            const data = await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+                data: {
+                    "xajax": "deplacer", 
+                    "xajaxargs[]": `<xjxquery><q>topic[]=${idSujet}&cat_cible=${idSectionDestination}</q></xjxquery>`,
+                    "xajaxr": moment().valueOf()
+                }
+            });
+
+            return true
+            
+        } catch (error) {
+            console.error(`[PageForum] Erreur lors du transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Modifie le contenu d'un message existant dans un sujet de forum.
+     * @async
+     * @param {Number} idMessage L'ID du message à modifier.
+     * @param {String} nouveauContenu Le nouveau contenu du message.
+     * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
+     */
+    async modifierMessage(idMessage, nouveauContenu) {
+        console.log(`[PageForum] Tentative de modification du message ID: ${idMessage}.`);
+        try {
+            const data = await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+                data: {
+                    "xajax": "envoiEditMessage",
+                    "xajaxargs[]": `<xjxquery><q>IDMessage=${idMessage}&message=${encodeURIComponent(nouveauContenu)}&send=Envoyer</q></xjxquery>`,
+                    "xajaxr": moment().valueOf()
+                }
+            });
+
+            return true
+
+        } catch (error) {
+            console.error(`[PageForum] Erreur lors de la modification du message ID: ${idMessage}:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
+     * @async
+     * @param {Number} idSection L'ID de la section à consulter.
+     * @returns {Promise<Array<{id: Number, derniere_activite: Date, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
+     */
+    async recupererSujetsSection(idSection) {
+        console.log(`[PageForum][recupererSujetsSection] Début de la récupération des sujets pour la section ID: ${idSection}.`);
+        try {
+            const dataSection = await this.consulterSection(idSection);
+            const responseSection = $(dataSection).find("cmd:eq(1)").text();
+
+            if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
+                console.warn(`[PageForum][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
+                return [];
+            }
+
+            const sujetElements = $("<div/>").append(responseSection).find("#form_cat tr:gt(0)");
+            console.log(`[PageForum][recupererSujetsSection] Nombre d'éléments de sujet trouvés: ${sujetElements.length}.`);
+            const sujets = [];
+
+            sujetElements.each((i, elt) => {
+                const titreSujet = $(elt).find("td:eq(1)").text();
+                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
+                // Updated regex to capture the date pattern, making the initial match non-greedy, explicitly handling spaces, and supporting accented characters in month names
+                const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
+                const datePartToParse = dateMatch ? dateMatch[1] : '';
+                console.log(`[PageForum][recupererSujetsSection] Raw date text: "${dateDerniereActiviteText}", Date match result: ${JSON.stringify(dateMatch)}, Extracted date part: "${datePartToParse}".`);
+                const dateDerniereActivite = Utils.parseForumDate(datePartToParse);
+                let id = null;
+                const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                if (onclickAttr) {
+                    const match = onclickAttr.match(/\d+/);
+                    if (match) {
+                        id = parseInt(match[0], 10);
+                    }
+                }
+
+                if (id && titreSujet && dateDerniereActivite.isValid()) {
+                    sujets.push({
+                        id: id,
+                        derniere_activite: dateDerniereActivite.toDate(),
+                        contenu: titreSujet
+                    });
+                } else {
+                    console.warn(`[PageForum][recupererSujetsSection] Sujet ignoré en raison de données manquantes ou invalides. ID: ${id}, Titre: "${titreSujet}", Date: "${dateDerniereActiviteText}".`);
+                }
+            });
+            console.log(`[PageForum][recupererSujetsSection] Fin de la récupération des sujets pour la section ID: ${idSection}. Nombre de sujets valides: ${sujets.length}.`);
+            return sujets;
+
+        } catch (error) {
+            console.error(`[PageForum][recupererSujetsSection] Erreur lors de la récupération des sujets de la section ${idSection}:`, error);
+            return [];
         }
     }
 }

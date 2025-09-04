@@ -64,10 +64,10 @@ class Boite
                 .draggable({handle: ".o_titre", stack : "div"});
             bCreate = true;
         }
-        $("#" + this._id).show(EFFET[monProfil.parametre["boiteShow"].valeur].toLowerCase(), () => {
+        $("#" + this._id).show(EFFET[monProfilUtilisateur.parametre["boiteShow"].valeur].toLowerCase(), () => {
             $(".o_content").css({
-                "background-color" : monProfil.parametre["couleur1"].valeur,
-                "border-color" : monProfil.parametre["couleur3"].valeur
+                "background-color" : monProfilUtilisateur.parametre["couleur1"].valeur,
+                "border-color" : monProfilUtilisateur.parametre["couleur3"].valeur
             });
         });
         return bCreate;
@@ -80,7 +80,7 @@ class Boite
 	*/
     masquer()
     {
-        $("#" + this._id).hide(EFFET[monProfil.parametre["boiteHide"].valeur].toLowerCase());
+        $("#" + this._id).hide(EFFET[monProfilUtilisateur.parametre["boiteHide"].valeur].toLowerCase());
         return this;
     }
     /**
@@ -91,21 +91,21 @@ class Boite
 	*/
 	css()
 	{
-        $(".o_titre").css("color", monProfil.parametre["couleurTitre"].valeur);
+        $(".o_titre").css("color", monProfilUtilisateur.parametre["couleurTitre"].valeur);
         $(".o_content").css({
-            "background-color" : monProfil.parametre["couleur1"].valeur,
-            "border-color" : monProfil.parametre["couleur3"].valeur
+            "background-color" : monProfilUtilisateur.parametre["couleur1"].valeur,
+            "border-color" : monProfilUtilisateur.parametre["couleur3"].valeur
         });
-        $(".o_close b:nth-child(1)").css("border-top-color", monProfil.parametre["couleur1"].valeur);
-        $(".o_close b:nth-child(2)").css("border-left-color", monProfil.parametre["couleur1"].valeur);
-        $(".o_close b:nth-child(3)").css("border-bottom-color", monProfil.parametre["couleur1"].valeur);
-        $(".o_close b:nth-child(4)").css("border-right-color", monProfil.parametre["couleur1"].valeur);
-        $(".o_close").css("background-color", monProfil.parametre["couleur2"].valeur).hover(
+        $(".o_close b:nth-child(1)").css("border-top-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $(".o_close b:nth-child(2)").css("border-left-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $(".o_close b:nth-child(3)").css("border-bottom-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $(".o_close b:nth-child(4)").css("border-right-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $(".o_close").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur).hover(
             (e) => {$(e.currentTarget).animate({"background-color" : "#bb3333"}, 400);},
-            (e) => {$(e.currentTarget).animate({"background-color" : monProfil.parametre["couleur2"].valeur}, 400);}
+            (e) => {$(e.currentTarget).animate({"background-color" : monProfilUtilisateur.parametre["couleur2"].valeur}, 400);}
 		);
-        $(".o_tabs > .ui-widget-header").css("border-bottom-color", monProfil.parametre["couleur2"].valeur);
-        $(".o_content p, .o_content .o_label, .o_content label, .o_content table").css("color", monProfil.parametre["couleurTexte"].valeur);
+        $(".o_tabs > .ui-widget-header").css("border-bottom-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $(".o_content p, .o_content .o_label, .o_content label, .o_content table").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         return this;
 	}
 	/**

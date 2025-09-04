@@ -1,5 +1,5 @@
 /*
- * Parametre.js
+ * ParametreUI.js
  * Hraesvelg
  **********************************************************************/
 
@@ -8,7 +8,7 @@
 *
 * @class Page
 */
-class Parametre
+class ParametreUI
 {
     constructor(id, libelle, type = "", valeur = "", valeurPossible = [])
     {
@@ -108,7 +108,7 @@ class Parametre
     */
     sauvegarde()
     {
-        localStorage.setItem("outiiil_parametre", JSON.stringify(monProfil.parametre));
+        localStorage.setItem("outiiil_parametre", JSON.stringify(monProfilUtilisateur.parametre));
         return this;
     }
     /**
@@ -140,79 +140,5 @@ class Parametre
         }
         html += `<span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>${this._libelle}</label></div>`;
         return html;
-    }
-    /**
-    *
-    */
-    ajouterEvent()
-    {
-        switch(this._type){
-            case "number" :
-                if(this._id == "intervalleTraceurJoueur" || this._id == "intervalleTraceurAlliance"){
-                    $("#" + this._id).spinner({
-                        min : 5,
-                        max : 1440,
-                        step : 5,
-                        classes : {"ui-spinner" : "o_number ui-corner-all"},
-                        numberFormat: "i",
-                        stop : (event, ui) => {
-                            this._valeur = numeral(event.target.value).value();
-                            this.sauvegarde();
-                        }
-                    });
-                }else if(this._id == "nbPageTraceurJoueur"){
-                    $("#" + this._id).spinner({
-                        min : 1,
-                        max : 5,
-                        classes : {"ui-spinner" : "o_number ui-corner-all"},
-                        numberFormat: "i",
-                        stop : (event, ui) => {
-                            this._valeur = numeral(event.target.value).value();
-                            this.sauvegarde();
-                        }
-                    });
-                }else{
-                    $("#" + this._id).spinner({
-                        min : 0,
-                        classes : {"ui-spinner" : "o_number ui-corner-all"},
-                        numberFormat: "i",
-                        stop : (event, ui) => {
-                            this._valeur = numeral(event.target.value).value();
-                            this.sauvegarde();
-                        }
-                    });
-                }
-                $("#" + this._id).on("input", (e, ui) => {
-                    this._valeur = numeral(e.currentTarget.value).value();
-                    $(e.currentTarget).spinner("value", this._valeur);
-                    this.sauvegarde();
-                });
-                break;
-            case "color" :
-                $("#" + this._id).on("input", (e) => {
-                    this._valeur = e.currentTarget.value.padEnd(7, "0");
-                    $("#" + this._id + "Picker").val(this._valeur);
-                    this.sauvegarde();
-                });
-                $("#" + this._id + "Picker").on("change", (e) => {
-                    this._valeur = e.currentTarget.value;
-                    $("#" + this._id).val(this._valeur);
-                    this.sauvegarde();
-                });
-                break;
-            case "checkbox" :
-                $("#" + this._id).on("change", (e) => {
-                    this._valeur = e.currentTarget.checked;
-                    this.sauvegarde();
-                });
-                break;
-            default :
-                $("#" + this._id).on("input", (e) => {
-                    this._valeur = e.currentTarget.value;
-                    this.sauvegarde();
-                });
-                break;
-        }
-        return this;
     }
 }

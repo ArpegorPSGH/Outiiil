@@ -20,7 +20,7 @@ class PageAttaquer
         /**
         *
         */
-        this._nbAttaque = monProfil.niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
+        this._nbAttaque = monProfilJoueur.niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
         /**
         *
         */
@@ -72,9 +72,9 @@ class PageAttaquer
     {
 		let tmp = armee ? armee : new Armee({unite : this.extraitArmee()}), html = `<table id="o_tableStatArmee" cellspacing=0>
             <tr class="gras centre"><td></td><td>HB</td><td>AB</td></tr>
-            <tr><td>${IMG_VIE}</td><td>${numeral(tmp.getBaseVie()).format()}</td><td>${numeral(tmp.getTotalVie(monProfil.niveauRecherche[1])).format()}</td></tr>
-            <tr><td>${IMG_ATT}</td><td>${numeral(tmp.getBaseAtt()).format()}</td><td>${numeral(tmp.getTotalAtt(monProfil.niveauRecherche[2])).format()}</td></tr>
-            <tr><td>${IMG_DEF}</td><td>${numeral(tmp.getBaseDef()).format()}</td><td>${numeral(tmp.getTotalDef(monProfil.niveauRecherche[2])).format()}</td></tr>
+            <tr><td>${IMG_VIE}</td><td>${numeral(tmp.getBaseVie()).format()}</td><td>${numeral(tmp.getTotalVie(monProfilJoueur.niveauRecherche[1])).format()}</td></tr>
+            <tr><td>${IMG_ATT}</td><td>${numeral(tmp.getBaseAtt()).format()}</td><td>${numeral(tmp.getTotalAtt(monProfilJoueur.niveauRecherche[2])).format()}</td></tr>
+            <tr><td>${IMG_DEF}</td><td>${numeral(tmp.getBaseDef()).format()}</td><td>${numeral(tmp.getTotalDef(monProfilJoueur.niveauRecherche[2])).format()}</td></tr>
             <tr><td><img alt="Nombre" src="images/icone/fourmi.png" height="18"/></td><td colspan="2" class="centre">${numeral(tmp.getSommeUnite()).format()}</td></tr>
             </table>`;
         $("#formulaireChoixArmee fieldset:eq(1)").tooltip({
@@ -95,7 +95,7 @@ class PageAttaquer
         $("input[name='ChoixArmee']").unwrap().wrap("<div id='o_btnLancer' class='right'></div>");
         // Ajout du bouton pour la synchro simple
         // Ajout du temps de trajet
-        $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(monProfil.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(monProfil.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
+        $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
         $("#o_synchro").click((e) => {
             e.preventDefault();
             this.lancerSynchro(this._cible.attenteSynchro());
@@ -109,14 +109,14 @@ class PageAttaquer
             $("#lieu").val(3);
             for(let i = 1 ; i < 15 ; i++)
                 if($("#unite" + i).length){
-                    $("#unite" + i).val(premiereUnite ? monProfil.parametre["uniteSonde"].valeur : 0);
+                    $("#unite" + i).val(premiereUnite ? monProfilUtilisateur.parametre["uniteSonde"].valeur : 0);
                     premiereUnite = false;
                 }
             // une sonde est forcement synchro
             this.lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
-        Utils.incrementTime(monProfil.getTempsParcours2(this._cible), "o_retourArmee", "o_retourArmeeRC");
+        Utils.incrementTime(monProfilJoueur.getTempsParcours2(this._cible), "o_retourArmee", "o_retourArmeeRC");
     }
     /**
     *
@@ -136,10 +136,10 @@ class PageAttaquer
 	*/
     formulaireFlood()
     {
-        let methode = monProfil.parametre["methodeFlood"].valeur;
+        let methode = monProfilUtilisateur.parametre["methodeFlood"].valeur;
         $(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
             <table id='o_simulationFlood' class='o_maxWidth' cellspacing=0>
-			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${this._cible.pseudo} (${Utils.intToTime(monProfil.getTempsParcours2(this._cible))})</td></tr>
+			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${this._cible.pseudo} (${Utils.intToTime(monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
 			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${this._cible.terrain}' size='12' id='o_floodTDCB'/></td></tr>
 			<tr><td>Antisonde (<span id="o_pourcentAttaque0">0</span>%)</td><td><input value='0' size='12' id='o_floodAntiSonde'/></td><td></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(this._cible.terrain).format()}</td></tr>
             <tr class="gras reduce"><td colspan="3"></td><td><span id="o_supprimeAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Supprimer une attaque</span></td><td><span id="o_ajouteAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Ajouter une attaque</span></td></tr>

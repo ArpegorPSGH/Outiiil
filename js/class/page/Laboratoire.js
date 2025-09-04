@@ -30,9 +30,9 @@ class PageLaboratoire
         // verification des niveaux
         let niveau = new Array(10);
         $(".ligneAmelioration").each((i, elt) => {niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]);});
-        if(niveau.join(",") != monProfil.niveauRecherche.join(",")){
-            monProfil.niveauRecherche = niveau;
-            monProfil.sauvegarder();
+        if(niveau.join(",") != monProfilJoueur.niveauRecherche.join(",")){
+            monProfilJoueur.niveauRecherche = niveau;
+            monProfilJoueur.sauvegarder();
         }
         // ajout title evolution
         this._armee.getArmee().then((data) => {
@@ -52,15 +52,15 @@ class PageLaboratoire
     */
     titleBouclier()
     {
-        let vieAB = this._armee.getBaseVie() + this._armee.getBonusVie(monProfil.niveauRecherche[1]);
-		let tOuv = numeral($(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, monProfil.getTDP()));
-        let apportPonte = Math.round(parseInt(tOuv / (TEMPS_UNITE[1] * Math.pow(0.9, monProfil.getTDP()))) * (8 + 8 * monProfil.niveauRecherche[1] / 10));
-        let vieABSupp = this._armee.getBaseVie() + this._armee.getBonusVie(monProfil.niveauRecherche[1] + 1);
+        let vieAB = this._armee.getBaseVie() + this._armee.getBonusVie(monProfilJoueur.niveauRecherche[1]);
+		let tOuv = numeral($(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, monProfilJoueur.getTDP()));
+        let apportPonte = Math.round(parseInt(tOuv / (TEMPS_UNITE[1] * Math.pow(0.9, monProfilJoueur.getTDP()))) * (8 + 8 * monProfilJoueur.niveauRecherche[1] / 10));
+        let vieABSupp = this._armee.getBaseVie() + this._armee.getBonusVie(monProfilJoueur.niveauRecherche[1] + 1);
         let bLigneGras = vieAB + apportPonte >= vieABSupp ? true : false;
         let title = `<table>
             <tr><td>Vie AB actuelle</td><td class='right'>${numeral(vieAB).format()}</td></tr>
             <tr${(bLigneGras ? " class='gras' " : "")}><td>Vie AB + ponte JSN</td><td class='right' style='padding-left:10px'>${numeral(vieAB + apportPonte).format()} (+ ${numeral(apportPonte).format()})</td></tr>
-            <tr${(!bLigneGras ? " class='gras' " : "")}><td>Vie AB niveau ${(monProfil.niveauRecherche[1] + 1)}</td><td class='right'>${numeral(vieABSupp).format()} (+ ${numeral(vieABSupp - vieAB).format()})</td></tr>
+            <tr${(!bLigneGras ? " class='gras' " : "")}><td>Vie AB niveau ${(monProfilJoueur.niveauRecherche[1] + 1)}</td><td class='right'>${numeral(vieABSupp).format()} (+ ${numeral(vieABSupp - vieAB).format()})</td></tr>
             </table>`;
         $(".desciption_amelioration:eq(1) h2").attr("title", title).tooltip({
             position : {my : "left+5 top", at : "right top"},
@@ -77,27 +77,27 @@ class PageLaboratoire
     */
     titleArmes()
     {
-        let attAB = this._armee.getTotalAtt(monProfil.niveauRecherche[2]);
-		let tOuv = numeral($(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, monProfil.getTDP()));
-        let apportPonteJS = Math.round(parseInt(tOuv / (TEMPS_UNITE[4] * Math.pow(0.9, monProfil.getTDP()))) * (10 + 10 * monProfil.niveauRecherche[1] / 10));
-        let apportPonteTk = Math.round(parseInt(tOuv / (TEMPS_UNITE[11] * Math.pow(0.9, monProfil.getTDP()))) * (55 + 55 * monProfil.niveauRecherche[1] / 10));
-        let attABSupp = this._armee.getTotalAtt(monProfil.niveauRecherche[2] + 1);
+        let attAB = this._armee.getTotalAtt(monProfilJoueur.niveauRecherche[2]);
+		let tOuv = numeral($(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, monProfilJoueur.getTDP()));
+        let apportPonteJS = Math.round(parseInt(tOuv / (TEMPS_UNITE[4] * Math.pow(0.9, monProfilJoueur.getTDP()))) * (10 + 10 * monProfilJoueur.niveauRecherche[1] / 10));
+        let apportPonteTk = Math.round(parseInt(tOuv / (TEMPS_UNITE[11] * Math.pow(0.9, monProfilJoueur.getTDP()))) * (55 + 55 * monProfilJoueur.niveauRecherche[1] / 10));
+        let attABSupp = this._armee.getTotalAtt(monProfilJoueur.niveauRecherche[2] + 1);
         let bLigneGrasJS = attAB + apportPonteJS >= attABSupp ? true : false;
         let bLigneGrasTk = attAB + apportPonteTk >= attABSupp ? true : false;
 
-        let defAB = this._armee.getTotalDef(monProfil.niveauRecherche[2]);
-        let apportPonteTuE = Math.round(parseInt(tOuv / (TEMPS_UNITE[14] * Math.pow(0.9, monProfil.getTDP()))) * (55 + 55 * monProfil.niveauRecherche[1] / 10));
-        let defABSupp = this._armee.getTotalDef(monProfil.niveauRecherche[2] + 1);
+        let defAB = this._armee.getTotalDef(monProfilJoueur.niveauRecherche[2]);
+        let apportPonteTuE = Math.round(parseInt(tOuv / (TEMPS_UNITE[14] * Math.pow(0.9, monProfilJoueur.getTDP()))) * (55 + 55 * monProfilJoueur.niveauRecherche[1] / 10));
+        let defABSupp = this._armee.getTotalDef(monProfilJoueur.niveauRecherche[2] + 1);
         let bLigneGrasTuE = defAB + apportPonteTuE >= defABSupp ? true : false;
 
         let title = `<table>
             <tr><td>Attaque AB actuelle</td><td class='right'>${numeral(attAB).format()}</td></tr>
             <tr${(bLigneGrasJS ? " class='gras' " : "")}><td>Attaque AB + ponte JS</td><td class='right' style='padding-left:10px'>${numeral(attAB + apportPonteJS).format()} (+ ${numeral(apportPonteJS).format()})</td></tr>
             <tr${(bLigneGrasTk ? " class='gras' " : "")}><td>Attaque AB + ponte Tank</td><td class='right' style='padding-left:10px'>${numeral(attAB + apportPonteTk).format()} (+ ${numeral(apportPonteTk).format()})</td></tr>
-            <tr${(!bLigneGrasTk ? " class='gras' " : "")}><td>Attaque AB niveau ${(monProfil.niveauRecherche[2] + 1)}</td><td class='right'>${numeral(attABSupp).format()} (+ ${numeral(attABSupp - attAB).format()})</td></tr></table><hr/><table>
+            <tr${(!bLigneGrasTk ? " class='gras' " : "")}><td>Attaque AB niveau ${(monProfilJoueur.niveauRecherche[2] + 1)}</td><td class='right'>${numeral(attABSupp).format()} (+ ${numeral(attABSupp - attAB).format()})</td></tr></table><hr/><table>
             <tr><td>Défense AB actuelle</td><td class='right'>${numeral(defAB).format()}</td></tr>
             <tr${(bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB + ponte TuE</td><td class='right' style='padding-left:10px'>${numeral(defAB + apportPonteTuE).format()} (+ ${numeral(apportPonteTuE).format()})</td></tr>
-            <tr${(!bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB niveau ${(monProfil.niveauRecherche[2] + 1)}</td><td class='right'>${numeral(defABSupp).format()} (+ ${numeral(defABSupp - defAB).format()})</td></tr>
+            <tr${(!bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB niveau ${(monProfilJoueur.niveauRecherche[2] + 1)}</td><td class='right'>${numeral(defABSupp).format()} (+ ${numeral(defABSupp - defAB).format()})</td></tr>
             </table>`;
         $(".desciption_amelioration:eq(2) h2").attr("title", title).tooltip({
             position : {my : "left+5 top", at : "right top"},

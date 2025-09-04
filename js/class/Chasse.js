@@ -164,14 +164,14 @@ class Chasse
     */
     toHTMLMessagerie()
     {
-        let tdp = monProfil.getTDP(),
+        let tdp = monProfilJoueur.getTDP(),
             sommeUnite = this._armeePe.getSommeUnite() - this._armeeAv.getSommeUnite(),
             baseAtt = this._armeeAp.getBaseAtt() - this._armeeAv.getBaseAtt(),
             baseDef = this._armeeAp.getBaseDef() - this._armeeAv.getBaseDef(),
             baseVie = this._armeeAp.getBaseVie() - this._armeeAv.getBaseVie(),
-            bonusAtt = this._armeeAp.getTotalAtt(monProfil.niveauRecherche[2]) - this._armeeAv.getTotalAtt(monProfil.niveauRecherche[2]),
-            bonusDef = this._armeeAp.getTotalDef(monProfil.niveauRecherche[2]) - this._armeeAv.getTotalDef(monProfil.niveauRecherche[2]),
-            bonusVie = this._armeeAp.getTotalVie(monProfil.niveauRecherche[1]) - this._armeeAv.getTotalVie(monProfil.niveauRecherche[1]),
+            bonusAtt = this._armeeAp.getTotalAtt(monProfilJoueur.niveauRecherche[2]) - this._armeeAv.getTotalAtt(monProfilJoueur.niveauRecherche[2]),
+            bonusDef = this._armeeAp.getTotalDef(monProfilJoueur.niveauRecherche[2]) - this._armeeAv.getTotalDef(monProfilJoueur.niveauRecherche[2]),
+            bonusVie = this._armeeAp.getTotalVie(monProfilJoueur.niveauRecherche[1]) - this._armeeAv.getTotalVie(monProfilJoueur.niveauRecherche[1]),
             pAtt = (baseAtt * 100/ this._armeeAv.getBaseAtt()).toFixed(2),
             pDef = (baseDef * 100/ this._armeeAv.getBaseDef()).toFixed(2),
             pVie = (baseVie * 100/ this._armeeAv.getBaseVie()).toFixed(2);

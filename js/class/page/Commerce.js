@@ -28,7 +28,7 @@ class PageCommerce
     executer()
     {
         // ajout d'information
-        $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${monProfil.niveauConstruction[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (monProfil.niveauConstruction[11] / 2))}</strong> ressources.</td></tr>`);
+        $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${monProfilJoueur.niveauConstruction[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (monProfilJoueur.niveauConstruction[11] / 2))}</strong> ressources.</td></tr>`);
         // ajout des boutons pour arrondir les quantités
         $("#bouton_nourriture_max").html(`Nourriture donnée <span id="o_arrondirNou" class="gras small">arrondir...</span>`);
         $("#o_arrondirNou").click((e) => {
@@ -37,8 +37,8 @@ class PageCommerce
             $("#input_nbNourriture").val(numeral(newValue).format());
             $("#nbNourriture").val(newValue);
             // mise à jour des ouvrieres
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / (10 + (monProfil.niveauConstruction[11] / 2)))).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbMat) / (10 + (monProfil.niveauConstruction[11] / 2))));
+            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / (10 + (monProfilJoueur.niveauConstruction[11] / 2)))).format());
+            $("#nbOuvriere").val(Math.floor((newValue + nbMat) / (10 + (monProfilJoueur.niveauConstruction[11] / 2))));
             return false;
         });
         // materiaux
@@ -49,51 +49,45 @@ class PageCommerce
             $("#input_nbMateriaux").val(numeral(newValue).format());
             $("#nbMateriaux").val(newValue);
             // mise à jour des ouvrieres
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / (10 + (monProfil.niveauConstruction[11] / 2)))).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbNou) / (10 + (monProfil.niveauConstruction[11] / 2))));
+            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / (10 + (monProfilJoueur.niveauConstruction[11] / 2)))).format());
+            $("#nbOuvriere").val(Math.floor((newValue + nbNou) / (10 + (monProfilJoueur.niveauConstruction[11] / 2))));
             return false;
         });
         // option c+
         if(!Utils.comptePlus) this.plus();
 
         // Si on dispose d'un utilitaire pour le commerce ET que le joueur a un sujet dans la section membres
-        const idSectionCommande = monProfil.parametre["forumCommande"].valeur;
-        const idSectionMembre = monProfil.parametre["forumMembre"].valeur;
-        const pseudoJoueur = monProfil.pseudo;
+        const idSectionCommande = monProfilUtilisateur.parametre["Commandes Outiiil"].valeur;
+        const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"].valeur;
+        const pseudoJoueur = monProfilJoueur.pseudo;
 
         if (idSectionCommande && idSectionMembre) {
-            this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur).then(sujetExiste => {
+            this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur).then(async sujetExiste => {
                 if (sujetExiste) {
-                    // recuperation des commandes sur l'utilitaire
-                    this._utilitaire.consulterSection(idSectionCommande).then((data) => {
-                        // chargerCommande retourne maintenant une Promise
-                        this._utilitaire.chargerCommande(data).then(() => {
-                            this.afficherCommande();
-                            // Charger les convois du forum après les commandes
-                            return this._utilitaire.chargerConvois(this._utilitaire.commande);
-                        }).then((convoisForum) => {
-                            // Actualiser le tableau des convois après le chargement initial
-                            this.actualiserConvois(); // Cette fonction utilise toujours this._utilitaire.chargerConvois() en interne, ce qui est correct pour afficher les convois du forum.
-                            // Attacher les listeners pour les liens d'annulation de convoi
-                            this._attacherListenersAnnulationConvoi();
-                            // Traiter le convoi après l'envoi dans le jeu (au rechargement de la page)
-                            this._traiterConvoiApresEnvoiJeu();
-                            // Traiter l'annulation de convoi après le rechargement de la page
-                            this._traiterAnnulationConvoiApresRechargement();
-                        }).catch((error) => {
-                            // Gérer les erreurs de chargement des commandes ou des convois
-                        });
-                    }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération des commandes."});
-                    });
-                    this.formulaireConvoi();
+                    try {
+                        // Charger les commandes et convois en premier, car les fonctions d'affichage en dépendent
+                        const data = await this._utilitaire.consulterSection(idSectionCommande);
+                        await this._utilitaire.chargerCommande(data);
+                        const convoisCharges = await this._utilitaire.chargerConvois(this._utilitaire.commande);
+
+                        this.afficherCommande();
+                        this.actualiserConvois();
+                        this._attacherListenersAnnulationConvoi();
+                        this._traiterConvoiApresEnvoiJeu();
+                        this._traiterAnnulationConvoiApresRechargement();
+                        this.formulaireConvoi();
+
+                    } catch (error) {
+                        $.toast({...TOAST_ERROR, text : `Erreur lors de la récupération des commandes ou des convois: ${error.message || error}`});
+                        console.error("Erreur dans PageCommerce.executer (chargement initial):", error);
+                    }
                 } else {
                     // Optionnel: Afficher un message à l'utilisateur
                     // $.toast({...TOAST_INFO, text : "Votre sujet membre n'a pas été trouvé. Le tableau des commandes n'est pas disponible."});
                 }
             }).catch(error => {
-                // Optionnel: Afficher un message d'erreur
-                // $.toast({...TOAST_ERROR, text : "Erreur lors de la vérification de votre sujet membre."});
+                $.toast({...TOAST_ERROR, text : `Erreur lors de la vérification de votre sujet membre: ${error.message || error}`});
+                console.error("Erreur dans PageCommerce.executer (verifierSujetMembre):", error);
             });
         } else {
              // Optionnel: Afficher un message à l'utilisateur
@@ -113,7 +107,6 @@ class PageCommerce
      * @method _traiterConvoiApresEnvoiJeu
      */
     async _traiterConvoiApresEnvoiJeu() {
-        console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Début de _traiterConvoiApresEnvoiJeu.");
         const convoiAPosterString = localStorage.getItem('outiiil_convoi_a_poster');
         const idsAnnulationApresRechargementInitialString = localStorage.getItem('outiiil_ids_annulation_apres_rechargement_initial');
 
@@ -141,31 +134,24 @@ class PageCommerce
             return; // Arrêter l'exécution ici, la page va se recharger
         } else if (convoiAPosterString && idsAnnulationApresRechargementInitialString) {
             // Second rechargement après le forward du clic
-            console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Second rechargement détecté.");
             const convoiData = JSON.parse(convoiAPosterString);
             const idsAvantEnvoi = JSON.parse(idsAnnulationApresRechargementInitialString);
             const monConvoi = new Convoi(convoiData);
 
             const idsApresEnvoi = this.getConvoiAnnulationIds();
-            console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] IDs d'annulation avant second envoi: ${idsAvantEnvoi.join(', ')}`);
-            console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] IDs d'annulation après second envoi: ${idsApresEnvoi.join(', ')}`);
 
             const nouvelIdAnnulation = idsApresEnvoi.find(id => !idsAvantEnvoi.includes(id));
-            console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Nouvel ID d'annulation trouvé: ${nouvelIdAnnulation}`);
 
             try {
                 if (nouvelIdAnnulation) {
                     monConvoi.idAnnulation = nouvelIdAnnulation;
-                    console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Convoi mis à jour avec idAnnulation: ${monConvoi.idAnnulation}`);
 
                     let idCommande = monConvoi.idCommande;
                     idCommande = parseInt(idCommande);
 
                     await this._utilitaire.envoyerMessage(idCommande, monConvoi.toUtilitaire());
-                    console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Convoi envoyé sur le forum.");
 
                     this._utilitaire.commande[idCommande].ajouteConvoi(monConvoi);
-                    console.log(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Commande ${idCommande} mise à jour en mémoire. Tentative de modification du sujet sur le forum.`);
                     await this._utilitaire.modifierSujet(this._utilitaire.commande[idCommande].toUtilitaire(), " ", idCommande);
                     $.toast({...TOAST_SUCCESS, text : "Commande mise à jour sur le forum."});
 
@@ -189,20 +175,18 @@ class PageCommerce
                     this.actualiserCommande();
 
                 } else {
-                    console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Aucun nouvel ID d'annulation détecté. Le convoi ne sera pas posté par Outiiil.");
+                    console.error("[PageCommerce][_traiterConvoiApresEnvoiJeu] Aucun nouvel ID d'annulation détecté. Le convoi ne sera pas posté par Outiiil.");
                     $.toast({...TOAST_INFO, text : "Aucun nouvel ID d'annulation détecté après l'envoi du convoi. Le convoi n'a pas été posté sur le forum par Outiiil."});
                 }
             } catch (error) {
                 console.error(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Erreur lors du traitement du convoi après envoi:`, error);
                 $.toast({...TOAST_ERROR, text : `Erreur lors du traitement du convoi après envoi: ${error.message || error}`});
             } finally {
-                console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Nettoyage du localStorage.");
                 localStorage.removeItem('outiiil_convoi_a_poster');
                 localStorage.removeItem('outiiil_ids_annulation_apres_rechargement_initial');
-                console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] localStorage nettoyé.");
             }
         } else {
-            console.log("[PageCommerce][_traiterConvoiApresEnvoiJeu] Pas de données de convoi ou d'IDs d'annulation dans le localStorage. Fin de la fonction.");
+            // Pas de données de convoi ou d'IDs d'annulation dans le localStorage. Fin de la fonction.
         }
     }
 
@@ -461,7 +445,7 @@ class PageCommerce
                 const commandeId = $(e.currentTarget).attr('id').replace('o_commande', '');
                 const commande = this._utilitaire.commande[commandeId];
 
-                let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfil.niveauConstruction[11] / 2)));
+                let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.niveauConstruction[11] / 2)));
                 let materialsToPrefill = Math.min(commande.materiaux, transportCapacity);
                 let nourishmentToPrefill = Math.min(commande.nourriture, transportCapacity - materialsToPrefill);
 
@@ -575,7 +559,7 @@ class PageCommerce
                     // État
                     `<span ${commande.etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === commande.etat)}</span>`,
                     // Temps de trajet
-                    Utils.intToTime(monProfil.getTempsParcours2(commande.demandeur)),
+                    Utils.intToTime(monProfilJoueur.getTempsParcours2(commande.demandeur)),
                     // Livrer (bouton ou vide)
                     (() => {
                         let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
@@ -583,7 +567,7 @@ class PageCommerce
                     })(),
                     // Options (boutons ou vide)
                     (() => {
-                        return (commande.demandeur.pseudo == monProfil.pseudo) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
+                        return (commande.demandeur.pseudo == monProfilJoueur.pseudo) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
                     })()
                 ];
                 tableData.push(rowData);
@@ -669,10 +653,10 @@ class PageCommerce
                 }
                 
                 let destinatairePseudo = $("#pseudo_convoi").val();
-                let dateArriveeCalculee = moment().add(monProfil.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
+                let dateArriveeCalculee = moment().add(monProfilJoueur.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
 
                 let monConvoi = new Convoi({
-                    expediteur  : monProfil.pseudo,
+                    expediteur  : monProfilJoueur.pseudo,
                     destinataire : destinatairePseudo,
                     materiaux   : materiaux,
                     nourriture  : nourriture,

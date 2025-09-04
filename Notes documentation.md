@@ -1,57 +1,147 @@
-# Ajout de nouvelles fonctionnalités d'alliance (n'utilisant pas de données stockées sur le forum)
-- Toujours exécutées
+# Documentation des Bonnes Pratiques et Points de Vigilance du Framework Outiiil
 
-# Ajout de nouvelles fonctionnalités d'alliance (utilisant des données stockées sur le forum)
-1. En restreindre l'accès aux joueurs possédant un sujet dans la section Membres Outiiil (restreint en fonction de la version)
-2. L'intégrer au système de restrictions d'accès en fonction de la version de l'extension
-3. L'intégrer au système de droits des joueurs pour permettre d'en bloquer l'accès ou de bloquer l'affichage des données sensibles des autres joueurs (compatibilité déjà vérifiée via la vérification de sujet membre)
-Décrire comment ajouter/modifier une fonctionnalité d'alliance, un objet ou un paramètre
+Ce document fournit des lignes directrices pour le développement de nouvelles fonctionnalités et la maintenance du framework Outiiil, en mettant l'accent sur la clarté, la robustesse et l'utilisation correcte des composants existants.
 
-# Ajout d'une nouvelle section
-- Reprendre la procédure de création et accès aux sections existantes + UI et mise à jour auto
-
-# Modification d'un format de données du forum
-- Lors des tests, si un format dans une section change, en créer une contenant le nom de celle à tester, et enregistrer son id dans l'utilitaire pour l'utiliser pour les tests.
-
-# Robustesse des fonctionnalités
-- S'assurer que chaque fonctionnalité est robuste par rapport à une imprécision d'une seconde sur la date d'arrivée prévue des convois, attaques et chasses.
-- Lors de la validation par le joueur d'une action entraînant une modification d'un objet qui dépend de l'état actuel de l'objet, vérifier que la modification est correcte par rapport à l'objet actuel avant d'effectuer la modification.
-- A chaque clic dont l'action dépend d'un objet enregistré sur le forum, recharger cet objet avant d'effectuer l'action. Si l'action dépend de données de Fourmizzz, recharger la page avant d'effectuer l'action.
-- Si des collisions sont avérées ou qu'une fonctionnalité a besoin de s'assurer qu'un objet n'est pas modifié pendant qu'elle l'utilise, introduire un mécanisme d'anti-collision sur le forum (via un flag de réservation sur l'objet forum?).
-
-
-# Bonnes pratiques
-- Mettre les fonctionnalités, objets et paramètres dans les dossiers respectifs
-- Toujours créer les objets à l'intérieur de la classe fonctionnalité (ou sa classe mère), dans un autre objet (via objetsContenus), ou dans la fonction d'initialisation de l'extension pour les objets globaux.
-- Ne pas modifier un sous-objet (dans un message) chargé depuis le forum ou déjà enregistré, aucune modification ne sera enregistrée
-- Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation
-- Deux paramètres ne doivent jamais avoir le même historique de formats, et deux objets le même historique de lieux et classes utilisées.
-- Les objets contenus, lors d'un rafraîchissement, ne sont pas garantis de pointer vers le même message (s'il y a eu une suppression de message entre-temps), donc ne pas stocker de données non enregistrées sur le forum dans ces objets
-- Lors d'une modification de format de paramètre, ajouter le nouveau format à sa liste statique 
-- Lors d'une modification des paramètres d'un objet, ajouter le nouveau set de paramètres à sa liste statique. Compléter/ajouter également le contenu de la fonction de migration. Cette méthode doit d'abord appeler la méthode de la classe mère retournant la version de l'objet chargé. Ensuite, pour chaque version (hors actuelle), elle doit implémenter dans des cas séparés la manière de migrer les paramètres d'une version à la suivante, dans une boucle itérant jusqu'à migration jusqu'à la dernière version.
-- Ne charger les sous-objets que quand nécessaire pour éviter trop de latence.
-- Ne pas réutiliser un paramètre existant si sa signification change, mais en créer un nouveau.
-- Une page doit surcharger les liste de fonctionnalités de la classe mère et invoquer init() pour les lancer.
-- Lorsque la logique de fonctionnement d'un objet change suffisamment pour ne plus être compatible avec la logique précédente (tout changement faisant que dans des situations identiques, les paramètres ne seront pas censés prendre pas la même valeur), incrémenter la version de logique de l'objet.
 ---
 
-# Documentation des Points de Vigilance du Framework
+## 1. Ajout de Nouvelles Fonctionnalités
+
+### 1.1 Fonctionnalités n'utilisant pas de données stockées sur le forum
+
+Pour ajouter une fonctionnalité d'alliance qui ne persiste pas de données sur le forum :
+- Implémentez la logique dans une classe héritant de `Page`.
+- Ajoutez le point d'entrée (méthode) de cette fonctionnalité à la liste statique `FONCTIONNALITES_LOCALES` de la classe `Page` correspondante.
+
+### 1.2 Fonctionnalités utilisant des données stockées sur le forum
+
+Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramètre qui utilise des données stockées sur le forum :
+- **Fonctionnalité :** Créez une classe héritant de `FonctionnaliteAlliance`. Définissez son historique d'abréviations via la propriété statique `FonctionnaliteAlliance.ABREVIATIONS_HISTORY`.
+    - Ajoutez cette classe à la liste statique `FONCTIONNALITES_ALLIANCE` de la classe `Page` correspondante.
+- **Objet :** Créez une classe héritant de `ObjetForum`.
+    - Définissez sa version logique via `ObjetForum.VERSION_LOGIQUE`.
+    - Spécifiez l'historique de ses lieux de stockage via `ObjetForum.LOCATION_HISTORY`.
+    - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.CLASSES_PARAMETRES`.
+    - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
+- **Paramètre :** Créez une classe héritant de `ParametreObjetForum`.
+    - Définissez son historique de noms via `ParametreObjetForum.NAME_HISTORY`.
+    - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
+    - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`).
+
+### 1.3 Ajout d'une Nouvelle Classe de Page
+
+Pour créer une nouvelle classe de page :
+- Créez une classe héritant de `Page`.
+- Définissez les fonctionnalités d'alliance spécifiques à cette page en ajoutant les classes `FonctionnaliteAlliance` à la liste statique `Page.FONCTIONNALITES_ALLIANCE`.
+- Implémentez les fonctionnalités locales dans la classe.
+- Définissez les fonctionnalités locales spécifiques à cette page en ajoutant les méthodes à la liste statique `Page.FONCTIONNALITES_LOCALES`.
+- Enregistrez la nouvelle classe de page dans l'objet `window` avec `Utils.register()`.
+
+---
+
+## 2. Ajout d'une Nouvelle Section
+
+L'ajout de nouvelles sections sur le forum est géré automatiquement par le framework à partir des sections définies dans les `ObjetForum.LOCATION_HISTORY` des objets.
+
+---
+
+## 3. Modification d'un Format de Données du Forum
+
+Lors des phases de test, si un format de données dans une section du forum change :
+- Créez une nouvelle section sur le forum dédiée aux tests, dont le nom contient celle de l'originale à tester.
+- Enregistrez l'ID de cette nouvelle section dans l'utilitaire de configuration pour qu'elle soit utilisée lors des tests.
+
+---
+
+## 4. Robustesse des Fonctionnalités
+
+Pour garantir la robustesse des fonctionnalités :
+- **Gestion du temps :** Assurez-vous que chaque fonctionnalité est robuste face à une imprécision d'une seconde sur la date d'arrivée prévue des convois, attaques et chasses.
+- **Validation des actions :** Lors de la validation par le joueur d'une action entraînant une modification d'un `ObjetForum` qui dépend de son état actuel, vérifiez que la modification est correcte par rapport à l'objet actuel avant d'effectuer la modification.
+- **Rechargement des données :**
+    - À chaque clic dont l'action dépend d'un `ObjetForum` enregistré sur le forum, rechargez cet objet en utilisant `ObjetForum.rafraichir()` avant d'effectuer l'action.
+    - Si l'action dépend de données de Fourmizzz (non stockées sur le forum), rechargez la page avant d'effectuer l'action.
+- **Gestion des collisions :** Si des collisions sont avérées ou qu'une fonctionnalité a besoin de s'assurer qu'un `ObjetForum` n'est pas modifié pendant qu'elle l'utilise, introduisez un mécanisme d'anti-collision sur le forum (par exemple, via un flag de réservation sur l'objet forum).
+
+---
+
+## 5. Bonnes Pratiques de Développement
+
+- **Organisation des fichiers :**
+    - Placez les classes de `Page`, `FonctionnaliteAlliance`, `ObjetForum`, `ParametreObjetForum` dans leurs dossiers respectifs sous `js/class`.
+    - Placez les gestionnaires (comme `GestionnaireDroits`, `GestionnaireVersions`) dans le dossier `js/class/framework`.
+- **Création des objets :**
+    - Créez les instances d'`ObjetForum` à l'intérieur de la classe `FonctionnaliteAlliance` (ou sa classe mère), dans un autre `ObjetForum` (via `objetsForumContenus`), ou dans la fonction d'initialisation de l'extension `initialiserFrameworkGlobal()` pour les objets globaux.
+- **Initialisation des gestionnaires :** Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation et hériter d'`ObjetForum`, et spécifier sa section dans `ObjetForum.LOCATION_HISTORY`.
+- **Unicité des historiques :**
+    - Deux `ParametreObjetForum` ne doivent jamais avoir le même historique de noms (`ParametreObjetForum.NAME_HISTORY`).
+    - Deux `ObjetForum` ne doivent jamais avoir le même historique de lieux (`ObjetForum.LOCATION_HISTORY`) et de classes de paramètres utilisés (`ObjetForum.CLASSES_PARAMETRES`).
+- **Modification des historiques :**
+    - Lors d'une modification de nom de paramètre, ajoutez le nouveau nom à sa liste statique `ParametreObjetForum.NAME_HISTORY`.
+    - Lors d'une modification de lieu d'enregistrement d'un objet, ajoutez le nouveau lieu à sa liste statique `ObjetForum.LOCATION_HISTORY`.
+    - Lors d'une modification des paramètres d'un objet, ajoutez le nouveau set de paramètres à sa liste statique `ObjetForum.CLASSES_PARAMETRES`.
+- **Migration des données :** Surchargez la méthode `ObjetForum.completerChargementPourVersionsAnterieures()` pour gérer la migration des paramètres entre versions. Cette méthode doit :
+    1. Appeler `this._determinerVersionChargee()` pour obtenir la version de l'objet chargé.
+    2. Itérer à travers les versions (hors actuelle) en utilisant un `switch` pour chaque version.
+    3. Implémenter la logique de migration des paramètres d'une version à la suivante dans chaque `case`.
+    4. Utiliser les fonctions d'écriture de la classe (`ObjetForum.ecrireParametre()`) pour que `ObjetForum.estModifie` soit correctement mis à jour.
+    ```javascript
+    completerChargementPourVersionsAnterieures() {
+        let versionActuelle = this._determinerVersionChargee();
+        const versionCible = this.constructor.CLASSES_PARAMETRES.length - 1;
+
+        // Boucle tant que nous n'avons pas atteint la dernière version
+        while (versionActuelle < versionCible && versionActuelle !== -1) {
+            switch (versionActuelle) {
+                case 0:
+                    // Logique pour migrer de la v0 à la v1
+                    console.log('Migration de v0 à v1...');
+                    // ... mettre à jour les paramètres de la v1 en utilisant this.ecrireParametre() ...
+                    break; // On sort du switch pour la v0
+
+                case 1:
+                    // Logique pour migrer de la v1 à la v2
+                    console.log('Migration de v1 à v2...');
+                    // ... mettre à jour les paramètres de la v2 en utilisant this.ecrireParametre() ...
+                    break; // On sort du switch pour la v1
+            }
+            
+            // Incrémenter la version pour la prochaine itération de la boucle
+            versionActuelle++; 
+        }
+    }
+    ```
+- **Chargement des sous-objets :** Ne chargez les sous-objets (`ObjetForum.objetsForumContenus`) que lorsque cela est nécessaire pour réduire la latence.
+- **Réutilisation des paramètres :** Ne réutilisez pas un `ParametreObjetForum` existant si sa signification change ; créez-en un nouveau.
+- **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
+- **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente (tout changement faisant que dans des situations identiques, les paramètres ne seront pas censés prendre la même valeur), incrémentez la propriété statique `ObjetForum.VERSION_LOGIQUE`.
+- **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
+- **Accès aux paramètres :** Toujours utiliser les méthodes `ParametreObjetForum.Lire()` et `ParametreObjetForum.Ecrire()` d'un paramètre, ne jamais accéder directement à sa propriété `valeur`, et surtout pas la modifier directement.
+
+---
+
+## 6. Points de Fragilité
+
+- **Dépendances d'objets non déclarées :** Si un `ObjetForum` est utilisé dans un autre `ObjetForum` sans être un objet contenu (`ObjetForum.objetsForumContenus`) et sans être utilisé par les fonctionnalités (`FonctionnaliteAlliance.objetsDependants`), alors il faudra revoir la fonction de vérification de version de l'objet (`ObjetForum.verifierVersionSuffisanteEtPresenceSection`), probablement en utilisant un AST avec `acorn`.
+
+---
+
+## 7. Documentation des Points de Vigilance du Framework
 
 Ce document détaille les explications pour les points de vigilance identifiés lors de l'analyse du plan de refonte du framework.
 
 ---
 
-### 1. Documentation sur la Métaprogrammation du `GestionnaireDroits`
+### 7.1 Documentation sur la Métaprogrammation du `GestionnaireDroits`
 
-**Contexte :** Le `GestionnaireDroits` utilise une approche de métaprogrammation pour créer dynamiquement les classes `ObjetDroits` et `ParametreDroit` à l'initialisation.
+**Contexte :** Le `GestionnaireDroits` utilise une approche de métaprogrammation pour créer dynamiquement les classes `ObjetForumDroits` et `ParametreDroit` à l'initialisation.
 
 **Fonctionnement :**
-1.  Au démarrage, il découvre toutes les `FonctionnaliteAlliance` existantes via un registre global.
-2.  Pour chaque fonctionnalité, il génère à la volée une classe `ParametreDroit` sur mesure, configurée avec l'historique des formats et des abréviations de la fonctionnalité.
-3.  Toutes ces classes de paramètres sont ensuite regroupées pour définir la structure de la classe `ObjetDroits`, également créée dynamiquement.
+1.  Au démarrage, il découvre toutes les `FonctionnaliteAlliance` existantes via un registre global (`registreClasses.FonctionnaliteAlliance`).
+2.  Pour chaque fonctionnalité, il génère à la volée une classe `ParametreDroit` sur mesure, configurée avec l'historique des formats et des abréviations de la fonctionnalité (`FonctionnaliteAlliance.ABREVIATIONS_HISTORY`).
+3.  Toutes ces classes de paramètres sont ensuite regroupées pour définir la structure de la classe `ObjetForumDroits`, également créée dynamiquement.
 
 **Avantages :**
-*   **Flexibilité Extrême :** L'ajout d'une nouvelle fonctionnalité ne requiert aucune modification manuelle du système de droits. Le framework la découvre et s'adapte automatiquement.
+*   **Flexibilité Extrême :** L'ajout d'une nouvelle `FonctionnaliteAlliance` ne requiert aucune modification manuelle du système de droits. Le framework la découvre et s'adapte automatiquement.
 *   **Centralisation :** La logique de création des droits est entièrement contenue dans le `GestionnaireDroits`.
 
 **Risques et Complexité :**
@@ -63,11 +153,11 @@ Ce mécanisme doit être accompagné de commentaires détaillés directement dan
 
 ---
 
-### 2. Notes sur la Robustesse : Concurrence et Transactions
+### 7.2 Notes sur la Robustesse : Concurrence et Transactions
 
 **Contexte :** Le framework utilise un forum comme système de stockage, ce qui n'offre pas les garanties d'une base de données traditionnelle (comme les transactions atomiques ou le verrouillage de bas niveau).
 
-#### **2.1 Risque de Conditions de Concurrence (Race Conditions)**
+#### 7.2.1 Risque de Conditions de Concurrence (`Race Conditions`)
 
 *   **Scénario :** Deux processus (par exemple, deux utilisateurs différents) tentent de modifier la même ressource sur le forum quasi-simultanément.
     *   *Exemple 1 :* Deux extensions à jour détectent une version obsolète d'un paramètre sur le forum et essaient de mettre à jour le titre du sujet de version en même temps.
@@ -75,11 +165,11 @@ Ce mécanisme doit être accompagné de commentaires détaillés directement dan
 *   **Impact :** Dans la plupart des cas prévus par le framework, l'impact est bénin. La seconde écriture écrasera la première avec des données identiques. Cependant, cela constitue une faille de conception théorique.
 *   **Mesure :** Le système est conçu pour être "idempotent" : une opération répétée plusieurs fois produit le même résultat que si elle n'était exécutée qu'une seule fois. Il n'y a pas de verrouillage possible, donc la robustesse repose sur cette idempotence.
 
-#### **2.2 Absence de Transactions Atomiques**
+#### 7.2.2 Absence de Transactions Atomiques
 
-*   **Scénario :** Une opération métier complexe nécessite plusieurs écritures séquentielles sur le forum (par exemple, la création d'un objet principal dans un sujet, puis de ses 3 sous-objets dans des messages).
+*   **Scénario :** Une opération métier complexe nécessite plusieurs écritures séquentielles sur le forum (par exemple, la création d'un `ObjetForum` principal dans un sujet, puis de ses 3 sous-objets dans des messages).
 *   **Risque :** Si une des écritures intermédiaires échoue (à cause d'une erreur réseau, d'une déconnexion, etc.), le système se retrouve dans un **état incohérent**. Les premières données sont écrites, mais pas les dernières.
 *   **Mesure :**
     *   C'est une limitation inhérente à l'architecture. Il n'y a pas de mécanisme de "rollback" (annulation).
-    *   La logique de chargement doit être suffisamment robuste pour gérer des données partiellement écrites (par exemple, en ignorant les objets conteneurs qui n'ont pas tous leurs enfants attendus).
+    *   La logique de chargement (`ObjetForum.chargerDepuisString()`, `ObjetForum.chargerObjetForumsContenus()`) doit être suffisamment robuste pour gérer des données partiellement écrites (par exemple, en ignorant les objets conteneurs qui n'ont pas tous leurs enfants attendus).
     *   Pour les opérations les plus critiques, il pourrait être envisagé d'ajouter une étape de validation post-écriture ou un flag "opération_terminée" pour marquer la complétude d'une écriture multi-étapes.

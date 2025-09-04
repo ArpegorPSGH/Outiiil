@@ -286,8 +286,8 @@ class BoiteComptePlus
         if(this._construction && moment(this._expConstruction).diff(moment()) < 0){
             // on met à jour le niveau de la construction
             let index = CONSTRUCTION.findIndex((elt) => {return this._construction.toLowerCase().includes(elt.toLowerCase());});
-            monProfil.niveauConstruction[index]++;
-            monProfil.sauvegarder();
+            monProfilJoueur.niveauConstruction[index]++;
+            monProfilJoueur.sauvegarder();
             // si la construction est une evolution de ponte, on met a jour les pontes
             if(this._construction.includes("Couveuse") || this._construction.includes("Solarium"))
                 this.recalculeTempsPonte();
@@ -299,8 +299,8 @@ class BoiteComptePlus
         if(this._recherche && moment(this._expRecherche).diff(moment()) < 0){
             // on met à jour le niveau de la recherche
             let index = RECHERCHE.findIndex((elt) => {return this._recherche.toLowerCase().includes(elt.toLowerCase());});
-            monProfil.niveauRecherche[index]++;
-            monProfil.sauvegarder();
+            monProfilJoueur.niveauRecherche[index]++;
+            monProfilJoueur.sauvegarder();
             // si la recherche est une evolution de ponte, on met a jour les pontes
             if(this._recherche.includes("Technique de ponte"))
                 this.recalculeTempsPonte();
@@ -409,7 +409,7 @@ class BoiteComptePlus
             for(let i = 0 ; i < this._ponte.length ; i++){
                 nombreU = this._ponte[i]["nombre"];
                 tempsU = nombreU > 1 ? TEMPS_UNITE[NOM_UNITES.indexOf(this._ponte[i].unite)] : TEMPS_UNITE[NOM_UNITE.indexOf(this._ponte[i].unite)];
-                if(i == 0) nombreU = Math.ceil((moment(this._ponte[i].exp).diff(moment()) / 1000) / (tempsU * Math.pow(0.9, monProfil.getTDP())));
+                if(i == 0) nombreU = Math.ceil((moment(this._ponte[i].exp).diff(moment()) / 1000) / (tempsU * Math.pow(0.9, monProfilJoueur.getTDP())));
                 table += `<tr><td class='gras right'>${(nombreU < 1000 ? nombreU : numeral(nombreU).format("0[.]00a"))}</td><td>${this._ponte[i].unite}</td><td>${moment(this._ponte[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             }
             table += "</table>";

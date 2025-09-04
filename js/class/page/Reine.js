@@ -33,7 +33,7 @@ class PageReine
         // Ajout des statistiques des unités avec bonus
 		$(".icones_unite").each((i, elt) => {
 			let index = NOM_UNITE.indexOf($(elt).parent().find("h2").text());
-			$(elt).append(`<table class="tab_stat" style="display: none;"><tbody><tr><td style="text-align:center;font-size:0.8em;height:30px;" colspan="2"> Avec Bonus</td></tr><tr title="Vie avec Bouclier niveau ${monProfil.niveauRecherche[1]}"><td class="icone_vie" style="position:relative; top:4px">${IMG_VIE}</td><td class="vie" style="white-space:nowrap">${(VIE_UNITE[index] + (VIE_UNITE[index] / 10 * monProfil.niveauRecherche[1]).toFixed(1)/1)}</td></tr><tr title="Dégâts en Attaque avec Armes niveau ${monProfil.niveauRecherche[2]}"><td class="icone_degat_attaque" style="position:relative;top:3px">${IMG_ATT}</td><td class="degat_defense" style="white-space:nowrap">${(ATT_UNITE[index] + (ATT_UNITE[index] / 10 * monProfil.niveauRecherche[2]).toFixed(1)/1)}</td></tr><tr title="Dégâts en Défense avec Armes niveau ${monProfil.niveauRecherche[2]}"><td class="icone_degat_defense" style="position:relative;top:3px">${IMG_DEF}</td><td class="degat_defense" style="white-space:nowrap">${(DEF_UNITE[index] + (DEF_UNITE[index] / 10 * monProfil.niveauRecherche[2]).toFixed(1)/1)}</td></tr><tr><td style="height:30px;" colspan="2"></td></tr></tbody></table>`);
+			$(elt).append(`<table class="tab_stat" style="display: none;"><tbody><tr><td style="text-align:center;font-size:0.8em;height:30px;" colspan="2"> Avec Bonus</td></tr><tr title="Vie avec Bouclier niveau ${monProfilJoueur.niveauRecherche[1]}"><td class="icone_vie" style="position:relative; top:4px">${IMG_VIE}</td><td class="vie" style="white-space:nowrap">${(VIE_UNITE[index] + (VIE_UNITE[index] / 10 * monProfilJoueur.niveauRecherche[1]).toFixed(1)/1)}</td></tr><tr title="Dégâts en Attaque avec Armes niveau ${monProfilJoueur.niveauRecherche[2]}"><td class="icone_degat_attaque" style="position:relative;top:3px">${IMG_ATT}</td><td class="degat_defense" style="white-space:nowrap">${(ATT_UNITE[index] + (ATT_UNITE[index] / 10 * monProfilJoueur.niveauRecherche[2]).toFixed(1)/1)}</td></tr><tr title="Dégâts en Défense avec Armes niveau ${monProfilJoueur.niveauRecherche[2]}"><td class="icone_degat_defense" style="position:relative;top:3px">${IMG_DEF}</td><td class="degat_defense" style="white-space:nowrap">${(DEF_UNITE[index] + (DEF_UNITE[index] / 10 * monProfilJoueur.niveauRecherche[2]).toFixed(1)/1)}</td></tr><tr><td style="height:30px;" colspan="2"></td></tr></tbody></table>`);
 		});
         // Switch entre les inputs
         let element = ["cout_nombre", "cout_temps", "cout_nourriture"];
@@ -52,7 +52,7 @@ class PageReine
 		$("span[id^='bouton_cout_temps']").each((i, elt) => {$(elt).append(`<input id="input_cout_temps${(i == 0 ? "" : i)}" class="tooltip_droite" type="text" style="height: 20px; width: 85px;display:none;" title="Ex: 1.5 jour, 1j 12h, 36h" value="${$(elt).find("span[id^='cout_temps']").text()}"/>`);});
 		$("input[id^='input_cout_temps']").on("input", (e) => {
 			let i = $(e.currentTarget).attr("id").match(/\d+/) ? $(e.currentTarget).attr("id").match(/\d+/) : "",
-                nombre = parseInt(Utils.timeToInt(e.currentTarget.value) / (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, monProfil.getTDP())));
+                nombre = parseInt(Utils.timeToInt(e.currentTarget.value) / (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, monProfilJoueur.getTDP())));
             $("#cout_nombre" + i).text(numeral(nombre).format());
             $("#nombre_de_ponte" + i).attr("value", nombre);
 			$("#cout_temps" + i).text(e.currentTarget.value);
@@ -65,7 +65,7 @@ class PageReine
                 nombre = Math.floor(numeral(e.currentTarget.value).value() / COUT_UNITE[(i == "" ? 0 : i)]);
 			$("#cout_nombre" + i).text(numeral(nombre).format());
 			$("#nombre_de_ponte" + i).attr("value", nombre);
-            $("#cout_temps" + i).text(Utils.intToTime((nombre * (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, monProfil.getTDP())), nombre)));
+            $("#cout_temps" + i).text(Utils.intToTime((nombre * (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, monProfilJoueur.getTDP())), nombre)));
 			$("#cout_nourriture" + i).text(e.currentTarget.value);
 		});
 		// Sauvegarde de la ponte en cours

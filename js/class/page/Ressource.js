@@ -21,7 +21,7 @@ class PageRessource
         /**
         * Nombre de chasse restante
         */
-        this._nbChasse = monProfil.niveauRecherche[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
+        this._nbChasse = monProfilJoueur.niveauRecherche[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
         /**
         * Armée du joueur pour envoyer des chasses
         */
@@ -208,7 +208,7 @@ class PageRessource
 	majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte)
 	{
 		$("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
-		let temps = Math.round((Utils.terrain +  terrainChasse) * Math.pow(0.9, monProfil.niveauRecherche[5]));
+		let temps = Math.round((Utils.terrain +  terrainChasse) * Math.pow(0.9, monProfilJoueur.niveauRecherche[5]));
 		$("#o_chasseTemps").text(Utils.intToTime(temps));
 		$("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
 		$("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
@@ -234,7 +234,7 @@ class PageRessource
         });
         // Sauvegarde de la chasse en cours
 		this.saveChasse(listeChasse);
-        let affection = parseInt(monProfil.parametre["affectationRessource"].valeur);
+        let affection = parseInt(monProfilUtilisateur.parametre["affectationRessource"].valeur);
         // Ajout de la pref pour l'affectation auto
         $("#ChangeRessource").parent().parent().before(`<tr>
             <td><span class="text"><img src="images/icone/favicon.gif" height="16"> Affectation des ouvrières lors de la consultation de la page : </span></td>
@@ -245,16 +245,16 @@ class PageRessource
         $("input[name=choixOuvriere]").change(() => {
             switch($("input[name=choixOuvriere]:checked").val()){
                 case "nourriture" :
-                    monProfil.parametre["affectationRessource"].valeur = 2;
+                    monProfilUtilisateur.parametre["affectationRessource"].valeur = 2;
                     break;
                 case "materiaux" :
-                    monProfil.parametre["affectationRessource"].valeur = 1;
+                    monProfilUtilisateur.parametre["affectationRessource"].valeur = 1;
                     break;
                 default :
-                    monProfil.parametre["affectationRessource"].valeur = 0;
+                    monProfilUtilisateur.parametre["affectationRessource"].valeur = 0;
                     break;
             }
-            monProfil.parametre["affectationRessource"].sauvegarde();
+            monProfilUtilisateur.parametre["affectationRessource"].sauvegarde();
             return false;
         });
         // Affectation des ouvriéres inutilisé si on a la pref

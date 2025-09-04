@@ -91,13 +91,13 @@ class Utils
         switch(true){
             // cas Champi
             case evo_commande == 0 :
-                return [0, COUT_CONSTUCTION[evo_commande] * Math.pow(1.85, monProfil.niveauConstruction[evo_commande])];
+                return [0, COUT_CONSTUCTION[evo_commande] * Math.pow(1.85, monProfilJoueur.niveauConstruction[evo_commande])];
             // cas construction
             case evo_commande > 0 && evo_commande < 13 :
-                return [0, COUT_CONSTUCTION[evo_commande] * Math.pow(2, monProfil.niveauConstruction[evo_commande])];
+                return [0, COUT_CONSTUCTION[evo_commande] * Math.pow(2, monProfilJoueur.niveauConstruction[evo_commande])];
             // cas recherche
             case evo_commande >= 13 && evo_commande < 23 :
-                return [COUT_RECHERCHE_POM[evo_commande - 13] * Math.pow(2, monProfil.niveauRecherche[evo_commande - 13]), COUT_RECHERCHE_BOI[evo_commande - 13] * Math.pow(2, monProfil.niveauRecherche[evo_commande - 13])];
+                return [COUT_RECHERCHE_POM[evo_commande - 13] * Math.pow(2, monProfilJoueur.niveauRecherche[evo_commande - 13]), COUT_RECHERCHE_BOI[evo_commande - 13] * Math.pow(2, monProfilJoueur.niveauRecherche[evo_commande - 13])];
             default :
                 return [0, 0];
         }
@@ -277,14 +277,18 @@ class Utils
      * @return {Object} Un objet moment représentant la date parsée.
      */
     static parseForumDate(dateString) {
-        // Le format de la date est "D MMMM [à] HH[h]mm"
-        // moment.js peut avoir besoin des locales chargées pour les noms de mois.
-        // Remplacer les espaces insécables par des espaces normaux
-        let cleanedDateString = dateString.replace(/\u00A0/g, ' ');
-        // Le format de la date est "D MMMM [à] HH[h]mm"
-        // moment.js peut avoir besoin des locales chargées pour les noms de mois.
+        // Remplacer tous les types d'espaces (normaux et insécables) par un espace unique
+        let cleanedDateString = dateString.replace(/[\s\u00A0]+/g, ' ').trim();
+
+        // Formats possibles pour moment.js, incluant les abréviations de mois
+        const formats = [
+            "D MMM [à] HH[h]mm",  // ex: "6 juil à 18h16"
+            "D MMM. [à] HH[h]mm", // ex: "6 juil. à 18h16" (avec un point après l'abréviation)
+            "D MMMM [à] HH[h]mm" // ex: "6 juillet à 18h16"
+        ];
+
         // Assurez-vous que la locale 'fr' est chargée.
-        let parsedDate = moment(cleanedDateString, "D MMMM [à] HH[h]mm", 'fr', true);
+        let parsedDate = moment(cleanedDateString, formats, 'fr', true);
 
         // Si la date est valide mais n'a pas d'année (moment le gère en utilisant l'année en cours par défaut)
         // et que la date parsée est dans le futur par rapport à maintenant,
@@ -294,5 +298,57 @@ class Utils
         }
 
         return parsedDate;
+    }
+
+    /**
+     * Compare deux chaînes de version (ex: "1.0.0", "1.1.0").
+     *
+     * @static
+     * @method compareVersions
+     * @param {String} v1 La première chaîne de version.
+     * @param {String} v2 La deuxième chaîne de version.
+     * @return {Number} -1 si v1 < v2, 0 si v1 == v2, 1 si v1 > v2.
+     */
+    static compareVersions(v1, v2) {
+        const parts1 = v1.split('.').map(Number);
+        const parts2 = v2.split('.').map(Number);
+        const maxLength = Math.max(parts1.length, parts2.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            const p1 = parts1[i] || 0;
+            const p2 = parts2[i] || 0;
+
+            if (p1 < p2) {
+                return -1;
+            }
+            if (p1 > p2) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Adds a class to the window object.
+     *
+     * @static
+     * @method register
+     * @param {Object} classObject The class to add to the window.
+     */
+    static register(classObject) {
+        if (classObject && classObject.name) {
+            window[classObject.name] = classObject;
+        }
+    }
+
+    /**
+     * Pause l'exécution pendant un nombre de millisecondes donné.
+     * @static
+     * @method sleep
+     * @param {Number} ms - Le nombre de millisecondes à attendre.
+     * @returns {Promise<void>} Une promesse qui se résout après le délai spécifié.
+     */
+    static sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }

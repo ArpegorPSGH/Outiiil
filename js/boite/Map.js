@@ -74,7 +74,7 @@ class BoiteMap extends Boite
         for(let i = 0, l = data.split("\n") ; i < l.length ; i++){
             let tmp = l[i].split(";");
             // si c'est moi on met en evidence
-            if(tmp[1] == monProfil.pseudo)
+            if(tmp[1] == monProfilJoueur.pseudo)
                 mesDatas.push({x : parseInt(tmp[3]), y : parseInt(tmp[2]), id : tmp[0], name : tmp[1], color : "#00FF00", marker : {radius : 4}});
             else
                 mesDatas.push({x : parseInt(tmp[3]), y : parseInt(tmp[2]), id : tmp[0], name : tmp[1]});
@@ -95,9 +95,9 @@ class BoiteMap extends Boite
                 tickInterval : 1,
                 minorGridLineColor : "#333333",
                 minorTickInterval : 4,
-                labels : {style : {color : monProfil.parametre["couleurTexte"].valeur}},
-                min : Math.max(0, monProfil.y - 10),
-                max : monProfil.y + 10 + (monProfil.y - 10 < 10 ? Math.abs(monProfil.y - 10) : 0),
+                labels : {style : {color : monProfilUtilisateur.parametre["couleurTexte"].valeur}},
+                min : Math.max(0, monProfilJoueur.y - 10),
+                max : monProfilJoueur.y + 10 + (monProfilJoueur.y - 10 < 10 ? Math.abs(monProfilJoueur.y - 10) : 0),
                 scrollbar : {
                     enabled : true
                 }
@@ -105,14 +105,14 @@ class BoiteMap extends Boite
             yAxis : {
                 lineColor : "#333333",
                 gridLineColor : "#333333",
-                labels : {align : "left", x : 0, y : -2, style : {color : monProfil.parametre["couleurTexte"].valeur}},
+                labels : {align : "left", x : 0, y : -2, style : {color : monProfilUtilisateur.parametre["couleurTexte"].valeur}},
                 min : 0,
                 max : 50
             },
             tooltip : {
                 crosshairs : true,
                 formatter : function(){
-                    return `<b>${this.point.name}</b><br/>x : ${this.x}, y : ${this.y}<br/>Temps de trajet : ${Utils.intToTime(monProfil.getTempsParcours(this.y, this.x))}`;
+                    return `<b>${this.point.name}</b><br/>x : ${this.x}, y : ${this.y}<br/>Temps de trajet : ${Utils.intToTime(monProfilJoueur.getTempsParcours(this.y, this.x))}`;
                 }
             },
             plotOptions : {

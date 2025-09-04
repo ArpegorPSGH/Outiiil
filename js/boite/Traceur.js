@@ -57,9 +57,9 @@ class BoiteTraceur extends Boite
 	css()
 	{
         super.css();
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfil.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfil.parametre["couleurTexte"].valeur);
-        let matches = monProfil.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
+        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
         $(".o_content li:not(.ui-state-active) a").css("color", "inherit").hover(
             (e) => {$(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => {return parseInt(m, 16);}).concat('0.5') + ")");},
             (e) => {$(e.currentTarget).css("color", "inherit");}
