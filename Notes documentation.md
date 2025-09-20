@@ -79,11 +79,23 @@ Pour garantir la robustesse des fonctionnalités :
     - Lors d'une modification de nom de paramètre, ajoutez le nouveau nom à sa liste statique `ParametreObjetForum.NAME_HISTORY`.
     - Lors d'une modification de lieu d'enregistrement d'un objet, ajoutez le nouveau lieu à sa liste statique `ObjetForum.LOCATION_HISTORY`.
     - Lors d'une modification des paramètres d'un objet, ajoutez le nouveau set de paramètres à sa liste statique `ObjetForum.CLASSES_PARAMETRES`.
-- **Migration des données :** Surchargez la méthode `ObjetForum.completerChargementPourVersionsAnterieures()` pour gérer la migration des paramètres entre versions. Cette méthode doit :
-    1. Appeler `this._determinerVersionChargee()` pour obtenir la version de l'objet chargé.
-    2. Itérer à travers les versions (hors actuelle) en utilisant un `switch` pour chaque version.
-    3. Implémenter la logique de migration des paramètres d'une version à la suivante dans chaque `case`.
-    4. Utiliser les fonctions d'écriture de la classe (`ObjetForum.ecrireParametre()`) pour que `ObjetForum.estModifie` soit correctement mis à jour.
+- **Chargement des sous-objets :** Ne chargez les sous-objets (`ObjetForum.objetsForumContenus`) que lorsque cela est nécessaire pour réduire la latence.
+- **Réutilisation des paramètres :** Ne réutilisez pas un `ParametreObjetForum` existant si sa signification change ; créez-en un nouveau.
+- **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
+- **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente (tout changement faisant que dans des situations identiques, les paramètres ne seront pas censés prendre la même valeur), incrémentez la propriété statique `ObjetForum.VERSION_LOGIQUE`.
+- **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
+- **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lireParametre()`, `ObjetForum.lireChaqueParametre()`, `ObjetForum.ecrireParametre()`, `ObjetForum.ecrireChaqueParametre()`, ne jamais accéder directement à sa propriété `valeur`.
+- **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.
+
+
+### 5.4 Compléments de Chargement et d'Affichage
+
+Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être surchargées dans les classes filles pour injecter une logique spécifique à différentes étapes du cycle de vie de l'objet, sans modifier le comportement de base du framework.
+
+*   **`completerChargementPourVersionsAnterieures()`**
+    *   **Objectif :** Gérer la migration des données lors du chargement d'une version antérieure de l'objet.
+    *   **Utilisation :** Cette méthode est appelée par `ObjetForum.chargerDepuisString()` après que les paramètres de l'objet aient été chargés depuis une chaîne. Elle permet de calculer et de peupler les paramètres des versions récentes à partir des données d'une version plus ancienne.
+    *   **Bonne Pratique :** Utilisez `this._determinerVersionChargee()` pour identifier la version chargée et un `switch` pour implémenter la logique de migration spécifique à chaque version. Utilisez `this.ecrireParametre()` pour mettre à jour les valeurs des paramètres afin de garantir que l'état `estModifie` est correctement géré.
     ```javascript
     completerChargementPourVersionsAnterieures() {
         let versionActuelle = this._determinerVersionChargee();
@@ -110,12 +122,44 @@ Pour garantir la robustesse des fonctionnalités :
         }
     }
     ```
-- **Chargement des sous-objets :** Ne chargez les sous-objets (`ObjetForum.objetsForumContenus`) que lorsque cela est nécessaire pour réduire la latence.
-- **Réutilisation des paramètres :** Ne réutilisez pas un `ParametreObjetForum` existant si sa signification change ; créez-en un nouveau.
-- **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
-- **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente (tout changement faisant que dans des situations identiques, les paramètres ne seront pas censés prendre la même valeur), incrémentez la propriété statique `ObjetForum.VERSION_LOGIQUE`.
-- **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
-- **Accès aux paramètres :** Toujours utiliser les méthodes `ParametreObjetForum.Lire()` et `ParametreObjetForum.Ecrire()` d'un paramètre, ne jamais accéder directement à sa propriété `valeur`, et surtout pas la modifier directement.
+
+*   **`completerRafraichissement()`**
+    *   **Objectif :** Ajouter une logique spécifique à la fin du processus de rafraîchissement d'un objet.
+    *   **Utilisation :** Cette méthode est appelée par `ObjetForum.rafraichir()` après que le titre du sujet et les objets contenus aient été chargés. Elle est utile pour charger des attributs supplémentaires de la classe fille qui ne sont pas des `ParametreObjetForum` ou des `ObjetForum` contenus.
+
+*   **`completerAffichage(donnees)`**
+    *   **Objectif :** Modifier ou ajouter des données avant l'affichage HTML.
+    *   **Utilisation :** Cette méthode est appelée par `ObjetForum.afficher()` juste avant la génération du HTML. Elle reçoit un dictionnaire des données des `ParametreObjetForum` et permet d'ajouter des attributs calculés ou de modifier les valeurs existantes avant qu'elles ne soient rendues.
+
+### 5.5 Définition d'Attributs Calculés
+
+Pour définir des attributs dont la valeur est dérivée d'autres paramètres et qui doivent respecter les restrictions de droits, utilisez la méthode protégée `_invoquerCalculSecurise()`.
+
+*   **`_invoquerCalculSecurise(methodeCalcul)`**
+    *   **Objectif :** Invoquer de manière sécurisée une méthode de calcul d'un attribut dérivé. Gère automatiquement les droits d'accès et les erreurs de calcul (notamment dues à des données restreintes).
+    *   **Utilisation :**
+        1.  Définissez une méthode privée dans votre classe fille qui contient la logique de calcul de l'attribut. Cette méthode doit prendre un argument `peutVoirDonneesRestreintes` (un booléen) qui indique si l'utilisateur a les droits suffisants pour voir les données normales.
+        2.  Dans cette méthode de calcul, utilisez `this.lireParametre()` (ou `this.lireChaqueParametre()` éventuellement) pour accéder aux valeurs des paramètres nécessaires au calcul. Si `peutVoirDonneesRestreintes` est `false`, `lire(Chaque)Parametre()` lèvera une `ErreurRestriction` si le paramètre est restreint.
+        3.  Appelez `_invoquerCalculSecurise()` en lui passant votre méthode de calcul liée à l'instance de l'objet (`votreMethodeDeCalcul.bind(this)`).
+    *   **Exemple :**
+        ```javascript
+        class MonObjetForum extends ObjetForum {
+            // ... autres attributs et méthodes ...
+
+            async completerAffichage(donnees) {
+                donnees['new'] = await this._invoquerCalculSecurise(this._calculerMonAttribut.bind(this));
+                return donnees
+            }
+
+            async _calculerMonAttribut(peutVoirDonneesRestreintes) {
+                return await this.lireParametre('Quantité', peutVoirDonneesRestreintes) * await this.lireParametre('PrixUnitaire', peutVoirDonneesRestreintes);
+            }
+        }
+        ```
+    *   **Gestion des retours :** `_invoquerCalculSecurise()` retournera :
+        *   La valeur calculée si tout est en ordre.
+        *   La chaîne `'<i>Restreint</i>'` si une `ErreurRestriction` est levée (indiquant que des données sous-jacentes sont restreintes).
+        *   La chaîne `'<i>Incalculable</i>'` si le calcul aboutit à `NaN`, `null` ou `undefined` sans lever d'erreur.
 
 ---
 

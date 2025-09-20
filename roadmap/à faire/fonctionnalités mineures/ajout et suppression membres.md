@@ -1,7 +1,7 @@
-# Frigos
+# Ajout et suppression membres
 
 ## Objectifs
-Gérer les joueurs frigos pour que l'XP dessus soit équitable.
+Pouvoir ajouter et supprimer des membres un à un depuis la page alliance.
 
 ## Fonctionnement Détaillé
 

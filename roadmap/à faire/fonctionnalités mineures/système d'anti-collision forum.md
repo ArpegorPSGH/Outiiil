@@ -10,6 +10,7 @@ Empêcher les collisions de plusieurs clients sur un même sujet. A n'ajouter qu
 3. Lorsqu'il est disponible, le lire et marquer le sujet pour le réserver
 4. A l'issue du traitement, si le sujet est toujours réservé par le client, le mettre à jour et le libérer
 5. Sinon, il y a eu collision au moment de la réservation, et il faut reprendre à l'étape 2.
+- Retenter l'opération complète depuis le début en cas de collision pour ne pas rater de changement de situation
 
 ## Plan d'Implémentation
 

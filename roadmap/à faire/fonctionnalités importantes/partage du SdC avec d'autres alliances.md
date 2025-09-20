@@ -4,6 +4,8 @@
 Donner la possibilité de partager le SdC avec une ou plusieurs autres alliances.
 
 ## Fonctionnement Détaillé
+- Partage partiel?
+- Gestion des droits
 
 ## Plan d'Implémentation
 

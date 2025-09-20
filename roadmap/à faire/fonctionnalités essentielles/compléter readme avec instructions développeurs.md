@@ -7,6 +7,7 @@ Ajouter une section implémentation au readme contenant des instructions destin�
 - Ajout de fonctionnalités
 - Documentation utilisation fonctionalités
 - Génération automatique de la documentation?
+- Diagrammes de classes et de séquences
 - Instructions installation
 - Lien vers le fichier de la roadmap détaillant le fonctionnement et l'implémentation
 - Workflow développement de fonctionnalité

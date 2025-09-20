@@ -148,6 +148,20 @@ Une fonction sera ajoutée à la page forum pour permettre le transfert d'un suj
 
 ## Plan d'Implémentation
 
+### **Classe d'Erreur Personnalisée**
+
+Pour une gestion claire des erreurs liées aux restrictions d'accès, une classe d'erreur spécifique est introduite.
+
+```javascript
+class ErreurRestriction extends Error {
+    constructor(message, donnees = {}) {
+        super(message);
+        this.name = 'ErreurRestriction';
+        this.donnees = donnees; // Contient les données lues jusqu'à présent
+    }
+}
+```
+
 ### **Lancement Global**
 
 Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisation globale unique qui peut être appelée à la fois au démarrage de l'extension et au chargement d'une page.
@@ -443,7 +457,10 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
             i.  Si `chargerContenus` est `true` :
                 -   `const contenusCharges = await this.chargerObjetForumsContenus(messages);`
                 -   Si `contenusCharges` est `false`, retourne `false`.
-        e.  **Retour Final :** Retourne `true`.
+        e.  **Chargement des attributs de la classe fille :**
+            i.  Invoque `completerRafraichissement()`
+            ii. Si la fonction retourne `false`, retourne `false`.
+        f.  **Retour Final :** Retourne `true`.
     3.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
 
 ##### **4. `chargerObjetForumsContenus()`**
@@ -495,24 +512,28 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 
 ##### **6. `afficher()`**
 
-*   **Objectif :** Générer directement les chaînes de caractères HTML pour la ligne d'en-tête (`<thead>`) et la ligne de corps (`<tbody>`) d'un tableau, en respectant l'ordre des colonnes spécifié.
+*   **Objectif :** Générer directement les chaînes de caractères HTML pour l'en-tête (`<thead>`) et le corps (`<tbody>`) d'un tableau, en respectant l'ordre des colonnes spécifié.
 *   **Signature :** `afficher(liste = null)`
 *   **Logique Détaillée :**
     1.  **Vérification des Droits et Lecture des Données :**
         a.  Appelle le `GestionnaireDroits` pour savoir si l'utilisateur peut voir les données restreintes (`peutVoirDonneesRestreintes`).
-        b.  Appelle `this.lireChaqueParametreObjetForum(peutVoirDonneesRestreintes, liste)` pour obtenir un dictionnaire des données sécurisées.
+        b.  Appelle `this.lireChaqueParametre(peutVoirDonneesRestreintes, liste)` pour obtenir un dictionnaire des données sécurisées.
+        c.  **Gestion des restrictions :** La méthode `lireChaqueParametre` peut lever une `ErreurRestriction` si des données sont restreintes. Cette erreur doit être capturée pour récupérer les données partielles (contenant les chaînes de restriction) et continuer l'affichage.
+        d.  Appelle `completerAffichage(donnees)` pour ajouter les données des attributs de la classe fille.
     2.  **Détermination de l'Ordre d'Affichage :**
         a.  Initialise `let ordreAffichage;`.
         b.  Si `liste` est fournie, `ordreAffichage = liste;`.
-        c.  Sinon (ordre par défaut), `ordreAffichage` est construit en récupérant les noms d'affichage les plus récents des paramètres de la **dernière version** de l'objet.
-            ```javascript
-            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
-            const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
-            ordreAffichage = classesDerniereVersion.map(classe => {
-                const p = mapClasseInstance.get(classe);
-                return p.constructor.getDernierNom();
-            });
-            ```
+        c.  Sinon (ordre par défaut) :
+                i.  `ordreAffichage` est construit en récupérant les noms d'affichage les plus récents des paramètres de la **dernière version** de l'objet.
+                ```javascript
+                const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+                const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
+                ordreAffichage = classesDerniereVersion.map(classe => {
+                    const p = mapClasseInstance.get(classe);
+                    return p.constructor.getDernierNom();
+                });
+                ```
+                ii. Les clés supplémentaires de `donnees` qui ne sont pas déjà dans `ordreAffichage` sont ajoutées.
     3.  **Construction de l'En-tête HTML (`en_tete_html`) :**
         a.  Initialise `let en_tete_html = '<tr>';`.
         b.  Parcourt `ordreAffichage`. Pour chaque `nomParametreObjetForum` :
@@ -529,38 +550,46 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 *   **Note sur la personnalisation :**
     *   Une classe fille pourra surcharger cette méthode pour insérer des éléments interactifs (comme des `<select>`) dans les cellules du `corps_html` au lieu de simple texte.
 
-##### **7. `lireChaqueParametreObjetForum(peutVoirDonneesRestreintes, liste)`**
+##### **7. `_invoquerCalculSecurise(methodeCalcul)` (Méthode protégée)**
 
-*   **Signature :** `async lireChaqueParametreObjetForum(peutVoirDonneesRestreintes = true, liste = null)`
+*   **Signature :** `async _invoquerCalculSecurise(methodeCalcul: Function): Promise<any>`
+*   **Objectif :** Invoquer de manière sécurisée une méthode de calcul d'un attribut dérivé. Gère les droits d'accès et les erreurs de calcul (typiquement dues à des données restreintes).
+*   **Logique Détaillée :**
+    1.  **Vérification des Droits :** Appelle `this.fonctionnaliteCreatrice.verifierDroit('N')` pour déterminer si l'utilisateur a les droits suffisants pour voir les données normales.
+    2.  **Exécution du Calcul :**
+        a.  Exécute `await methodeCalcul(peutVoirDonneesRestreintes)` dans un bloc `try...catch`.
+        b.  Si le résultat est `NaN`, `null` ou `undefined`, retourne la chaîne `'<i>Incalculable</i>'`.
+        c.  Retourne le résultat du calcul.
+    3.  **Gestion des Erreurs :** En cas d'erreur (notamment `ErreurRestriction` levée par `lireParametre`), capture l'erreur et retourne la chaîne `'<i>Restreint</i>'`.
+
+##### **8. `lireChaqueParametre(peutVoirDonneesRestreintes, liste)`**
+
+*   **Signature :** `async lireChaqueParametre(peutVoirDonneesRestreintes = true, liste = null)`
 *   **Objectif :** Agréger les valeurs des paramètres en un dictionnaire. Garantit que chaque paramètre est unique. Si une `liste` est fournie, la clé est le nom de la liste ; sinon, c'est le nom d'affichage le plus récent.
 *   **Logique Détaillée :**
-    1.  **Initialisation :** `let donnees = {};`.
-    2.  **Si une `liste` est fournie :**
-        a.  Parcourt la `liste`. Pour chaque `nomParametreObjetForum` :
-            i.  Vérifie si le paramètre a déjà été ajouté pour garantir l'unicité : `if (!donnees.hasOwnProperty(nomParametreObjetForum))`.
-            ii. Trouve l'instance `parametre` via `this.mapParametreObjetForums`.
-            iii. Si un `parametre` est trouvé :
-                -   Récupère la `valeur` et le `nomAffiche` le plus récent.
-                -   Peuple le dictionnaire : `donnees[nomParametreObjetForum] = { valeur: valeur, nom_affiche: nomAffiche };`.
-            iv. Sinon, peuple le dictionnaire avec des éléments `null`.
-    3.  **Si aucune `liste` n'est fournie (cas par défaut) :**
-        a.  Parcourt tous les `this.parametres` de l'objet.
-        b.  Pour chaque `parametre` :
-            i.  Récupère la `valeur` et le `nomAffiche` le plus récent.
-            ii. Utilise `nomAffiche` comme clé : `donnees[nomAffiche] = { valeur: valeur, nom_affiche: nomAffiche };`.
-    4.  **Retour des Données :** La méthode retourne l'objet `donnees` complet.
+    1.  **Initialisation :** `let donnees = {};` et `let aRencontreRestriction = false;`.
+    2.  **Détermination des clés à lire :** Utilise `liste` si fournie, sinon parcourt `this.parametres`.
+    3.  **Itération et Lecture :** Pour chaque clé/paramètre :
+        a.  Trouve l'instance `parametre` via `this.mapParametres`.
+        b.  Appelle `await parametre.Lire(peutVoirDonneesRestreintes)`.
+        c.  Si la valeur retournée est `null` (indiquant une restriction) :
+            i.  Met `aRencontreRestriction = true;`.
+            ii. Peuple le dictionnaire avec la `STRING_RESTRICTION` du paramètre.
+        d.  Sinon, peuple le dictionnaire avec la valeur réelle.
+    4.  **Gestion de l'Erreur de Restriction :** Si `aRencontreRestriction` est `true`, lève une `ErreurRestriction` en incluant les `donnees` partielles.
+    5.  **Retour des Données :** La méthode retourne l'objet `donnees` complet.
 
-##### **8. `ecrireChaqueParametreObjetForum(donnees)`**
+##### **9. `ecrireChaqueParametre(donnees)`**
 
-*   **Signature :** `async ecrireChaqueParametreObjetForum(donnees)`
+*   **Signature :** `async ecrireChaqueParametre(donnees)`
 *   **Objectif :** Mettre à jour rapidement les valeurs des paramètres de l'objet à partir d'un objet clé-valeur.
 *   **Logique Détaillée :**
     1.  **Itération sur les Données Fournies :** La méthode parcourt les clés (`nomParametreObjetForum`) de l'objet `donnees`.
     2.  **Recherche et Écriture Rapides :** Pour chaque `nomParametreObjetForum` :
-        a.  Elle utilise la `mapParametreObjetForums` pour trouver le `parametre` correspondant en O(1).
+        a.  Elle utilise la `mapParametres` pour trouver le `parametre` correspondant en O(1).
         b.  Si un `parametre` est trouvé, elle appelle `parametre.Ecrire(donnees[nomParametreObjetForum])`.
 
-##### **9. `enregistrerSurForum()`**
+##### **10. `enregistrerSurForum()`**
 
 *   **Signature :** `async enregistrerSurForum()`
 *   **Objectif :** Point d'entrée unique pour écrire l'état de l'objet sur le forum. Gère la création et la mise à jour pour les objets principaux et les objets contenus.
@@ -590,24 +619,25 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
             ii. Pour chaque `sousObjetForum`, appelle `await sousObjetForum.enregistrerSurForum()`.
     3.  **Libération du verrou d'écriture :** Dans le bloc `finally`, `this._releaseWriteLock();` est appelé.
 
-##### **10. `lireParametreObjetForum(nomParametreObjetForum)`**
+##### **11. `lireParametre(nomParametre, peutVoirDonneesRestreintes = true)`**
 
-*   **Signature :** `async lireParametreObjetForum(nomParametreObjetForum)`
+*   **Signature :** `async lireParametre(nomParametre, peutVoirDonneesRestreintes = true)`
 *   **Objectif :** Fournir un accès direct et rapide en lecture à la valeur brute d'un paramètre.
 *   **Logique Détaillée :**
-    1.  **Recherche Rapide via Map :** La méthode utilise la `mapParametreObjetForums` de l'objet pour trouver le paramètre en temps constant : `const parametre = this.mapParametreObjetForums.get(nomParametreObjetForum);`.
-    2.  **Lecture Directe :** Si le `parametre` est trouvé, elle retourne sa `valeur` brute.
-    3.  **Retour par défaut :** Si non trouvé, retourne `null`.
+    1.  **Recherche Rapide via Map :** La méthode utilise la `mapParametres` de l'objet pour trouver le paramètre. Si non trouvé, retourne `null` (ou lève une erreur si le paramètre est inexistant).
+    2.  **Lecture Directe :** Appelle `await parametre.Lire(peutVoirDonneesRestreintes)`.
+    3.  **Gestion de la Restriction :** Si la valeur retournée par `parametre.Lire` est `null` (indiquant une restriction), lève une `ErreurRestriction` spécifique pour ce paramètre.
+    4.  **Retour :** Retourne la valeur du paramètre.
 
-##### **11. `ecrireParametreObjetForum(nomParametreObjetForum, valeur)`**
+##### **12. `ecrireParametre(nomParametre, valeur)`**
 
-*   **Signature :** `async ecrireParametreObjetForum(nomParametreObjetForum, valeur)`
+*   **Signature :** `async ecrireParametre(nomParametre, valeur)`
 *   **Objectif :** Fournir un accès direct et rapide en écriture à un paramètre.
 *   **Logique Détaillée :**
-    1.  **Recherche Rapide via Map :** La méthode trouve le paramètre en temps constant : `const parametre = this.mapParametreObjetForums.get(nomParametreObjetForum);`.
+    1.  **Recherche Rapide via Map :** La méthode trouve le paramètre en temps constant : `const parametre = this.mapParametres.get(nomParametre);`.
     2.  **Écriture de la Valeur :** Si un `parametre` est trouvé, elle appelle sa méthode `Ecrire(valeur)`.
 
-##### **12. `_determinerVersionChargee()`**
+##### **13. `_determinerVersionChargee()`**
 
 *   **Signature :** `_determinerVersionChargee()`
 *   **Portée :** Protégée (interne à la classe et ses filles).
@@ -635,7 +665,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
             iii. Si `estCorrespondanceExacte` est `true`, la méthode a trouvé la version unique et exacte. Elle retourne l'index `i`.
     3.  **Retour par Défaut :** Si la boucle se termine sans trouver de correspondance exacte, la méthode retourne `-1`.
 
-##### **13. `_acquireReadLock()` (Méthode privée)**
+##### **14. `_acquireReadLock()` (Méthode privée)**
 *   **Signature :** `async _acquireReadLock()`
 *   **Objectif :** Acquérir un verrou de lecture sur l'instance de l'objet. Permet à plusieurs lecteurs de s'exécuter simultanément, mais bloque si un writer est actif ou en attente.
 *   **Logique Détaillée :**
@@ -646,7 +676,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         c.  **Acquisition :** Dans tous les autres cas, `_readerCount` est incrémenté et la promesse est résolue.
     3.  `tryAcquire` est appelée immédiatement.
 
-##### **14. `_releaseReadLock()` (Méthode privée)**
+##### **15. `_releaseReadLock()` (Méthode privée)**
 *   **Signature :** `_releaseReadLock()`
 *   **Objectif :** Libérer un verrou de lecture. Si aucun autre lecteur n'est actif et qu'il y a des writers en attente, le prochain writer est notifié.
 *   **Logique Détaillée :**
@@ -654,7 +684,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     2.  Si `_readerCount` est `0` :
         a.  Si `_writerQueue` n'est pas vide, le prochain writer en attente est débloqué.
 
-##### **15. `_acquireWriteLock()` (Méthode privée)**
+##### **16. `_acquireWriteLock()` (Méthode privée)**
 *   **Signature :** `async _acquireWriteLock()`
 *   **Objectif :** Acquérir un verrou d'écriture sur l'instance de l'objet. Bloque les lecteurs mais permet à plusieurs writers de s'exécuter simultanément.
 *   **Logique Détaillée :**
@@ -664,7 +694,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         b.  Sinon, `this._writerCount` est incrémenté. Le flag `_writerWaiting` est mis à jour pour refléter si d'autres writers sont encore en attente dans la queue (`this._writerQueue.length > 0`). La promesse est résolue.
     3.  `tryAcquire` est appelée immédiatement.
 
-##### **16. `_releaseWriteLock()` (Méthode privée)**
+##### **17. `_releaseWriteLock()` (Méthode privée)**
 *   **Signature :** `_releaseWriteLock()`
 *   **Objectif :** Libérer un verrou d'écriture. Notifie les lecteurs ou le prochain writer en attente si aucun writer n'est actif.
 *   **Logique Détaillée :**
@@ -674,7 +704,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         b.  Si `_readerQueue` n'est pas vide, tous les lecteurs en attente sont débloqués.
         c.  Sinon, si `_writerQueue` n'est pas vide, le prochain writer en attente est débloqué.
 
-##### **17. `completerChargementPourVersionsAnterieures()`**
+##### **18. `completerChargementPourVersionsAnterieures()`**
 
 *   **Signature :** `completerChargementPourVersionsAnterieures()`
 *   **Portée :** Publique, destinée à être surchargée dans les classes filles.
@@ -706,6 +736,19 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         }
     }
     ```
+
+##### **19. `completerAffichage()`**
+
+*   **Signature :** `completerAffichage(donnees)`
+*   **Portée :** Protégée, destinée à être surchargée dans les classes filles.
+*   **Objectif :** Contenir la logique d'ajout des valeurs des attributs pour l'affichage.
+
+##### **20. `completerRafraichissement()`**
+
+*   **Signature :** `completerRafraichissement()`
+*   **Portée :** Protégée, destinée à être surchargée dans les classes filles.
+*   **Objectif :** Contenir la logique de chargement des valeurs des attributs de la classe fille.
+
 ### **Plan Détaillé : Classe `ParametreObjetForum`**
 
 #### **Attributs**
@@ -848,7 +891,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         b.  Elle ne retourne rien.
     3.  **Libération du verrou exclusif :** Dans le bloc `finally`, `this._releaseExclusiveLock();` est appelé.
 
-##### **13. `Lire()`**
+##### **13. `Lire(peutVoirDonneesRestreintes)`**
 
 *   **Classe :** `ParametreObjetForum`
 *   **Signature :** `async Lire(peutVoirDonneesRestreintes: Boolean = True): Promise<any>`
@@ -856,8 +899,8 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 *   **Logique Détaillée :**
     1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
     2.  **Bloc `try...finally` :**
-        a.  Si `this.stringRestriction` n'est pas `null` (le paramètre est configuré pour être restreint) ET `peutVoirDonneesRestreintes` est `false` (l'utilisateur n'a pas les droits suffisants pour voir les données restreintes) :
-            i.  Retourne `this.stringRestriction`.
+        a.  Si `this.constructor.STRING_RESTRICTION` n'est pas `null` (le paramètre est configuré pour être restreint) ET `peutVoirDonneesRestreintes` est `false` (l'utilisateur n'a pas les droits suffisants pour voir les données restreintes) :
+            i.  Retourne `null` pour indiquer que la donnée est restreinte et ne peut pas être lue.
         b.  Sinon (le paramètre n'est pas restreint, ou l'utilisateur a les droits suffisants) :
             i.  Retourne `this.valeur`.
     3.  **Libération du verrou de lecture :** Dans le bloc `finally`, `this._releaseReadLock();` est appelé.
@@ -869,7 +912,6 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 *   **Objectif :** Retourner le nom le plus récent du paramètre à partir de son `NAME_HISTORY`.
 *   **Logique Détaillée :**
     1.  Retourne le dernier élément du tableau statique `NAME_HISTORY` : `return this.NAME_HISTORY[this.NAME_HISTORY.length - 1];`.
-
 
 
 ### **Plan Détaillé : Classe `GestionnaireDroits`**
