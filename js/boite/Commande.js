@@ -34,9 +34,9 @@ class BoiteCommande extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher())
+        if(await super.afficher())
             this.getForm().css().event();
         return this;
 	}
@@ -84,24 +84,24 @@ class BoiteCommande extends Boite
                 // si la commande n'est pas dans l'utilitaire on est en ajout
                 if(!this._utilitaire.commande.hasOwnProperty(this._commande.id)){
                     // si la commande n'est pas dans l'utilitaire c'est un ajout
-                    this._utilitaire.creerSujet(this._commande.toUtilitaire(), " ", monProfilUtilisateur.parametre["Commandes Outiiil"].valeur).then((data) => {
+                    this._utilitaire.creerSujet(this._commande.toUtilitaire(), " ", monProfilUtilisateur.parametre["Commandes Outiiil"].valeur).then(async (data) => {
                         let response = $(data).text();
                         if(response.includes("Accès refusé."))
                             $.toast({...TOAST_WARNING, text : response + " Vous n'avez pas les droits de créer de commandes."});
                         else{
                             $.toast({...TOAST_SUCCESS, text : "Commande ajoutée avec succès."});
                             this._utilitaire.commande[this._commande.id] = this._commande;
-                            this._page.actualiserCommande();
+                            await this._page.actualiserCommande();
                         }
                     }, (jqXHR, textStatus, errorThrown) => {
                          $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de l'ajout de votre commande."});
                     });
                 }else{
                     // si la commande est deja dans l'utilitaire c'est qu'on la modifie sinon c'est un ajout
-                    this._utilitaire.modifierSujet(this._commande.toUtilitaire(), " ", this._commande.id).then((data) => {
+                    this._utilitaire.modifierSujet(this._commande.toUtilitaire(), " ", this._commande.id).then(async (data) => {
                         $.toast({...TOAST_INFO, text : "Commande mise à jour avec succès."});
                         this._utilitaire.commande[this._commande.id] = this._commande;
-                        this._page.actualiserCommande();
+                        await this._page.actualiserCommande();
                     }, (jqXHR, textStatus, errorThrown) => {
                          $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
                     });

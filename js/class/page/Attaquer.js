@@ -33,7 +33,7 @@ class PageAttaquer
     /**
     *
     */
-    executer()
+    async executer()
     {
         if($("#tabChoixArmee").length){
             // récupération de l'armée
@@ -42,12 +42,12 @@ class PageAttaquer
             // ajoute event
             $("input[id^=unite]").on("input", (e) => {this.majStatistique();});
             // on recupére le profil du joueur pour les coordonnées
-            this._cible.getProfil().then((data) => {
-                this._cible.chargerProfil(data);
+            await this._cible.getProfil().then(async (data) => {
+                await this._cible.chargerProfil(data);
                 // affichage des options avancées de lancement de l'armée
-                this.ajouterOption();
+                await this.ajouterOption();
                 // ajoute des outils de floods
-                this.formulaireFlood();
+                await this.formulaireFlood();
             });
         }
         if(!Utils.comptePlus) this.plus();
@@ -89,13 +89,13 @@ class PageAttaquer
     /**
     *
     */
-    ajouterOption()
+    async ajouterOption()
     {
         // on deplace le bouton standarf à droite
         $("input[name='ChoixArmee']").unwrap().wrap("<div id='o_btnLancer' class='right'></div>");
         // Ajout du bouton pour la synchro simple
         // Ajout du temps de trajet
-        $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
+        $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(await monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
         $("#o_synchro").click((e) => {
             e.preventDefault();
             this.lancerSynchro(this._cible.attenteSynchro());
@@ -116,7 +116,7 @@ class PageAttaquer
             this.lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
-        Utils.incrementTime(monProfilJoueur.getTempsParcours2(this._cible), "o_retourArmee", "o_retourArmeeRC");
+        Utils.incrementTime(await monProfilJoueur.getTempsParcours2(this._cible), "o_retourArmee", "o_retourArmeeRC");
     }
     /**
     *
@@ -134,12 +134,12 @@ class PageAttaquer
 	* @private
 	* @method formulaireFlood
 	*/
-    formulaireFlood()
+    async formulaireFlood()
     {
         let methode = monProfilUtilisateur.parametre["methodeFlood"].valeur;
         $(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
             <table id='o_simulationFlood' class='o_maxWidth' cellspacing=0>
-			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${this._cible.pseudo} (${Utils.intToTime(monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
+			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${await this._cible.lireParametre('pseudo')} (${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
 			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${this._cible.terrain}' size='12' id='o_floodTDCB'/></td></tr>
 			<tr><td>Antisonde (<span id="o_pourcentAttaque0">0</span>%)</td><td><input value='0' size='12' id='o_floodAntiSonde'/></td><td></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(this._cible.terrain).format()}</td></tr>
             <tr class="gras reduce"><td colspan="3"></td><td><span id="o_supprimeAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Supprimer une attaque</span></td><td><span id="o_ajouteAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Ajouter une attaque</span></td></tr>

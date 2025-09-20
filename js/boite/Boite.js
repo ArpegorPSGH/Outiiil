@@ -54,7 +54,7 @@ class Boite
     * @private
     * @method afficher
     */
-    afficher()
+    async afficher()
     {
         let bCreate = false;
         if(!$("#" + this._id).length){

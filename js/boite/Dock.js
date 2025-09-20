@@ -51,7 +51,7 @@ class Dock
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
         $("body").append(this._html);
         $(".o_toolbarDroite .o_toolbarItem").tooltip({
@@ -83,26 +83,26 @@ class Dock
             });
         }
         // evenement sur le clic d'un item de la boite d'outil
-        $(".o_toolbarItem").click((e) => {
+        $(".o_toolbarItem").click(async (e) => {
             // affichage de la boite
             switch($(e.currentTarget).find("span").attr("id")){
                 case "o_itemPonte" :
-                    this._boitePonte.afficher();
+                    await this._boitePonte.afficher();
                     break;
                 case "o_itemChasse" :
-                    this._boiteChasse.afficher();
+                    await this._boiteChasse.afficher();
                     break;
                 case "o_itemCombat" :
-                    this._boiteCombat.afficher();
+                    await this._boiteCombat.afficher();
                     break;
                 case "o_itemTraceur" :
-                    this._boiteTraceur.afficher();
+                    await this._boiteTraceur.afficher();
                     break;
                 case "o_itemMap" :
-                    this._boiteMap.afficher();
+                    await this._boiteMap.afficher();
                     break;
                 case "o_itemParametre" :
-                    this._boiteParametre.afficher();
+                    await this._boiteParametre.afficher();
                     break;
                 default :
                     break;

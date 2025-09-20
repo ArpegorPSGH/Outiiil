@@ -299,9 +299,9 @@ class Commande
     /**
     *
     */
-    estAFaire()
+    async estAFaire()
     {
-        return !(this._etat == ETAT_COMMANDE["Supprimée"] || this._etat == ETAT_COMMANDE["Annulée"] || this._etat == ETAT_COMMANDE["Terminée"] || (this._etat == ETAT_COMMANDE["Nouvelle"] && this._demandeur.pseudo != monProfilJoueur.pseudo));
+        return !(this._etat == ETAT_COMMANDE["Supprimée"] || this._etat == ETAT_COMMANDE["Annulée"] || this._etat == ETAT_COMMANDE["Terminée"] || (this._etat == ETAT_COMMANDE["Nouvelle"] && await this._demandeur.lireParametre('pseudo') != await monProfilJoueur.lireParametre('pseudo')));
     }
     /**
     *
@@ -327,11 +327,11 @@ class Commande
     /**
      *
      */
-    toHTML()
+    async toHTML()
     {
         let apres = !this._dateApres || moment().isSameOrAfter(moment(this._dateApres));
         let html = `<tr data="${this._id}">
-            <td>${this._demandeur.getLienFourmizzz()}</a></td>
+            <td>${await this._demandeur.getLienFourmizzz()}</a></td>
             <td>${moment(this._dateCommande).format("D MMM YYYY")}</td> <!-- Nouvelle colonne Date commande -->
             <td>${numeral(this._totalNourritureDemandee).format()}</td><td class='centre'>${numeral(this._totalMateriauxDemandes).format()}</td><td>${numeral(this.nourriture).format()}</td><td class='centre'>${numeral(this.materiaux).format()}</td>
             <td>${moment(this._dateSouhaite).format("D MMM YYYY")}</td>`;
@@ -353,9 +353,9 @@ class Commande
         // Etat
         html += `<td ${this._etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === this._etat)}</td>`;
         // Temps de trajet
-        html += `<td>${Utils.intToTime(monProfilJoueur.getTempsParcours2(this._demandeur))}</td>
+        html += `<td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._demandeur))}</td>
             ${apres && this._etat == ETAT_COMMANDE["En cours"] ? "<td><a id='o_commande" + this._id + "' href=''><img src='" + IMG_LIVRAISON + "' alt='livrer'/></a></td>" : "<td></td>"}
-            ${(this._demandeur.pseudo == monProfilJoueur.pseudo) ? "<td><a id='o_modifierCommande" + this._id + "' href=''><img src='" + IMG_CRAYON + "' alt='modifier'/></a> <a id='o_supprimerCommande" + this._id + "' href=''><img src='" + IMG_CROIX + "' alt='supprimer'/></a></td></tr>" : "<td></td></tr>"}`;
+            ${(await this._demandeur.lireParametre('pseudo') == await monProfilJoueur.lireParametre('pseudo')) ? "<td><a id='o_modifierCommande" + this._id + "' href=''><img src='" + IMG_CRAYON + "' alt='modifier'/></a> <a id='o_supprimerCommande" + this._id + "' href=''><img src='" + IMG_CROIX + "' alt='supprimer'/></a></td></tr>" : "<td></td></tr>"}`;
         return html;
     }
     /**
@@ -363,7 +363,7 @@ class Commande
     */
     ajouterEvent(page, utilitaire)
     {
-        $("#o_commande" + this._id).click((e) => {
+        $("#o_commande" + this._id).click(async (e) => {
             let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.niveauConstruction[11] / 2)));
             let materialsToPrefill = Math.min(this.materiaux, transportCapacity);
             let nourishmentToPrefill = Math.min(this.nourriture, transportCapacity - materialsToPrefill);
@@ -373,22 +373,22 @@ class Commande
 
             $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
             $("#nbNourriture").val(nourishmentToPrefill);
-            $("#pseudo_convoi").val(this._demandeur.pseudo);
+            $("#pseudo_convoi").val(await this._demandeur.lireParametre('pseudo'));
             $("#o_idCommande").val(this._id);
             $("html").animate({scrollTop : 0}, 600);
             return false;
         });
-        $("#o_modifierCommande" + this._id).click((e) => {
+        $("#o_modifierCommande" + this._id).click(async (e) => {
             let boiteCommande = new BoiteCommande(this, utilitaire, page);
-            boiteCommande.afficher();
+            await boiteCommande.afficher();
             return false;
         });
-        $("#o_supprimerCommande" + this._id).click((e) => {
+        $("#o_supprimerCommande" + this._id).click(async (e) => {
             if(confirm("Supprimer cette commande ?")){
                 this._etat = ETAT_COMMANDE.Supprimée;
-                utilitaire.modifierSujet(this.toUtilitaire(), " ", this._id).then((data) => {
+                await utilitaire.modifierSujet(this.toUtilitaire(), " ", this._id).then(async (data) => {
                     $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
-                    page.actualiserCommande();
+                    await page.actualiserCommande();
                 }, (jqXHR, textStatus, errorThrown) => {
                     $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
                 });

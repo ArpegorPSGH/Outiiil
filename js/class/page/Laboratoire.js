@@ -25,14 +25,14 @@ class PageLaboratoire
     /**
     *
     */
-    executer()
+    async executer()
     {
         // verification des niveaux
         let niveau = new Array(10);
         $(".ligneAmelioration").each((i, elt) => {niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]);});
         if(niveau.join(",") != monProfilJoueur.niveauRecherche.join(",")){
             monProfilJoueur.niveauRecherche = niveau;
-            monProfilJoueur.sauvegarder();
+            await monProfilJoueur.sauvegarder();
         }
         // ajout title evolution
         this._armee.getArmee().then((data) => {

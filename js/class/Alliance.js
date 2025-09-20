@@ -21,7 +21,7 @@ class Alliance
         */
         this._nom = parametres["nom"] || "";
         /**
-        * terrain globale de l'alliance
+        * terrain global de l'alliance
         */
         this._terrain = parametres["terrain"] || -1;
         /**
@@ -253,10 +253,12 @@ class Alliance
     {
         $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="rang" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
         // event
-        $("#o_maj_" + this._tag).click((e) => {
+        $("#o_maj_" + this._tag).click(async (e) => {
+            e.preventDefault(); // Empêche le rechargement de la page
+            console.log(`[Alliance.getLigneRadar] Clic sur le bouton de rafraîchissement pour alliance: ${this._tag}`);
             let oldTerrain = numeral($("#o_terrain_" + this._tag).text()).value();
             $({deg : 0}).animate({deg : 360}, {duration : 600, step : (now) => {$(e.currentTarget).find("img").css({transform: "rotate(" + now + "deg)"});}});
-            this.getDescription().then((data) => {
+            await this.getDescription().then(async (data) => {
                 this._terrain = 0;
 				$(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => {this._terrain += numeral($(elt).find("td:eq(4)").text()).value();});
                 let diff = this._terrain - oldTerrain;
@@ -270,10 +272,14 @@ class Alliance
                             hide : {effect: "fade", duration: 10},
                             tooltipClass : "warning-tooltip ui-tooltip-right"
                         }).tooltip("open");
-                    radar.sauvegarder();
+                    await radar.sauvegarder();
                 }
+            }).catch(error => {
+                console.error(`[Alliance.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${this._tag}:`, error);
+                $.toast({...TOAST_ERROR, text : `Erreur lors du rafraîchissement de l'alliance ${this._tag}.`});
             });
-            return false;
+            console.log(`[Alliance.getLigneRadar] Fin du clic sur le bouton de rafraîchissement pour alliance: ${this._tag}.`);
+            return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
         });
         return this;
     }

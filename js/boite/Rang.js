@@ -15,7 +15,7 @@ class BoiteRang extends Boite
     constructor(joueur, utilitaire, page)
     {
         super("o_boiteRang" + joueur.id, "Attribuer un rang", `<form id="o_form${joueur.id}" class="o_rangForm">
-            <div class="group"><input id="o_libRang${joueur.id}" name="o_rang" type="text" class="o_input" value="${joueur.rang}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Rang de ${joueur.pseudo}</label></div>
+            <div class="group"><input id="o_libRang${joueur.id}" name="o_rang" type="text" class="o_input" value="${joueur.rang}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Rang de ${joueur.lireParametre('pseudo')}</label></div>
             <div class="group"><input id="o_ordRang${joueur.id}" name="o_ordre" class="o_input" type="text" value="${joueur.ordreRang}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Prioritè du rang</label></div><br/>
             <button name="o_btnRang" class="o_button f_success">Valider</button>
             </form>`);
@@ -38,9 +38,9 @@ class BoiteRang extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher())
+        if(await super.afficher())
             this.css().event();
         return this;
 	}
@@ -64,14 +64,14 @@ class BoiteRang extends Boite
 	event()
 	{
         super.event();
-        $("#o_form" + this._joueur.id + " button[name='o_btnRang']").click((e) => {
+        $("#o_form" + this._joueur.id + " button[name='o_btnRang']").click(async (e) => {
             e.preventDefault();
             // on sauvegarde le rang du joueur
             this._joueur.rang = $("#o_libRang" + this._joueur.id).val();
             this._joueur.ordreRang = $("#o_ordRang" + this._joueur.id).val();
-            this._utilitaire.alliance.joueurs[this._joueur.pseudo] = this._joueur;
+            this._utilitaire.alliance.joueurs[await this._joueur.lireParametre('pseudo')] = this._joueur;
             // mise a jour de forum
-            this._utilitaire.modifierSujet(this._joueur.toUtilitaire(), " ", this._joueur.sujetForum).then((data) => {
+            this._utilitaire.modifierSujet(await this._joueur.toUtilitaire(), " ", this._joueur.sujetForum).then((data) => {
                 $.toast({...TOAST_INFO, text : "Mise à jour correctement effectuée."});
                 this._page.actualiserMembre();
             }, (jqXHR, textStatus, errorThrown) => {

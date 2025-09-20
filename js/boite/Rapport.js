@@ -22,9 +22,9 @@ class BoiteRapport extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher()){
+        if(await super.afficher()){
             this.css().event();
         }
         return this;

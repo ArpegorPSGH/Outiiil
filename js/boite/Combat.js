@@ -30,9 +30,9 @@ class BoiteCombat extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher()){
+        if(await super.afficher()){
             $("#o_tabsCombat").tabs({disabled: [2], activate : (e ,ui) => {this.css();}}).removeClass("ui-widget");
             this.analyser().simuler().calculatrice().css().event();
         }
@@ -87,10 +87,10 @@ class BoiteCombat extends Boite
     eventAnalyser()
     {
         // event Analyse
-        $("#o_rcCombat").on("input", (e) => {
+        $("#o_rcCombat").on("input", async (e) => {
 			let combat = new Combat({RC : e.currentTarget.value});
-			if(combat.analyse()){
-                $("#o_resultatCombat").html(combat.toHTMLBoite());
+			if(await combat.analyse()){
+                $("#o_resultatCombat").html(await combat.toHTMLBoite());
                 this.css();
             }else
                 $.toast({...TOAST_WARNING, text : "Le rapport de combat ne peut pas être analysé."});
@@ -237,8 +237,8 @@ class BoiteCombat extends Boite
         });
         $("#o_domeNiveau").on("input spin", (e, ui) => {this.actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value());});
         $("#o_logeNiveau").on("input spin", (e, ui) => {this.actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value());});
-        $("#o_simuler").click((e) => {
-            this.lancerSimulation();
+        $("#o_simuler").click(async (e) => {
+            await this.lancerSimulation();
             return false;
         });
         return this;
@@ -246,7 +246,7 @@ class BoiteCombat extends Boite
     /**
     *
     */
-    lancerSimulation()
+    async lancerSimulation()
     {
         let uniteATT = {}, uniteDef = {};
         // données attaquant
@@ -264,7 +264,7 @@ class BoiteCombat extends Boite
         combat.defenseur.niveauConstruction[10] = $("#o_logeNiveau").spinner("value");
         // lancement du combat
         if(combat.armee1.getSommeUnite() && combat.armee2.getSommeUnite()){
-            combat.simuler().genererRC();
+            await combat.simuler().genererRC();
             // affichage des armées retours dans le formulaire
             for(let i = 0 ; i < 14 ; i++){
                 $("input[name='o_unite1_" + (i + 1) + "']").spinner("value", combat.armee1Ap.unite[i]);
@@ -450,14 +450,14 @@ class BoiteCombat extends Boite
     */
     eventCalculatrice()
     {
-        $("#o_placementJ").click(() => {
+        $("#o_placementJ").click(async () => {
             // si les infos sont deja renseigné on vide
-            if($("#o_pseudoTemps").val() == monProfilJoueur.pseudo){
+            if($("#o_pseudoTemps").val() == await monProfilJoueur.lireParametre('pseudo')){
                 $("#o_pseudoTemps").val("");
                 $("#o_vaTemps").val(0);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(0));
             }else{
-                $("#o_pseudoTemps").val(monProfilJoueur.pseudo);
+                $("#o_pseudoTemps").val(await monProfilJoueur.lireParametre('pseudo'));
                 $("#o_vaTemps").val(monProfilJoueur.niveauRecherche[6]);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(monProfilJoueur.niveauRecherche[6]));
             }
@@ -504,11 +504,11 @@ class BoiteCombat extends Boite
             ...DATEPICKER_OPTION, dateFormat : "dd-mm-yy", timeFormat : "HH:mm", timeText : "Horaire", hourText : "Heure", minuteText : "Minute"
         });
         $("#o_vaTemps").on("input", (e) => {$("#o_indicationTemps").text(this.calculerLimiteTemps($(e.currentTarget).val()));});
-        $("#o_calculerTemps").click(() => {
+        $("#o_calculerTemps").click(async () => {
             let ref = new Joueur({pseudo : $("#o_pseudoTemps").val()});
             ref.niveauRecherche[6] = $("#o_vaTemps").val();
             // si pas de referentiel on ne peut rien calculer
-            if(!ref.pseudo){
+            if(! await ref.lireParametre('pseudo')){
                 $.toast({...TOAST_ERROR, text : "Le joueur 1 n'est pas renseigné."});
                 return false;
             }
@@ -542,53 +542,52 @@ class BoiteCombat extends Boite
     /**
     *
     */
-    calculerTemps(ref, joueurs, alliances, dernierMvt = "")
+    async calculerTemps(ref, joueurs, alliances, dernierMvt = "")
     {
         // promise pour recupérer les joueurs et leurs coordonnées
         let promise = new Array();
         // promise pour recup les coordonnées
         if(!Object.keys(this._coordonnees).length) promise.push($.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map"));
         // promise qui recup le profil du ref
-        if(!ref.estJoueurCourant()) promise.push(ref.getProfil());
+        if(! await ref.estJoueurCourant()) promise.push(ref.getProfil());
         // promise pour recup les joueurs et les descriptions d'alliance
         for(let joueur of joueurs) promise.push(joueur.getProfil());
         for(let alliance of alliances) promise.push(alliance.getDescription());
         // Execution des requetes
-        Promise.all(promise).then((values) => {
-            let rows = new Array(), ind = 0;
-            // on extrait les coordonnées
-            if(!Object.keys(this._coordonnees).length){
-                let donnees = JSON.parse(values[ind]);
-                for(let i = 0, l = donnees.message.split("\n") ; i < l.length ; i++){
-                    let tmp = l[i].split(";");
-                    this._coordonnees[tmp[1]] = {x : parseInt(tmp[3]), y : parseInt(tmp[2])};
+        let values = await Promise.all(promise);
+        let rows = new Array(), ind = 0;
+        // on extrait les coordonnées
+        if(!Object.keys(this._coordonnees).length){
+            let donnees = JSON.parse(values[ind]);
+            for(let i = 0, l = donnees.message.split("\n") ; i < l.length ; i++){
+                let tmp = l[i].split(";");
+                this._coordonnees[tmp[1]] = {x : parseInt(tmp[3]), y : parseInt(tmp[2])};
+            }
+            ind++;
+        }
+        // charge les donnes du ref
+        if(! await ref.estJoueurCourant()){
+            await ref.chargerProfil(values[ind]);
+            ind++;
+        }
+        // on calcule les temps de trajet vers les joueurs
+        for(let i = 0 ; i < joueurs.length ; i++){
+            await joueurs[i].chargerProfil(values[i + ind]);
+            let tempsP = await ref.getTempsParcours2(joueurs[i]);
+            rows.push($(`<tr><td>${await joueurs[i].lireParametre('pseudo')}</td><td>${numeral(joueurs[i].terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
+        }
+        // on recup les pseudos des alliances
+        for(let i = 0 ; i < alliances.length ; i++){
+            $(values[i + ind + joueurs.length]).find("#tabMembresAlliance tr:gt(0)").each((j, elt) => {
+                let pseudo = $(elt).find("td:eq(2)").text(), terrain = numeral($(elt).find("td:eq(4)").text()).value();
+                if(this._coordonnees.hasOwnProperty(pseudo)){
+                    let tempsP = ref.getTempsParcours(this._coordonnees[pseudo].x, this._coordonnees[pseudo].y);
+                    rows.push($(`<tr><td>${pseudo}</td><td>${numeral(terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
                 }
-                ind++;
-            }
-            // charge les donnes du ref
-            if(!ref.estJoueurCourant()){
-                ref.chargerProfil(values[ind]);
-                ind++;
-            }
-            // on calcule les temps de trajet vers les joueurs
-            for(let i = 0 ; i < joueurs.length ; i++){
-                joueurs[i].chargerProfil(values[i + ind]);
-                let tempsP = ref.getTempsParcours2(joueurs[i]);
-                rows.push($(`<tr><td>${joueurs[i].pseudo}</td><td>${numeral(joueurs[i].terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
-            }
-            // on recup les pseudos des alliances
-            for(let i = 0 ; i < alliances.length ; i++){
-                $(values[i + ind + joueurs.length]).find("#tabMembresAlliance tr:gt(0)").each((j, elt) => {
-                    let pseudo = $(elt).find("td:eq(2)").text(), terrain = numeral($(elt).find("td:eq(4)").text()).value();
-                    if(this._coordonnees.hasOwnProperty(pseudo)){
-                        let tempsP = ref.getTempsParcours(this._coordonnees[pseudo].x, this._coordonnees[pseudo].y);
-                        rows.push($(`<tr><td>${pseudo}</td><td>${numeral(terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
-                    }
-                });
-            }
-            // affichage du tableau des distances
-            $("#o_infosTemps").DataTable().clear().rows.add(rows).draw();
-        });
+            });
+        }
+        // affichage du tableau des distances
+        $("#o_infosTemps").DataTable().clear().rows.add(rows).draw();
         return this;
     }
     /**
@@ -630,4 +629,3 @@ class BoiteCombat extends Boite
         return this;
     }
 }
-

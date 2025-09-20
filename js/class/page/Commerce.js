@@ -25,7 +25,7 @@ class PageCommerce
     /**
     *
     */
-    executer()
+    async executer()
     {
         // ajout d'information
         $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${monProfilJoueur.niveauConstruction[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (monProfilJoueur.niveauConstruction[11] / 2))}</strong> ressources.</td></tr>`);
@@ -59,10 +59,10 @@ class PageCommerce
         // Si on dispose d'un utilitaire pour le commerce ET que le joueur a un sujet dans la section membres
         const idSectionCommande = monProfilUtilisateur.parametre["Commandes Outiiil"].valeur;
         const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"].valeur;
-        const pseudoJoueur = monProfilJoueur.pseudo;
+        const pseudoJoueur = await monProfilJoueur.lireParametre('pseudo');
 
         if (idSectionCommande && idSectionMembre) {
-            this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur).then(async sujetExiste => {
+            await this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur).then(async sujetExiste => {
                 if (sujetExiste) {
                     try {
                         // Charger les commandes et convois en premier, car les fonctions d'affichage en dépendent
@@ -70,7 +70,7 @@ class PageCommerce
                         await this._utilitaire.chargerCommande(data);
                         const convoisCharges = await this._utilitaire.chargerConvois(this._utilitaire.commande);
 
-                        this.afficherCommande();
+                        await this.afficherCommande();
                         this.actualiserConvois();
                         this._attacherListenersAnnulationConvoi();
                         this._traiterConvoiApresEnvoiJeu();
@@ -172,7 +172,7 @@ class PageCommerce
                     }
 
                     this.actualiserConvois();
-                    this.actualiserCommande();
+                    await this.actualiserCommande();
 
                 } else {
                     console.error("[PageCommerce][_traiterConvoiApresEnvoiJeu] Aucun nouvel ID d'annulation détecté. Le convoi ne sera pas posté par Outiiil.");
@@ -269,7 +269,7 @@ class PageCommerce
 
                                 // Actualiser les affichages
                                 this.actualiserConvois();
-                                this.actualiserCommande();
+                                await this.actualiserCommande();
 
                             } else {
                                 $.toast({...TOAST_WARNING, text : "Commande associée introuvable pour le convoi annulé sur le forum."});
@@ -393,7 +393,7 @@ class PageCommerce
 	* @method afficherCommande
     * @param {Object} liste des lignes de commandes.
 	*/
-	afficherCommande()
+	async afficherCommande()
 	{
         // Vérifier si le tableau des commandes existe déjà
         if ($("#o_tableListeCommande").length === 0) {
@@ -434,13 +434,13 @@ class PageCommerce
             });
 
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
-            $("#o_ajouterCommande").click((e) => {
+            $("#o_ajouterCommande").click(async (e) => {
                 let boiteCommande = new BoiteCommande(new Commande(), this._utilitaire, this);
-                boiteCommande.afficher();
+                await boiteCommande.afficher();
             });
 
             // Attacher les événements aux boutons "Livrer", "Modifier", "Supprimer" via la délégation d'événements
-            $("#o_tableListeCommande").on('click', "a[id^='o_commande']", (e) => {
+            $("#o_tableListeCommande").on('click', "a[id^='o_commande']", async (e) => {
                 e.preventDefault();
                 const commandeId = $(e.currentTarget).attr('id').replace('o_commande', '');
                 const commande = this._utilitaire.commande[commandeId];
@@ -454,29 +454,29 @@ class PageCommerce
 
                 $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
                 $("#nbNourriture").val(nourishmentToPrefill);
-                $("#pseudo_convoi").val(commande.demandeur.pseudo);
+                $("#pseudo_convoi").val(await commande.demandeur.lireParametre('pseudo'));
                 $("#o_idCommande").val(commande.id);
                 $("html").animate({scrollTop : 0}, 600);
                 return false;
             });
 
-            $("#o_tableListeCommande").on('click', "a[id^='o_modifierCommande']", (e) => {
+            $("#o_tableListeCommande").on('click', "a[id^='o_modifierCommande']", async (e) => {
                 e.preventDefault();
                 const commandeId = $(e.currentTarget).attr('id').replace('o_modifierCommande', '');
                 const commande = this._utilitaire.commande[commandeId];
                 let boiteCommande = new BoiteCommande(commande, this._utilitaire, this);
-                boiteCommande.afficher();
+                await boiteCommande.afficher();
                 return false;
             });
 
-            $("#o_tableListeCommande").on('click', "a[id^='o_supprimerCommande']", (e) => {
+            $("#o_tableListeCommande").on('click', "a[id^='o_supprimerCommande']", async (e) => {
                 const commandeId = $(e.currentTarget).attr('id').replace('o_supprimerCommande', '');
                 const commande = this._utilitaire.commande[commandeId];
                 if(confirm("Supprimer cette commande ?")){
                     commande.etat = ETAT_COMMANDE.Supprimée;
-                    this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then((data) => {
+                    await this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then(async (data) => {
                         $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
-                        this.actualiserCommande();
+                        await this.actualiserCommande();
                     }, (jqXHR, textStatus, errorThrown) => {
                         $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
                     });
@@ -516,7 +516,7 @@ class PageCommerce
             });
         }
         // Appeler actualiserCommande pour remplir le tableau
-        this.actualiserCommande();
+        await this.actualiserCommande();
     } // Fin de afficherCommande();
 
     /**
@@ -525,16 +525,16 @@ class PageCommerce
     * @private
 	* @method actualiserCommande
     */
-    actualiserCommande() {
+    async actualiserCommande() {
         let total = 0, totalRouge = 0, tabCommandeAff = new Array();
         let tableData = []; // Tableau pour les données de DataTables
 
         for(let id in this._utilitaire.commande){
-            if(this._utilitaire.commande[id].estAFaire()){
+            if(await this._utilitaire.commande[id].estAFaire()){
                 const commande = this._utilitaire.commande[id];
                 // Construire un tableau de données pour chaque ligne
                 const rowData = [
-                    commande.demandeur.getLienFourmizzz(), // Pseudo
+                    await commande.demandeur.getLienFourmizzz(), // Pseudo
                     moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
                     EVOLUTION[commande.evolution], // Évolution
                     numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
@@ -559,15 +559,15 @@ class PageCommerce
                     // État
                     `<span ${commande.etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === commande.etat)}</span>`,
                     // Temps de trajet
-                    Utils.intToTime(monProfilJoueur.getTempsParcours2(commande.demandeur)),
+                    Utils.intToTime(await monProfilJoueur.getTempsParcours2(commande.demandeur)),
                     // Livrer (bouton ou vide)
                     (() => {
                         let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
                         return apres && commande.etat == ETAT_COMMANDE["En cours"] ? `<a id='o_commande${commande.id}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>` : "";
                     })(),
                     // Options (boutons ou vide)
-                    (() => {
-                        return (commande.demandeur.pseudo == monProfilJoueur.pseudo) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
+                    await (async () => {
+                        return (await commande.demandeur.lireParametre('pseudo') == await monProfilJoueur.lireParametre('pseudo')) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
                     })()
                 ];
                 tableData.push(rowData);
@@ -619,7 +619,7 @@ class PageCommerce
 	*/
 	formulaireConvoi()
 	{
-        $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>").after(` <button id='o_resetConvoi'>Effacer</button>`).click((e) => {
+        $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>").after(` <button id='o_resetConvoi'>Effacer</button>`).click(async (e) => {
             let idCommande = $("#o_idCommande").val();
             let convoiAPosterString = localStorage.getItem('outiiil_convoi_a_poster');
 
@@ -646,17 +646,17 @@ class PageCommerce
                 const commande = this._utilitaire.commande[idCommande];
                 const destinataireConvoi = $("#pseudo_convoi").val();
 
-                if (commande && commande.demandeur.pseudo !== destinataireConvoi) {
+                if (commande && await commande.demandeur.lireParametre('pseudo') !== destinataireConvoi) {
                     // Le destinataire du convoi ne correspond pas au demandeur de la commande
-                    $.toast({...TOAST_ERROR, text : `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${commande.demandeur.pseudo}).`});
+                    $.toast({...TOAST_ERROR, text : `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${await commande.demandeur.lireParametre('pseudo')}).`});
                     return false; // Empêcher l'envoi du convoi
                 }
                 
                 let destinatairePseudo = $("#pseudo_convoi").val();
-                let dateArriveeCalculee = moment().add(monProfilJoueur.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
+                let dateArriveeCalculee = moment().add(await monProfilJoueur.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
 
                 let monConvoi = new Convoi({
-                    expediteur  : monProfilJoueur.pseudo,
+                    expediteur  : await monProfilJoueur.lireParametre('pseudo'),
                     destinataire : destinatairePseudo,
                     materiaux   : materiaux,
                     nourriture  : nourriture,

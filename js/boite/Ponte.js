@@ -39,9 +39,9 @@ class BoitePonte extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher()){
+        if(await super.afficher()){
             // Formatage des spinners
             $("input[name^='o_nombre'], input[name^='o_jour']").spinner({min : 0, numberFormat: "i"});
             $("input[name^='o_heure'], input[name^='o_minute'], input[name^='o_seconde']").spinner({min : 0, numberFormat: "d2"});

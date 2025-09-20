@@ -103,7 +103,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         console.log(`[GestionnaireDroits.verifierDroit] Vérification du droit pour fonctionnalité: ${abrevFonctionnalite}, niveau requis: ${niveauRequis}`);
 
         // 1. Identifier le Joueur Actuel
-        const pseudoJoueur = monProfilJoueur.pseudo; // Supposant que le pseudo est dans pseudo
+        const pseudoJoueur = await monProfilJoueur.lireParametre('pseudo'); // Supposant que le pseudo est dans pseudo
         if (!pseudoJoueur) {
             console.log(`[GestionnaireDroits.verifierDroit] Pseudo du joueur non trouvé. Retourne false.`);
             return false;

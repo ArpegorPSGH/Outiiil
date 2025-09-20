@@ -187,7 +187,7 @@ class FonctionnaliteAlliance {
         // Pour les tests, on utilise JoueurTest. En production, ce serait la classe Joueur.
         console.log(`[${this.constructor.name}] Chargement des objets JoueurTest.`);
         const joueurs = await this.chargerObjetForumsMultiples(JoueurTest);
-        const pseudoJoueurActuel = monProfilJoueur.pseudo; // En supposant que `pseudo` contient le pseudo du joueur connecté.
+        const pseudoJoueurActuel = await monProfilJoueur.lireParametre('pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
 
         console.log(`[${this.constructor.name}] Pseudo du joueur actuel: "${pseudoJoueurActuel}".`);
         // Attendre que toutes les promesses de lireParametre soient résolues avant de logger.

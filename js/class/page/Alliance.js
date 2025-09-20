@@ -54,7 +54,7 @@ class PageAlliance
         try {
             const htmlProfil = await monProfilJoueur.getProfil(); // Utiliser getProfil() pour forcer le rechargement
             if (htmlProfil) {
-                monProfilJoueur.chargerProfil(htmlProfil);
+                await monProfilJoueur.chargerProfil(htmlProfil);
             }
         } catch (error) {
             console.error("[PageAlliance] Erreur lors du chargement du profil courant:", error);
@@ -64,7 +64,7 @@ class PageAlliance
         $("#tabMembresAlliance td:eq(5)").css("white-space", "nowrap");
         // ajout des totaux de l'alliance
         let tmpJoueurs = {};
-        $("#tabMembresAlliance tr:gt(0)").each((i, elt) => {
+        await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
             let pseudo = $(elt).find("td:eq(3)").text(), terrain = numeral($(elt).find("td:eq(5)").text()).value();
             tmpJoueurs[pseudo] = new Joueur({
                 pseudo : pseudo,
@@ -72,7 +72,7 @@ class PageAlliance
                 fourmiliere : ~~($(elt).find("td:eq(8)").text()),
                 technologie : ~~($(elt).find("td:eq(7)").text())
             });
-            if(!Utils.comptePlus && !tmpJoueurs[pseudo].estJoueurCourant()){
+            if(!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()){
                 if(tmpJoueurs[pseudo].estAttaquable())
                     $(elt).find("td:eq(6)").html(IMG_ATT);
                 if(tmpJoueurs[pseudo].estAttaquant())
@@ -80,6 +80,7 @@ class PageAlliance
             }
         });
         this._alliance.joueurs = tmpJoueurs;
+        console.log("[PageAlliance] traitementMembre: Joueurs initialement chargés depuis la page Fourmizzz:", Object.keys(this._alliance.joueurs));
 
         // Recupération des données de l'utilitaire sinon on met en forme le tableau directement
         $("#tabMembresAlliance tr:first").remove();
@@ -87,7 +88,7 @@ class PageAlliance
 
         // Si on dispose d'un utilitaire pour la gestion des membres ET que le joueur a un sujet dans la section membres
         const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"].valeur;
-        const pseudoJoueur = monProfilJoueur.pseudo;
+        const pseudoJoueur = await monProfilJoueur.lireParametre('pseudo');
 
         if (idSectionMembre) {
             try {
@@ -96,7 +97,9 @@ class PageAlliance
                     // recuperation des données sur l'utilitaire
                     const data = await this._utilitaire.consulterSection(idSectionMembre);
                     if(this._utilitaire.chargerJoueur(data)) {
+                        console.log("[PageAlliance] traitementMembre: Avant _fusionnerJoueursUtilitaire, joueurs dans this._alliance.joueurs:", Object.keys(this._alliance.joueurs));
                         await this._fusionnerJoueursUtilitaire(); // Appel de la nouvelle méthode
+                        console.log("[PageAlliance] traitementMembre: Après _fusionnerJoueursUtilitaire, joueurs dans this._alliance.joueurs:", Object.keys(this._alliance.joueurs));
 
                         // Ajout des totaux de l'alliance après la fusion des joueurs extérieurs
                         const totalTerrain = this._alliance.calculTerrain();
@@ -120,7 +123,7 @@ class PageAlliance
                             </tfoot>
                         `);
 
-                        this.traitementUtilitaire();
+                        await this.traitementUtilitaire();
                         // --- START: Ajout bouton et logique Recensement ---
                         const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
                         if (dtButtonsContainer.length > 0) {
@@ -214,10 +217,10 @@ class PageAlliance
                                         const $sectionContent = $("<div/>").append(responseHtml);
                                         let foundId = null;
 
-                                        $sectionContent.find("#form_cat tr:gt(0)").each((i, elt) => {
+                                        await $sectionContent.find("#form_cat tr:gt(0)").each(async (i, elt) => {
                                             const $row = $(elt);
                                             const titreSujet = $row.find("td:eq(1)").text().trim();
-                                            if (titreSujet.startsWith(monProfilJoueur.pseudo + " /")) {
+                                            if (titreSujet.startsWith(await monProfilJoueur.lireParametre('pseudo') + " /")) {
                                                 const onclickAttr = $row.find("a.topic_forum").attr("onclick");
                                                 if (onclickAttr) {
                                                     const match = onclickAttr.match(/callGetTopic\((\d+)\)/);
@@ -235,7 +238,7 @@ class PageAlliance
                                         });
 
                                         if (!foundId) {
-                                            throw new Error(`Sujet forum pour '${monProfilJoueur.pseudo}' non trouvé dans la section Membres Outiiil.`);
+                                            throw new Error(`Sujet forum pour '${await monProfilJoueur.lireParametre('pseudo')}' non trouvé dans la section Membres Outiiil.`);
                                         }
                                         idSujet = foundId;
                                     }
@@ -256,20 +259,20 @@ class PageAlliance
                              $("#o_recensementButton").click(handleRecensementClick);
                              // --- END: Ajout bouton et logique Recensement ---
                         }
-                        this.optionAdmin(); // Appeler optionAdmin si traitementUtilitaire est réussi
+                        await this.optionAdmin(); // Appeler optionAdmin si traitementUtilitaire est réussi
                     } else {
                         this.tableau();
-                        this.optionAdmin(); // Appeler optionAdmin si chargerJoueur échoue mais section existe
+                        await this.optionAdmin(); // Appeler optionAdmin si chargerJoueur échoue mais section existe
                     }
                 } else {
                     this.tableau(); // Afficher le tableau sans les colonnes supplémentaires
-                    this.optionAdmin(); // Appeler optionAdmin si sujet membre n'existe pas mais section existe
+                    await this.optionAdmin(); // Appeler optionAdmin si sujet membre n'existe pas mais section existe
                 }
             } catch (error) {
                 console.error("Erreur lors de la vérification ou de la consultation du sujet membre:", error);
                 $.toast({...TOAST_ERROR, text : "Erreur lors de la récupération des membres."});
                 this.tableau(); // Fallback to basic table if verification fails
-                this.optionAdmin(); // Appeler optionAdmin en cas d'erreur de vérification si section existe
+                await this.optionAdmin(); // Appeler optionAdmin en cas d'erreur de vérification si section existe
             }
         } else {
             this.tableau(); // Afficher le tableau sans les colonnes supplémentaires
@@ -337,22 +340,22 @@ class PageAlliance
 	* @private
 	* @method traitementUtilitaire
 	*/
-    traitementUtilitaire()
+    async traitementUtilitaire()
     {
         // On retraicie les colonnes des niveaux
         $("#tabMembresAlliance th:eq(1)").after(`<th class="dt-head-center">Grade</th>`);
         $("#tabMembresAlliance th:eq(9)").after(`<th class="dt-head-center">Tdt</th><th class="dt-head-center">Retour</th>`);
         // On compléte les données
-        $("#tabMembresAlliance tr:gt(0):lt(-1)").each((i, elt) => {
+        await $("#tabMembresAlliance tr:gt(0):lt(-1)").each(async (i, elt) => {
             let pseudo = $(elt).find("td:eq(3)").text();
             const joueur = this._alliance.joueurs[pseudo]; // Récupérer le joueur une seule fois
 
             // Vérifier si le joueur existe et a les propriétés x et y définies
             if (joueur && typeof joueur.x === 'number' && typeof joueur.y === 'number' && joueur.x !== -1 && joueur.y !== -1) {
                 // si nous avons les coordonnées on affiche les temps de trajet
-                $(elt).find("td:eq(1)").after(`<td align="center">${joueur.rang !== undefined ? joueur.rang : Utils.alliance}</td>`);
+                $(elt).find("td:eq(1)").after(`<td align="center">${await joueur.lireParametre('rang') !== undefined ? await joueur.lireParametre('rang') : Utils.alliance}</td>`);
                 
-                const tempsParcours = monProfilJoueur.getTempsParcours2(joueur);
+                const tempsParcours = await monProfilJoueur.getTempsParcours2(joueur);
                 
                 const tdtDisplay = Utils.intToTime(tempsParcours);
                 const retourDisplay = Utils.roundMinute(tempsParcours).format("D MMM à HH[h]mm");
@@ -361,22 +364,22 @@ class PageAlliance
                 // si on est chef de l'alliance on peut modifier les rangs et que le joueur est dans l'utilitaire
                 if($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)){
                     $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="rang"/></a>`);
-                    $("#o_rang" + joueur.id).click((e) => {
+                    $("#o_rang" + joueur.id).click(async (e) => {
                         let boiteForm = new BoiteRang(joueur, this._utilitaire, this);
-                        boiteForm.afficher();
+                        await boiteForm.afficher();
                         return false;
                     });
                 }
             } else {
                 // Si le joueur n'existe pas ou n'a pas de coordonnées valides, afficher N/C pour les temps de trajet
-                $(elt).find("td:eq(1)").after(`<td align="center">${joueur && joueur.rang !== undefined ? joueur.rang : Utils.alliance}</td>`);
+                $(elt).find("td:eq(1)").after(`<td align="center">${joueur && await joueur.lireParametre('rang') !== undefined ? await joueur.lireParametre('rang') : Utils.alliance}</td>`);
                 $(elt).find("td:eq(9)").after(`<td align="center">N/C</td><td align="center">N/C</td>`);
                 // Gérer le bouton de rang même si les coordonnées sont N/C, si le joueur existe dans l'utilitaire
                 if($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)){
                     $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="rang"/></a>`);
-                    $("#o_rang" + joueur.id).click((e) => {
+                    $("#o_rang" + joueur.id).click(async (e) => {
                         let boiteForm = new BoiteRang(joueur, this._utilitaire, this);
-                        boiteForm.afficher();
+                        await boiteForm.afficher();
                         return false;
                     });
                 }
@@ -384,10 +387,12 @@ class PageAlliance
         });
 
         // Ajouter les joueurs extérieurs au tableau
+        console.log(`[PageAlliance] Joueurs dans l'alliance: ${this._alliance.joueurs.length}`);
         for (const pseudo in this._alliance.joueurs) {
             const joueur = this._alliance.joueurs[pseudo];
-            if (joueur.estExterieur) {
-                const ligneHtml = this._creerLigneJoueurExterieur(joueur);
+            console.log(`[PageAlliance] Ajout joueur extérieur: ${await joueur.estExterieur()}`);
+            if (await joueur.estExterieur()) {
+                const ligneHtml = await this._creerLigneJoueurExterieur(joueur);
                 $("#tabMembresAlliance tbody").append(ligneHtml); // Ajouter au tbody
             }
         }
@@ -429,10 +434,10 @@ class PageAlliance
             }
 
             if (joueurCible) {
-                $(elt).click((e) => {
+                $(elt).click(async (e) => {
                     e.preventDefault();
                     let boiteForm = new BoiteRang(joueurCible, this._utilitaire, this);
-                    boiteForm.afficher();
+                    await boiteForm.afficher();
                     return false;
                 });
             }
@@ -446,30 +451,30 @@ class PageAlliance
     * @param {Joueur} joueur L'objet Joueur à afficher.
     * @return {string} La chaîne HTML de la ligne du tableau.
     */
-    _creerLigneJoueurExterieur(joueur) {
+    async _creerLigneJoueurExterieur(joueur) {
         const pseudoDisplay = joueur.allianceTag
-            ? `${joueur.pseudo} (${joueur.allianceTag})`
-            : joueur.pseudo;
+            ? `${await joueur.lireParametre('pseudo')} (${joueur.allianceTag})`
+            : await joueur.lireParametre('pseudo');
 
-        const rangDisplay = joueur.rang !== undefined && joueur.rang !== "" ? joueur.rang : "N/C";
+        const rangDisplay = await joueur.lireParametre('rang') !== undefined && await joueur.lireParametre('rang') !== "" ? await joueur.lireParametre('rang') : "N/C";
         const terrainDisplay = joueur.terrain !== -1 ? numeral(joueur.terrain).format() : "N/C";
         const technologieDisplay = joueur.technologie !== -1 ? numeral(joueur.technologie).format() : "N/C";
         const fourmiliereDisplay = joueur.fourmiliere !== -1 ? numeral(joueur.fourmiliere).format() : "N/C";
 
-        const tempsParcoursExterieur = (joueur.x !== -1 && joueur.y !== -1) ? monProfilJoueur.getTempsParcours2(joueur) : null;
+        const tempsParcoursExterieur = (joueur.x !== -1 && joueur.y !== -1) ? await monProfilJoueur.getTempsParcours2(joueur) : null;
 
         const tdtDisplay = tempsParcoursExterieur !== null ? Utils.intToTime(tempsParcoursExterieur) : "N/C";
         const retourDisplay = tempsParcoursExterieur !== null ? Utils.roundMinute(tempsParcoursExterieur).format("D MMM à HH[h]mm") : "N/C";
 
         let editButtonHtml = "";
         // Si l'utilisateur a les droits d'administration et que le joueur est connu de l'utilitaire
-        if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(joueur.pseudo)) {
+        if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(await joueur.lireParametre('pseudo'))) {
             editButtonHtml = `<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="rang"/></a>`;
         }
 
         let imgDefHtml = "";
         let imgAttHtml = "";
-        if (!joueur.estJoueurCourant()) {
+        if (! await joueur.estJoueurCourant()) {
             if (joueur.estAttaquant()) {
                 imgDefHtml = IMG_DEF;
             }
@@ -482,7 +487,7 @@ class PageAlliance
         // <th></th><th>Grade</th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmiliere</span></th><th>Tdt</th><th>Retour</th><th>État</th><th></th>
         // Total de 15 colonnes (12 + 3 ajoutées)
         return `
-            <tr class="ligne_paire o_joueurExterieur" data-pseudo="${joueur.pseudo}">
+            <tr class="ligne_paire o_joueurExterieur" data-pseudo="${await joueur.lireParametre('pseudo')}">
                 <td align="center">${editButtonHtml}</td>
                 <td align="center"></td>
                 <td align="center">${rangDisplay}</td>
@@ -509,44 +514,53 @@ class PageAlliance
     * @method _fusionnerJoueursUtilitaire
     */
     async _fusionnerJoueursUtilitaire() { // Rendre la méthode async
+        console.log("[PageAlliance] Début de _fusionnerJoueursUtilitaire.");
         const promises = [];
         for (const pseudo in this._utilitaire.alliance.joueurs) {
             const joueurUtilitaire = this._utilitaire.alliance.joueurs[pseudo];
+            console.log(`[PageAlliance] Traitement du joueur utilitaire: ${pseudo}, ID: ${joueurUtilitaire.id}`);
+
             // Si le joueur de l'utilitaire n'est pas déjà dans la liste des joueurs de l'alliance (ceux de la page Fourmizzz)
             if (!this._alliance.joueurs.hasOwnProperty(pseudo)) {
+                console.log(`[PageAlliance] Nouveau joueur externe détecté: ${pseudo}. Ajout à l'alliance.`);
                 const nouveauJoueur = new Joueur({
                     id: joueurUtilitaire.id,
-                    pseudo: joueurUtilitaire.pseudo,
+                    pseudo: await joueurUtilitaire.lireParametre('pseudo'),
                     x: parseInt(joueurUtilitaire.x), // Convertir en nombre
                     y: parseInt(joueurUtilitaire.y), // Convertir en nombre
                     // terrain, fourmiliere, technologie seront chargés par getProfil()
                     mv: joueurUtilitaire.mv,
                     ordreRadar: joueurUtilitaire.ordreRadar,
                     sujetForum: joueurUtilitaire.sujetForum,
-                    rang: joueurUtilitaire.rang,
-                    ordreRang: joueurUtilitaire.ordreRang,
-                    estExterieur: true,
+                    rang: await joueurUtilitaire.lireParametre('rang'),
+                    ordreRang: await joueurUtilitaire.lireParametre('ordreRang'),
                     allianceTag: joueurUtilitaire.allianceTag,
                     colonise: joueurUtilitaire.colonise // Assurez-vous que cette propriété est passée
                 });
                 this._alliance.joueurs[pseudo] = nouveauJoueur;
+                console.log(`[PageAlliance] Nouveau joueur externe créé:`, { pseudo: nouveauJoueur.pseudo, id: nouveauJoueur.id, estExterieur: await nouveauJoueur.estExterieur(), allianceTag: nouveauJoueur.allianceTag });
 
                 // Déclencher le chargement du profil pour obtenir terrain, fourmiliere, technologie, et colonise
-                const profilPromise = nouveauJoueur.getProfil();
+                const profilPromise = await nouveauJoueur.getProfil();
                 if (profilPromise) {
-                    promises.push(profilPromise.then(html => {
-                        nouveauJoueur.chargerProfil(html);
-                    }).catch(error => {
-                        console.error(`[PageAlliance] Erreur lors du chargement du profil de ${nouveauJoueur.pseudo}:`, error);
+                    console.log(`[PageAlliance] Chargement du profil pour le nouveau joueur externe: ${pseudo}`);
+                    promises.push(profilPromise.then(async html => {
+                        console.log(`[PageAlliance] Profil récupéré pour ${pseudo}. Chargement des données.`);
+                        await nouveauJoueur.chargerProfil(html);
+                        console.log(`[PageAlliance] Données de profil chargées pour ${pseudo}: Terrain=${nouveauJoueur.terrain}, Fourmiliere=${nouveauJoueur.fourmiliere}, Technologie=${nouveauJoueur.technologie}, Colonise=${nouveauJoueur.colonise}, EstExterieur=${await nouveauJoueur.estExterieur()}`);
+                    }).catch(async error => {
+                        console.error(`[PageAlliance] Erreur lors du chargement du profil de ${await nouveauJoueur.lireParametre('pseudo')}:`, error);
                         // Assigner des valeurs par défaut en cas d'échec de chargement
                         nouveauJoueur.terrain = -1;
                         nouveauJoueur.fourmiliere = -1;
                         nouveauJoueur.technologie = -1;
                         nouveauJoueur.colonise = false; // Assigner une valeur par défaut en cas d'erreur
+                        console.log(`[PageAlliance] Valeurs par défaut assignées pour ${pseudo} suite à l'erreur de chargement. EstExterieur=${await nouveauJoueur.estExterieur()}`);
                     }));
                 }
                 // getConstruction() et getLaboratoire() ne sont pas appelés ici pour les joueurs extérieurs.
             } else {
+                console.log(`[PageAlliance] Joueur existant trouvé: ${pseudo}. Mise à jour des informations.`);
                 // Si le joueur est déjà présent, mettre à jour ses informations avec celles de l'utilitaire
                 // et s'assurer qu'il n'est PAS marqué comme extérieur.
                 const joueurExistant = this._alliance.joueurs[pseudo];
@@ -554,19 +568,21 @@ class PageAlliance
                 joueurExistant.y = parseInt(joueurUtilitaire.y); // Convertir en nombre
                 joueurExistant.id = joueurUtilitaire.id;
                 joueurExistant.sujetForum = joueurUtilitaire.sujetForum;
-                joueurExistant.rang = joueurUtilitaire.rang;
-                joueurExistant.ordreRang = joueurUtilitaire.ordreRang;
-                joueurExistant.estExterieur = false; // S'assurer qu'il n'est pas marqué comme extérieur s'il est sur la page
+                joueurExistant.ecrireParametre('rang', await joueurUtilitaire.lireParametre('rang'));
+                joueurExistant.ecrireParametre('ordreRang', await joueurUtilitaire.lireParametre('ordreRang'));
                 joueurExistant.allianceTag = joueurUtilitaire.allianceTag;
                 joueurExistant.colonise = joueurUtilitaire.colonise; // Mettre à jour la propriété colonise
+                console.log(`[PageAlliance] Joueur existant ${pseudo} mis à jour: X=${joueurExistant.x}, Y=${joueurExistant.y}, EstExterieur=${await joueurExistant.estExterieur()}, Colonise=${joueurExistant.colonise}`);
             }
         }
+        console.log(`[PageAlliance] Attente de toutes les promesses de chargement de profil (${promises.length} promesses).`);
         await Promise.all(promises);
+        console.log("[PageAlliance] Fin de _fusionnerJoueursUtilitaire. Tous les profils externes ont été traités.");
     }
     /**
     *
     */
-    optionAdmin()
+    async optionAdmin()
     {
         // si on est chef de l'alliance on peut mettre à jour les membres
         const crayonIcon = $("img[src='images/crayon.gif']");
@@ -576,7 +592,7 @@ class PageAlliance
                 dtButtonsContainer.prepend(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
                 // Retrait de la marge droite forcée sur le premier bouton
                 // $("#o_actualiserAlliance").css("margin-right", "0.333em"); // Ligne retirée
-                $("#o_actualiserAlliance").click(async (e) => { // Utilisation de async
+                await $("#o_actualiserAlliance").click(async (e) => { // Utilisation de async
                     e.preventDefault(); // Empêcher l'action par défaut du lien
 
                     const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"]?.valeur;
@@ -615,10 +631,10 @@ class PageAlliance
                         for(let i = 0 ; i < valuesProfil.length ; i++){
                             const pseudo = pseudoJoueur[i]; // Récupérer le pseudo correspondant
                             const joueurUtilitaire = this._utilitaire.alliance.joueurs[pseudo];
-                            joueurUtilitaire.chargerProfil(valuesProfil[i]);
+                            await joueurUtilitaire.chargerProfil(valuesProfil[i]);
                             // on enregistre
                             if(!joueurUtilitaire.sujetForum)
-                                promiseForum.push(this._utilitaire.creerSujet(joueurUtilitaire.toUtilitaire(), " ", idSectionMembre)); // Utiliser idSectionMembre
+                                promiseForum.push(this._utilitaire.creerSujet(await joueurUtilitaire.toUtilitaire(), " ", idSectionMembre)); // Utiliser idSectionMembre
                         }
                         // on creer les sujets pour les membres qui n'en disposent pas
                         await Promise.all(promiseForum); // Utilisation de await
@@ -628,7 +644,7 @@ class PageAlliance
                         await this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur);
 
                         $.toast({...TOAST_SUCCESS, text : "la mise à jour c'est correctement effectuée."});
-                        this.actualiserMembre();
+                        await this.actualiserMembre();
 
                     } catch (error) {
                         console.error("Erreur lors de l'actualisation de l'alliance:", error);
@@ -645,7 +661,7 @@ class PageAlliance
     /**
     *
     */
-    actualiserMembre()
+    async actualiserMembre()
     {
         const dataTable = $("#tabMembresAlliance").DataTable();
         if (dataTable) {
@@ -655,17 +671,20 @@ class PageAlliance
         // Vider le tbody pour reconstruire le tableau
         $("#tabMembresAlliance tbody").empty();
 
+        console.log("[PageAlliance] actualiserMembre: Avant _fusionnerJoueursUtilitaire, joueurs dans this._alliance.joueurs:", Object.keys(this._alliance.joueurs));
         // Fusionner les données de l'utilitaire avec les joueurs de la page actuelle
         // Cela met à jour this._alliance.joueurs avec les dernières données et ajoute les joueurs extérieurs
-        this._fusionnerJoueursUtilitaire();
+        await this._fusionnerJoueursUtilitaire();
+        console.log("[PageAlliance] actualiserMembre: Après _fusionnerJoueursUtilitaire, joueurs dans this._alliance.joueurs:", Object.keys(this._alliance.joueurs));
 
         // Reconstruire les lignes du tableau pour tous les joueurs (internes et externes)
         for (const pseudo in this._alliance.joueurs) {
             const joueur = this._alliance.joueurs[pseudo];
             let ligneHtml = "";
+            console.log(`[PageAlliance] actualiserMembre: Reconstruction ligne pour joueur ${pseudo}: estExterieur=${await joueur.estExterieur()}, allianceRattachement=${await joueur.lireParametre('allianceRattachement')}, _allianceTag=${joueur.allianceTag}`);
 
-            if (joueur.estExterieur) {
-                ligneHtml = this._creerLigneJoueurExterieur(joueur);
+            if (await joueur.estExterieur()) {
+                ligneHtml = await this._creerLigneJoueurExterieur(joueur);
             } else {
                 // Recréer la ligne pour les joueurs internes en utilisant la logique de traitementMembre
                 // On doit recréer la structure de base de la ligne pour qu'elle puisse être enrichie par traitementUtilitaire.
@@ -673,8 +692,8 @@ class PageAlliance
                     <tr class="${Object.keys(this._alliance.joueurs).indexOf(pseudo) % 2 ? "ligne_paire" : ""}">
                         <td align="center"></td>
                         <td align="center"></td>
-                        <td align="center">${joueur.rang}</td>
-                        <td align="center">${joueur.pseudo}</td>
+                        <td align="center">${await joueur.lireParametre('rang')}</td>
+                        <td align="center">${await joueur.lireParametre('pseudo')}</td>
                         <td align="center"></td>
                         <td align="center">${numeral(joueur.terrain).format()}</td>
                         <td align="center"></td>
@@ -697,7 +716,7 @@ class PageAlliance
         }
 
         this._attacherEvenementsRang(); // Réattacher les événements après l'actualisation
-        this.optionAdmin();
+        await this.optionAdmin();
         return this;
     }
     /**

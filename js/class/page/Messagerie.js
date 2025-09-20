@@ -49,9 +49,9 @@ class PageMessagerie
     analyseMessage()
     {
         // MutationObserver pour surveiller les changements dans #corps_messagerie
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
+        const observer = new MutationObserver(async (mutations) => {
+           await mutations.forEach(async (mutation) => {
+                await mutation.addedNodes.forEach(async (node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         const element = $(node);
                         // Si on ouvre le message pour la première fois
@@ -76,8 +76,8 @@ class PageMessagerie
                                 titreMess.includes("Invasion") ||
                                 titreMess.includes("Rebellion")
                             ) {
-                                element.find(".message").each((i, elt) => {
-                                    this.analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());
+                                await element.find(".message").each(async (i, elt) => {
+                                    await this.analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());
                                 });
                                 this.optionMessage(element.find(".message:first").parent().attr("id"));
                             }
@@ -175,12 +175,12 @@ class PageMessagerie
     /**
     *
     */
-    analyseCombat(id, dateHeure, message)
+    async analyseCombat(id, dateHeure, message)
     {
         let id_mess = id.split("_")[1], combat = new Combat({id : id_mess, dateHeure : dateHeure, RC : message});
         let simulation = message.includes("Vos troupes ont échoué") ? ` <span id="o_simuler_${id_mess}">Simuler</span>` : "";
         // preparation de l'analyse
-        combat.analyse();
+        await combat.analyse();
         // affichage des optiosn
         $("#" + id + " td:eq(1)").append(`<p class="o_optionMessage gras cursor"><span id="show_info_${id_mess}">+</span>${simulation}</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${combat.toHTMLMessagerie()}</div>`);
         $("#show_info_" + id_mess).click((e) => {$(e.currentTarget).text($(e.currentTarget).text() == "+" ? "-" : "+").parent().next().toggle("blind", 400);});
@@ -325,11 +325,11 @@ class PageMessagerie
     /**
     *
     */
-    formatMessage(id_conv, hof = false, bonus = false)
+    async formatMessage(id_conv, hof = false, bonus = false)
     {
         let html = ``;
         // pour chaque message de la conversation (attaque terrain + dome + loge par exemple)
-        $("#" + id_conv).parent().find("tr[id^='message_']").each((i, elt) => {
+        await $("#" + id_conv).parent().find("tr[id^='message_']").each(async (i, elt) => {
             let message = $(elt).find(".message").clone(), pseudo = "", armee = "", id = $(elt).attr("id").split("_")[1];
             // on remplace les br par des retours à la ligne
             message.find("br").replaceWith("\n");
@@ -357,7 +357,7 @@ class PageMessagerie
             // on ajoute l'heure du RC
             html += "[b]" + $(elt).find(".expe span > span").text() + "[/b] " + texte + "\n";
             // si on veut le temps HOF
-            if(hof) html += `Perte ${monProfilJoueur.pseudo} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
+            if(hof) html += `Perte ${await monProfilJoueur.lireParametre('pseudo')} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
             // si on veut les bonus
             if(bonus) html += `${detail.find("#bonus_ennemie_" + id).text()}\n`;
         });

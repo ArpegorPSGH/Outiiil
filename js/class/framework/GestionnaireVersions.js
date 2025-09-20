@@ -137,11 +137,6 @@ class GestionnaireVersions {
             try {
                 // 2. Chargement des Sujets
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
-
-                if (!idSection) {
-                    console.warn("La section 'Versions Outiiil' est introuvable.");
-                    return;
-                }
                 
                 // 2. Chargement des Sujets via recupererSujetsSection
                 const sujets = await pageForum.recupererSujetsSection(idSection);

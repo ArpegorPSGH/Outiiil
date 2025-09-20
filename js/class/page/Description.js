@@ -28,13 +28,13 @@ class PageDescription
 	* @method initialize
 	* @return
 	*/
-    executer()
+    async executer()
     {
         // Suppression du cadre classement
         $("#centre center:first").remove();
         // construction de l'alliance
         let tmpJoueurs = {};
-        $("#tabMembresAlliance tr:gt(0)").each((i, elt) => {
+        await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
             let pseudo = $(elt).find("td:eq(2)").text(), terrain = numeral($(elt).find("td:eq(4)").text()).value();
             tmpJoueurs[pseudo] = new Joueur({
                 pseudo : pseudo,
@@ -42,7 +42,7 @@ class PageDescription
                 fourmiliere : ~~($(elt).find("td:eq(7)").text()),
                 technologie : ~~($(elt).find("td:eq(6)").text())
             });
-            if(!Utils.comptePlus && !tmpJoueurs[pseudo].estJoueurCourant()){
+            if(!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()){
                 if(tmpJoueurs[pseudo].estAttaquable())
                     $(elt).find("td:eq(5)").html(IMG_ATT);
                 if(tmpJoueurs[pseudo].estAttaquant())
@@ -64,7 +64,7 @@ class PageDescription
             $(e.currentTarget).off().css("backgroundColor", "#bbb");
 			this.historique();
 		});
-        $("#o_surveiller").click((e) => {
+        $("#o_surveiller").click(async (e) => {
             if(!this._boiteRadar.alliances.hasOwnProperty(this._alliance.tag)){
 				$(e.currentTarget).html($(e.currentTarget).html().replace(/Surveiller/, "Ignorer"));
                 this._boiteRadar.ajouteAlliance(this._alliance);
@@ -72,7 +72,9 @@ class PageDescription
 				$(e.currentTarget).html($(e.currentTarget).html().replace(/Ignorer/, "Surveiller"));
                 this._boiteRadar.supprimeAlliance(this._alliance);
 			}
-            this._boiteRadar.sauvegarder().actualiser();
+            await this._boiteRadar.sauvegarder(); // Await the promise to get the BoiteRadar instance
+            this._boiteRadar.actualiser();       // Call actualiser on the BoiteRadar instance
+
 		});
         return this;
     }

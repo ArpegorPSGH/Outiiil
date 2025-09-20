@@ -28,7 +28,7 @@ class PageProfil
     /**
     *
     */
-    executer()
+    async executer()
     {
         this._profil = new Joueur({pseudo : $("h2").text()});
         let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne  = $(".boite_membre").find("a[href^='carte2.php?']").text();
@@ -38,30 +38,31 @@ class PageProfil
         this._profil.id = $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0];
         this._profil.terrain = numeral($(".tableau_score tr:eq(1) td:eq(1)").text()).value();
         // si on consulte un profil différent du sien
-        if(!this._profil.estJoueurCourant()){
+        if(! await this._profil.estJoueurCourant()){
             // si on a pas de compte+ on affiche le temps de trajet
-            !Utils.comptePlus && this.plus();
+            !Utils.comptePlus && await this.plus();
             // Affichage du retour dynamique
-            $(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(monProfilJoueur.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(monProfilJoueur.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
-            Utils.incrementTime(monProfilJoueur.getTempsParcours2(this._profil), "o_tempsRetour", "o_tempsRetourRapport");
+            $(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(await monProfilJoueur.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
+            Utils.incrementTime(await monProfilJoueur.getTempsParcours2(this._profil), "o_tempsRetour", "o_tempsRetourRapport");
         }
 
         // Ajout des options pour ajouter au radar et utiliser l'historique
-        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${this._boiteRadar.joueurs.hasOwnProperty(this._profil.pseudo) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
+        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lireParametre('pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
 
         $("#o_historique").click((e) => {
 			$(e.currentTarget).off().css("color", "#555555");
 			this.historique();
 		});
-		$("#o_surveiller").click((e) => {
-			if(!this._boiteRadar.joueurs.hasOwnProperty(this._profil.pseudo)){
+		$("#o_surveiller").click(async (e) => {
+			if(!this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lireParametre('pseudo'))){
 				$(e.currentTarget).text("Supprimer la surveillance");
-                this._boiteRadar.ajouteJoueur(this._profil);
+                await this._boiteRadar.ajouteJoueur(this._profil);
 			}else{
 				$(e.currentTarget).text("Surveiller ce joueur");
-                this._boiteRadar.supprimeJoueur(this._profil);
+                await this._boiteRadar.supprimeJoueur(this._profil);
 			}
-            this._boiteRadar.sauvegarder().actualiser();
+            await this._boiteRadar.sauvegarder();
+            this._boiteRadar.actualiser();
 		});
         return this;
     }
@@ -82,10 +83,10 @@ class PageProfil
     /**
     *
     */
-    plus()
+    async plus()
     {
         // Affichage du temps de trajet
-        $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
+        $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
         return this;
     }
 }

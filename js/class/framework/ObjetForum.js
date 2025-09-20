@@ -358,6 +358,13 @@ class ObjetForum {
                 } else {
                     console.log(`[${this.constructor.name}] Chargement des objets contenus ignoré (chargerContenus: ${chargerContenus}, classeObjetsForumContenus: ${!!this.constructor.classeObjetsForumContenus}).`);
                 }
+                
+                // Appel du complément de rafraîchissement
+                if (!await this.completerRafraichissement()) {
+                    console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué.`);
+                    return false;
+                }
+                
                 return true;
             } catch (error) {
                 console.error(`[${this.constructor.name}] Erreur lors du rafraîchissement de l'objet (ID: ${this.idSujet}).`, error);
@@ -367,6 +374,17 @@ class ObjetForum {
             this._releaseReadLock();
             console.log(`[${this.constructor.name}] Verrou de lecture libéré. Fin de rafraichir().`);
         }
+    }
+
+    /**
+     * Méthode de complément destinée à être surchargée dans les classes filles pour ajouter une logique
+     * spécifique à la fin du processus de rafraîchissement.
+     * @returns {Promise<Boolean>} Vrai si le complément a réussi.
+     * @protected
+     */
+    async completerRafraichissement() {
+        // Logique à surcharger par les classes enfants.
+        return true;
     }
 
     /**
@@ -442,6 +460,7 @@ class ObjetForum {
      * puis lance le chargement de ses objets contenus.
      * @param {String} contenu - La chaîne de caractères à parser.
      * @returns {Promise<Boolean>} Vrai si le chargement a réussi.
+     * @protected
      */
     async chargerDepuisString(contenu) {
         console.log(`[${this.constructor.name}] Début de chargerDepuisString() pour l'objet ID: ${this.idSujet}.`);
@@ -503,7 +522,22 @@ class ObjetForum {
     async afficher(liste = null) {
         // 1. Vérification des droits et lecture des données
         const peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N'); // 'N' pour Normal
-        const donnees = await this.lireChaqueParametre(peutVoirDonneesRestreintes, liste);
+        let donnees;
+
+        try {
+            donnees = await this.lireChaqueParametre(peutVoirDonneesRestreintes, liste);
+        } catch (error) {
+            if (error instanceof ErreurRestriction) {
+                // On récupère les données partielles (contenant les strings de restriction) et on continue.
+                donnees = error.donnees;
+            } else {
+                // On relance les erreurs inattendues.
+                throw error;
+            }
+        }
+
+        // Appel de la méthode de complément pour permettre des modifications
+        donnees = await this.completerAffichage(donnees);
 
         // 2. Détermination de l'ordre d'affichage
         let ordreAffichage;
@@ -517,6 +551,14 @@ class ObjetForum {
                 const p = mapClasseInstance.get(classe);
                 return p.constructor.getDernierNom();
             });
+
+            // Ajoute les clés supplémentaires de 'donnees' qui ne sont pas déjà dans 'ordreAffichage'
+            const ordreSet = new Set(ordreAffichage);
+            for (const key in donnees) {
+                if (!ordreSet.has(key)) {
+                    ordreAffichage.push(key);
+                }
+            }
         }
 
         // 3. Construction de l'en-tête HTML
@@ -544,6 +586,39 @@ class ObjetForum {
     }
 
     /**
+     * Méthode de complément destinée à être surchargée pour modifier ou ajouter des données avant l'affichage.
+     * @param {Object} donnees - Les données des paramètres prêtes à être affichées.
+     * @returns {Promise<Object>} Les données modifiées.
+     * @protected
+     */
+    async completerAffichage(donnees) {
+        // Logique à surcharger par les classes enfants.
+        return donnees;
+    }
+
+    /**
+     * Invoque de manière sécurisée une méthode de calcul d'un attribut dérivé.
+     * Gère les droits d'accès et les erreurs de calcul (typiquement dues à des données restreintes).
+     * @param {Function} methodeCalcul - La méthode de calcul à invoquer (doit être liée avec .bind(this)).
+     * @returns {Promise<*>} La valeur calculée, ou une chaîne indiquant une restriction ou une erreur.
+     * @protected
+     */
+    async _invoquerCalculSecurise(methodeCalcul) {
+        const peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N');
+        try {
+            const resultat = await methodeCalcul(peutVoirDonneesRestreintes);
+            // Sécurité supplémentaire : si le calcul produit NaN, null ou undefined sans planter, on le gère aussi.
+            if (Number.isNaN(resultat) || resultat === null || typeof resultat === 'undefined') {
+                return '<i>Incalculable</i>';
+            }
+            return resultat;
+        } catch (error) {
+            console.warn(`Le calcul d'un attribut a échoué (probablement à cause de données restreintes) : ${error.message}`);
+            return '<i>Restreint</i>';
+        }
+    }
+
+    /**
      * Agrège les valeurs des paramètres en un dictionnaire. Garantit que chaque paramètre est unique.
      * Si une `liste` est fournie, la clé est le nom de la liste ; sinon, c'est le nom d'affichage le plus récent.
      * @param {Boolean} [peutVoirDonneesRestreintes=true] - Si l'utilisateur peut voir les données restreintes.
@@ -552,31 +627,33 @@ class ObjetForum {
      */
     async lireChaqueParametre(peutVoirDonneesRestreintes = true, liste = null) {
         const donnees = {};
+        let aRencontreRestriction = false;
 
-        if (liste) {
-            // Si une liste est fournie, on l'utilise pour déterminer les paramètres à inclure et leur clé.
-            for (const nomParametre of liste) {
-                // On vérifie si la clé a déjà été traitée pour garantir l'unicité
-                if (!donnees.hasOwnProperty(nomParametre)) {
-                    const parametre = this.mapParametres.get(nomParametre);
-                    if (parametre) {
-                        const valeur = await parametre.Lire(peutVoirDonneesRestreintes);
-                        const nomAffiche = parametre.constructor.getDernierNom();
-                        donnees[nomParametre] = { valeur: valeur, nom_affiche: nomAffiche };
-                    } else {
-                        donnees[nomParametre] = { valeur: null, nom_affiche: null };
-                    }
-                }
-            }
-        } else {
-            // Si aucune liste n'est fournie, on traite tous les paramètres, en utilisant nomAffiche comme clé.
-            for (const parametre of this.parametres) {
-                const valeur = await parametre.Lire(peutVoirDonneesRestreintes);
-                const nomAffiche = parametre.constructor.getDernierNom();
-                donnees[nomAffiche] = { valeur: valeur, nom_affiche: nomAffiche };
+        const cles = liste || this.parametres;
+
+        for (const nomParametre of cles) {
+            // Trouve le paramètre, que la clé soit un nom historique ou le nom d'affichage le plus récent.
+            const parametre = this.mapParametres.get(nomParametre);
+            if (!parametre) {
+                donnees[nomParametre] = { valeur: null, nom_affiche: null };
+                continue;
+            } 
+
+            const valeur = await parametre.Lire(peutVoirDonneesRestreintes);
+            const nomAffiche = parametre.constructor.getDernierNom();
+
+            if (valeur === null) {
+                aRencontreRestriction = true;
+                // Le paramètre lui-même fournit la chaîne de restriction.
+                donnees[nomParametre] = { valeur: parametre.constructor.STRING_RESTRICTION, nom_affiche: nomAffiche };
+            } else {
+                donnees[nomParametre] = { valeur: valeur, nom_affiche: nomAffiche };
             }
         }
 
+        if (aRencontreRestriction) {
+            throw new ErreurRestriction('Lecture partielle en raison de restrictions.', donnees);
+        }
         return donnees;
     }
 
@@ -683,15 +760,20 @@ class ObjetForum {
      * @param {String} nomParametre - Le nom du paramètre à lire.
      * @returns {*} La valeur brute du paramètre, ou null si non trouvé.
      */
-    async lireParametre(nomParametre) {
-        console.log(`[${this.constructor.name}] Début de lireParametre pour le paramètre: "${nomParametre}".`);
+    async lireParametre(nomParametre, peutVoirDonneesRestreintes = true) {
         const parametre = this.mapParametres.get(nomParametre);
-        if (parametre) {
-            console.log(`[${this.constructor.name}] Paramètre "${nomParametre}" trouvé. Valeur: "${parametre.valeur}".`);
-            return await parametre.Lire();
+        if (!parametre) {
+            console.warn(`[${this.constructor.name}] Tentative de lecture d'un paramètre inexistant: "${nomParametre}".`);
+            // Le calcul échouera avec une erreur TypeError si on tente d'utiliser ce résultat.
+            return null;
         }
-        console.log(`[${this.constructor.name}] Paramètre "${nomParametre}" non trouvé. Retourne null.`);
-        return null;
+
+        const valeur = await parametre.Lire(peutVoirDonneesRestreintes);
+        if (valeur === null) {
+            // La lecture d'un seul paramètre restreint est une opération qui doit échouer.
+            throw new ErreurRestriction(`Accès restreint au paramètre "${nomParametre}".`);
+        }
+        return valeur;
     }
 
     /**

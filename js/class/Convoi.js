@@ -196,9 +196,9 @@ class Convoi
     /**
     *
     */
-    estDestinataire()
+    async estDestinataire()
     {
-        return this._destinataire == monProfilJoueur.pseudo;
+        return this._destinataire == await monProfilJoueur.lireParametre('pseudo');
     }
     /**
     *

@@ -22,9 +22,9 @@ class BoiteChasse extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher()){
+        if(await super.afficher()){
             $("#o_tabsChasse").tabs({disabled: [1], activate : (event ,ui) => {this.css();}}).removeClass("ui-widget");
             this.analyse().css().event();
         }
@@ -70,7 +70,7 @@ class BoiteChasse extends Boite
 	{
 		$("#o_tabsChasse1").append("<textarea id='o_rcChasse' class='o_maxWidth' placeholder='Rapport(s) de chasse(s)...'></textarea><div class='o_marginT15'><table  id='o_resultatChasse' class='o_maxWidth'></table></div>");
 
-        $("#o_rcChasse").on("input", (e) => {
+        $("#o_rcChasse").on("input", async (e) => {
             // on recup les chasses à analyser
 			let chasses = e.currentTarget.value.split("nourriture"), bilan = new Chasse(""), chasse = null, erreur = false, html = "<tr class='gras'><td colspan='2'>Avant</td><td colspan='2'>Evolution</td><td colspan='2'>Résultat</td></tr>";
             // on nettoie l'ancien affichage
@@ -79,7 +79,7 @@ class BoiteChasse extends Boite
                 if(chasses[i]){
                     chasse = new Chasse(chasses[i]);
                     if(chasse.analyse()){
-                        html += chasse.toHTMLBoite(false);
+                        html += await chasse.toHTMLBoite(false);
                         bilan.ajoute(chasse);
                     }else{
                         $.toast({...TOAST_WARNING, text : "Le rapport de chasse ne peut pas être analysé."});
@@ -89,7 +89,7 @@ class BoiteChasse extends Boite
             }
             if(!erreur){
                 $("#o_resultatChasse").append(html);
-                this.afficherBilan(bilan);
+                await this.afficherBilan(bilan);
             }
 		});
         return this;
@@ -102,12 +102,12 @@ class BoiteChasse extends Boite
 	* @param {Object} chasse
 	* @param {Boolean} bilan
 	*/
-	afficherBilan(chasse)
+	async afficherBilan(chasse)
 	{
         let i = 0, html = "<tr><td colspan='6'><select id='o_choixChasse' class='o_marginT15'>";
         for( ; i < Math.floor($("#o_resultatChasse tr").length / 4) ; html += "<option value='" + i + "'>Chasse " + (i+1) + "</option>", i++);
         html += "<option value='" + i + "' selected>Bilan</option></select></td></tr>";
-        $("#o_resultatChasse").append(chasse.toHTMLBoite(true) + html);
+        $("#o_resultatChasse").append(await chasse.toHTMLBoite(true) + html);
 		// Style
 		$("#o_resultatChasse tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
 		$("#o_choixChasse").change((e) => {

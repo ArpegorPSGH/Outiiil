@@ -29,7 +29,7 @@ class ParametreObjetForum {
      * @type {String|null}
      * @protected
      */
-    static stringRestriction = null;
+    static STRING_RESTRICTION = null;
 
     /**
      * Retourne le nom du format le plus récent.
@@ -369,9 +369,11 @@ class ParametreObjetForum {
         await this._acquireReadLock();
         console.log(`[${this.constructor.name}] Début de lire pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
         try {
-            if (this.constructor.stringRestriction !== null && !peutVoirDonneesRestreintes) {
-                return this.constructor.stringRestriction;
+            if (this.constructor.STRING_RESTRICTION !== null && !peutVoirDonneesRestreintes) {
+                console.log(`[${this.constructor.name}] null retourné`)
+                return null;
             }
+            console.log(`[${this.constructor.name}] "${this.valeur}" retourné`)
             return this.valeur;
         } finally {
             this._releaseReadLock();

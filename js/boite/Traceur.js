@@ -30,20 +30,20 @@ class BoiteTraceur extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher()){
+        if(await super.afficher()){
             let chargeAlliance = false;
             $("#o_tabsTraceur").tabs({
-                activate : (e, ui) => {
+                activate : async (e, ui) => {
                     if(!chargeAlliance && ui.newTab.index() == 1){
                         chargeAlliance = true;
-                        this._traceurAlliance.afficher("#o_tabsTraceur2");
+                        await this._traceurAlliance.afficher("#o_tabsTraceur2");
                     }
                     this.css();
                 },
             }).removeClass("ui-widget");
-            this._traceurJoueur.afficher("#o_tabsTraceur1");
+            await this._traceurJoueur.afficher("#o_tabsTraceur1");
             this.css().event();
         }
         return this;

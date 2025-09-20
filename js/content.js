@@ -248,19 +248,19 @@ const DATEPICKER_OPTION  = {
         // des qu'on a les infos constructions/recherches et profil on affiches les outils
         Promise.all([monProfilJoueur.getConstruction(), monProfilJoueur.getLaboratoire(), monProfilJoueur.getProfilCourant()]).then(async (values) => {
             // chargement des données du joueur
-            if(values[0]) monProfilJoueur.chargerConstruction(values[0]);
-            if(values[1]) monProfilJoueur.chargerRecherche(values[1]);
-            if(values[2]) monProfilJoueur.chargerProfil(values[2]);
+            if(values[0]) await monProfilJoueur.chargerConstruction(values[0]);
+            if(values[1]) await monProfilJoueur.chargerRecherche(values[1]);
+            if(values[2]) await monProfilJoueur.chargerProfil(values[2]);
 
             // Ajout des outils
             let boite = new Dock();
-            boite.afficher();
+            await boite.afficher();
             // boite compte plus
             let boiteComptePlus = new BoiteComptePlus();
-            boiteComptePlus.afficher();
+            await boiteComptePlus.afficher();
             // Boite radar
             let boiteRadar = new BoiteRadar();
-            boiteRadar.afficher();
+            await boiteRadar.afficher();
 
             // Traceur
             if(monProfilUtilisateur.parametre["cleTraceur"].valeur){

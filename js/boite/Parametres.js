@@ -41,9 +41,9 @@ class BoiteParametre extends Boite
     * @private
     * @method afficher
     */
-	afficher()
+	async afficher()
 	{
-        if(super.afficher()){
+        if(await super.afficher()){
             $("#o_tabsParametre").tabs({activate : (e, ui) => {this.css();}}).removeClass("ui-widget");
             if(!monProfilUtilisateur.parametre["cleTraceur"].valeur) $("#o_tabsParametre").tabs("disable", 3);
             this.parametreStyle().parametreUtilitaire().parametreGeneral().parametreTraceur().css().event();

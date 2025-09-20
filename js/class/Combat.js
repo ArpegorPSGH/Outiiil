@@ -303,7 +303,7 @@ class Combat
 	* @private
 	* @method analyse
 	*/
-	analyse()
+	async analyse()
 	{
         let motCle = new Array("Troupes en défense : ", "Troupes en attaque : ", "Vous infligez", "ennemie inflige", "et en tue", "et tuez", "dégâts");
         // si le RC contient bien les mots clés
@@ -311,27 +311,27 @@ class Combat
             let tmpPseudo = new Array();
             // recup du lieu
             this._lieu = this._rc.includes("Loge") ? 2 : (this._rc.includes("fourmilière") ? 1 : 0);
-            this._attaquant.pseudo = "Vous";
+            await this._attaquant.ecrireParametre('pseudo', "Vous");
             // Récuperation des armées si on nous attaque on est en défense
             if(this._rc.includes("attaque votre") || this._rc.includes("attaque une de vos colonies")){
                 this._pointDeVue = 1;
                 this._armeeAv.parseArmee(this._rc.split("Troupes en défense : ")[1].split(".")[0]);
                 this._armeeEnnemieAv.parseArmee(this._rc.split("Troupes en attaque : ")[1].split(".")[0]);
                 tmpPseudo = this._rc.split(" attaque")[0].split(" ");
-                this._defenseur.pseudo = tmpPseudo.length > 1 ? tmpPseudo[tmpPseudo.length - 1] : tmpPseudo[0];
+                await this._defenseur.ecrireParametre('pseudo', tmpPseudo.length > 1 ? tmpPseudo[tmpPseudo.length - 1] : tmpPseudo[0]);
             }else{ // sinon en attaque
                 this._armeeAv.parseArmee(this._rc.split("Troupes en attaque : ")[1].split(".")[0]);
                 this._armeeEnnemieAv.parseArmee(this._rc.split("Troupes en défense : ")[1].split(".")[0]);
                 // attaque attaque sur colonisateur
                 if(this._rc.includes("mais une armée d'occupation est déjà présente")){
-                    this._defenseur.pseudo = this._rc.split("e de ")[1].split(",")[0];
+                    await this._defenseur.ecrireParametre('pseudo', this._rc.split("e de ")[1].split(",")[0]);
                 // attaque normale
                 }else if(this._rc.includes("Vous attaquez l")){
-                    this._defenseur.pseudo = this._rc.split("e de ")[1].split("\nTroupes")[0];
+                    await this._defenseur.ecrireParametre('pseudo', this._rc.split("e de ")[1].split("\nTroupes")[0]);
                     this._defenseurTDP = this.calculerTDP(this._armeeEnnemieAv);
                 // rebellion
                 }else{
-                    this._defenseur.pseudo = this._rc.split("contre ")[1].split("\nTroupes")[0];
+                    await this._defenseur.ecrireParametre('pseudo', this._rc.split("contre ")[1].split("\nTroupes")[0]);
                 }
             }
             // On calcule l'armée du joueur 1 en sortie
@@ -485,7 +485,7 @@ class Combat
     /**
     *
     */
-    toHTMLBoite()
+    async toHTMLBoite()
     {
         let bonusAtt = "", bonusDef = "";
         if(this._pointDeVue == 0){
@@ -495,7 +495,7 @@ class Combat
             bonusAtt = `${(this._defenseurBonusLieu.length ? this._defenseurBonusLieu.join(" - ") : (this._defenseur.niveauRecherche[1] != -1 ? this._defenseur.niveauRecherche[1] : "N/A"))}`;
             bonusDef = `${(this._attaquantBonusLieu.length ? this._attaquantBonusLieu.join(" - ") : (this._attaquant.niveauRecherche[1] != -1 ? this._attaquant.niveauRecherche[1] : "N/A"))}`;
         }
-        let html = `<tr class='gras'><td></td><td style='width:38%'>${this._attaquant.pseudo}</td><td style='width:38%'>${this._defenseur.getLienFourmizzz()}</td></tr>
+        let html = `<tr class='gras'><td></td><td style='width:38%'>${await this._attaquant.lireParametre('pseudo')}</td><td style='width:38%'>${await this._defenseur.getLienFourmizzz()}</td></tr>
 			<tr><td>Bouclier (/ ${LIBELLE_LIEU[this._lieu]})</td><td>${bonusAtt}</td><td>${bonusDef}</td></tr>
 			<tr><td>Armes</td><td>${this._pointDeVue == 0 ? this._attaquant.niveauRecherche[2] : this._defenseur.niveauRecherche[2]}</td><td>${this._pointDeVue == 0 ? this._defenseur.niveauRecherche[2] : this._attaquant.niveauRecherche[2]}</td></tr>
 			<tr><td></td><td colspan='2' class='gras'>Bilan unités</td></tr>`;
@@ -652,10 +652,10 @@ class Combat
     /**
     *
     */
-    genererRC()
+    async genererRC()
     {
         let boiteRC = new BoiteRapport(this._id, this._pointDeVue == 0 ? this.genererRCAttaquant() : this.genererRCDefenseur());
-        boiteRC.afficher();
+        await boiteRC.afficher();
         return this;
     }
     /**

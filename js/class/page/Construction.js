@@ -21,14 +21,14 @@ class PageConstruction
     /**
     *
     */
-    executer()
+    async executer()
     {
         // verification des niveaux
         let niveau = new Array(13);
         $(".ligneAmelioration").each((i, elt) => {niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]);});
         if(niveau.join(",") != monProfilJoueur.niveauConstruction.join(",")){
             monProfilJoueur.niveauConstruction = niveau;
-            monProfilJoueur.sauvegarder();
+            await monProfilJoueur.sauvegarder();
         }
         // Affichage de la rentabilité
         if(!$(".desciption_amelioration:eq(11) table").find(".verificationOK").length) this.titleEtable();

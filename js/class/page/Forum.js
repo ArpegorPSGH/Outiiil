@@ -581,8 +581,8 @@ class PageForum
 
                         joueurs[pseudo] = {id : joueurId, pseudo : pseudo, x : x, y : y, sujetForum : id};
                         if(rang !== null){
-                            joueurs[pseudo].rang = rang;
-                            joueurs[pseudo].ordreRang = ordreRang;
+                            joueurs[pseudo].ecrireParametre('rang', rang);
+                            joueurs[pseudo].ecrireParametre('ordreRang', ordreRang);
                         }
                     } else {
                         console.warn(`[PageForum] chargerJoueur() - Format de titre de sujet inattendu pour le joueur: ${titreSujet}`);

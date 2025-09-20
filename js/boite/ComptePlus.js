@@ -280,14 +280,14 @@ class BoiteComptePlus
     /**
     *
     */
-    verifierDonnees()
+    async verifierDonnees()
     {
         // si la construction est fini
         if(this._construction && moment(this._expConstruction).diff(moment()) < 0){
             // on met à jour le niveau de la construction
             let index = CONSTRUCTION.findIndex((elt) => {return this._construction.toLowerCase().includes(elt.toLowerCase());});
             monProfilJoueur.niveauConstruction[index]++;
-            monProfilJoueur.sauvegarder();
+            await monProfilJoueur.sauvegarder();
             // si la construction est une evolution de ponte, on met a jour les pontes
             if(this._construction.includes("Couveuse") || this._construction.includes("Solarium"))
                 this.recalculeTempsPonte();
@@ -300,7 +300,7 @@ class BoiteComptePlus
             // on met à jour le niveau de la recherche
             let index = RECHERCHE.findIndex((elt) => {return this._recherche.toLowerCase().includes(elt.toLowerCase());});
             monProfilJoueur.niveauRecherche[index]++;
-            monProfilJoueur.sauvegarder();
+            await monProfilJoueur.sauvegarder();
             // si la recherche est une evolution de ponte, on met a jour les pontes
             if(this._recherche.includes("Technique de ponte"))
                 this.recalculeTempsPonte();
@@ -328,7 +328,7 @@ class BoiteComptePlus
             if(moment(this._chasse[i].exp).diff(moment()) < 0)
                 this._chasse.splice(i, 1);
         if(!this._chasse.length) this._startChasse = 0;
-        return this.sauvegarder();;
+        return this.sauvegarder();
     }
     /**
     *
@@ -343,7 +343,7 @@ class BoiteComptePlus
 	* @private
 	* @method afficher
 	*/
-	afficher()
+	async afficher()
 	{
         let visible = localStorage.getItem("outiiil_boiteActive");
         if(!Utils.comptePlus){
@@ -364,7 +364,8 @@ class BoiteComptePlus
                  // Formulaire de recherche
                 + "</table><form method='post' action='classementAlliance.php' style='text-align:center;margin-top:5px;'><input type='text' name='requete' id='recherche' placeholder='Joueur ou Alliance'/></form></div></div>");
             // Remplissage des champs
-            this.verifierDonnees().majPonte().majConstruction().majRecherche().majAttaque().majConvoi().majChasse();
+            await this.verifierDonnees()
+            this.majPonte().majConstruction().majRecherche().majAttaque().majConvoi().majChasse();
             // Formatage du title
             $("#boiteComptePlus table tr").tooltip({
                 tooltipClass : "warning-tooltip",
