@@ -19,6 +19,12 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
     static LOCATION_HISTORY = [{'section': 'Droits Outiiil', 'lieu': 'titre', 'nom': 'droit_{abrev}'}];
 
     /**
+     * Noms historiques pour le paramètre pseudo.
+     * @type {Array<String>}
+     */
+    static PSEUDO_NAME_HISTORY = ['pseudo_droits'];
+
+    /**
      * Contiendra la liste des instances d'ObjetForum représentant les droits pour chaque joueur.
      * @protected
      * @type {Array<ObjetForum>}
@@ -56,7 +62,8 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
 
         // Ajout d'un paramètre pour le pseudo, essentiel pour la synchronisation
         const ParametrePseudo = class extends ParametreObjetForum { valeur = ''; };
-        ParametrePseudo.NAME_HISTORY = ['Pseudo'];
+        ParametrePseudo.VERSION_LOGIQUE = this.constructor.VERSION_LOGIQUE;
+        ParametrePseudo.NAME_HISTORY = this.constructor.PSEUDO_NAME_HISTORY;
         // ParametrePseudo.FORMATS will be inherited from ParametreObjetForum
         parametresDroitClasses.push(ParametrePseudo);
 
@@ -68,6 +75,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             const ParametreDroit = class extends ParametreObjetForum {
                 valeur = 'B'; // Droit par défaut
             };
+            ParametreDroit.VERSION_LOGIQUE = this.constructor.VERSION_LOGIQUE;
 
             // Construction de NAME_HISTORY for ParametreDroit
             const uniqueNamesForParametreDroit = [];
@@ -153,10 +161,12 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             return null;
         }
 
+        const nomParametrePseudo = this.constructor.PSEUDO_NAME_HISTORY[this.constructor.PSEUDO_NAME_HISTORY.length - 1];
+
         // On délègue à l'objet droit, puis on simplifie le résultat
-        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('Pseudo');
+        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('pseudo');
         const droitsComplexes = await objetDroit.lireChaqueParametre();
-        const droitsSimples = { pseudo: pseudoCible };
+        const droitsSimples = { nomParametrePseudo: pseudoCible };
 
         const dernierFormat = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1];
         const templateNom = dernierFormat.nom; // e.g., 'droit_{abrev}'
@@ -218,7 +228,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @private
      */
     async _getObjetForumDroit(joueur) {
-        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('Pseudo');
+        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('pseudo');
         if (!pseudoCible) {
             return null;
         }
@@ -233,22 +243,29 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         // 1. Chargement parallèle
         const [droitsActuels, membresOfficiels] = await Promise.all([
             fonctionnaliteAppelante.chargerObjetForumsMultiples(this.constructor.classeObjetsForumContenus),
-            fonctionnaliteAppelante.chargerObjetForumsMultiples(JoueurTest) // Assurez-vous que la classe Joueur est disponible
+            fonctionnaliteAppelante.chargerObjetForumsMultiples(Joueur) // Assurez-vous que la classe Joueur est disponible
         ]);
 
         // 2. Indexation et Synchronisation
+        const nomParametrePseudo = this.constructor.PSEUDO_NAME_HISTORY[this.constructor.PSEUDO_NAME_HISTORY.length - 1];
         this.mapDroits.clear();
         for (const droit of droitsActuels) {
-            const pseudo = await droit.lireParametre('Pseudo');
+            const pseudo = await droit.lireParametre(nomParametrePseudo);
             console.log(`[GestionnaireDroits.rafraichir] Droits actuels - Pseudo: ${pseudo}, Droit:`, droit);
             if (pseudo) this.mapDroits.set(pseudo, droit);
         }
 
         const droitsSynchronises = [];
         const promessesEnregistrement = [];
+        const membresTraites = new Set();
 
         for (const membre of membresOfficiels) {
-            const pseudoMembre = await membre.lireParametre('Pseudo');
+            const pseudoMembre = await membre.lireParametre('pseudo');
+            if (membresTraites.has(pseudoMembre)) {
+                continue;
+            }
+            membresTraites.add(pseudoMembre);
+
             console.log(`[GestionnaireDroits.rafraichir] Membre officiel - Pseudo: ${pseudoMembre}`, membre);
             let objetDroit = this.mapDroits.get(pseudoMembre);
 
@@ -258,7 +275,9 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             } else {
                 // Nouveau membre : créer et sauvegarder ses droits par défaut
                 console.log(`[GestionnaireDroits.rafraichir] Nouveau membre, création des droits par défaut pour: ${pseudoMembre}`);
-                const nouvelObjetForumDroit = new this.constructor.classeObjetsForumContenus(fonctionnaliteAppelante, { donneesInitiales: { Pseudo: pseudoMembre }, objetParent: this });
+                const donneesInitiales = {};
+                donneesInitiales[nomParametrePseudo] = pseudoMembre;
+                const nouvelObjetForumDroit = new this.constructor.classeObjetsForumContenus(fonctionnaliteAppelante, { donneesInitiales: donneesInitiales, objetParent: this });
                 promessesEnregistrement.push(await nouvelObjetForumDroit.enregistrerSurForum());
                 droitsSynchronises.push(nouvelObjetForumDroit);
             }
@@ -273,7 +292,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         this.objetsForumContenus = droitsSynchronises;
         this.mapDroits.clear();
         for (const droit of this.objetsForumContenus) {
-            const pseudo = await droit.lireParametre('Pseudo');
+            const pseudo = await droit.lireParametre(nomParametrePseudo);
             console.log(`[GestionnaireDroits.rafraichir] Mise à jour finale mapDroits - Pseudo: ${pseudo}, Droit:`, droit);
             if (pseudo) this.mapDroits.set(pseudo, droit);
         }

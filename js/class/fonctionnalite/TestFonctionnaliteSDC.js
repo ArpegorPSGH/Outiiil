@@ -9,6 +9,7 @@ Utils.register(class TestFonctionnaliteSDC extends FonctionnaliteAlliance {
 
     async _testJoueurSDC() {
         try {
+            window.cacheObjetForums = new Map();
             // === 1. Création et Enregistrement ===
             console.log('TEST Joueur: Création et enregistrement...');
             const joueurInitial = new Joueur(this, { donneesInitiales: { 'pseudo': 'ewan706', 'rang': 'TestRang' } });
@@ -57,6 +58,30 @@ Utils.register(class TestFonctionnaliteSDC extends FonctionnaliteAlliance {
             console.log('TEST Joueur: Vérification finale réussie.');
 
             console.log('%cTEST Joueur: Succès du cycle complet de création, écriture, enregistrement, chargement et lecture.', 'color: green; font-weight: bold;');
+
+            // === 5. Test de l'affichage de l'attribut calculé 'estExterieur' ===
+            console.log("TEST Joueur: Test de l'affichage de l'attribut calculé 'estExterieur'...");
+
+            // Cas 1: Joueur interne
+            const joueurInterne = new Joueur(this, { donneesInitiales: { 'pseudo': 'momsoubob', 'allianceRattachement': 'TEST' } });
+            joueurInterne._allianceTag = 'TEST'; // Manually set the non-forum property
+            let affichageInterne = await joueurInterne.afficher();
+            // Assuming 'Extérieur' is the last column, its value will be in the last <td>
+            if (!affichageInterne.corps_html.endsWith('<td>false</td></tr>')) {
+                throw new Error(`Vérification 'estExterieur' échouée pour joueur interne. HTML: ${affichageInterne.corps_html}`);
+            }
+            console.log("TEST Joueur: Affichage joueur interne OK.");
+
+            // Cas 2: Joueur externe
+            const joueurExterne = new Joueur(this, { donneesInitiales: { 'pseudo': 'arpegor', 'allianceRattachement': 'AUTRE' } });
+            joueurExterne._allianceTag = 'TEST'; // Manually set the non-forum property
+            let affichageExterne = await joueurExterne.afficher();
+            if (!affichageExterne.corps_html.endsWith('<td>true</td></tr>')) {
+                throw new Error(`Vérification 'estExterieur' échouée pour joueur externe. HTML: ${affichageExterne.corps_html}`);
+            }
+            console.log("TEST Joueur: Affichage joueur externe OK.");
+
+            console.log('%cTEST Joueur: Succès du test d\'affichage.', 'color: green; font-weight: bold;');
 
         } catch (error) {
             console.error('%cTEST Joueur: Échec du test de la classe Joueur.', 'color: red; font-weight: bold;', error);

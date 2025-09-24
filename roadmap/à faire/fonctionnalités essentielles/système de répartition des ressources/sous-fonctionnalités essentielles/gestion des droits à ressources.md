@@ -31,6 +31,7 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
     - Si lors de la récupération des dates de dernière mise à jour sur le forum, elles ne sont pas identiques pour tous les membres, interrompre le traitement car un autre joueur est en train d'effectuer la mise à jour
     - Si nécessaire, afficher un message pour demander au joueur de ne pas fermer la page/fourmizzz/le navigateur
     - Lorsque le coefficient ou la liberté d’ajustement sont changés pour un joueur, mettre à jour les parts des joueurs ajustées
+    - Différence script de fond de l'extension et script lancé en fond par le main de l'extension?
 - Si un joueur dont le coefficient est non nul n'a aucun recensement dans son sujet membres, ne pas mettre à jour les droits accumulés pour tous les joueurs de l'alliance et afficher une notification toast informant que la mise à jour est bloquée à cause de certains joueurs n'ayant pas effectué de recensement et indiquer leurs pseudos
 
 ## Plan d'Implémentation

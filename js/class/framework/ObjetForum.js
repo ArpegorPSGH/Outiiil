@@ -221,70 +221,64 @@ class ObjetForum {
         try {
             // 1. Validation de la Présence de la Section
             console.log(`[${this.constructor.name}] Début de verifierVersionSuffisanteEtPresenceSection`);
-        console.log(`[${this.constructor.name}] idsSection:`, this.idsSection);
+            console.log(`[${this.constructor.name}] idsSection:`, this.idsSection);
 
-        if (this.idsSection.length > 0) {
-            const dernierId = this.idsSection[this.idsSection.length - 1];
-            console.log(`[${this.constructor.name}] Dernier ID de section:`, dernierId);
+            if (this.idsSection.length > 0) {
+                const dernierId = this.idsSection[this.idsSection.length - 1];
+                console.log(`[${this.constructor.name}] Dernier ID de section:`, dernierId);
 
-            if (!dernierId) {
-                console.log(`[${this.constructor.name}] Dernier ID de section est non valide. Retourne false.`);
-                return false;
-            }
-
-            try {
-                // Tente de consulter la section pour vérifier si elle existe et est accessible.
-                // Si la section n'existe pas ou est inaccessible, consulterSection
-                // devrait lever une erreur.
-                // The nomSection corresponds to the last entry in LOCATION_HISTORY, as idsSection is built from it.
-                const nomSection = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1].section;
-                
-                console.log(`[${this.constructor.name}] Vérification de l'existence de la section via consulterSection(${dernierId}). Nom attendu: '${nomSection}'.`);
-                const xmlDoc = await pageForum.consulterSection(dernierId); // Assuming this already returns a parsed XML Document
-                console.log(`[${this.constructor.name}] Réponse XML (Document) du forum pour la section '${nomSection}' (ID: ${dernierId}):`, xmlDoc);
-
-                // Check for parsing errors if the document itself indicates them
-                if (xmlDoc.querySelector('parsererror')) {
-                    console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML (document):`, xmlDoc.querySelector('parsererror').textContent);
+                if (!dernierId) {
+                    console.log(`[${this.constructor.name}] Dernier ID de section est non valide. Retourne false.`);
                     return false;
                 }
 
-                // Extract the HTML content which is within the CDATA section of the 'alliance' command
-                const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
-                if (!allianceCmdElement) {
-                    console.error(`[${this.constructor.name}] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le document XML.`);
-                    return false;
-                }
-                const htmlContent = allianceCmdElement.textContent;
-
-                // Parse the HTML content
-                const htmlParser = new DOMParser();
-                const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
-
-                // Find the section title within the HTML. It's typically in a <span> inside the second <th> of the table.
-                const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
-                const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
-
-                console.log(`[${this.constructor.name}] Titre extrait du forum pour la section '${nomSection}' (ID: ${dernierId}): "${extractedTitle}".`);
-
-                if (extractedTitle === nomSection) { // Vérification du titre
-                    console.log(`[${this.constructor.name}] Section '${nomSection}' (ID: ${dernierId}) vérifiée avec succès. Titre: "${extractedTitle}".`);
+                if (window.sectionsEnCache && window.sectionsEnCache.has(dernierId)) {
+                    console.log(`[${this.constructor.name}] La section (ID: ${dernierId}) est déjà en cache. Résultat: ${window.sectionsEnCache.get(dernierId)}.`);
+                    if (!window.sectionsEnCache.get(dernierId)) return false;
                 } else {
-                    console.error(`[${this.constructor.name}] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${extractedTitle}".`);
-                    return false;
-                }
+                    let estValide = false;
+                    try {
+                        const nomSection = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1].section;
+                        console.log(`[${this.constructor.name}] Vérification de l'existence de la section via consulterSection(${dernierId}). Nom attendu: '${nomSection}'.`);
+                        const xmlDoc = await pageForum.consulterSection(dernierId);
+                        console.log(`[${this.constructor.name}] Réponse XML (Document) du forum pour la section '${nomSection}' (ID: ${dernierId}):`, xmlDoc);
 
-            } catch (error) {
-                console.error(`[${this.constructor.name}] Erreur lors de la vérification de la section ${dernierId} pour ${this.constructor.name}.`, error);
+                        if (xmlDoc.querySelector('parsererror')) {
+                            console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML (document):`, xmlDoc.querySelector('parsererror').textContent);
+                        } else {
+                            const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
+                            if (!allianceCmdElement) {
+                                console.error(`[${this.constructor.name}] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le document XML.`);
+                            } else {
+                                const htmlContent = allianceCmdElement.textContent;
+                                const htmlParser = new DOMParser();
+                                const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
+                                const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
+                                const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
+                                console.log(`[${this.constructor.name}] Titre extrait du forum pour la section '${nomSection}' (ID: ${dernierId}): "${extractedTitle}".`);
+                                if (extractedTitle === nomSection) {
+                                    console.log(`[${this.constructor.name}] Section '${nomSection}' (ID: ${dernierId}) vérifiée avec succès. Titre: "${extractedTitle}".`);
+                                    estValide = true;
+                                } else {
+                                    console.error(`[${this.constructor.name}] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${extractedTitle}".`);
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`[${this.constructor.name}] Erreur lors de la vérification de la section ${dernierId} pour ${this.constructor.name}.`, error);
+                    }
+
+                    window.sectionsEnCache.set(dernierId, estValide);
+                    console.log(`[${this.constructor.name}] Résultat de la vérification pour la section (ID: ${dernierId}) mis en cache: ${estValide}.`);
+                    if (!estValide) return false;
+                }
+            } else {
+                console.log(`[${this.constructor.name}] idsSection est vide. Vérification de section ignorée.`);
                 return false;
             }
-        } else {
-            console.log(`[${this.constructor.name}] idsSection est vide. Vérification de section ignorée.`);
-            return false;
-        }
 
-        // 2. Validation des Paramètres
-        for (const parametre of this.parametres) {
+            // 2. Validation des Paramètres
+            for (const parametre of this.parametres) {
             if (!(await parametre.verifierVersionSuffisante())) {
                 console.error(`Paramètre incompatible pour ${this.constructor.name}`);
                 return false;

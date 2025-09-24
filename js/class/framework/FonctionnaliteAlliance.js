@@ -184,14 +184,13 @@ class FonctionnaliteAlliance {
      */
     async verifierPresenceSujetMembre() {
         console.log(`[${this.constructor.name}] Début de verifierPresenceSujetMembre.`);
-        // Pour les tests, on utilise JoueurTest. En production, ce serait la classe Joueur.
-        console.log(`[${this.constructor.name}] Chargement des objets JoueurTest.`);
-        const joueurs = await this.chargerObjetForumsMultiples(JoueurTest);
+        console.log(`[${this.constructor.name}] Chargement des objets Joueur.`);
+        const joueurs = await this.chargerObjetForumsMultiples(Joueur);
         const pseudoJoueurActuel = await monProfilJoueur.lireParametre('pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
 
         console.log(`[${this.constructor.name}] Pseudo du joueur actuel: "${pseudoJoueurActuel}".`);
         // Attendre que toutes les promesses de lireParametre soient résolues avant de logger.
-        const pseudosJoueursCharges = await Promise.all(joueurs.map(j => j.lireParametre('Pseudo')));
+        const pseudosJoueursCharges = await Promise.all(joueurs.map(j => j.lireParametre('pseudo')));
         console.log(`[${this.constructor.name}] Joueurs chargés:`, pseudosJoueursCharges);
 
         if (!pseudoJoueurActuel) {
@@ -201,7 +200,7 @@ class FonctionnaliteAlliance {
         }
 
         const estMembre = await Promise.all(joueurs.map(async joueur => {
-            const joueurPseudo = await joueur.lireParametre('Pseudo');
+            const joueurPseudo = await joueur.lireParametre('pseudo');
             console.log(`[${this.constructor.name}] Comparaison: "${joueurPseudo}" === "${pseudoJoueurActuel}"`);
             // 'pseudo' est le nom du paramètre dans la classe Joueur.
             return joueurPseudo === pseudoJoueurActuel;

@@ -23,6 +23,7 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
     - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.CLASSES_PARAMETRES`.
     - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
 - **Paramètre :** Créez une classe héritant de `ParametreObjetForum`.
+    - Définissez sa version logique via `ParametreObjetForum.VERSION_LOGIQUE`.
     - Définissez son historique de noms via `ParametreObjetForum.NAME_HISTORY`.
     - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
     - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`).
@@ -82,7 +83,7 @@ Pour garantir la robustesse des fonctionnalités :
 - **Chargement des sous-objets :** Ne chargez les sous-objets (`ObjetForum.objetsForumContenus`) que lorsque cela est nécessaire pour réduire la latence.
 - **Réutilisation des paramètres :** Ne réutilisez pas un `ParametreObjetForum` existant si sa signification change ; créez-en un nouveau.
 - **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
-- **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente (tout changement faisant que dans des situations identiques, les paramètres ne seront pas censés prendre la même valeur), incrémentez la propriété statique `ObjetForum.VERSION_LOGIQUE`.
+- **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` ou d'un `ParametreObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente, incrémentez sa propriété statique `VERSION_LOGIQUE`. Pour un `ObjetForum`, cela concerne des situations où, dans des conditions identiques, les paramètres ne seraient plus censés prendre la même valeur. Pour un `ParametreObjetForum`, cela s'applique quand une même valeur brute est traitée différemment.
 - **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
 - **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lireParametre()`, `ObjetForum.lireChaqueParametre()`, `ObjetForum.ecrireParametre()`, `ObjetForum.ecrireChaqueParametre()`, ne jamais accéder directement à sa propriété `valeur`.
 - **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.

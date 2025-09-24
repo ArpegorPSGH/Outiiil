@@ -5,7 +5,7 @@ Transmettre la date et l'auteur via le message lui-même plutôt que les meta-da
 
 ## Fonctionnement Détaillé
 - Ne plus récupérer les meta-data des messages sur le forum
-- Ajouter des paramètres de date et auteur à tous les objets
+- Ajouter des paramètres de date et auteur aux objets en ayant besoin
 
 ## Plan d'Implémentation
 

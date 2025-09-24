@@ -9,7 +9,7 @@ class GestionnaireVersions {
 
     /**
      * Cache des versions de paramètres lues sur le forum.
-     * Format : { idSujet, type, nomClasse, nameHistory, formats, idNameHistory, idFormats }
+     * Format : { idSujet, type, nomClasse, versionLogique, nameHistory, formats, idMessageVersionLogique, idMessageNameHistory, idMessageFormats }
      * @private
      * @type {Array<Object>}
      */
@@ -74,6 +74,12 @@ class GestionnaireVersions {
             const idSection = monProfilUtilisateur.parametre[nomSection]?.valeur;
 
             if (idSection) {
+                if (window.sectionsEnCache && window.sectionsEnCache.has(idSection)) {
+                    console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] La section '${nomSection}' (ID: ${idSection}) est déjà en cache. Résultat: ${window.sectionsEnCache.get(idSection)}.`);
+                    return window.sectionsEnCache.get(idSection);
+                }
+
+                let estValide = false;
                 try {
                     console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] Vérification de la section '${nomSection}' (ID: ${idSection}).`);
                     const xmlDoc = await pageForum.consulterSection(idSection); // Assuming this already returns a parsed XML Document
@@ -82,40 +88,45 @@ class GestionnaireVersions {
                     // Check for parsing errors if the document itself indicates them (e.g., from a previous internal parse)
                     if (xmlDoc.querySelector('parsererror')) {
                         console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Erreur lors du parsing de la réponse XML (document):`, xmlDoc.querySelector('parsererror').textContent);
-                        return false;
-                    }
-
-                    // Extract the HTML content which is within the CDATA section of the 'alliance' command
-                    const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
-                    if (!allianceCmdElement) {
-                        console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le document XML.`);
-                        return false;
-                    }
-                    const htmlContent = allianceCmdElement.textContent;
-
-                    // Parse the HTML content
-                    const htmlParser = new DOMParser();
-                    const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
-
-                    // Find the section title within the HTML. It's typically in a <span> inside the second <th> of the table.
-                    // The structure is: <table> -> <tbody> (implied) -> <tr class="alt"> -> <th> (first) -> <th> (second) -> <span> (first child)
-                    const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
-                    const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
-
-                    console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] Titre extrait du forum pour la section '${nomSection}' (ID: ${idSection}): "${extractedTitle}".`);
-
-                    if (extractedTitle === nomSection) { // Vérification du titre
-                        console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] Section '${nomSection}' (ID: ${idSection}) vérifiée avec succès. Titre: "${extractedTitle}".`);
+                        estValide = false;
                     } else {
-                        console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${extractedTitle}".`);
-                        return false;
+                        // Extract the HTML content which is within the CDATA section of the 'alliance' command
+                        const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
+                        if (!allianceCmdElement) {
+                            console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le document XML.`);
+                            estValide = false;
+                        } else {
+                            const htmlContent = allianceCmdElement.textContent;
+
+                            // Parse the HTML content
+                            const htmlParser = new DOMParser();
+                            const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
+
+                            // Find the section title within the HTML. It's typically in a <span> inside the second <th> of the table.
+                            // The structure is: <table> -> <tbody> (implied) -> <tr class="alt"> -> <th> (first) -> <th> (second) -> <span> (first child)
+                            const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
+                            const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
+
+                            console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] Titre extrait du forum pour la section '${nomSection}' (ID: ${idSection}): "${extractedTitle}".`);
+
+                            if (extractedTitle === nomSection) { // Vérification du titre
+                                console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] Section '${nomSection}' (ID: ${idSection}) vérifiée avec succès. Titre: "${extractedTitle}".`);
+                                estValide = true;
+                            } else {
+                                console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${extractedTitle}".`);
+                                estValide = false;
+                            }
+                        }
                     }
                 } catch (error) {
                     console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Erreur lors de la vérification de la section '${nomSection}' (ID: ${idSection}).`, error);
-                    return false;
+                    estValide = false;
                 }
-                console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] La section 'Versions Outiiil' est présente et accessible.`);
-                return true;
+
+                window.sectionsEnCache.set(idSection, estValide);
+                console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] Résultat de la vérification pour la section '${nomSection}' (ID: ${idSection}) mis en cache: ${estValide}.`);
+
+                return estValide;
             }
             console.log(`[GestionnaireVersions.verifierPresenceSectionVersions] La section '${nomSection}' n'est pas configurée dans monProfilUtilisateur.parametre.`);
             return false; // Ajout d'un retour false si idSection n'est pas trouvé
@@ -190,7 +201,7 @@ class GestionnaireVersions {
 
                         if (type === 'objet') {
                             if (!versionLogique || !classesParametres || !formatsLieux) {
-                                console.warn(`[GestionnaireVersions.rafraichir] Sujet objet ${sujet.titre} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
+                                console.warn(`[GestionnaireVersions.rafraichir] Sujet objet ${sujet.contenu} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
                                 console.log(`[GestionnaireVersions.rafraichir] Debug - versionLogique:`, versionLogique);
                                 console.log(`[GestionnaireVersions.rafraichir] Debug - classesParametres:`, classesParametres);
                                 console.log(`[GestionnaireVersions.rafraichir] Debug - formatsLieux:`, formatsLieux);
@@ -208,8 +219,9 @@ class GestionnaireVersions {
                                 idMessageFormatsLieux
                             });
                         } else if (type === 'parametre') {
-                            if (!nameHistory || !formats) {
-                                console.warn(`[GestionnaireVersions.rafraichir] Sujet parametre ${sujet.titre} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
+                            if (!versionLogique || !nameHistory || !formats) {
+                                console.warn(`[GestionnaireVersions.rafraichir] Sujet parametre ${sujet.contenu} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
+                                console.log(`[GestionnaireVersions.rafraichir] Debug - versionLogique:`, versionLogique);
                                 console.log(`[GestionnaireVersions.rafraichir] Debug - nameHistory:`, nameHistory);
                                 console.log(`[GestionnaireVersions.rafraichir] Debug - formats:`, formats);
                                 continue;
@@ -218,14 +230,16 @@ class GestionnaireVersions {
                                 idSujet: sujet.id, 
                                 type, 
                                 nomClasse, 
+                                versionLogique,
                                 nameHistory, 
                                 formats,
+                                idMessageVersionLogique,
                                 idMessageNameHistory,
                                 idMessageFormats
                             });
                         }
                     } catch (e) {
-                        console.error(`[GestionnaireVersions.rafraichir] Erreur lors du parsing du sujet de version ${sujet.titre} (ID: ${sujet.id}):`, e);
+                        console.error(`[GestionnaireVersions.rafraichir] Erreur lors du parsing du sujet de version ${sujet.contenu} (ID: ${sujet.id}):`, e);
                         // Ignorer les sujets qui ne sont pas du format attendu
                     }
                 }
@@ -492,10 +506,12 @@ class GestionnaireVersions {
 
             // Phase 1 : Identification
             const nomClasseLocale = parametre.constructor.name;
+            const versionLogiqueLocale = parametre.constructor.VERSION_LOGIQUE;
             const nameHistoryLocal = parametre.constructor.NAME_HISTORY;
             const formatsLocaux = parametre.constructor.FORMATS;
 
             console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Nom de classe local: ${nomClasseLocale}`);
+            console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Version logique locale:`, versionLogiqueLocale);
             console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Name History local:`, nameHistoryLocal);
             console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Formats locaux:`, formatsLocaux);
 
@@ -525,15 +541,19 @@ class GestionnaireVersions {
                 const newId = await pageForum.creerSujetEtRetournerId(titreSujet, ' ', idSection);
                 if (newId) {
                     console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Sujet créé avec succès, ID: ${newId}. Envoi des messages.`);
-                    const idMessageNameHistory = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(nameHistoryLocal)); // Message 1
+                    const idMessageVersionLogique = await pageForum.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
                     await Utils.sleep(10)
-                    const idMessageFormats = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(formatsLocaux)); // Message 2
+                    const idMessageNameHistory = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(nameHistoryLocal)); // Message 2
+                    await Utils.sleep(10)
+                    const idMessageFormats = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(formatsLocaux)); // Message 3
                     this.versionsParamsForum.push({ 
                         idSujet: newId, 
                         type: 'parametre', 
                         nomClasse: nomClasseLocale, 
+                        versionLogique: versionLogiqueLocale,
                         nameHistory: nameHistoryLocal, 
                         formats: formatsLocaux,
+                        idMessageVersionLogique,
                         idMessageNameHistory,
                         idMessageFormats
                     });
@@ -544,13 +564,15 @@ class GestionnaireVersions {
                 return true;
             }
 
+            const versionLogiqueForum = versionForum.versionLogique;
+            const compVersion = Utils.compareVersions(versionLogiqueLocale, versionLogiqueForum);
             const compNameHistory = nameHistoryLocal.length - versionForum.nameHistory.length;
             const compFormats = formatsLocaux.length - versionForum.formats.length;
 
-            console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Comparaison - compNameHistory: ${compNameHistory}, compFormats: ${compFormats}`);
+            console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Comparaison - compVersion: ${compVersion}, compNameHistory: ${compNameHistory}, compFormats: ${compFormats}`);
 
             // Scénario 1 (Extension obsolète)
-            if (compNameHistory < 0 || compFormats < 0) {
+            if (compVersion < 0 || compNameHistory < 0 || compFormats < 0) {
                 console.warn(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 1: Extension obsolète. Le paramètre ${parametre.constructor.name} nécessite une mise à jour.`);
                 $.toast({
                     heading: 'Mise à jour requise',
@@ -580,22 +602,25 @@ class GestionnaireVersions {
                 return false;
             }
             // Scénario 2 (Forum obsolète)
-            else if (compNameHistory > 0 || compFormats > 0) {
+            else if (compVersion > 0 || compNameHistory > 0 || compFormats > 0) {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 2: Forum obsolète. Mise à jour du sujet et des messages pour le paramètre ${nomClasseLocale}.`);
                 await pageForum.modifierSujet(`parametre: ${nomClasseLocale}`, ' ', versionForum.idSujet);
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Sujet ID ${versionForum.idSujet} modifié.`);
                 // Les messages sont modifiés en utilisant leurs IDs.
+                await pageForum.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale); // Message pour versionLogique
+                console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Message ID ${versionForum.idMessageVersionLogique} (versionLogique) modifié.`);
                 await pageForum.modifierMessage(versionForum.idMessageNameHistory, JSON.stringify(nameHistoryLocal)); // Message pour nameHistory
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Message ID ${versionForum.idMessageNameHistory} (nameHistory) modifié.`);
                 await pageForum.modifierMessage(versionForum.idMessageFormats, JSON.stringify(formatsLocaux)); // Message pour formats
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Message ID ${versionForum.idMessageFormats} (formats) modifié.`);
+                versionForum.versionLogique = versionLogiqueLocale; // Mise à jour du cache
                 versionForum.nameHistory = nameHistoryLocal; // Mise à jour du cache
                 versionForum.formats = formatsLocaux; // Mise à jour du cache
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Cache local mis à jour pour le paramètre ${nomClasseLocale}.`);
                 return true;
             }
             // Scénario 3 (Concordance)
-            else if (compNameHistory === 0 && compFormats === 0) {
+            else if (compVersion === 0 && compNameHistory === 0 && compFormats === 0) {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 3: Concordance parfaite pour le paramètre ${nomClasseLocale}.`);
                 return true;
             }

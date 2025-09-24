@@ -457,6 +457,7 @@ async function initialiserFrameworkGlobal() {
     window.dependancesObjetForumsCache = new Map();
     window.cacheObjetForums = new Map(); // Nouvelle variable globale
     window.pageForum = new PageForum(); // Nouvelle variable globale
+    window.sectionsEnCache = new Map();
 
     // Création de la liste globale des sections
     window.nomsSectionsRequis = new Set();

@@ -7,6 +7,13 @@ class ParametreObjetForum {
     static NAME_HISTORY = [];
 
     /**
+     * Configuration déclarative. Version de la logique de fonctionnement du paramètre.
+     * Ex: '1.0'. Doit être surchargée dans chaque classe fille si le paramètre est versionné.
+     * @type {String|null}
+     */
+    static VERSION_LOGIQUE = null;
+
+    /**
      * Configuration déclarative. Liste des formats de template string disponibles pour le paramètre.
      * Ex: '(nom): (valeur) | '
      * Doit être surchargée dans la classe mère.

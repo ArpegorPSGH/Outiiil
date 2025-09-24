@@ -158,8 +158,8 @@ Utils.register(class Joueur extends ObjetForum {
     get allianceRattachement() { return this.lireParametre('allianceRattachement'); }
     set allianceRattachement(newAlliance) { this.ecrireParametre('allianceRattachement', newAlliance); }
 
-    async estExterieur() {
-        const allianceRattachement = await this.lireParametre('allianceRattachement');
+    async estExterieur(peutVoirDonneesRestreintes) {
+        const allianceRattachement = await this.lireParametre('allianceRattachement', peutVoirDonneesRestreintes);
         return allianceRattachement !== null && this.allianceTag !== allianceRattachement;
     }
 
@@ -295,7 +295,6 @@ Utils.register(class Joueur extends ObjetForum {
      * @returns {Promise<Object>} Les données complétées.
      */
     async completerAffichage(donnees) {
-        donnees['ID'] = { valeur: this.id, nom_affiche: 'ID' };
         donnees['Coordonnées'] = { valeur: `(${this.x}, ${this.y})`, nom_affiche: 'Coordonnées' };
         donnees['Terrain'] = { valeur: numeral(this.terrain).format(), nom_affiche: 'Terrain' };
         donnees['Fourmilière'] = { valeur: numeral(this.fourmiliere).format(), nom_affiche: 'Fourmilière' };
@@ -303,6 +302,10 @@ Utils.register(class Joueur extends ObjetForum {
         donnees['MV'] = { valeur: this.mv ? 'Oui' : 'Non', nom_affiche: 'MV' };
         donnees['Colonisé'] = { valeur: this.colonise ? 'Oui' : 'Non', nom_affiche: 'Colonisé' };
         donnees['Tag Alliance'] = { valeur: this.allianceTag, nom_affiche: 'Tag Alliance' };
+
+        const estExterieurResult = await this._invoquerCalculSecurise(this.estExterieur.bind(this));
+        donnees['Extérieur'] = { valeur: estExterieurResult, nom_affiche: 'Extérieur' };
+        
         return donnees;
     }
 
