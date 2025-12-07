@@ -6,7 +6,7 @@
 /**
 * Classe permettant d'afficher un RC.
 *
-* @class BoiteRang
+* @class BoiteGrade
 * @constructor
 * @extends Boite
 */

@@ -1,4 +1,4 @@
 class TestParametrePseudo extends ParametreObjetForum {
-    static NAME_HISTORY = ['pseudo'];
+    static FORMAT_HISTORY = [{ nom: 'pseudo', format: '(nom): (valeur) | ' }];
     valeur = '';
 }

@@ -1,5 +1,5 @@
 class TestParametreProduit extends ParametreObjetForum
 {
-    static NAME_HISTORY = ['Produit'];
+    static FORMAT_HISTORY = [{ nom: 'Produit', format: '(nom): (valeur) | ' }];
     valeur = '';
 }

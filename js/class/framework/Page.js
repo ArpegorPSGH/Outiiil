@@ -1,44 +1,43 @@
 class Page {
     /**
-     * Configuration déclarative. Liste des classes de FonctionnaliteAlliance à lancer.
-     * @type {Array<typeof FonctionnaliteAlliance>}
+     * Configuration déclarative. Liste unifiée contenant des références de méthodes 
+     * (fonctionnalités locales) et des classes `FonctionnaliteAlliance`.
+     * L'ordre de cette liste dicte l'ordre d'exécution.
+     * @type {Array<Function|typeof FonctionnaliteAlliance>}
      * @protected
      */
-    static FONCTIONNALITES_ALLIANCE = [];
+    static FONCTIONNALITES = [];
 
     /**
-     * Configuration déclarative. Liste des méthodes de la classe fille à exécuter.
-     * @type {Array<Function>}
-     * @protected
-     */
-    static FONCTIONNALITES_LOCALES = [];
-
-    /**
-     * Orchestre l'initialisation de toutes les fonctionnalités (d'alliance et locales)
-     * déclarées dans les attributs de la classe en garantissant que l'état global du
-     * framework est présent.
+     * Orchestre l'initialisation séquentielle de toutes les fonctionnalités déclarées 
+     * dans la liste statique `FONCTIONNALITES`.
      * @returns {Promise<void>}
      */
     async init() {
-        // 1. Construction de l'État Global
-        // await initialiserFrameworkGlobal();
-
-                
-        console.log(`[${this.constructor.name}] Appel de gestionnaireVersions.verifierPresenceSectionVersions().`);
-        if (await gestionnaireVersions.verifierPresenceSectionVersions()) {
-            // 2. Rafraîchissement du GestionnaireVersions
+        const versionsPresentes = await gestionnaireVersions.verifierPresenceSectionVersions();
+        if (versionsPresentes) {
             await gestionnaireVersions.rafraichir();
+        }
 
-            // 3. Initialisation des Fonctionnalités d'Alliance
-            for (const ClasseFonctionnalite of this.constructor.FONCTIONNALITES_ALLIANCE) {
-                const instance = new ClasseFonctionnalite(this);
-                await instance.init();
+        for (const item of this.constructor.FONCTIONNALITES) {
+            if (item.prototype instanceof FonctionnaliteAlliance) {
+                if(versionsPresentes) {
+                    console.log('item fonctionnalite ', item)
+                    const instance = new item(this);
+                    await instance.init();
+                }
+            } else if (typeof item === 'function') {
+                await item.call(this);
             }
         }
+    }
 
-        // 4. Lancement des Fonctionnalités Locales
-        for (const fonctionLocale of this.constructor.FONCTIONNALITES_LOCALES) {
-            fonctionLocale.call(this);
-        }
+    /**
+     * Vérifie si le joueur est un administrateur Fourmizzz sur la page actuelle.
+     * A surcharger dans les classes filles avec le moyen de le déterminer.
+     * @returns {boolean}
+     */
+    estAdminFourmizzz() {
+        return false;
     }
 }

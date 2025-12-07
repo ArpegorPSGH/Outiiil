@@ -1,7 +1,7 @@
 Utils.register(class TestObjetForumCommandeV2 extends ObjetForum {
     static VERSION_LOGIQUE = '2.0';
     static CLASSES_PARAMETRES = [[TestParametreQuantite, TestParametreCoordonnees], [TestParametreQuantite, TestParametreCoordonnees, TestParametreStatut]];
-    static LOCATION_HISTORY = [{'section': 'Données Test SDC', 'lieu': 'titre'}, {'section': 'Données Test SDC V2', 'lieu': 'titre'}];
+    static LOCATION_HISTORY = [{section: 'Données Test SDC', lieu: 'titre'}, {section: 'Données Test SDC V2', lieu: 'titre'}];
 
     async completerChargementPourVersionsAnterieures() {
         let versionActuelle = this._determinerVersionChargee();

@@ -462,10 +462,10 @@ input:required, select:required {box-shadow:none;}
 #o_boiteParametre {min-width:40%;}
 #o_tabsParametre1, #o_tabsParametre2, #o_tabsParametre3 {max-height: 50vh;overflow-y:auto;}
 
-/* Commande - Rang */
+/* Commande - Grade */
 .o_rangForm, .o_commandeForm {margin-top:40px;}
 .o_commandeForm .group, .o_rangForm .group {margin:30px auto 0;}
-#o_boiteGuerre, .o_content[id^=o_boiteRang], .o_content[id^=o_boiteCommande] {min-width: 500px;}
+#o_boiteGuerre, .o_content[id^=o_boiteGrade], .o_content[id^=o_boiteCommande] {min-width: 500px;}
 
 /* Rapport */
 .o_content[id^=o_boiteRapport] {max-width: 45%;padding-right: 10px;padding-left: 10px;}

@@ -23,8 +23,8 @@ class Armee
         this._unite = new Array(14).fill(0);
         if(parametres.hasOwnProperty("unite"))
             for(let i = 0 ; i < 14 ; i++)
-                if(parametres.unite.hasOwnProperty(NOM_UNITE[i + 1]))
-                    this._unite[i] = parametres.unite[NOM_UNITE[i + 1]];
+                if(parametres.unite.hasOwnProperty(NOM_UNITE[i]))
+                    this._unite[i] = parametres.unite[NOM_UNITE[i]];
         /**
         * Sauvegarde du nombre de JSN pour le lancement des chasses.
         *
@@ -117,7 +117,7 @@ class Armee
         $(html).find(".simulateur tr[align='center']:lt(14)").each((i, elt) => {
             let label = $(elt).find(".pas_sur_telephone").text();
             if(label)
-				$(elt).find("td span").each((i2, elt2) => {this._unite[NOM_UNITE.indexOf(label) - 1] += parseInt($(elt2).text().replace(/[^0-9]/g, ''));});
+				$(elt).find("td span").each((i2, elt2) => {this._unite[NOM_UNITE.indexOf(label)] = parseInt($(elt2).text().replace(/[^0-9]/g, ''));});
         });
 		this._nbrJSN = this._unite[0];
         return this;
@@ -132,7 +132,7 @@ class Armee
 	toString()
 	{
 		let s = "";
-        this._unite.forEach((elt, ind) => {return s += (elt ? numeral(elt).format() + " " + (elt > 1 ? NOM_UNITES[ind + 1] : NOM_UNITE[ind + 1]) + ", " : "");});
+        this._unite.forEach((elt, ind) => {return s += (elt ? numeral(elt).format() + " " + (elt > 1 ? NOM_UNITES[ind] : NOM_UNITE[ind]) + ", " : "");});
 		return s.slice(0, -2) + ".";
 	}
     /**

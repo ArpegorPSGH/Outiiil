@@ -65,9 +65,10 @@ class PageAlliance
         // ajout des totaux de l'alliance
         let tmpJoueurs = {};
         await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
-            let pseudo = $(elt).find("td:eq(3)").text(), terrain = numeral($(elt).find("td:eq(5)").text()).value();
+            let pseudo = $(elt).find("td:eq(3)").text(), terrain = numeral($(elt).find("td:eq(5)").text()).value(), rang = $(elt).find("td:eq(2)").text();
             tmpJoueurs[pseudo] = new Joueur({
                 pseudo : pseudo,
+                rang : rang,
                 terrain : terrain,
                 fourmiliere : ~~($(elt).find("td:eq(8)").text()),
                 technologie : ~~($(elt).find("td:eq(7)").text())
@@ -144,120 +145,27 @@ class PageAlliance
 
                             // Fonction pour gérer le clic sur le bouton Recensement
                             async function handleRecensementClick(e) {
-                                e.preventDefault(); // Prevent default link action
+                                e.preventDefault(); // Empêche l'action par défaut du lien
                                 const $button = $(e.currentTarget);
-                                // Utiliser le style de traitement de datatables ou simplement désactiver
                                 $button.addClass('processing').css('pointer-events', 'none'); // Désactiver clics + style visuel
 
-                                // Afficher un indicateur de chargement à côté (optionnel, nécessite un span HTML)
-                                // $("#o_recensementLoading").show(); // Supposons qu'un span avec cet ID existe
-
                                 try {
-                                    // --- Étape 1: Récupérer Armée ---
-                                    const htmlArmee = await $.ajax({ url: "/Armee.php" });
-                                    const unites = Armee.parseHtml(htmlArmee); // Utilise la méthode statique
-
-                                    // --- Étape 2: Collecter & Formater ---
-                                    let messageLines = [];
-                                    messageLines.push(`Nourriture: ${numeral(Utils.nourriture).format()}`);
-                                    messageLines.push(`Matériaux: ${numeral(Utils.materiaux).format()}`);
-                                    messageLines.push(`Terrain de Chasse: ${numeral(Utils.terrain).format()} cm²`);
-
-                                    messageLines.push("\n--- Constructions ---");
-                                    CONSTRUCTION.forEach((nom, index) => {
-                                        if (monProfilJoueur.niveauConstruction[index] > -1) {
-                                            messageLines.push(`${nom}: ${monProfilJoueur.niveauConstruction[index]}`);
-                                        }
-                                    });
-
-                                    messageLines.push("\n--- Recherches ---");
-                                    RECHERCHE.forEach((nom, index) => {
-                                        if (monProfilJoueur.niveauRecherche[index] > -1) {
-                                            messageLines.push(`${nom}: ${monProfilJoueur.niveauRecherche[index]}`);
-                                        }
-                                    });
-
-                                    messageLines.push("\n--- Unités ---");
-                                    const nbOuvrieres = Utils.ouvrieres;
-                                    messageLines.push(`Ouvrière: ${numeral(nbOuvrieres).format()}`);
-
-                                    if (Object.keys(unites).length > 0) {
-                                        // Trier les unités par leur ordre dans NOM_UNITE pour la cohérence
-                                        const unitesOrdonnees = {};
-                                        NOM_UNITE.forEach(nom => {
-                                            if (unites[nom] !== undefined && nom !== "Ouvrière") { // Exclure Ouvrière déjà ajoutée
-                                                unitesOrdonnees[nom] = unites[nom];
-                                            }
-                                        });
-                                        for (const [nom, qte] of Object.entries(unitesOrdonnees)) {
-                                             messageLines.push(`${nom}: ${numeral(qte).format()}`);
-                                        }
+                                    const recensementReussi = await monProfilJoueur.effectuerRecensement();
+                                    if (recensementReussi) {
+                                        $.toast({...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum."});
                                     } else {
-                                        messageLines.push("Aucune unité militaire trouvée (ou erreur lors de la récupération).");
+                                        throw new Error("Échec de l'opération de recensement.");
                                     }
-
-                                    const messageFormatte = messageLines.join("\n");
-
-                                    // --- Étape 3: Envoyer au Forum ---
-                                    let idSujet = monProfilJoueur.sujetForum;
-                                    const forumManager = new PageForum(); // Assumes PageForum is available globally or imported
-
-                                    if (!idSujet) {
-                                        const idSection = monProfilUtilisateur.parametre["Membres Outiiil"]?.valeur;
-                                        if (!idSection) {
-                                            throw new Error("ID de la section forum 'Membres Outiiil' non trouvé dans les paramètres.");
-                                        }
-
-                                        const htmlSectionData = await forumManager.consulterSection(idSection);
-
-                                        const responseHtml = $(htmlSectionData).find("cmd:eq(1)").text();
-                                        if (!responseHtml) {
-                                             throw new Error("Réponse invalide lors de la consultation de la section forum.");
-                                        }
-                                        const $sectionContent = $("<div/>").append(responseHtml);
-                                        let foundId = null;
-
-                                        await $sectionContent.find("#form_cat tr:gt(0)").each(async (i, elt) => {
-                                            const $row = $(elt);
-                                            const titreSujet = $row.find("td:eq(1)").text().trim();
-                                            if (titreSujet.startsWith(await monProfilJoueur.lireParametre('pseudo') + " /")) {
-                                                const onclickAttr = $row.find("a.topic_forum").attr("onclick");
-                                                if (onclickAttr) {
-                                                    const match = onclickAttr.match(/callGetTopic\((\d+)\)/);
-                                                    if (match && match[1]) {
-                                                        foundId = match[1];
-                                                        return false;
-                                                    }
-                                                }
-                                                const inputVal = $row.find("input[name='topic[]']").val();
-                                                if (inputVal) {
-                                                     foundId = inputVal;
-                                                     return false;
-                                                }
-                                            }
-                                        });
-
-                                        if (!foundId) {
-                                            throw new Error(`Sujet forum pour '${await monProfilJoueur.lireParametre('pseudo')}' non trouvé dans la section Membres Outiiil.`);
-                                        }
-                                        idSujet = foundId;
-                                    }
-
-                                    await forumManager.envoyerMessage(idSujet, encodeURIComponent(messageFormatte));
-                                    $.toast({...TOAST_SUCCESS, text: "Statistiques postées sur le forum."});
-
                                 } catch (error) {
-                                    console.error("Erreur lors du post des stats:", error);
+                                    console.error("Erreur lors du recensement:", error);
                                     $.toast({...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}`});
                                 } finally {
-                                    // --- Étape Finale ---
                                     $button.removeClass('processing').css('pointer-events', 'auto'); // Réactiver
-                                    // $("#o_recensementLoading").hide(); // Cacher l'indicateur si utilisé
                                 }
                             }
 
-                             $("#o_recensementButton").click(handleRecensementClick);
-                             // --- END: Ajout bouton et logique Recensement ---
+                            $("#o_recensementButton").click(handleRecensementClick);
+                            // --- END: Ajout bouton et logique Recensement ---
                         }
                         await this.optionAdmin(); // Appeler optionAdmin si traitementUtilitaire est réussi
                     } else {
@@ -353,7 +261,7 @@ class PageAlliance
             // Vérifier si le joueur existe et a les propriétés x et y définies
             if (joueur && typeof joueur.x === 'number' && typeof joueur.y === 'number' && joueur.x !== -1 && joueur.y !== -1) {
                 // si nous avons les coordonnées on affiche les temps de trajet
-                $(elt).find("td:eq(1)").after(`<td align="center">${await joueur.lireParametre('rang') !== undefined ? await joueur.lireParametre('rang') : Utils.alliance}</td>`);
+                $(elt).find("td:eq(1)").after(`<td align="center">${await joueur.lireParametre('grade') !== undefined ? await joueur.lireParametre('grade') : Utils.alliance}</td>`);
                 
                 const tempsParcours = await monProfilJoueur.getTempsParcours2(joueur);
                 
@@ -363,22 +271,22 @@ class PageAlliance
                 $(elt).find("td:eq(9)").after(`<td align="center">${tdtDisplay}</td><td align="center">${retourDisplay}</td>`);
                 // si on est chef de l'alliance on peut modifier les rangs et que le joueur est dans l'utilitaire
                 if($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)){
-                    $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="rang"/></a>`);
+                    $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                     $("#o_rang" + joueur.id).click(async (e) => {
-                        let boiteForm = new BoiteRang(joueur, this._utilitaire, this);
+                        let boiteForm = new BoiteGrade(joueur, this._utilitaire, this);
                         await boiteForm.afficher();
                         return false;
                     });
                 }
             } else {
                 // Si le joueur n'existe pas ou n'a pas de coordonnées valides, afficher N/C pour les temps de trajet
-                $(elt).find("td:eq(1)").after(`<td align="center">${joueur && await joueur.lireParametre('rang') !== undefined ? await joueur.lireParametre('rang') : Utils.alliance}</td>`);
+                $(elt).find("td:eq(1)").after(`<td align="center">${joueur && await joueur.lireParametre('grade') !== undefined ? await joueur.lireParametre('grade') : Utils.alliance}</td>`);
                 $(elt).find("td:eq(9)").after(`<td align="center">N/C</td><td align="center">N/C</td>`);
-                // Gérer le bouton de rang même si les coordonnées sont N/C, si le joueur existe dans l'utilitaire
+                // Gérer le bouton de grade même si les coordonnées sont N/C, si le joueur existe dans l'utilitaire
                 if($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)){
-                    $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="rang"/></a>`);
+                    $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                     $("#o_rang" + joueur.id).click(async (e) => {
-                        let boiteForm = new BoiteRang(joueur, this._utilitaire, this);
+                        let boiteForm = new BoiteGrade(joueur, this._utilitaire, this);
                         await boiteForm.afficher();
                         return false;
                     });
@@ -396,7 +304,7 @@ class PageAlliance
                 $("#tabMembresAlliance tbody").append(ligneHtml); // Ajouter au tbody
             }
         }
-        this._attacherEvenementsRang(); // Appeler la nouvelle méthode pour attacher les événements
+        this._attacherEvenementsGrade(); // Appeler la nouvelle méthode pour attacher les événements
 
         this.tableauUtilitaire();
 
@@ -411,16 +319,16 @@ class PageAlliance
         return this;
     }
     /**
-    * Attache les événements de clic pour les boutons de modification de rang.
+    * Attache les événements de clic pour les boutons de modification de grade.
     *
     * @private
-    * @method _attacherEvenementsRang
+    * @method _attacherEvenementsGrade
     */
-    _attacherEvenementsRang() {
+    _attacherEvenementsGrade() {
         // Détacher les événements existants pour éviter les duplications
         $("a[id^='o_rang']").off('click');
 
-        // Attacher les événements pour tous les boutons de rang présents dans le tableau
+        // Attacher les événements pour tous les boutons de grade présents dans le tableau
         $("a[id^='o_rang']").each((i, elt) => {
             const id = $(elt).attr('id').replace('o_rang', '');
             // Trouver le joueur correspondant dans this._alliance.joueurs
@@ -436,7 +344,7 @@ class PageAlliance
             if (joueurCible) {
                 $(elt).click(async (e) => {
                     e.preventDefault();
-                    let boiteForm = new BoiteRang(joueurCible, this._utilitaire, this);
+                    let boiteForm = new BoiteGrade(joueurCible, this._utilitaire, this);
                     await boiteForm.afficher();
                     return false;
                 });
@@ -456,7 +364,7 @@ class PageAlliance
             ? `${await joueur.lireParametre('pseudo')} (${joueur.allianceTag})`
             : await joueur.lireParametre('pseudo');
 
-        const rangDisplay = await joueur.lireParametre('rang') !== undefined && await joueur.lireParametre('rang') !== "" ? await joueur.lireParametre('rang') : "N/C";
+        const rangDisplay = await joueur.lireParametre('grade') !== undefined && await joueur.lireParametre('grade') !== "" ? await joueur.lireParametre('grade') : "N/C";
         const terrainDisplay = joueur.terrain !== -1 ? numeral(joueur.terrain).format() : "N/C";
         const technologieDisplay = joueur.technologie !== -1 ? numeral(joueur.technologie).format() : "N/C";
         const fourmiliereDisplay = joueur.fourmiliere !== -1 ? numeral(joueur.fourmiliere).format() : "N/C";
@@ -469,7 +377,7 @@ class PageAlliance
         let editButtonHtml = "";
         // Si l'utilisateur a les droits d'administration et que le joueur est connu de l'utilitaire
         if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(await joueur.lireParametre('pseudo'))) {
-            editButtonHtml = `<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="rang"/></a>`;
+            editButtonHtml = `<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="grade"/></a>`;
         }
 
         let imgDefHtml = "";
@@ -532,8 +440,8 @@ class PageAlliance
                     mv: joueurUtilitaire.mv,
                     ordreRadar: joueurUtilitaire.ordreRadar,
                     sujetForum: joueurUtilitaire.sujetForum,
-                    rang: await joueurUtilitaire.lireParametre('rang'),
-                    ordreRang: await joueurUtilitaire.lireParametre('ordreRang'),
+                    grade: await joueurUtilitaire.lireParametre('grade'),
+                    ordreGrade: await joueurUtilitaire.lireParametre('ordre_grade'),
                     allianceTag: joueurUtilitaire.allianceTag,
                     colonise: joueurUtilitaire.colonise // Assurez-vous que cette propriété est passée
                 });
@@ -568,8 +476,8 @@ class PageAlliance
                 joueurExistant.y = parseInt(joueurUtilitaire.y); // Convertir en nombre
                 joueurExistant.id = joueurUtilitaire.id;
                 joueurExistant.sujetForum = joueurUtilitaire.sujetForum;
-                joueurExistant.ecrireParametre('rang', await joueurUtilitaire.lireParametre('rang'));
-                joueurExistant.ecrireParametre('ordreRang', await joueurUtilitaire.lireParametre('ordreRang'));
+                joueurExistant.ecrireParametre('grade', await joueurUtilitaire.lireParametre('grade'));
+                joueurExistant.ecrireParametre('ordre_grade', await joueurUtilitaire.lireParametre('ordre_grade'));
                 joueurExistant.allianceTag = joueurUtilitaire.allianceTag;
                 joueurExistant.colonise = joueurUtilitaire.colonise; // Mettre à jour la propriété colonise
                 console.log(`[PageAlliance] Joueur existant ${pseudo} mis à jour: X=${joueurExistant.x}, Y=${joueurExistant.y}, EstExterieur=${await joueurExistant.estExterieur()}, Colonise=${joueurExistant.colonise}`);
@@ -681,7 +589,7 @@ class PageAlliance
         for (const pseudo in this._alliance.joueurs) {
             const joueur = this._alliance.joueurs[pseudo];
             let ligneHtml = "";
-            console.log(`[PageAlliance] actualiserMembre: Reconstruction ligne pour joueur ${pseudo}: estExterieur=${await joueur.estExterieur()}, allianceRattachement=${await joueur.lireParametre('allianceRattachement')}, _allianceTag=${joueur.allianceTag}`);
+            console.log(`[PageAlliance] actualiserMembre: Reconstruction ligne pour joueur ${pseudo}: estExterieur=${await joueur.estExterieur()}, alliance_rattachement=${await joueur.lireParametre('alliance_rattachement')}, _allianceTag=${joueur.allianceTag}`);
 
             if (await joueur.estExterieur()) {
                 ligneHtml = await this._creerLigneJoueurExterieur(joueur);
@@ -692,7 +600,7 @@ class PageAlliance
                     <tr class="${Object.keys(this._alliance.joueurs).indexOf(pseudo) % 2 ? "ligne_paire" : ""}">
                         <td align="center"></td>
                         <td align="center"></td>
-                        <td align="center">${await joueur.lireParametre('rang')}</td>
+                        <td align="center">${await joueur.lireParametre('grade')}</td>
                         <td align="center">${await joueur.lireParametre('pseudo')}</td>
                         <td align="center"></td>
                         <td align="center">${numeral(joueur.terrain).format()}</td>
@@ -715,7 +623,7 @@ class PageAlliance
             this.tableau(); // Sinon, réinitialiser le tableau simple
         }
 
-        this._attacherEvenementsRang(); // Réattacher les événements après l'actualisation
+        this._attacherEvenementsGrade(); // Réattacher les événements après l'actualisation
         await this.optionAdmin();
         return this;
     }
@@ -748,8 +656,8 @@ class PageAlliance
             columnDefs : [
                 {className: "dt-body-center", targets: "_all"},
                 {type : "quantite-grade", targets : 6},
-                {visible : false, targets : [3, 8, 9]},
-                {sortable : false, targets : [0, 1, 5, 7, 12, 13, 14]}
+                {visible : false, targets : [3, 8, 9, 14]},
+                {sortable : false, targets : [0, 1, 5, 7, 12, 13]}
             ]
         });
         return this;

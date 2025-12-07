@@ -87,7 +87,6 @@ class PageForum
                 const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
                 const dateMatch = dateDerniereActiviteText.match(/.*(\d+\s+\w+\.?\s+à[\s\u00A0]*\d+h\d+)/);
                 const datePartToParse = dateMatch ? dateMatch[1] : '';
-                console.log(`[PageForum][recupererSujetsSection] Raw date text: "${dateDerniereActiviteText}", Date match result: ${JSON.stringify(dateMatch)}, Extracted date part: "${datePartToParse}".`);
                 const dateDerniereActivite = Utils.parseForumDate(datePartToParse);
 
                 if (dateDerniereActivite.isValid() && maintenant.diff(dateDerniereActivite, 'hours') < 24) {
@@ -228,7 +227,6 @@ class PageForum
     */
     creerSujet(nomSujet, contenu, id, type = "normal")
     {
-        console.log(`[PageForum] Tentative de création de sujet: "${nomSujet}" dans la section ID: ${id}`);
         return $.ajax({
             type : "post",
             url : "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -237,9 +235,6 @@ class PageForum
                 "xajaxargs[]" : `<xjxquery><q>cat=${id}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&type=${type}&modifiable=envoyer&send=Envoyer&question=&reponse[]=&reponse[]=&reponse[]=</q></xjxquery>`,
                 "xajaxr" : moment().valueOf()
             }
-        }).then(data => {
-            console.log(`[PageForum] Réponse de création de sujet pour "${nomSujet}" (ID: ${id}):`, data);
-            return data;
         }).catch(error => {
             console.error(`[PageForum] Erreur lors de la création du sujet "${nomSujet}" (ID: ${id}):`, error);
             throw error;
@@ -267,10 +262,8 @@ class PageForum
             const sujetElements = $("<div/>").append(response).find("#form_cat tr:gt(0)");
             let idSujet = null;
 
-            console.log(`[PageForum][creerSujetEtRetournerId] Recherche de l'ID pour le sujet: "${nomSujet}".`);
             sujetElements.each((i, elt) => {
                 const titreSujet = $(elt).find("td:eq(1)").text();
-                console.log(`[PageForum][creerSujetEtRetournerId] Comparaison: Sujet lu: "${titreSujet}" vs Sujet attendu: "${nomSujet}".`);
                 // Use startsWith for a more robust comparison, as the forum might add extra characters or formatting.
                 if (titreSujet.startsWith(nomSujet)) {
                     const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
@@ -278,7 +271,6 @@ class PageForum
                         const match = onclickAttr.match(/\d+/);
                         if (match) {
                             idSujet = parseInt(match[0], 10);
-                            console.log(`[PageForum][creerSujetEtRetournerId] ID trouvé: ${idSujet} pour le sujet: "${titreSujet}".`);
                             return false; // break loop
                         }
                     }
@@ -300,7 +292,6 @@ class PageForum
     */
     modifierSujet(nomSujet, contenu, id)
     {
-        console.log(`[PageForum] Tentative de modification de sujet: "${nomSujet}" (ID: ${id})`);
         return $.ajax({
             type : "post",
             url : "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -309,9 +300,6 @@ class PageForum
                 "xajaxargs[]" : `<xjxquery><q>IDTopic=${id}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&modifiable=envoyer&send=Envoyer</q></xjxquery>`,
                 "xajaxr" : moment().valueOf()
             }
-        }).then(data => {
-            console.log(`[PageForum] Réponse de modification de sujet pour "${nomSujet}" (ID: ${id}):`, data);
-            return data;
         }).catch(error => {
             console.error(`[PageForum] Erreur lors de la modification du sujet "${nomSujet}" (ID: ${id}):`, error);
             throw error;
@@ -557,11 +545,9 @@ class PageForum
     */
     chargerJoueur(data)
     {
-        console.log("[PageForum] Début de chargerJoueur().");
         let response = $(data).find("cmd:eq(1)").text();
         if(response.includes("Vous n'avez pas accès à ce forum.")) {
             $.toast({...TOAST_ERROR, text : "L'identifiant du sujet pour les membres est érroné."});
-            console.log("[PageForum] chargerJoueur() - Accès refusé au forum. Retourne false.");
             return false;
         } else {
             let joueurs = {};
@@ -569,20 +555,20 @@ class PageForum
                 let titreSujet = $(elt).find("td:eq(1)").text().trim(), id = $(elt).find("input[name='topic[]']").val();
                 // les lignes des commandes ont 3 td et du contenu
                 if(titreSujet){
-                    // Regex pour extraire pseudo, id, x, y, et optionnellement rang, ordreRang
+                    // Regex pour extraire pseudo, id, x, y, et optionnellement grade, ordreGrade
                     const match = titreSujet.match(/^(.+?)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)(?:\s*\/\s*(.+?)\s*\/\s*(\d+))?$/);
                     if (match) {
                         const pseudo = match[1];
                         const joueurId = match[2];
                         const x = match[3];
                         const y = match[4];
-                        const rang = match[5] || null;
-                        const ordreRang = match[6] || null;
+                        const grade = match[5] || null;
+                        const ordreGrade = match[6] || null;
 
                         joueurs[pseudo] = {id : joueurId, pseudo : pseudo, x : x, y : y, sujetForum : id};
-                        if(rang !== null){
-                            joueurs[pseudo].ecrireParametre('rang', rang);
-                            joueurs[pseudo].ecrireParametre('ordreRang', ordreRang);
+                        if(grade !== null){
+                            joueurs[pseudo].ecrireParametre('grade', grade);
+                            joueurs[pseudo].ecrireParametre('ordre_grade', ordreGrade);
                         }
                     } else {
                         console.warn(`[PageForum] chargerJoueur() - Format de titre de sujet inattendu pour le joueur: ${titreSujet}`);
@@ -590,7 +576,6 @@ class PageForum
                 }
             });
             this._monAlliance = new Alliance({tag : Utils.alliance, joueurs : joueurs});
-            console.log("[PageForum] chargerJoueur() - Joueurs chargés. Retourne true.");
             return true;
         }
     }
@@ -611,24 +596,18 @@ class PageForum
             $("#alliance .simulateur").append(`<div id="o_formGuerre" style="display:none;"><input id="o_tagGuerre" type="text"/> <button id="o_creerSectionGuerre">Créer section</button></div>`);
             // Creation de l'utilitaire
             $("#o_creerUtilitaire").click(async (e) => {
-                console.log("[PageForum][o_creerUtilitaire] Clic sur 'Préparer le forum pour un SDC'.");
                 if (nomsSectionsRequis) {
-                    console.log("[PageForum][o_creerUtilitaire] Sections requises détectées:", nomsSectionsRequis);
                     for (const nomSection of nomsSectionsRequis) {
                         if (!$(`#cat_forum span:contains('${nomSection}')`).length) {
-                            console.log(`[PageForum][o_creerUtilitaire] Tentative de création de la section: ${nomSection}`);
                             try {
                                 const idCat = await this.creerSectionEtRetournerId(nomSection);
-                                console.log(`[PageForum][o_creerUtilitaire] Section "${nomSection}" créée avec ID: ${idCat}`);
                                 if (idCat) {
                                     if (monProfilUtilisateur.parametre[nomSection]) {
                                         monProfilUtilisateur.parametre[nomSection].valeur = idCat;
                                         monProfilUtilisateur.parametre[nomSection].sauvegarde();
-                                        console.log(`[PageForum][o_creerUtilitaire] ID section ${nomSection} (${idCat}) sauvegardé automatiquement dans monProfilUtilisateur.parametre.`);
                                     }
                                     
                                     this.modifierSection(nomSection, idCat, "cache").then((data) => {
-                                        console.log(`[PageForum][o_creerUtilitaire] Section "${nomSection}" (ID: ${idCat}) modifiée en "cache" avec succès.`);
                                         $.toast({...TOAST_SUCCESS, text : `La section ${nomSection} a été correctement créée et son ID sauvegardé.`});
                                         // if (nomSection === 'Versions Outiiil') {
                                         //     this.getVersionsFromForum();
@@ -645,7 +624,6 @@ class PageForum
                                 $.toast({...TOAST_ERROR, text : `Une erreur réseau a été rencontrée lors de la création de la section ${nomSection}.`});
                             }
                         } else {
-                            console.log(`[PageForum][o_creerUtilitaire] Section "${nomSection}" existe déjà. Ignoré.`);
                             $.toast({...TOAST_WARNING, text : `Section ${nomSection} est déjà créée !`});
                         }
                     }
@@ -783,7 +761,6 @@ class PageForum
      * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
      */
     async transfererSujet(idSujet, idSectionDestination) {
-        console.log(`[PageForum] Tentative de transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}.`);
         try {
             const data = await $.ajax({
                 type: "post",
@@ -811,7 +788,6 @@ class PageForum
      * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
      */
     async modifierMessage(idMessage, nouveauContenu) {
-        console.log(`[PageForum] Tentative de modification du message ID: ${idMessage}.`);
         try {
             const data = await $.ajax({
                 type: "post",
@@ -838,7 +814,6 @@ class PageForum
      * @returns {Promise<Array<{id: Number, derniere_activite: Date, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
      */
     async recupererSujetsSection(idSection) {
-        console.log(`[PageForum][recupererSujetsSection] Début de la récupération des sujets pour la section ID: ${idSection}.`);
         try {
             const dataSection = await this.consulterSection(idSection);
             const responseSection = $(dataSection).find("cmd:eq(1)").text();
@@ -849,7 +824,6 @@ class PageForum
             }
 
             const sujetElements = $("<div/>").append(responseSection).find("#form_cat tr:gt(0)");
-            console.log(`[PageForum][recupererSujetsSection] Nombre d'éléments de sujet trouvés: ${sujetElements.length}.`);
             const sujets = [];
 
             sujetElements.each((i, elt) => {
@@ -858,7 +832,6 @@ class PageForum
                 // Updated regex to capture the date pattern, making the initial match non-greedy, explicitly handling spaces, and supporting accented characters in month names
                 const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
                 const datePartToParse = dateMatch ? dateMatch[1] : '';
-                console.log(`[PageForum][recupererSujetsSection] Raw date text: "${dateDerniereActiviteText}", Date match result: ${JSON.stringify(dateMatch)}, Extracted date part: "${datePartToParse}".`);
                 const dateDerniereActivite = Utils.parseForumDate(datePartToParse);
                 let id = null;
                 const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
@@ -879,7 +852,6 @@ class PageForum
                     console.warn(`[PageForum][recupererSujetsSection] Sujet ignoré en raison de données manquantes ou invalides. ID: ${id}, Titre: "${titreSujet}", Date: "${dateDerniereActiviteText}".`);
                 }
             });
-            console.log(`[PageForum][recupererSujetsSection] Fin de la récupération des sujets pour la section ID: ${idSection}. Nombre de sujets valides: ${sujets.length}.`);
             return sujets;
 
         } catch (error) {

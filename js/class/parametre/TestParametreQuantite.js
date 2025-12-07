@@ -1,4 +1,4 @@
 class TestParametreQuantite extends ParametreObjetForum {
-    static NAME_HISTORY = ['Quantité', 'NouvelleQuantite'];
+    static FORMAT_HISTORY = [{ nom: 'Quantité', format: '(nom): (valeur) | ' }, { nom: 'NouvelleQuantite', format: '(nom): (valeur) | ' }];
     valeur = 0;
 }

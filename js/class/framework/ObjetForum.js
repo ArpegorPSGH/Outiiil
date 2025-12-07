@@ -1,9 +1,30 @@
 class ObjetForum {
     /**
+     * Normalise un nom de paramètre en le convertissant en minuscules, en supprimant les accents et en le nettoyant.
+     * @param {string} nom - Le nom du paramètre à normaliser.
+     * @returns {string} Le nom du paramètre normalisé.
+     * @private
+     */
+    static _normaliserNomParametre(nom) {
+        if (typeof nom !== 'string') {
+            return '';
+        }
+        let normalized = nom.toLowerCase().trim();
+        normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return normalized;
+    }
+
+    /**
      * Configuration déclarative. Version de la logique de fonctionnement de l'objet.
      * @type {String|null}
      */
     static VERSION_LOGIQUE = null;
+
+    /**
+     * Configuration déclarative. Séparateur à utiliser entre les chaînes de paramètres lors de l'enregistrement.
+     * @type {String}
+     */
+    static SEPARATEUR_PARAMETRES = '';
 
     /**
      * Configuration déclarative. Liste de listes des classes de ParametreObjetForum.
@@ -24,6 +45,14 @@ class ObjetForum {
      * @protected
      */
     static classeObjetsForumContenus = null;
+
+    /**
+     * Configuration déclarative. Dictionnaire des attributs de l'objet et de leurs valeurs par défaut.
+     * Les clés sont les noms des attributs (sans le préfixe '_').
+     * Les valeurs peuvent être des primitives ou des fonctions (factory) pour les objets.
+     * @type {Object}
+     */
+    static ATTRIBUTS_OBJET = {};
 
     /**
      * Conteneur des instances de ParametreObjetForum.
@@ -153,7 +182,6 @@ class ObjetForum {
      * @param {Number} [options.idMessage] - L'id du message dans le sujet.
      */
     constructor(fonctionnaliteCreatrice, options = {}) {
-        console.log(`[${this.constructor.name}] Constructeur appelé avec options:`, options);
         this.fonctionnaliteCreatrice = fonctionnaliteCreatrice;
         this.objetParent = options.objetParent || null;
         this.idSujet = options.idSujet || null;
@@ -161,30 +189,21 @@ class ObjetForum {
 
         // 1. & 2. Aplatir et dédoublonner les classes de paramètres
         const classesParametresUniques = [...new Set(this.constructor.CLASSES_PARAMETRES.flat())];
-        console.log(`[${this.constructor.name}] Classes de paramètres uniques:`, classesParametresUniques.map(c => c.name));
 
         // 3. Instancier et lier chaque paramètre
         classesParametresUniques.forEach(ClasseDeParametre => {
             const nouveauParametre = new ClasseDeParametre(this);
             this.parametres.push(nouveauParametre);
-            console.log(`[${this.constructor.name}] Paramètre instancié: ${ClasseDeParametre.name}`);
-
-            // Mise en cache des noms pour un accès rapide
+            
+            // Mise en cache des noms pour un accès rapide, en les normalisant
             nouveauParametre.constructor.FORMAT_HISTORY.forEach(format => {
-                this.mapParametres.set(format.nom, nouveauParametre);
-                console.log(`[${this.constructor.name}] Cache mapParametres: Ajout de "${format.nom}" -> ${ClasseDeParametre.name}`);
+                this.mapParametres.set(this.constructor._normaliserNomParametre(format.nom), nouveauParametre);
             });
         });
 
-        // 4. Peupler les paramètres si des données initiales sont fournies
-        if (options.donneesInitiales && typeof options.donneesInitiales === 'object') {
-            console.log(`[${this.constructor.name}] Données initiales fournies:`, options.donneesInitiales);
-            this.ecrireChaqueParametre(options.donneesInitiales);
-            console.log(`[${this.constructor.name}] Paramètres peuplés à partir des données initiales.`);
-        } else {
-            console.log(`[${this.constructor.name}] Aucune donnée initiale fournie ou format invalide.`);
-        }
-        
+        // 4. Initialiser les attributs et peupler avec les données initiales
+        this._initialiserAttributsEtParametresEtPeupler(options.donneesInitiales);
+
         // 5. Initialiser les IDs de section à partir de la configuration statique
         if (this.constructor.LOCATION_HISTORY.length > 0) {
             const ids = new Set();
@@ -194,7 +213,6 @@ class ObjetForum {
                     const id = parseInt(parametreSection.valeur, 10);
                     if (!isNaN(id)) {
                         ids.add(id);
-                        console.log(`[${this.constructor.name}] ID de section ajouté: ${id} pour section '${format.section}'.`);
                     } else {
                         console.warn(`[${this.constructor.name}] La valeur du paramètre de section '${format.section}' n'est pas un nombre valide:`, parametreSection.valeur);
                         ids.add(null);
@@ -204,12 +222,47 @@ class ObjetForum {
                     ids.add(null);
                 }
             });
-            this.idsSection = [...ids];
-            console.log(`[${this.constructor.name}] IDs de section finaux:`, this.idsSection);
-        } else {
-            console.log(`[${this.constructor.name}] Aucun LOCATION_HISTORY défini. IDs de section non initialisés.`);
+            this.idsSection = [...ids]; // Cette affectation utilisera le setter si une classe fille en définit un.
         }
-        console.log(`[${this.constructor.name}] Constructeur terminé.`);
+    }
+
+    /**
+     * Initialise les attributs déclarés statiquement et les peuple avec les données initiales.
+     * @param {Object} [donneesInitiales] - Un objet clé-valeur pour peupler les paramètres et attributs.
+     * @private
+     */
+    _initialiserAttributsEtParametresEtPeupler(donneesInitiales) {
+        // 1. Initialiser les attributs avec leurs valeurs par défaut depuis la déclaration statique
+        const attributsDeclares = this.constructor.ATTRIBUTS_OBJET || {};
+        for (const cle in attributsDeclares) {
+            const attributPrive = `_${cle}`;
+            const valeurParDefaut = attributsDeclares[cle];
+            // Si la valeur par défaut est une fonction (factory), l'exécuter pour obtenir la valeur
+            this[attributPrive] = typeof valeurParDefaut === 'function' ? valeurParDefaut() : valeurParDefaut;
+        }
+        console.log('donneesInitiales:', donneesInitiales)
+        // 2. Appliquer les données initiales fournies, qui écrasent les valeurs par défaut
+        if (donneesInitiales && typeof donneesInitiales === 'object') {
+            const parametresAInitialiser = {};
+
+            for (const cle in donneesInitiales) {
+                const attributPrive = `_${cle}`;
+                const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(this), cle);
+
+                if (descriptor && descriptor.set) {
+                    // Si un setter public existe (ex: 'etat'), l'utiliser
+                    this[cle] = donneesInitiales[cle];
+                } else if (this.hasOwnProperty(attributPrive)) {
+                    // Sinon, si un attribut privé correspondant a été initialisé, l'affecter directement
+                    this[attributPrive] = donneesInitiales[cle];
+                } else {
+                    // Sinon, considérer que c'est un paramètre à initialiser
+                    parametresAInitialiser[cle] = donneesInitiales[cle];
+                }
+            }
+            console.log('parametresAInitialiser: ', parametresAInitialiser)
+            this.ecrireChaqueParametre(parametresAInitialiser);
+        }
     }
 
     /**
@@ -220,47 +273,37 @@ class ObjetForum {
         await this._acquireReadLock();
         try {
             // 1. Validation de la Présence de la Section
-            console.log(`[${this.constructor.name}] Début de verifierVersionSuffisanteEtPresenceSection`);
-            console.log(`[${this.constructor.name}] idsSection:`, this.idsSection);
-
             if (this.idsSection.length > 0) {
                 const dernierId = this.idsSection[this.idsSection.length - 1];
-                console.log(`[${this.constructor.name}] Dernier ID de section:`, dernierId);
 
                 if (!dernierId) {
-                    console.log(`[${this.constructor.name}] Dernier ID de section est non valide. Retourne false.`);
                     return false;
                 }
 
-                if (window.sectionsEnCache && window.sectionsEnCache.has(dernierId)) {
-                    console.log(`[${this.constructor.name}] La section (ID: ${dernierId}) est déjà en cache. Résultat: ${window.sectionsEnCache.get(dernierId)}.`);
-                    if (!window.sectionsEnCache.get(dernierId)) return false;
+                if (sectionsEnCache && sectionsEnCache.has(dernierId)) {
+                    if (!sectionsEnCache.get(dernierId)) return false;
                 } else {
                     let estValide = false;
                     try {
                         const nomSection = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1].section;
-                        console.log(`[${this.constructor.name}] Vérification de l'existence de la section via consulterSection(${dernierId}). Nom attendu: '${nomSection}'.`);
                         const xmlDoc = await pageForum.consulterSection(dernierId);
-                        console.log(`[${this.constructor.name}] Réponse XML (Document) du forum pour la section '${nomSection}' (ID: ${dernierId}):`, xmlDoc);
 
                         if (xmlDoc.querySelector('parsererror')) {
-                            console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML (document):`, xmlDoc.querySelector('parsererror').textContent);
+                            console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML pour la section '${nomSection}'.`);
                         } else {
                             const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
                             if (!allianceCmdElement) {
-                                console.error(`[${this.constructor.name}] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le document XML.`);
+                                console.error(`[${this.constructor.name}] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le XML de la section '${nomSection}'.`);
                             } else {
                                 const htmlContent = allianceCmdElement.textContent;
                                 const htmlParser = new DOMParser();
                                 const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
                                 const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
                                 const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
-                                console.log(`[${this.constructor.name}] Titre extrait du forum pour la section '${nomSection}' (ID: ${dernierId}): "${extractedTitle}".`);
                                 if (extractedTitle === nomSection) {
-                                    console.log(`[${this.constructor.name}] Section '${nomSection}' (ID: ${dernierId}) vérifiée avec succès. Titre: "${extractedTitle}".`);
                                     estValide = true;
                                 } else {
-                                    console.error(`[${this.constructor.name}] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${extractedTitle}".`);
+                                    console.error(`[${this.constructor.name}] Le titre de la section '${nomSection}' (ID: ${dernierId}) ne correspond pas. Titre reçu: "${extractedTitle}".`);
                                 }
                             }
                         }
@@ -268,12 +311,10 @@ class ObjetForum {
                         console.error(`[${this.constructor.name}] Erreur lors de la vérification de la section ${dernierId} pour ${this.constructor.name}.`, error);
                     }
 
-                    window.sectionsEnCache.set(dernierId, estValide);
-                    console.log(`[${this.constructor.name}] Résultat de la vérification pour la section (ID: ${dernierId}) mis en cache: ${estValide}.`);
+                    sectionsEnCache.set(dernierId, estValide);
                     if (!estValide) return false;
                 }
             } else {
-                console.log(`[${this.constructor.name}] idsSection est vide. Vérification de section ignorée.`);
                 return false;
             }
 
@@ -287,7 +328,6 @@ class ObjetForum {
 
         // 3. Validation de l'ObjetForum lui-même
         const estVersionne = this.constructor.VERSION_LOGIQUE && this.constructor.LOCATION_HISTORY.length > 0 && this.constructor.CLASSES_PARAMETRES.length > 0;
-        console.log(`[${this.constructor.name}] estVersionne: ${estVersionne}, VERSION_LOGIQUE: ${this.constructor.VERSION_LOGIQUE}, longueur LOCATION_HISTORY : ${this.constructor.LOCATION_HISTORY.length}, longueur CLASSES_PARAMETRES : ${this.constructor.CLASSES_PARAMETRES.length}`);
         if (estVersionne) {
             if (!(await gestionnaireVersions.verifierCompatibiliteObjetForum(this))) {
                 console.error(`ObjetForum incompatible: ${this.constructor.name}`);
@@ -318,46 +358,38 @@ class ObjetForum {
      */
     async rafraichir(chargerContenus = true) {
         await this._acquireReadLock();
-        console.log(`[${this.constructor.name}] Début de rafraichir() pour l'objet ID: ${this.idSujet}, chargerContenus: ${chargerContenus}.`);
         try {
-            console.log(`[${this.constructor.name}] Verrou de lecture acquis.`);
             if (!this.idSujet || this.idSujet < 0) {
                 console.error(`[${this.constructor.name}] Impossible de rafraîchir un objet sans idSujet valide. idSujet: ${this.idSujet}.`);
                 return false;
             }
 
             try {
-                console.log(`[${this.constructor.name}] Appel de pageForum.consulterSujetAvecMessagesEtIds(${this.idSujet}).`);
                 const { titre: titreLu, messages: messagesLu } = await pageForum.consulterSujetAvecMessagesEtIds(this.idSujet);
                 if (titreLu === null) {
-                    console.warn(`[${this.constructor.name}] consulterSujetAvecMessagesEtIds(${this.idSujet}) a retourné null pour le titre. Impossible de rafraîchir.`);
+                    console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
                     return false;
                 }
-                console.log(`[${this.constructor.name}] Titre lu: "${titreLu}".`);
-                const titreCharge = await this.chargerDepuisString(titreLu);
-                if (!titreCharge) {
-                    console.warn(`[${this.constructor.name}] chargerDepuisString() a retourné false pour le titre. Impossible de rafraîchir.`);
+
+                if (!await this.chargerDepuisString(titreLu)) {
+                    console.warn(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
                     return false;
                 }
-                console.log(`[${this.constructor.name}] Titre chargé avec succès: ${titreCharge}.`);
 
                 if (chargerContenus) {
-                    console.log(`[${this.constructor.name}] Appel de chargerObjetForumsContenus() avec les messages lus.`);
-                    const contenusCharges = await this.chargerObjetForumsContenus(messagesLu);
-                    if (!contenusCharges) {
-                        console.warn(`[${this.constructor.name}] chargerObjetForumsContenus() a retourné false. Impossible de rafraîchir.`);
+                    if (!await this.chargerObjetForumsContenus(messagesLu)) {
+                        console.warn(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
                         return false;
                     }
-                    console.log(`[${this.constructor.name}] Objets contenus chargés avec succès: ${contenusCharges}.`);
-                } else {
-                    console.log(`[${this.constructor.name}] Chargement des objets contenus ignoré (chargerContenus: ${chargerContenus}, classeObjetsForumContenus: ${!!this.constructor.classeObjetsForumContenus}).`);
                 }
                 
                 // Appel du complément de rafraîchissement
                 if (!await this.completerRafraichissement()) {
-                    console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué.`);
+                    console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
                     return false;
                 }
+
+                this.enregistrerSurForum();
                 
                 return true;
             } catch (error) {
@@ -365,8 +397,8 @@ class ObjetForum {
                 return false;
             }
         } finally {
+            console.log('resultat chargement :', this)
             this._releaseReadLock();
-            console.log(`[${this.constructor.name}] Verrou de lecture libéré. Fin de rafraichir().`);
         }
     }
 
@@ -388,13 +420,10 @@ class ObjetForum {
      * @protected
      */
     async chargerObjetForumsContenus(messages) {
-        console.log(`[${this.constructor.name}] Début de chargerObjetForumsContenus() pour l'objet parent ID: ${this.idSujet}.`);
         await this._acquireReadLock();
         try {
-            console.log(`[${this.constructor.name}] Verrou de lecture acquis pour chargerObjetForumsContenus().`);
             // 1. Vérification des prérequis
             if (!this.constructor.classeObjetsForumContenus) {
-                console.warn(`[${this.constructor.name}] Chargement des objets contenus annulé: classeObjetsForumContenus non défini.`);
                 return true;
             }
             if (!(this.constructor.classeObjetsForumContenus.prototype instanceof ObjetForum)) {
@@ -417,26 +446,20 @@ class ObjetForum {
                     if (!instance) {
                         // Crée une nouvelle instance si aucune n'existait avec cet idMessage
                         instance = new this.constructor.classeObjetsForumContenus(this.fonctionnaliteCreatrice, { objetParent: this, idMessage: idMessage });
-                        console.log(`[${this.constructor.name}] Nouvelle instance de ${instance.constructor.name} créée pour l'idMessage ${idMessage}.`);
-                    } else {
-                        console.log(`[${this.constructor.name}] Réutilisation de l'instance existante de ${instance.constructor.name} pour l'idMessage ${idMessage}.`);
                     }
                     
-                    console.log(`[${this.constructor.name}] Appel de chargerDepuisString pour ${instance.constructor.name} avec contenu: "${contenuMessage}".`);
                     const chargeOk = await instance.chargerDepuisString(contenuMessage);
                     
                     if (chargeOk) {
                         nouveauxObjetForumsContenus.push(instance);
-                        console.log(`[${this.constructor.name}] ObjetForum ${instance.constructor.name} chargé avec succès pour l'idMessage ${idMessage}.`);
                     } else {
-                        console.warn(`[${this.constructor.name}] Échec du chargement de l'objet ${instance.constructor.name} pour l'idMessage ${idMessage}.`);
+                        console.warn(`[${this.constructor.name}] Échec du chargement de l'objet contenu ${instance.constructor.name} depuis le message ID ${idMessage}.`);
                         return false; // Si un sous-objet échoue, le chargement global échoue
                     }
                 }
 
                 // Remplacement de l'ancienne liste par la nouvelle
-                this.objetsForumContenus = nouveauxObjetForumsContenus;
-                console.log(`[${this.constructor.name}] ObjetForums contenus mis à jour. Nombre total: ${this.objetsForumContenus.length}.`);
+                this.objetsForumContenus = nouveauxObjetForumsContenus; // Cette affectation utilisera le setter si une classe fille en définit un.
                 return true;
 
             } catch (error) {
@@ -445,7 +468,6 @@ class ObjetForum {
             }
         } finally {
             this._releaseReadLock();
-            console.log(`[${this.constructor.name}] Verrou de lecture libéré pour chargerObjetForumsContenus(). Fin de chargerObjetForumsContenus().`);
         }
     }
 
@@ -457,8 +479,6 @@ class ObjetForum {
      * @protected
      */
     async chargerDepuisString(contenu) {
-        console.log(`[${this.constructor.name}] Début de chargerDepuisString() pour l'objet ID: ${this.idSujet}.`);
-        console.log(`[${this.constructor.name}] État des verrous au début de chargerDepuisString: _readerCount=${this._readerCount}, _writerCount=${this._writerCount}, _writerWaiting=${this._writerWaiting}.`);
         await this._acquireReadLock();
         try {
             // 1. Chargement des Paramètres Propres
@@ -475,20 +495,16 @@ class ObjetForum {
             );
 
             if (classesChargees.size === 0 || versionChargeeIndex === -1) {
-                console.warn(`[${this.constructor.name}] Chargement échoué: aucun paramètre chargé ou paramètres incompatibles.`);
                 return false;
             }
 
             // 2. Succès du Chargement Principal
             // L'état estModifie des paramètres individuels est géré par ParametreObjetForum.chargerDepuisString
-            console.log(`[${this.constructor.name}] ObjetForum principal chargé avec succès.`);
 
             // 3. Migration des Données Anciennes
             await this.completerChargementPourVersionsAnterieures();
-            console.log(`[${this.constructor.name}] Migration des données anciennes terminée.`);
 
             // 4. Retour Final
-            console.log(`[${this.constructor.name}] Fin de chargerDepuisString(). Retourne true.`);
             return true;
         } catch (error) {
             console.error(`[${this.constructor.name}] Erreur lors de chargerDepuisString() pour l'objet ID: ${this.idSujet}.`, error);
@@ -517,9 +533,11 @@ class ObjetForum {
         // 1. Vérification des droits et lecture des données
         const peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N'); // 'N' pour Normal
         let donnees;
+        console.log('liste:', liste)
 
         try {
             donnees = await this.lireChaqueParametre(peutVoirDonneesRestreintes, liste);
+            console.log('données: ', donnees)
         } catch (error) {
             if (error instanceof ErreurRestriction) {
                 // On récupère les données partielles (contenant les strings de restriction) et on continue.
@@ -536,21 +554,22 @@ class ObjetForum {
         // 2. Détermination de l'ordre d'affichage
         let ordreAffichage;
         if (liste) {
-            ordreAffichage = liste;
+            ordreAffichage = liste.map(nom => this.constructor._normaliserNomParametre(nom));
         } else {
-            // Ordre par défaut : celui des paramètres de la dernière version de l'objet
+            // Ordre par défaut : celui des paramètres de la dernière version de l'objet, normalisé
             const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
             const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
             ordreAffichage = classesDerniereVersion.map(classe => {
                 const p = mapClasseInstance.get(classe);
-                return p.constructor.getDernierNom();
+                return this.constructor._normaliserNomParametre(p.constructor.getDernierNom());
             });
 
             // Ajoute les clés supplémentaires de 'donnees' qui ne sont pas déjà dans 'ordreAffichage'
             const ordreSet = new Set(ordreAffichage);
             for (const key in donnees) {
-                if (!ordreSet.has(key)) {
-                    ordreAffichage.push(key);
+                const normalizedKey = this.constructor._normaliserNomParametre(key);
+                if (!ordreSet.has(normalizedKey)) {
+                    ordreAffichage.push(normalizedKey);
                 }
             }
         }
@@ -558,9 +577,18 @@ class ObjetForum {
         // 3. Construction de l'en-tête HTML
         let en_tete_html = '<tr>';
         ordreAffichage.forEach(nomParametre => {
-            if (donnees[nomParametre]) {
-                const nomAffiche = donnees[nomParametre].nom_affiche;
-                en_tete_html += `<th>${nomAffiche}</th>`;
+            const data = donnees[nomParametre];
+            if (data) {
+                const nomAffiche = data.nom_affiche;
+                const valeur = data.valeur;
+                if (Array.isArray(valeur)) {
+                    const colspan = valeur.length > 0 ? valeur.length : 1;
+                    en_tete_html += `<th colspan="${colspan}">${nomAffiche || ''}</th>`;
+                } else {
+                    en_tete_html += `<th>${nomAffiche || ''}</th>`;
+                }
+            } else {
+                en_tete_html += '<th></th>'; // Paramètre non trouvé, en-tête vide
             }
         });
         en_tete_html += '</tr>';
@@ -568,15 +596,57 @@ class ObjetForum {
         // 4. Construction du corps HTML
         let corps_html = '<tr>';
         ordreAffichage.forEach(nomParametre => {
-            if (donnees[nomParametre]) {
-                const valeur = donnees[nomParametre].valeur;
-                corps_html += `<td>${valeur}</td>`;
+            const data = donnees[nomParametre];
+            if (data) {
+                const valeur = data.valeur;
+                if (Array.isArray(valeur)) {
+                    if (valeur.length > 0) {
+                        valeur.forEach(item => {
+                            corps_html += `<td>${item !== null && item !== undefined ? item : ''}</td>`;
+                        });
+                    } else {
+                        corps_html += '<td></td>'; // Tableau vide, une seule cellule vide
+                    }
+                } else {
+                    corps_html += `<td>${valeur !== null && valeur !== undefined ? valeur : ''}</td>`;
+                }
+            } else {
+                corps_html += '<td></td>'; // Paramètre non trouvé, cellule vide
             }
         });
         corps_html += '</tr>';
 
-        // 4. Retour
+        // 5. Retour
         return {'en_tete_html': en_tete_html, 'corps_html': corps_html};
+    }
+
+    /**
+     * Récupère la visibilité par défaut pour une liste de paramètres.
+     * @param {Array<String>} [liste=null] - Liste optionnelle des noms de paramètres. Si null, tous les paramètres de la dernière version sont utilisés.
+     * @returns {Object} Un dictionnaire associant le nom de chaque paramètre à sa visibilité par défaut (true/false).
+     */
+    recupererVisibilitesParDefaut(liste = null) {
+        const visibilites = {};
+
+        if (liste) {
+            liste.forEach(nom => {
+                const parametre = this.mapParametres.get(nom);
+                if (parametre) {
+                    visibilites[nom] = parametre.constructor.VISIBLE_PAR_DEFAUT;
+                }
+            });
+        } else {
+            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+            const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
+            const parametresCibles = classesDerniereVersion.map(classe => mapClasseInstance.get(classe));
+
+            parametresCibles.forEach(parametre => {
+                const nomParametre = parametre.constructor.getDernierNom();
+                visibilites[nomParametre] = parametre.constructor.VISIBLE_PAR_DEFAUT;
+            });
+        }
+
+        return visibilites;
     }
 
     /**
@@ -622,26 +692,24 @@ class ObjetForum {
     async lireChaqueParametre(peutVoirDonneesRestreintes = true, liste = null) {
         const donnees = {};
         let aRencontreRestriction = false;
+        
+        const cles = liste ? liste.map(nom => this.constructor._normaliserNomParametre(nom)) : this.parametres.map(p => this.constructor._normaliserNomParametre(p.constructor.getDernierNom()));
 
-        const cles = liste || this.parametres;
-
-        for (const nomParametre of cles) {
-            // Trouve le paramètre, que la clé soit un nom historique ou le nom d'affichage le plus récent.
-            const parametre = this.mapParametres.get(nomParametre);
+        for (const nomParametreNormalise of cles) {
+            const parametre = this.mapParametres.get(nomParametreNormalise);
             if (!parametre) {
-                donnees[nomParametre] = { valeur: null, nom_affiche: null };
+                donnees[nomParametreNormalise] = { valeur: null, nom_affiche: null };
                 continue;
             } 
 
             const valeur = await parametre.Lire(peutVoirDonneesRestreintes);
-            const nomAffiche = parametre.constructor.getDernierNom();
+            const nomAffiche = parametre.constructor.getDernierNom(); // Le nom d'affichage reste l'original
 
             if (valeur === null) {
                 aRencontreRestriction = true;
-                // Le paramètre lui-même fournit la chaîne de restriction.
-                donnees[nomParametre] = { valeur: parametre.constructor.STRING_RESTRICTION, nom_affiche: nomAffiche };
+                donnees[nomParametreNormalise] = { valeur: parametre.constructor.STRING_RESTRICTION, nom_affiche: nomAffiche };
             } else {
-                donnees[nomParametre] = { valeur: valeur, nom_affiche: nomAffiche };
+                donnees[nomParametreNormalise] = { valeur: valeur, nom_affiche: nomAffiche };
             }
         }
 
@@ -669,83 +737,57 @@ class ObjetForum {
     async enregistrerSurForum() {
         await this._acquireWriteLock();
         try {
-            console.log(`[${this.constructor.name}] Verrou d'écriture acquis.`);
             // 1. Enregistrement de l'objet principal (conditionnel)
             if (this.estModifie) {
                 const classesDerniereVersion = new Set(this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1]);
                 const parametresAEnregistrer = this.parametres.filter(p => classesDerniereVersion.has(p.constructor));
                 
-                console.log(`[${this.constructor.name}] Début de enregistrerSurForum.`);
-                let contenuFinal = '';
+                let contenuFinal = [];
                 for (const p of parametresAEnregistrer) {
                     const paramString = await p.genererStringPourEnregistrement();
-                    contenuFinal += paramString;
-                    console.log(`[${this.constructor.name}] Ajout du paramètre "${p.constructor.getDernierNom()}" au contenu final: "${paramString}". Contenu final actuel: "${contenuFinal}".`);
+                    contenuFinal.push(paramString);
                 }
+                contenuFinal = contenuFinal.join(this.constructor.SEPARATEUR_PARAMETRES);
 
                 const formatLieu = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1];
                 const idSection = this.idsSection[this.idsSection.length - 1];
-                console.log(`[${this.constructor.name}] Format de lieu: "${formatLieu.lieu}", ID de section: "${idSection}".`);
 
                 if (formatLieu.lieu === 'titre') {
                     if (this.idSujet === null) {
-                        console.log(`[${this.constructor.name}] Tentative de création d'un nouveau sujet dans la section ${idSection} avec titre: "${contenuFinal}".`);
-                        // Trim the final content to ensure no trailing spaces cause mismatch issues
                         this.idSujet = await pageForum.creerSujetEtRetournerId(contenuFinal, ' ', idSection);
-                        if (this.idSujet) {
-                            console.log(`[${this.constructor.name}] Nouveau sujet créé avec ID: "${this.idSujet}".`);
-                        } else {
+                        if (!this.idSujet) {
                             console.error(`[${this.constructor.name}] Échec de la création du sujet.`);
                         }
                     } else {
-                        console.log(`[${this.constructor.name}] Tentative de modification du sujet existant (ID: ${this.idSujet}) avec titre: "${contenuFinal}".`);
-                        // Trim the final content to ensure no trailing spaces cause mismatch issues
                         await pageForum.modifierSujet(contenuFinal, ' ', this.idSujet);
-                        console.log(`[${this.constructor.name}] Sujet modifié avec succès.`);
                     }
                 } else if (formatLieu.lieu === 'message') {
-                    console.log(`[${this.constructor.name}] Enregistrement en tant que message.`);
                     if (!this.objetParent || !this.objetParent.idSujet) {
                         console.error(`[${this.constructor.name}] Erreur: Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.`);
                         throw new Error("Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.");
                     }
                     if (this.idMessage === null) {
-                        console.log(`[${this.constructor.name}] Tentative d'envoi d'un nouveau message dans le sujet parent (ID: ${this.objetParent.idSujet}) avec contenu: "${contenuFinal}".`);
                         this.idMessage = await pageForum.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
-                        if (this.idMessage !== null) {
-                            console.log(`[${this.constructor.name}] Nouveau message envoyé avec ID: "${this.idMessage}".`);
-                        } else {
+                        if (this.idMessage === null) {
                             console.error(`[${this.constructor.name}] Échec de l'envoi du message.`);
                         }
                     } else {
-                        console.log(`[${this.constructor.name}] Tentative de modification du message existant (ID: ${this.idMessage}) avec contenu: "${contenuFinal}".`);
                         await pageForum.modifierMessage(this.idMessage, contenuFinal);
-                        console.log(`[${this.constructor.name}] Message modifié avec succès.`);
                     }
                 }
                 this.estModifie = false; // Utilise le setter pour réinitialiser les estModifie des paramètres
-                console.log(`[${this.constructor.name}] estModifie mis à false via le setter.`);
-            } else {
-                console.log(`[${this.constructor.name}] L'objet principal n'a pas été modifié. Skipping son enregistrement.`);
             }
 
             // 2. Enregistrement des objets contenus (toujours tenté)
             if (this.objetsForumContenus.length > 0) {
-                console.log(`[${this.constructor.name}] Début de l'enregistrement des objets contenus (${this.objetsForumContenus.length} objets).`);
                 for (const sousObjetForum of this.objetsForumContenus) {
-                    console.log(`[${this.constructor.name}] Enregistrement de l'objet contenu: ${sousObjetForum.constructor.name}.`);
                     await sousObjetForum.enregistrerSurForum();
                     // Ajouter un petit délai pour éviter les problèmes de course sur le forum
                     await Utils.sleep(10); 
                 }
-                console.log(`[${this.constructor.name}] Fin de l'enregistrement des objets contenus.`);
-            } else {
-                console.log(`[${this.constructor.name}] Aucun objet contenu à enregistrer.`);
             }
-            console.log(`[${this.constructor.name}] Fin de enregistrerSurForum.`);
         } finally {
             this._releaseWriteLock();
-            console.log(`[${this.constructor.name}] Verrou d'écriture libéré. Fin de enregistrerSurForum.`);
         }
     }
 
@@ -755,9 +797,10 @@ class ObjetForum {
      * @returns {*} La valeur brute du paramètre, ou null si non trouvé.
      */
     async lireParametre(nomParametre, peutVoirDonneesRestreintes = true) {
-        const parametre = this.mapParametres.get(nomParametre);
+        const nomParametreNormalise = this.constructor._normaliserNomParametre(nomParametre);
+        const parametre = this.mapParametres.get(nomParametreNormalise);
         if (!parametre) {
-            console.warn(`[${this.constructor.name}] Tentative de lecture d'un paramètre inexistant: "${nomParametre}".`);
+            console.warn(`[${this.constructor.name}] Tentative de lecture d'un paramètre inexistant ou non normalisé: "${nomParametre}".`);
             // Le calcul échouera avec une erreur TypeError si on tente d'utiliser ce résultat.
             return null;
         }
@@ -776,13 +819,19 @@ class ObjetForum {
      * @param {*} valeur - La nouvelle valeur pour le paramètre.
      */
     async ecrireParametre(nomParametre, valeur) {
-        console.log(`[${this.constructor.name}] Début de ecrireParametre pour le paramètre: "${nomParametre}".`);
-        const parametre = this.mapParametres.get(nomParametre);
+        const nomParametreNormalise = this.constructor._normaliserNomParametre(nomParametre);
+        const parametre = this.mapParametres.get(nomParametreNormalise);
+        console.log('nomParametre: ', nomParametre)
+        console.log('nomParametreNormalise: ', nomParametreNormalise)
+        console.log('mapParametres: ', this.mapParametres)
+        console.log('valeur parametre trouvé: ', parametre)
         if (parametre) {
             await parametre.Ecrire(valeur);
             // L'état estModifie de l'objet est géré par le getter/setter
+        } else {
+            console.warn(`[${this.constructor.name}] Tentative d'écriture sur un paramètre inexistant ou non normalisé: "${nomParametre}".`);
         }
-        console.log(`[${this.constructor.name}] Fin de ecrireParametre pour le paramètre: "${nomParametre}".`);
+        console.log('valeur parametre après: ', parametre)
     }
 
     /**

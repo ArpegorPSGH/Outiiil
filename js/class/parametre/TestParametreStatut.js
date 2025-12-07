@@ -1,4 +1,4 @@
 class TestParametreStatut extends ParametreObjetForum {
-    static NAME_HISTORY = ['Statut'];
+    static FORMAT_HISTORY = [{ nom: 'Statut', format: '(nom): (valeur) | ' }];
     valeur = '';
 }

@@ -1,12 +1,5 @@
 class ParametreObjetForum {
     /**
-     * Configuration déclarative. Liste des noms historiques du paramètre, du plus ancien au plus récent.
-     * Doit être surchargée dans chaque classe fille.
-     * @type {Array<String>}
-     */
-    static NAME_HISTORY = [];
-
-    /**
      * Configuration déclarative. Version de la logique de fonctionnement du paramètre.
      * Ex: '1.0'. Doit être surchargée dans chaque classe fille si le paramètre est versionné.
      * @type {String|null}
@@ -14,18 +7,11 @@ class ParametreObjetForum {
     static VERSION_LOGIQUE = null;
 
     /**
-     * Configuration déclarative. Liste des formats de template string disponibles pour le paramètre.
-     * Ex: '(nom): (valeur) | '
-     * Doit être surchargée dans la classe mère.
-     * @type {Array<String>}
-     */
-    static FORMATS = ['(nom): (valeur) | ', '(nom)=(valeur) #'];
-
-    /**
-     * La propriété statique FORMAT_HISTORY est générée dynamiquement dans le constructeur.
-     * Elle contient une liste de dictionnaires: {'nom': 'Nom unique', 'format': 'template string avec (nom) et (valeur)'}.
+     * Configuration déclarative. Liste des formats historiques du paramètre, du plus ancien au plus récent.
+     * Chaque élément est un dictionnaire {'nom': 'Nom du paramètre', 'format': 'template string avec (nom) et (valeur)'}.
+     * Ex: { nom: 'Nourriture', format: '--- Ressources ---\n(nom): (valeur) | ' }
+     * Doit être surchargée dans chaque classe fille.
      * @type {Array<Object>}
-     * @private
      */
     static FORMAT_HISTORY = [];
 
@@ -39,14 +25,20 @@ class ParametreObjetForum {
     static STRING_RESTRICTION = null;
 
     /**
+     * Configuration déclarative. Indique si la colonne est visible par défaut dans les tableaux.
+     * @type {boolean}
+     */
+    static VISIBLE_PAR_DEFAUT = true;
+
+    /**
      * Retourne le nom du format le plus récent.
      * @returns {string} Le dernier nom de format.
      */
     static getDernierNom() {
-        if (this.NAME_HISTORY.length === 0) {
+        if (this.FORMAT_HISTORY.length === 0) {
             return '';
         }
-        return this.NAME_HISTORY[this.NAME_HISTORY.length - 1];
+        return this.FORMAT_HISTORY[this.FORMAT_HISTORY.length - 1].nom;
     }
 
     /**
@@ -56,15 +48,6 @@ class ParametreObjetForum {
      * @protected
      */
     valeur = null;
-
-    /**
-     * Type de la valeur réelle de la donnée, extrait de la valeur par défaut.
-     * @type {String}
-     * @private
-     */
-    get typeValeur() {
-        return typeof this.valeur;
-    }
 
     /**
      * Référence à l'instance de l'ObjetForum qui contient ce paramètre.
@@ -128,20 +111,6 @@ class ParametreObjetForum {
      */
     constructor(objetParent) {
         this.objetParent = objetParent;
-
-        // Génération dynamique de FORMAT_HISTORY si elle n'a pas déjà été générée pour cette classe
-        if (this.constructor.FORMAT_HISTORY.length === 0 && this.constructor.NAME_HISTORY.length > 0 && this.constructor.FORMATS.length > 0) {
-            const uniqueNames = [...new Set(this.constructor.NAME_HISTORY)];
-            const uniqueFormats = [...new Set(this.constructor.FORMATS)];
-            const generatedHistory = [];
-
-            uniqueNames.forEach(name => {
-                uniqueFormats.forEach(format => {
-                    generatedHistory.push({ 'nom': name, 'format': format });
-                });
-            });
-            this.constructor.FORMAT_HISTORY = generatedHistory;
-        }
     }
 
     /**
@@ -150,7 +119,6 @@ class ParametreObjetForum {
      * @returns {Promise<void>}
      * @private
      */
-
     async _acquireReadLock() {
         // Read lock (Lire, genererStringPourEnregistrement) can proceed if no exclusive lock and no active load locks
         // and no waiting exclusive locks or waiting load locks (to prevent starvation)
@@ -165,7 +133,6 @@ class ParametreObjetForum {
      * Si aucun autre lecteur n'est actif et qu'il y a des writers en attente, le prochain writer est notifié.
      * @private
      */
-
     _releaseReadLock() {
         this._readLockCount--;
         this._releaseWaitingOperations();
@@ -176,7 +143,6 @@ class ParametreObjetForum {
      * @returns {Promise<void>}
      * @private
      */
-
     async _acquireLoadLock() {
         // Load lock (chargerDepuisString) can proceed if no exclusive lock and no active read locks
         // and no waiting exclusive locks or waiting read locks (to prevent starvation)
@@ -190,7 +156,6 @@ class ParametreObjetForum {
      * Libère un verrou de chargement.
      * @private
      */
-
     _releaseLoadLock() {
         this._loadLockCount--;
         this._releaseWaitingOperations();
@@ -201,7 +166,6 @@ class ParametreObjetForum {
      * @returns {Promise<void>}
      * @private
      */
-
     async _acquireExclusiveLock() {
         // Exclusive lock (Ecrire) can proceed only if no other locks are active
         if (this._exclusiveLockActive || this._readLockCount > 0 || this._loadLockCount > 0) {
@@ -214,7 +178,6 @@ class ParametreObjetForum {
      * Libère un verrou exclusif.
      * @private
      */
-
     _releaseExclusiveLock() {
         this._exclusiveLockActive = false;
         this._releaseWaitingOperations();
@@ -223,7 +186,6 @@ class ParametreObjetForum {
     /**
      * @private
      */
-
     _releaseWaitingOperations() {
         // Prioritize exclusive locks
         if (this._waitingExclusives.length > 0 && !this._exclusiveLockActive && this._readLockCount === 0 && this._loadLockCount === 0) {
@@ -257,78 +219,181 @@ class ParametreObjetForum {
     }
 
     /**
+     * Valide et caste une valeur par rapport à la valeur actuelle du paramètre.
+     * @param {any} valeurAParser - La valeur extraite à valider.
+     * @returns {{success: boolean, value: any}} - Le résultat de l'opération.
+     * @private
+     */
+    _checkValeur(valeurAValider) {
+        if (this.valeur === null || this.valeur === undefined) {
+            console.error(`[${this.constructor.name}] La valeur actuelle est nulle, impossible de valider le type.`);
+            return { success: false };
+        }
+
+        const typeContenantActuel = Array.isArray(this.valeur) ? 'array' : (typeof this.valeur === 'object' && this.valeur !== null) ? 'object' : 'primitive';
+        const typeContenantAValider = Array.isArray(valeurAValider) ? 'array' : (typeof valeurAValider === 'object' && valeurAValider !== null) ? 'object' : 'primitive';
+
+        if (typeContenantActuel !== typeContenantAValider) {
+            console.error(`[${this.constructor.name}] Le type de contenant ne correspond pas: attendu ${typeContenantActuel}, reçu ${typeContenantAValider}.`);
+            return { success: false };
+        }
+
+        if (typeContenantActuel === 'primitive') {
+            const typeCible = typeof this.valeur;
+            let valeurCastee;
+            switch (typeCible) {
+                case 'number':
+                    valeurCastee = Number(valeurAValider);
+                    if (isNaN(valeurCastee)) {
+                        console.error(`[${this.constructor.name}] Échec du casting de "${valeurAValider}" en nombre.`);
+                        return { success: false };
+                    }
+                    break;
+                case 'boolean':
+                    const strVal = String(valeurAValider).toLowerCase();
+                    if (strVal === 'true' || strVal === '1' || valeurAValider === true) valeurCastee = true;
+                    else if (strVal === 'false' || strVal === '0' || valeurAValider === false) valeurCastee = false;
+                    else {
+                        console.error(`[${this.constructor.name}] Échec du casting de "${valeurAValider}" en booléen.`);
+                        return { success: false };
+                    }
+                    break;
+                default:
+                    valeurCastee = String(valeurAValider);
+            }
+            return { success: true, value: valeurCastee };
+        }
+
+        if (typeContenantActuel === 'array') {
+            if (this.valeur.length === 0) {
+                console.error(`[${this.constructor.name}] La liste actuelle est vide, impossible de valider le type des éléments.`);
+                return { success: false };
+            }
+            const resultatListe = [];
+            for (const element of valeurAValider) {
+                const checkResult = this._checkValeur.call({ valeur: this.valeur[0] }, element);
+                if (!checkResult.success) {
+                    console.error(`[${this.constructor.name}] Échec du casting de l'élément "${element}" de la liste.`);
+                    return { success: false };
+                }
+                resultatListe.push(checkResult.value);
+            }
+            return { success: true, value: resultatListe };
+        }
+
+        if (typeContenantActuel === 'object') {
+            for (const cle in this.valeur) {
+                if (!valeurAValider.hasOwnProperty(cle)) {
+                    console.error(`[${this.constructor.name}] La clé attendue "${cle}" est manquante dans la valeur validée.`);
+                    return { success: false };
+                }
+            }
+            const resultatDict = {};
+            for (const cle in valeurAValider) {
+                if (!this.valeur.hasOwnProperty(cle)) {
+                    console.error(`[${this.constructor.name}] La clé "${cle}" n'est pas attendue dans le dictionnaire.`);
+                    return { success: false };
+                }
+                const checkResult = this._checkValeur.call({ valeur: this.valeur[cle] }, valeurAValider[cle]);
+                if (!checkResult.success) return { success: false };
+                resultatDict[cle] = checkResult.value;
+            }
+            return { success: true, value: resultatDict };
+        }
+        return { success: false };
+    }
+
+    /**
      * Peuple la valeur du paramètre en parsant une chaîne de caractères fournie.
-     * La valeur est convertie dans le type initialement détecté.
      * @param {String} contenu - La chaîne à parser.
-     * @returns {Boolean} - True si le chargement a réussi et la conversion est valide, false sinon.
+     * @returns {Boolean} - True si le chargement a réussi, false sinon.
      */
     async chargerDepuisString(contenu) {
         await this._acquireLoadLock();
         try {
-            console.log(`[${this.constructor.name}] Début de chargerDepuisString pour le contenu: "${contenu}". Type attendu: "${this.typeValeur}".`);
-            for (let i = this.constructor.FORMAT_HISTORY.length - 1; i >= 0; i--) {
-                const formatInfo = this.constructor.FORMAT_HISTORY[i];
-                console.log(`[${this.constructor.name}] Tentative de correspondance avec le format: "${formatInfo.format}".`);
-                
-                // Échapper les caractères spéciaux dans le format pour la regex, sauf '(nom)' et '(valeur)'
-                const escapedFormatPart = formatInfo.format.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regexPattern = escapedFormatPart
-                                        .replace('\\(nom\\)', formatInfo.nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) // Inject escaped nom
-                                        .replace('\\(valeur\\)', '(.*?)'); // Non-greedy capture for valeur
-                const formatRegex = new RegExp(regexPattern);
-                const match = contenu.match(formatRegex);
+            let meilleureValeurExtraite = null;
+
+            for (const formatInfo of this.constructor.FORMAT_HISTORY) {
+                console.log(`[${this.constructor.name}] Tentative d'extraction avec le format:`, formatInfo);
+                const formatAvecNom = formatInfo.format.replace('(nom)', formatInfo.nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                const [prefix, suffix] = formatAvecNom.split('(valeur)');
+                if (prefix === undefined || suffix === undefined) {
+                    console.log(`[${this.constructor.name}] Format invalide (manque '(valeur)'): "${formatInfo.format}"`);
+                    continue;
+                }
+
+                const regex = new RegExp(`${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*?)${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 's');
+                console.log(`[${this.constructor.name}] Regex construite:`, regex);
+                console.log(`[${this.constructor.name}] Contenu:`, contenu);
+                const match = contenu.match(regex);
+                console.log(`[${this.constructor.name}] Résultat du match:`, match);
 
                 if (match && match[1] !== undefined) {
-                    const rawValue = match[1].trim();
-                    let convertedValue;
-                    let conversionSuccess = true;
-
-                    switch (this.typeValeur) {
-                        case 'number':
-                            convertedValue = Number(rawValue);
-                            if (isNaN(convertedValue)) {
-                                conversionSuccess = false;
-                                console.error(`[${this.constructor.name}] Échec de conversion: "${rawValue}" ne peut pas être converti en nombre.`);
-                            }
-                            break;
-                        case 'boolean':
-                            // Convertit 'true', 'false', '1', '0' en booléen. Autres valeurs considérées comme échec.
-                            if (rawValue.toLowerCase() === 'true' || rawValue === '1') {
-                                convertedValue = true;
-                            } else if (rawValue.toLowerCase() === 'false' || rawValue === '0') {
-                                convertedValue = false;
-                            } else {
-                                conversionSuccess = false;
-                                console.error(`[${this.constructor.name}] Échec de conversion: "${rawValue}" ne peut pas être converti en booléen.`);
-                            }
-                            break;
-                        case 'string':
-                        default:
-                            convertedValue = rawValue;
-                            break;
+                    const valeurExtraite = match[1];
+                    console.log(`[${this.constructor.name}] Valeur extraite: "${valeurExtraite}"`);
+                    if (meilleureValeurExtraite === null || valeurExtraite.length < meilleureValeurExtraite.length) {
+                        meilleureValeurExtraite = valeurExtraite;
+                        console.log(`[${this.constructor.name}] Nouvelle meilleure valeur extraite: "${meilleureValeurExtraite}"`);
                     }
-
-                    if (conversionSuccess) {
-                        this.valeur = convertedValue;
-                        this.estCharge = true;
-                        this.estModifie = false; // Set to false on successful load
-                        console.log(`[${this.constructor.name}] Correspondance trouvée. Valeur chargée et convertie: "${this.valeur}" (Type: ${typeof this.valeur}).`);
-                        console.log(`[${this.constructor.name}] Fin de chargerDepuisString: true.`);
-                        return true;
-                    } else {
-                        // Conversion failed, but format matched. Do not update value and return false.
-                        console.log(`[${this.constructor.name}] Format correspondant trouvé, mais échec de conversion de la valeur. Fin de chargerDepuisString: false.`);
-                        return false;
-                    }
-                } else {
-                    console.log(`[${this.constructor.name}] Pas de correspondance pour le format: "${formatInfo.format}".`);
                 }
             }
-            console.log(`[${this.constructor.name}] Aucun format correspondant trouvé. Fin de chargerDepuisString: false.`);
-            return false;
+
+            if (meilleureValeurExtraite === null) {
+                console.error(`[${this.constructor.name}] Aucun format n'a pu extraire de valeur.`);
+                return false;
+            }
+
+            let valeurAParser;
+            try {
+                valeurAParser = JSON.parse(meilleureValeurExtraite.trim());
+            } catch (e) {
+                // Si le parsing JSON échoue, cela peut signifier que la valeur est une chaîne simple
+                // ou un nombre/booléen non stringifié en JSON.
+                // Dans ce cas, on considère que c'est la valeur brute.
+                valeurAParser = meilleureValeurExtraite.trim();
+                console.warn(`[${this.constructor.name}] Le parsing JSON a échoué pour la valeur extraite: "${meilleureValeurExtraite.trim()}". La valeur sera traitée comme une chaîne brute.`);
+            }
+
+            // Étape de migration : convertir l'ancienne valeur parsée vers le format actuel si nécessaire
+            const valeurMigree = await this._migrerValeur(valeurAParser);
+
+            if (valeurMigree === null || typeof valeurMigree === 'undefined') {
+                console.error(`[${this.constructor.name}] La migration a retourné une valeur nulle ou indéfinie, chargement annulé.`);
+                return false;
+            }
+
+            const aEteMigre = JSON.stringify(valeurAParser) !== JSON.stringify(valeurMigree);
+
+            if (aEteMigre) {
+                console.log(`[${this.constructor.name}] La valeur a été migrée, estModifie sera à true.`);
+            }
+
+            const checkResult = this._checkValeur(valeurMigree);
+            if (checkResult.success) {
+                this.valeur = checkResult.value;
+                console.log('valeur enregistrée: ', checkResult.value)
+                this.estCharge = true;
+                this.estModifie = aEteMigre;
+                return true;
+            } else {
+                // Check failed, but format matched. Do not update value and return false.
+                return false;
+            }
         } finally {
             this._releaseLoadLock();
         }
+    }
+
+    /**
+     * Méthode protégée à surcharger dans les classes filles pour migrer une valeur chargée
+     * d'un ancien format vers le format actuel du paramètre.
+     * @param {any} valeurChargee - La valeur parsée depuis le forum.
+     * @returns {Promise<any>} La valeur migrée vers le format actuel.
+     * @protected
+     */
+    async _migrerValeur(valeurChargee) {
+        // Par défaut, aucune migration n'est effectuée. La valeur est retournée telle quelle.
+        return valeurChargee;
     }
 
     /**
@@ -337,33 +402,57 @@ class ParametreObjetForum {
      */
     async genererStringPourEnregistrement() {
         await this._acquireReadLock();
-        console.log(`[${this.constructor.name}] Début de genererStringPourEnregistrement pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
         try {
-            const formatInfo = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1];
-            const result = formatInfo.format
-                                     .replace('(nom)', formatInfo.nom)
-                                     .replace('(valeur)', this.valeur);
-            console.log(`[${this.constructor.name}] Génération de la chaîne pour enregistrement: Nom="${formatInfo.nom}", Valeur="${this.valeur}", Résultat="${result}".`);
-            return result;
+            const dernierFormatInfo = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1];
+            let valeurStringifiee;
+            if (typeof this.valeur === 'object' && this.valeur !== null) {
+                valeurStringifiee = JSON.stringify(this.valeur);
+            } else {
+                valeurStringifiee = String(this.valeur);
+            }
+            let str = dernierFormatInfo.format.replace('(nom)', dernierFormatInfo.nom);
+            str = str.replace('(valeur)', valeurStringifiee);
+            return str;
         } finally {
             this._releaseReadLock();
-            console.log(`[${this.constructor.name}] Fin de genererStringPourEnregistrement pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
         }
     }
 
     /**
      * Met à jour la valeur interne du paramètre.
-     * @param {*} valeur - La nouvelle valeur.
+     * @param {*} nouvelleValeur - La nouvelle valeur.
+     * @returns {Boolean} - True si l'écriture a réussi.
      */
-    async Ecrire(valeur) {
+    async Ecrire(nouvelleValeur) {
         await this._acquireExclusiveLock();
-        console.log(`[${this.constructor.name}] Début de ecrire pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
         try {
-            this.valeur = valeur;
-            this.estModifie = true; // Set to true on write
+            const checkResult = this._checkValeur(nouvelleValeur);
+            if (checkResult.success) {
+                this.valeur = checkResult.value;
+                this.estModifie = true;
+                return true;
+            }
+            console.error(`[${this.constructor.name}] La nouvelle valeur fournie pour Ecrire n'est pas valide.`);
+            return false;
         } finally {
             this._releaseExclusiveLock();
-            console.log(`[${this.constructor.name}] Fin de ecrire pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
+        }
+    }
+
+    _appliquerRestriction(valeur) {
+        const typeContenant = Array.isArray(valeur) ? 'array' : (typeof valeur === 'object' && valeur !== null) ? 'object' : 'primitive';
+        if (typeContenant === 'primitive') {
+            return this.constructor.STRING_RESTRICTION;
+        }
+        if (typeContenant === 'array') {
+            return valeur.map(v => this._appliquerRestriction(v));
+        }
+        if (typeContenant === 'object') {
+            const res = {};
+            for (const key in valeur) {
+                res[key] = this._appliquerRestriction(valeur[key]);
+            }
+            return res;
         }
     }
 
@@ -374,17 +463,13 @@ class ParametreObjetForum {
      */
     async Lire(peutVoirDonneesRestreintes = true) {
         await this._acquireReadLock();
-        console.log(`[${this.constructor.name}] Début de lire pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
         try {
             if (this.constructor.STRING_RESTRICTION !== null && !peutVoirDonneesRestreintes) {
-                console.log(`[${this.constructor.name}] null retourné`)
-                return null;
+                return this._appliquerRestriction(this.valeur);
             }
-            console.log(`[${this.constructor.name}] "${this.valeur}" retourné`)
             return this.valeur;
         } finally {
             this._releaseReadLock();
-            console.log(`[${this.constructor.name}] Fin de lire pour le paramètre: "${this.constructor.NAME_HISTORY}".`);
         }
     }
 }

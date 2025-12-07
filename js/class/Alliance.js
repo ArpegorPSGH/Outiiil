@@ -156,6 +156,33 @@ class Alliance
         this._fourmiliere = Object.keys(this._joueurs).reduce((acc, key) => {return acc + this._joueurs[key].fourmiliere;}, 0);
         return this._fourmiliere;
     }
+
+    /**
+     * Compte le nombre de joueurs par état (actif, vacances, banni, etc.).
+     * @returns {Promise<Object<string, number>>} Un objet mappant chaque état à son nombre de joueurs.
+     */
+    async compterJoueursParEtat() {
+        const comptes = {
+            'actif': 0,
+            'vacances': 0,
+            'banni': 0,
+            'colonise': 0,
+            'inactif_3_jours': 0, // Exemple d'état, à adapter si nécessaire
+            'inactif_10_jours': 0 // Exemple d'état, à adapter si nécessaire
+        };
+        for (const pseudo in this._joueurs) {
+            const joueur = this._joueurs[pseudo];
+            const etat = await joueur.etat;
+            const colonise = await joueur.colonise; // Récupérer l'état colonisé
+
+            comptes[etat] = (comptes[etat] || 0) + 1;
+            if (colonise) {
+                comptes['colonise'] = (comptes['colonise'] || 0) + 1;
+            }
+        }
+        return comptes;
+    }
+
     /**
     *
     */
@@ -251,7 +278,7 @@ class Alliance
     */
     getLigneRadar(radar, id, indice)
     {
-        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="rang" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
+        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
         // event
         $("#o_maj_" + this._tag).click(async (e) => {
             e.preventDefault(); // Empêche le rechargement de la page

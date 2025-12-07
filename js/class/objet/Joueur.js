@@ -13,44 +13,41 @@
  */
 Utils.register(class Joueur extends ObjetForum {
     static VERSION_LOGIQUE = '1.0';
-    static LOCATION_HISTORY = [{ 'section': 'Membres Outiiil', 'lieu': 'titre' }];
+    static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre' }];
     static CLASSES_PARAMETRES = [
         [
             ParametreJoueurPseudo,
-            ParametreJoueurRang,
-            ParametreJoueurOrdreRang,
+            ParametreJoueurGrade,
+            ParametreJoueurOrdreGrade,
             ParametreJoueurAllianceRattachement
         ]
     ];
+    static classeObjetsForumContenus = Recensement; // Un joueur peut contenir des objets Recensement
 
-    /** @type {number} id du joueur. */
-    _id = -1;
-    /** @type {number} Abscisse du joueur, chargée via AJAX. */
-    _x = -1;
-    /** @type {number} Ordonnée du joueur, chargée via AJAX. */
-    _y = -1;
-    /** @type {number} Terrain du joueur, chargé via AJAX. */
-    _terrain = -1;
-    /** @type {number} Fourmilière du joueur, chargée via AJAX. */
-    _fourmiliere = -1;
-    /** @type {number} Technologie du joueur, chargée via AJAX. */
-    _technologie = -1;
-    /** @type {boolean} Indique si le joueur est en mode vacances, chargé via AJAX. */
-    _mv = false;
-    /** @type {boolean} Indique si le joueur est colonisé, chargé via AJAX. */
-    _colonise = false;
-    /** @type {string} Tag de l'alliance du joueur, chargé via AJAX. */
-    _allianceTag = "";
-    /** @type {number} Ordre d'affichage du joueur dans le radar. */
-    _ordreRadar = -1;
-    /** @type {number[]} Niveaux de recherche, chargés depuis laboratoire.php. */
-    _niveauRecherche = new Array(10).fill(-1);
-    /** @type {number[]} Niveaux de construction, chargés depuis construction.php. */
-    _niveauConstruction = new Array(13).fill(-1);
+    static ATTRIBUTS_OBJET = {
+        id: -1,
+        x: -1,
+        y: -1,
+        terrain: -1,
+        fourmiliere: -1,
+        technologie: -1,
+        etat: '',
+        colonise: false,
+        allianceTag: "",
+        rang: "",
+        ordreRadar: -1,
+        niveauRecherche: () => new Array(10).fill(-1),
+        niveauConstruction: () => new Array(13).fill(-1),
+        nourriture: -1,
+        materiaux: -1,
+        ouvrieres: -1,
+        armee: () => new Armee()
+    };
+
 
     constructor(param1, options = {}) {
         // Gestion de la compatibilité ascendante du constructeur
-        if (param1 && param1.constructor && typeof param1.constructor.ABREVIATIONS_HISTORY !== 'undefined') {
+        if (param1 && param1.constructor && (typeof param1.constructor.ABREVIATIONS_HISTORY !== 'undefined' || typeof param1.constructor.FONCTIONNALITES !== 'undefined')) {
             // Nouveau constructeur du framework
             super(param1, options);
         } else {
@@ -75,6 +72,10 @@ Utils.register(class Joueur extends ObjetForum {
         * pseudo du joueur
         */
         this.ecrireParametre('pseudo', parametres["pseudo"]);
+        /**
+        * rang du joueur
+        */
+        this._rang = parametres["rang"] || "";
         /**
         * abscisse du joueur
         */
@@ -106,7 +107,7 @@ Utils.register(class Joueur extends ObjetForum {
         /**
         *
         */
-        this._mv = parametres["mv"] || false;
+        this._etat = (parametres["mv"] || false) ? 'vacances' : 'actif';
         /**
         *
         */
@@ -118,17 +119,17 @@ Utils.register(class Joueur extends ObjetForum {
         /**
         *
         */
-        this.ecrireParametre('rang', parametres["rang"] || "");
+        this.ecrireParametre('grade', parametres["grade"] || "");
         /**
         *
         */
-        this.ecrireParametre('ordreRang', parametres["ordreRang"] || 0);
+        this.ecrireParametre('ordre_grade', parametres["ordre_grade"] || 0);
         /**
         * Tag de l'alliance du joueur (utile pour les joueurs extérieurs).
         */
         this._allianceTag = parametres["allianceTag"] || "";
         const estExterieur = parametres["estExterieur"] || false;
-        this.ecrireParametre('allianceRattachement', estExterieur ? '' : this._allianceTag);
+        this.ecrireParametre('alliance_rattachement', estExterieur ? '' : this._allianceTag);
         /**
         * Indique si le joueur est colonisé.
         */
@@ -146,20 +147,23 @@ Utils.register(class Joueur extends ObjetForum {
     get pseudo() { return this.lireParametre('pseudo'); }
     set pseudo(newPseudo) { this.ecrireParametre('pseudo', newPseudo); }
 
+    get rang() { return this._rang; }
+    set rang(newRang) { this._rang = newRang; }
+
     get ordreRadar() { return this._ordreRadar; }
     set ordreRadar(newOrdre) { this._ordreRadar = newOrdre; }
 
-    get rang() { return this.lireParametre('rang'); }
-    set rang(newRang) { this.ecrireParametre('rang', newRang); }
+    get grade() { return this.lireParametre('grade'); }
+    set grade(newGrade) { this.ecrireParametre('grade', newGrade); }
 
-    get ordreRang() { return this.lireParametre('ordreRang'); }
-    set ordreRang(newOrdre) { this.ecrireParametre('ordreRang', newOrdre); }
+    get ordreGrade() { return this.lireParametre('ordre_grade'); }
+    set ordreGrade(newOrdre) { this.ecrireParametre('ordre_grade', newOrdre); }
 
-    get allianceRattachement() { return this.lireParametre('allianceRattachement'); }
-    set allianceRattachement(newAlliance) { this.ecrireParametre('allianceRattachement', newAlliance); }
+    get allianceRattachement() { return this.lireParametre('alliance_rattachement'); }
+    set allianceRattachement(newAlliance) { this.ecrireParametre('alliance_rattachement', newAlliance); }
 
     async estExterieur(peutVoirDonneesRestreintes) {
-        const allianceRattachement = await this.lireParametre('allianceRattachement', peutVoirDonneesRestreintes);
+        const allianceRattachement = await this.lireParametre('alliance_rattachement', peutVoirDonneesRestreintes);
         return allianceRattachement !== null && this.allianceTag !== allianceRattachement;
     }
 
@@ -191,8 +195,68 @@ Utils.register(class Joueur extends ObjetForum {
     get fourmiliere() { return this._fourmiliere; }
     set fourmiliere(newFourmiliere) { this._fourmiliere = newFourmiliere; }
     
-    get mv() { return this._mv; }
-    set mv(newMV) { this._mv = newMV; }
+    get etat() { return this._etat; }
+    set etat(newEtat) {
+        if (typeof newEtat === 'object' && newEtat !== null && newEtat.hasOwnProperty('src')) {
+            // Si c'est un objet image (ex: jQuery object d'une image)
+            const src = newEtat.attr('src');
+            this._etat = this._convertirImageEtatEnString(src);
+        } else if (typeof newEtat === 'string' && newEtat.includes('images/icone')) {
+            // Si c'est une URL d'image (string)
+            this._etat = this._convertirImageEtatEnString(newEtat);
+        } else {
+            this._etat = newEtat;
+        }
+    }
+
+    /**
+     * Extrait l'attribut 'src' d'une balise <img> donnée sous forme de chaîne.
+     * @param {string} imgTag - La chaîne HTML de la balise <img>.
+     * @returns {string} L'URL de l'image ou une chaîne vide si non trouvée.
+     * @private
+     */
+    _getSrcFromImgTag(imgTag) {
+        const match = imgTag.match(/src=['"]([^'"]*)['"]/);
+        return match ? match[1] : '';
+    }
+
+    /**
+     * Convertit une URL d'image de pastille d'état en sa chaîne d'état correspondante.
+     * @param {string} imageUrl - L'URL de l'image de la pastille d'état.
+     * @returns {string} La chaîne d'état ('actif', 'vacances', 'banni', etc.) ou une chaîne vide si non reconnue.
+     * @private
+     */
+    _convertirImageEtatEnString(imageUrl) {
+        // Normaliser imageUrl pour qu'elle soit relative si elle est absolue
+        let normalizedImageUrl = imageUrl;
+        const absoluteUrlMatch = imageUrl.match(/https?:\/\/[^/]+\/(images\/icone\/[^'"]*\.gif)/);
+        if (absoluteUrlMatch) {
+            normalizedImageUrl = absoluteUrlMatch[1];
+        }
+
+        // Extraire les URLs des constantes IMG_XXX pour la comparaison
+        const srcActif = this._getSrcFromImgTag(IMG_ACTIF);
+        const srcInactif3 = this._getSrcFromImgTag(IMG_INACTIF_3);
+        const srcInactif10 = this._getSrcFromImgTag(IMG_INACTIF_10);
+        const srcVacances = this._getSrcFromImgTag(IMG_VACANCES);
+        const srcBanni = this._getSrcFromImgTag(IMG_BANNI);
+
+        switch (normalizedImageUrl) {
+            case srcActif:
+                return 'actif';
+            case srcInactif3:
+                return 'inactif_3_jours';
+            case srcInactif10:
+                return 'inactif_10_jours';
+            case srcVacances:
+                return 'vacances';
+            case srcBanni:
+                return 'banni';
+            default:
+                console.warn(`[Joueur] Image d'état non reconnue: ${imageUrl}. Retourne une chaîne vide.`);
+                return '';
+        }
+    }
     
     get sujetForum() { return this.idSujet; }
     set sujetForum(newSujet) { this.idSujet = newSujet; }
@@ -239,11 +303,12 @@ Utils.register(class Joueur extends ObjetForum {
         this._id = parseInt($(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10);
         this._x = ~~(ligne.replace(regexp, "$1"));
         this._y = ~~(ligne.replace(regexp, "$2"));
-        this._mv = $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances");
+        this._etat = $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : this._etat;
+        this._etat = $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : this._etat;
         this._terrain = numeral($(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value();
         this._fourmiliere = numeral($(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value();
         this._technologie = numeral($(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value();
-        
+
         const etatText = $(html).find("table:eq(0)").text();
         this._colonise = etatText.includes("Etat : Fourmilière soumise par ");
 
@@ -271,22 +336,167 @@ Utils.register(class Joueur extends ObjetForum {
             return false;
         }
 
-        // Troisième temps (optionnel) : chargement des constructions et recherches pour le joueur courant
+        // Troisième temps (optionnel) : chargement des constructions, recherches, armée et ressources
         if (await this.estJoueurCourant()) {
+            // Pour le joueur courant, on charge les données "fraîches"
+            // Constructions
             const constructionPromise = this.getConstruction();
             if (constructionPromise) {
                 const htmlConstruction = await constructionPromise;
                 await this.chargerConstruction(htmlConstruction);
             }
 
+            // Recherches
             const recherchePromise = this.getLaboratoire();
             if (recherchePromise) {
                 const htmlRecherche = await recherchePromise;
                 await this.chargerRecherche(htmlRecherche);
             }
+
+            // Armée et ressources
+            try {
+                const htmlArmee = await this._armee.getArmee();
+                await this._armee.chargeData(htmlArmee);
+                this._nourriture = Utils.nourriture;
+                this._materiaux = Utils.materiaux;
+                this._ouvrieres = Utils.ouvrieres;
+                console.log(`[Joueur] Armée et ressources fraîches chargées pour le joueur courant.`);
+            } catch (error) {
+                console.error(`[Joueur] Erreur lors du chargement de l'armée ou des ressources pour le joueur courant.`, error);
+            }
+        } else {
+            // Pour les autres joueurs, on charge les données depuis le dernier recensement disponible
+            if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
+                // On suppose que le dernier recensement dans la liste est le plus récent
+                const dernierRecensement = this.objetsForumContenus[this.objetsForumContenus.length - 1];
+                const pseudo = await this.lireParametre('pseudo');
+                console.log(`[Joueur] Chargement des données depuis le dernier recensement pour ${pseudo}.`);
+
+                try {
+                    // Lecture des ressources
+                    this._nourriture = await dernierRecensement.lireParametre('Nourriture') || this._nourriture;
+                    this._materiaux = await dernierRecensement.lireParametre('Matériaux') || this._materiaux;
+                    this._ouvrieres = await dernierRecensement.lireParametre('Ouvrières') || this._ouvrieres;
+
+                    // Lecture des niveaux de construction
+                    const constructionPromises = CONSTRUCTION.map(async (nom, index) => {
+                        const niveau = await dernierRecensement.lireParametre(nom);
+                        if (niveau !== null) this._niveauConstruction[index] = niveau;
+                    });
+                    await Promise.all(constructionPromises);
+
+                    // Lecture des niveaux de recherche
+                    const recherchePromises = RECHERCHE.map(async (nom, index) => {
+                        const niveau = await dernierRecensement.lireParametre(nom);
+                        if (niveau !== null) this._niveauRecherche[index] = niveau;
+                    });
+                    await Promise.all(recherchePromises);
+
+                    // Lecture de l'armée (NOM_UNITE commence par 'Ouvrière', on la saute)
+                    const armeePromises = NOM_UNITE.slice(1).map(async (nomUnite, index) => {
+                        const quantite = await dernierRecensement.lireParametre(nomUnite);
+                        if (quantite !== null) this._armee.unite[index] = quantite;
+                    });
+                    await Promise.all(armeePromises);
+                    
+                    console.log(`[Joueur] Données du recensement chargées pour ${pseudo}.`);
+                } catch (error) {
+                    console.error(`[Joueur] Erreur lors de la lecture des données du recensement pour ${pseudo}.`, error);
+                }
+            }
         }
 
         return true;
+    }
+
+    /**
+     * Charge les données du joueur courant en extrayant son pseudo de la page,
+     * puis lance le chargement complet de ses informations.
+     * @returns {Promise<boolean>} Vrai si le chargement a réussi.
+     */
+    async chargerJoueurCourant() {
+        const pseudo = $("#pseudo").text();
+        if (!pseudo) {
+            console.error('[Joueur] Impossible de trouver le pseudo du joueur courant sur la page.');
+            return false;
+        }
+        await this.ecrireParametre('pseudo', pseudo);
+        console.log(`[Joueur] Chargement du joueur courant : ${pseudo}`);
+        return await this.completerRafraichissement();
+    }
+
+    /**
+     * Effectue un recensement complet du joueur et l'enregistre sur le forum.
+     * @returns {Promise<Boolean>} Vrai si le recensement a été effectué et enregistré avec succès.
+     */
+    async effectuerRecensement() {
+        await this._acquireReadLock(); // Verrouiller l'objet Joueur pendant le recensement
+
+        console.log(`[Joueur] Début de l'opération de recensement pour ${await this.lireParametre('pseudo')}.`);
+
+        try {
+            // 1. Charger les données du joueur (assure que les ressources/constructions/recherches/unités sont à jour)
+            const rafraichissementReussi = await this.completerRafraichissement(); // Ne pas charger les objets contenus ici
+            if (!rafraichissementReussi) {
+                console.error(`[Joueur] Échec du rafraîchissement du profil pour le recensement.`);
+                return false;
+            }
+
+            // 2. Préparer les données pour le nouvel objet Recensement
+            const donneesRecensement = {};
+
+            // Ressources et Terrain
+            donneesRecensement['Ressources'] = {
+                'Nourriture': this._nourriture,
+                'Matériaux': this._materiaux,
+                'Terrain de Chasse': this._terrain
+            };
+
+            // Constructions
+            const constructions = {};
+            CONSTRUCTION.forEach((nom, index) => {
+                constructions[nom] = this.niveauConstruction[index];
+            });
+            donneesRecensement['Constructions'] = constructions;
+
+            // Recherches
+            const recherches = {};
+            RECHERCHE.forEach((nom, index) => {
+                recherches[nom] = this.niveauRecherche[index];
+            });
+            donneesRecensement['Recherches'] = recherches;
+
+            // Unités
+            const unites = {};
+            unites['Ouvrières'] = this._ouvrieres;
+            this._armee.unite.forEach((quantite, index) => {
+                const nomUnite = NOM_UNITES[index];
+                if (nomUnite) {
+                    unites[nomUnite] = quantite;
+                }
+            });
+            donneesRecensement['Unités'] = unites;
+
+            // 3. Créer l'objet Recensement
+            let recensementInstance =  new Recensement(this.fonctionnaliteCreatrice, {
+                    objetParent: this,
+                    donneesInitiales: donneesRecensement
+                });
+            this.objetsForumContenus.push(recensementInstance); // Ajouter à la liste des objets contenus
+            console.log(`[Joueur] Nouvelle instance de Recensement créée: `, recensementInstance);
+
+            // 5. Enregistrer le recensement sur le forum
+            await recensementInstance.enregistrerSurForum();
+            console.log(`[Joueur] Recensement enregistré sur le forum avec succès.`);
+            return true;
+
+        } catch (error) {
+            console.error(`[Joueur] Erreur lors de l'exécution du recensement pour ${await this.lireParametre('pseudo')}:`, error);
+            return false;
+        } finally {
+            this._releaseReadLock(); // Libérer le verrou
+            console.log(`[Joueur] Fin de l'opération de recensement.`);
+        }
     }
 
     /**
@@ -295,16 +505,58 @@ Utils.register(class Joueur extends ObjetForum {
      * @returns {Promise<Object>} Les données complétées.
      */
     async completerAffichage(donnees) {
-        donnees['Coordonnées'] = { valeur: `(${this.x}, ${this.y})`, nom_affiche: 'Coordonnées' };
-        donnees['Terrain'] = { valeur: numeral(this.terrain).format(), nom_affiche: 'Terrain' };
-        donnees['Fourmilière'] = { valeur: numeral(this.fourmiliere).format(), nom_affiche: 'Fourmilière' };
-        donnees['Technologie'] = { valeur: numeral(this.technologie).format(), nom_affiche: 'Technologie' };
-        donnees['MV'] = { valeur: this.mv ? 'Oui' : 'Non', nom_affiche: 'MV' };
-        donnees['Colonisé'] = { valeur: this.colonise ? 'Oui' : 'Non', nom_affiche: 'Colonisé' };
-        donnees['Tag Alliance'] = { valeur: this.allianceTag, nom_affiche: 'Tag Alliance' };
+        // Coordonnées
+        donnees['coordonnees'] = { valeur: `(${this._x}, ${this._y})`, nom_affiche: 'Coordonnées' };
+        // Rang
+        donnees['rang'] = { valeur: this.rang, nom_affiche: 'Rang' };
+        // Terrain
+        donnees['terrain'] = { valeur: numeral(this.terrain).format(), nom_affiche: 'Terrain' };
+        // Fourmilière
+        donnees['fourmiliere'] = { valeur: numeral(this.fourmiliere).format(), nom_affiche: 'Fourmilière' };
+        // Technologie
+        donnees['technologie'] = { valeur: numeral(this.technologie).format(), nom_affiche: 'Technologie' };
+        
+        // État et Colonisation (valeur sous forme de tableau pour affichage multi-colonnes)
+        const etatElements = [];
+        let etatImage = '';
+        switch (this.etat) {
+            case 'actif':
+                etatImage = IMG_ACTIF;
+                break;
+            case 'inactif_3_jours':
+                etatImage = IMG_INACTIF_3;
+                break;
+            case 'inactif_10_jours':
+                etatImage = IMG_INACTIF_10;
+                break;
+            case 'vacances':
+                etatImage = IMG_VACANCES;
+                break;
+            case 'banni':
+                etatImage = IMG_BANNI;
+                break;
+            default:
+                etatImage = ''; // Pas d'image si l'état n'est pas reconnu
+        }
+        if (etatImage) {
+            etatElements.push(etatImage);
+        }
+        if (this.colonise) {
+            etatElements.push(IMG_COLONISE);
+        }
+        donnees['etat'] = { valeur: etatElements, nom_affiche: 'État' };
+        
+        // Tag Alliance
+        donnees['tag_alliance'] = { valeur: this.allianceTag, nom_affiche: 'Tag Alliance' };
 
         const estExterieurResult = await this._invoquerCalculSecurise(this.estExterieur.bind(this));
-        donnees['Extérieur'] = { valeur: estExterieurResult, nom_affiche: 'Extérieur' };
+        console.log('données complément:', donnees['pseudo'].valeur)
+        if (estExterieurResult === true) { // estExterieur retourne true, false ou '<i>Restreint</i>'
+            console.log('pseudoAffiche:', donnees['pseudo'].valeur)
+            let pseudoAffiche = donnees['pseudo'].valeur
+            pseudoAffiche += ` (${this.allianceTag})`;
+            donnees['pseudo'].valeur = pseudoAffiche;
+        } 
         
         return donnees;
     }
@@ -314,7 +566,7 @@ Utils.register(class Joueur extends ObjetForum {
     // =============================================================================================
 
     async toUtilitaire() {
-        return `${await this.lireParametre('pseudo')} / ${this.id} / ${this._x} / ${this._y}` + (this.lireParametre('rang') ? ` / ${this.lireParametre('rang')} / ${this.lireParametre('ordreRang')}` : "");
+        return `${await this.lireParametre('pseudo')} / ${this.id} / ${this._x} / ${this._y}` + (this.lireParametre('grade') ? ` / ${this.lireParametre('grade')} / ${this.lireParametre('ordre_grade')}` : "");
     }
 
     async toJSON() { // Make toJSON method async
@@ -324,16 +576,20 @@ Utils.register(class Joueur extends ObjetForum {
             y: this._y,
             pseudo: await this.lireParametre('pseudo'), 
             terrain: this._terrain,
-            mv: this._mv,
+            etat: this._etat,
             ordreRadar: this.ordreRadar,
-            rang: await this.lireParametre('rang'), 
+            grade: await this.lireParametre('grade'), 
             niveauConstruction: this._niveauConstruction,
             niveauRecherche: this._niveauRecherche
         };
     }
 
     async estJoueurCourant() {
-        return await this.lireParametre('pseudo') == await monProfilJoueur.lireParametre('pseudo');
+        const estCourant = await this.lireParametre('pseudo') == await monProfilJoueur.lireParametre('pseudo');
+        if (estCourant && this.idSujet) { //S'assurer que le chargement inclu bien le forum
+            monProfilJoueur = this;
+        }
+        return estCourant;
     }
 
     estAttaquable() {
@@ -348,7 +604,7 @@ Utils.register(class Joueur extends ObjetForum {
         return this._niveauConstruction[3] + this._niveauConstruction[4] + this._niveauRecherche[0];
     }
 
-    getTempsParcours(x = monProfilJoueur.x, y = monProfilJoueur.y) {
+    getTempsParcours(x = monProfilJoueur._x, y = monProfilJoueur._y) {
         if (this._x === -1 || this._y === -1) {
             console.warn(`[Joueur] Calcul du temps de parcours pour ${this.lireParametre('pseudo')} sans coordonnées chargées.`);
             return Infinity;
@@ -357,12 +613,12 @@ Utils.register(class Joueur extends ObjetForum {
     }
 
     async getTempsParcours2(joueur) {
-        console.log(`[Joueur] DEBUG: Coordonnées pour le calcul du temps de parcours: this._x=${this._x}, this._y=${this._y}, joueur.x=${joueur.x}, joueur.y=${joueur.y}`);
-        if (this._x === -1 || this._y === -1 || joueur.x === -1 || joueur.y === -1) {
+        console.log(`[Joueur] DEBUG: Coordonnées pour le calcul du temps de parcours: this._x=${this._x}, this._y=${this._y}, joueur._x=${joueur._x}, joueur._y=${joueur._y}`);
+        if (this._x === -1 || this._y === -1 || joueur._x === -1 || joueur._y === -1) {
             console.warn(`[Joueur] Calcul du temps de parcours entre ${await this.lireParametre('pseudo')} et ${await joueur.lireParametre('pseudo')} sans coordonnées chargées.`);
             return Infinity;
         }
-        return Math.ceil(Math.pow(0.9, this._niveauRecherche[6]) * 637200 * (1 - Math.exp(-(Math.sqrt(Math.pow(joueur.x - this._x, 2) + Math.pow(joueur.y - this._y, 2)) / 350))));
+        return Math.ceil(Math.pow(0.9, this._niveauRecherche[6]) * 637200 * (1 - Math.exp(-(Math.sqrt(Math.pow(joueur._x - this._x, 2) + Math.pow(joueur._y - this._y, 2)) / 350))));
     }
 
     async getLienFourmizzz() {
@@ -504,8 +760,8 @@ Utils.register(class Joueur extends ObjetForum {
                 tooltip : {
                     crosshairs : [true],
                     formatter : function(){
-                        let s = Highcharts.dateFormat("%A %e %b", this.x);
-                        $.each(this.points, function(){s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this.y).format() + "</b>";});
+                        let s = Highcharts.dateFormat("%A %e %b", this._x);
+                        $.each(this.points, function(){s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this._y).format() + "</b>";});
                         return s;
                     },
                     shared : true,
@@ -581,29 +837,31 @@ Utils.register(class Joueur extends ObjetForum {
         console.log(`[Joueur.getLigneRadar] Valeur brute de lireParametre('pseudo'):`, pseudoParam, `Type: ${typeof pseudoParam}`);
         const pseudo = (typeof pseudoParam === 'object' && pseudoParam !== null && pseudoParam.hasOwnProperty('valeur')) ? pseudoParam.valeur : pseudoParam;
         console.log(`[Joueur.getLigneRadar] Début pour pseudo: ${pseudo}, ID: ${this._id}`);
-        let cellTerrain = this.estAttaquable() ? `<a class="gras ${this._mv ? "blue_light" : ""} href="/ennemie.php?Attaquer=${this._id}&lieu=1">${numeral(this._terrain).format()}</a>` : `<span ${this._mv ? `class="blue_light" title="En vacances"` : ""}>${numeral(this._terrain).format()}</span>`;
-        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._id}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="rang" height="20"/></a></td><td id="o_nom_${this._id}" class="left" title=""><a class="gras ${this._mv ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${this._id}" class="right reduce" title="">${cellTerrain}</td></tr>`);
+        let enVacances = this._etat === 'vacances';
+        let cellTerrain = this.estAttaquable() ? `<a class="gras ${enVacances ? "blue_light" : ""} href="/ennemie.php?Attaquer=${this._id}&lieu=1">${numeral(this._terrain).format()}</a>` : `<span ${enVacances ? `class="blue_light" title="En vacances"` : ""}>${numeral(this._terrain).format()}</span>`;
+        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._id}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td id="o_nom_${this._id}" class="left" title=""><a class="gras ${enVacances ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${this._id}" class="right reduce" title="">${cellTerrain}</td></tr>`);
         // event
         $("#o_maj_" + this._id).click(async (e) => {
             console.log(`[Joueur.getLigneRadar] Clic sur le bouton de rafraîchissement pour joueur: ${pseudo}, ID: ${this._id}`);
             e.preventDefault(); // Empêche le rechargement de la page
             console.log(`[Joueur.getLigneRadar] e.preventDefault() appelé pour joueur: ${pseudo}, ID: ${this._id}`);
-            let oldTerrain = numeral($("#o_terrain_" + this._id).text()).value(), oldMV = this._mv, bSave = false;
+            let oldTerrain = numeral($("#o_terrain_" + this._id).text()).value(), oldEtat = this._etat, bSave = false;
             $({deg : 0}).animate({deg : 360}, {duration : 600, step: (now) => {$(e.currentTarget).find("img").css({transform: "rotate(" + now + "deg)"});}});
             
             console.log(`[Joueur.getLigneRadar] Avant getProfil pour ${pseudo}. Pseudo actuel: ${pseudo}`);
             await this.getProfil().then(async (data) => {
                 console.log(`[Joueur.getLigneRadar] getProfil terminé pour ${pseudo}. Données reçues:`, data);
                 if(await this.chargerProfil(data)){
-                    console.log(`[Joueur.getLigneRadar] chargerProfil réussi pour ${pseudo}. Nouveau terrain: ${this._terrain}, Nouveau MV: ${this._mv}`);
+                    console.log(`[Joueur.getLigneRadar] chargerProfil réussi pour ${pseudo}. Nouveau terrain: ${this._terrain}, Nouvel état: ${this._etat}`);
                     // si il y une différence de terrain
                     let diff = this._terrain - oldTerrain;
-                    let cellTerrain = this.estAttaquable() ? `<a class="gras ${this._mv ? "blue_light" : ""} href="/ennemie.php?Attaquer=${this._id}&lieu=1">${numeral(this._terrain).format()}</a>` : `<span ${this._mv ? `class="blue_light" title="En vacances"` : ""}>${numeral(this._terrain).format()}</span>`;
+                    let enVacances = this._etat === 'vacances';
+                    let cellTerrain = this.estAttaquable() ? `<a class="gras ${enVacances ? "blue_light" : ""} href="/ennemie.php?Attaquer=${this._id}&lieu=1">${numeral(this._terrain).format()}</a>` : `<span ${enVacances ? `class="blue_light" title="En vacances"` : ""}>${numeral(this._terrain).format()}</span>`;
                     // si le joueur est sortie de MV ou si il a mis le MV
-                    if(oldMV != this._mv){
-                        console.log(`[Joueur.getLigneRadar] Changement de statut MV pour ${pseudo}. Old MV: ${oldMV}, New MV: ${this._mv}`);
+                    if(oldEtat != this._etat){
+                        console.log(`[Joueur.getLigneRadar] Changement de statut pour ${pseudo}. Ancien état: ${oldEtat}, Nouvel état: ${this._etat}`);
                         $("#o_terrain_" + this._id).html(cellTerrain);
-                        if(this._mv)
+                        if(enVacances)
                             $("#o_nom_" + this._id + " a").addClass("blue_light");
                         else
                             $("#o_nom_" + this._id + " a").removeClass("blue_light");
