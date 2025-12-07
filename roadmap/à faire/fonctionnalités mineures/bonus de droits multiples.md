@@ -9,6 +9,7 @@ Permettre d'ajouter/supprimer autant de bonus indépendants que voulu.
 - Ils sont ensuite additionnés aux droits issus du bonus précédent (ou base s'il n'y en a pas)
 - Ils sont ensuite ajustés selon la règle du bonus
 - Voir à ne mettre les couches de bonus qu'à ceux qui sont concernés (bonus différent de 1 et pas ajustement exact)
+- Donner un paramètre nom à chaque bonus
 
 ## Plan d'Implémentation
 

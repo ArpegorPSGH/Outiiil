@@ -25,7 +25,7 @@ Je me concentrerai sur les fonctions qui effectuent du parsing de chaînes de ca
 3.  **Améliorer `chargerJoueur(data)` :**
     *   **Objectif :** Rendre le parsing des titres de sujets plus robuste.
     *   **Actions :**
-        *   **Parsing de `titreSujet` :** Les `split(" / ")` sont fragiles. Utiliser des expressions régulières pour extraire les informations (`pseudo`, `id`, `x`, `y`, `rang`, `ordreRang`) de manière plus robuste.
+        *   **Parsing de `titreSujet` :** Les `split(" / ")` sont fragiles. Utiliser des expressions régulières pour extraire les informations (`pseudo`, `id`, `x`, `y`, `grade`, `ordreGrade`) de manière plus robuste.
         *   **Gestion de `infos.length` :** S'assurer que si `infos.length < 4`, le joueur n'est pas ajouté à la liste ou est ajouté avec des valeurs par défaut claires pour éviter des erreurs ultérieures.
 
 4.  **Améliorer `optionAdminCommande()` :**
@@ -50,6 +50,6 @@ Pour chaque fonction modifiée, les tests devraient couvrir les scénarios suiva
 
 ## Avancement
 - **`chargerCommande(data)`** : Le parsing des titres de sujets a été rendu plus robuste en utilisant des expressions régulières pour extraire l'état et les informations, remplaçant les opérations `split` fragiles.
-- **`chargerJoueur(data)`** : Le parsing des titres de sujets a été rendu plus robuste en utilisant des expressions régulières pour extraire les informations du joueur (pseudo, ID, coordonnées, rang, ordre de rang), et la gestion des titres malformés a été améliorée.
+- **`chargerJoueur(data)`** : Le parsing des titres de sujets a été rendu plus robuste en utilisant des expressions régulières pour extraire les informations du joueur (pseudo, ID, coordonnées, grade, ordre de grade), et la gestion des titres malformés a été améliorée.
 - **`optionAdminCommande()`** : Le parsing des titres de sujets lors de la modification des commandes a été rendu plus robuste en utilisant des expressions régulières, similaire à `chargerCommande`.
 - **`chargerConvois(commandes)`** : La fonction `Convoi.fromUtilitaireString` a été vérifiée et confirmée comme étant déjà robuste, retournant `null` en cas de format de message inattendu, ce qui évite les crashs et assure un retour par défaut.

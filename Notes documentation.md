@@ -2,14 +2,16 @@
 
 Ce document fournit des lignes directrices pour le développement de nouvelles fonctionnalités et la maintenance du framework Outiiil, en mettant l'accent sur la clarté, la robustesse et l'utilisation correcte des composants existants.
 
+L'extension est destinée à être déployée et testée sur les plateformes suivantes : Windows, macOS, Linux, Android et iPhone.
+
 ---
 
 ## 1. Ajout de Nouvelles Fonctionnalités
 
 ### 1.1 Fonctionnalités n'utilisant pas de données stockées sur le forum
 
-Pour ajouter une fonctionnalité d'alliance qui ne persiste pas de données sur le forum :
-- Implémentez la logique dans une classe héritant de `Page`.
+Pour ajouter une fonctionnalité qui ne persiste pas de données sur le forum :
+- Implémentez la logique dans une classe héritant de `Page` qui sera utilisée sur la page souhaitée.
 - Ajoutez le point d'entrée (méthode) de cette fonctionnalité à la liste statique `FONCTIONNALITES_LOCALES` de la classe `Page` correspondante.
 
 ### 1.2 Fonctionnalités utilisant des données stockées sur le forum
@@ -20,13 +22,14 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
 - **Objet :** Créez une classe héritant de `ObjetForum`.
     - Définissez sa version logique via `ObjetForum.VERSION_LOGIQUE`.
     - Spécifiez l'historique de ses lieux de stockage via `ObjetForum.LOCATION_HISTORY`.
+    - Déclarez les attributs de l'instance et leurs valeurs par défaut via `ObjetForum.ATTRIBUTS_OBJET`. Pour les objets complexes (comme `new Array()` ou une autre classe), utilisez une fonction factory (ex: `monAttribut: () => new MaClasse()`).
     - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.CLASSES_PARAMETRES`.
     - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
 - **Paramètre :** Créez une classe héritant de `ParametreObjetForum`.
     - Définissez sa version logique via `ParametreObjetForum.VERSION_LOGIQUE`.
-    - Définissez son historique de noms via `ParametreObjetForum.NAME_HISTORY`.
+    - Définissez son historique de formats via `ParametreObjetForum.FORMAT_HISTORY`. Chaque élément est un objet de la forme `{ nom: 'NomDuParam', format: 'un string contenant '(nom)' et '(valeur)'' }`.
     - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
-    - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`).
+    - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). La valeur peut être un type primitif (nombre, chaîne, booléen), une liste ou un dictionnaire, avec un nombre de niveaux d'imbrication (nesting) quelconque.
 
 ### 1.3 Ajout d'une Nouvelle Classe de Page
 
@@ -57,37 +60,56 @@ Lors des phases de test, si un format de données dans une section du forum chan
 
 Pour garantir la robustesse des fonctionnalités :
 - **Gestion du temps :** Assurez-vous que chaque fonctionnalité est robuste face à une imprécision d'une seconde sur la date d'arrivée prévue des convois, attaques et chasses.
-- **Validation des actions :** Lors de la validation par le joueur d'une action entraînant une modification d'un `ObjetForum` qui dépend de son état actuel, vérifiez que la modification est correcte par rapport à l'objet actuel avant d'effectuer la modification.
-- **Rechargement des données :**
-    - À chaque clic dont l'action dépend d'un `ObjetForum` enregistré sur le forum, rechargez cet objet en utilisant `ObjetForum.rafraichir()` avant d'effectuer l'action.
-    - Si l'action dépend de données de Fourmizzz (non stockées sur le forum), rechargez la page avant d'effectuer l'action.
+- **Validation des actions :** Lors de la validation par le joueur d'une action dépendant de paramètres externes au client Outiiil et susceptibles de changer, vérifiez avant de l'effectuer que les infos clés nécessaires à l'action n'ont pas changées dans les infos actualisées. Si ce n'est pas le cas, annuler l'action en le signalant par un message et prendre en compte les dernières infos dans l'affichage pour que l'utilisateur puisse recommencer.
+- **Actualisation des données :**
+    - Pour un `ObjetForum`, actualisez cet objet en utilisant `ObjetForum.rafraichir()`.
+    - Pour un objet classique, envoyez une (ou des) requête(s) ajax pour récupérer le contenu de la (ou des) page(s) actualisée(s), mais sans effectuer un rechargement visuellement.
 - **Gestion des collisions :** Si des collisions sont avérées ou qu'une fonctionnalité a besoin de s'assurer qu'un `ObjetForum` n'est pas modifié pendant qu'elle l'utilise, introduisez un mécanisme d'anti-collision sur le forum (par exemple, via un flag de réservation sur l'objet forum).
 
 ---
 
 ## 5. Bonnes Pratiques de Développement
 
-- **Organisation des fichiers :**
-    - Placez les classes de `Page`, `FonctionnaliteAlliance`, `ObjetForum`, `ParametreObjetForum` dans leurs dossiers respectifs sous `js/class`.
-    - Placez les gestionnaires (comme `GestionnaireDroits`, `GestionnaireVersions`) dans le dossier `js/class/framework`.
+- **Organisation des fichiers :** L'arborescence des classes sous `js/class` doit suivre la structure suivante :
+    - `framework/` : Contient les classes mères du framework (`Page`, `FonctionnaliteAlliance`, `ObjetForum`, `ParametreObjetForum`, etc.) ainsi que les gestionnaires.
+    - `page/` : Contient les classes qui héritent de `Page`.
+    - `fonctionnalite/` : Contient les classes qui héritent de `FonctionnaliteAlliance`, regroupées dans des sous-dossiers nommés d'après la page à laquelle elles s'appliquent.
+    - `objet/` : Contient les classes qui héritent de `ObjetForum`.
+    - `parametre/` : Contient les classes qui héritent de `ParametreObjetForum`, regroupées dans des sous-dossiers nommés d'après l'objet auquel elles appartiennent.
+- **Héritage et Formats :**
+    - Les classes de paramètres, objets, fonctionnalités et pages doivent directement hériter de leurs classes mères respectives.
+    - Les modifications de formats des paramètres (comme les formats de template string) ne doivent être effectuées que dans la classe mère des paramètres (`ParametreObjetForum`), et non dans les classes de paramètres filles.
 - **Création des objets :**
     - Créez les instances d'`ObjetForum` à l'intérieur de la classe `FonctionnaliteAlliance` (ou sa classe mère), dans un autre `ObjetForum` (via `objetsForumContenus`), ou dans la fonction d'initialisation de l'extension `initialiserFrameworkGlobal()` pour les objets globaux.
 - **Initialisation des gestionnaires :** Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation et hériter d'`ObjetForum`, et spécifier sa section dans `ObjetForum.LOCATION_HISTORY`.
 - **Unicité des historiques :**
-    - Deux `ParametreObjetForum` ne doivent jamais avoir le même historique de noms (`ParametreObjetForum.NAME_HISTORY`).
-    - Deux `ObjetForum` ne doivent jamais avoir le même historique de lieux (`ObjetForum.LOCATION_HISTORY`) et de classes de paramètres utilisés (`ObjetForum.CLASSES_PARAMETRES`).
+    - Le premier format de `ParametreObjetForum.FORMAT_HISTORY` sert d'ancre unique pour un paramètre. Deux classes de paramètres ne doivent jamais partager la même ancre.
+    - Le premier lieu de `ObjetForum.LOCATION_HISTORY` et le premier set de `ObjetForum.CLASSES_PARAMETRES` servent d'ancres uniques pour un objet. Deux classes d'objets ne doivent jamais partager les mêmes ancres.
 - **Modification des historiques :**
-    - Lors d'une modification de nom de paramètre, ajoutez le nouveau nom à sa liste statique `ParametreObjetForum.NAME_HISTORY`.
+    - Lors d'une modification de nom ou de format de paramètre, ajoutez un nouvel objet format `{ nom: '...', format: '...' }` à sa liste statique `ParametreObjetForum.FORMAT_HISTORY`.
     - Lors d'une modification de lieu d'enregistrement d'un objet, ajoutez le nouveau lieu à sa liste statique `ObjetForum.LOCATION_HISTORY`.
     - Lors d'une modification des paramètres d'un objet, ajoutez le nouveau set de paramètres à sa liste statique `ObjetForum.CLASSES_PARAMETRES`.
 - **Chargement des sous-objets :** Ne chargez les sous-objets (`ObjetForum.objetsForumContenus`) que lorsque cela est nécessaire pour réduire la latence.
 - **Réutilisation des paramètres :** Ne réutilisez pas un `ParametreObjetForum` existant si sa signification change ; créez-en un nouveau.
 - **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
+- **Exécution des fonctionnalités :** Le run des fonctionnalités ne doit contenir que les opérations à effectuer séquentiellement au moment du chargement de la page, le reste devra être lancé dans des fonctions `async` non `await`-ées.
 - **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` ou d'un `ParametreObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente, incrémentez sa propriété statique `VERSION_LOGIQUE`. Pour un `ObjetForum`, cela concerne des situations où, dans des conditions identiques, les paramètres ne seraient plus censés prendre la même valeur. Pour un `ParametreObjetForum`, cela s'applique quand une même valeur brute est traitée différemment.
 - **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
-- **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lireParametre()`, `ObjetForum.lireChaqueParametre()`, `ObjetForum.ecrireParametre()`, `ObjetForum.ecrireChaqueParametre()`, ne jamais accéder directement à sa propriété `valeur`.
+- **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lireParametre()`, `ObjetForum.lireChaqueParametre()`, `ObjetForum.ecrireParametre()`, `ObjetForum.ecrireChaqueParametre()`. Ces méthodes délèguent aux méthodes `Lire()` et `Ecrire()` de `ParametreObjetForum`, qui gèrent la concurrence via un système de verrous (locks) et assurent la validation des types de données. Ne jamais accéder directement à la propriété `valeur` d'un paramètre.
 - **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.
+- **Mise à jour de la documentation :** Après chaque fonctionnalité implémentée, assurez-vous de mettre à jour la documentation (si nécessaire) pour refléter les changements et les nouvelles pratiques.
+- **Gestion des droits d'administration Fourmizzz :** Il n'est pas nécessaire de surcharger la méthode `verifierDroits()` dans les classes héritant de `FonctionnaliteAlliance` pour gérer les droits d'administration Fourmizzz. La vérification est déjà incluse et délègue à la méthode `estAdminFourmizzz()` de la classe `Page` qui lance la fonctionnalité. Il suffit donc d'implémenter correctement la vérification dans la classe fille de `Page` concernée.
+- **Accès au forum :** Ne jamais accéder au forum ailleurs qu'en aval de la chaîne d'appel d'une fonctionnalité alliance.
 
+### 5.3 Configuration des Formats d'Enregistrement
+
+Le framework offre des propriétés statiques pour contrôler la manière dont les objets sont formatés lors de leur enregistrement sur le forum. Ces propriétés sont essentielles pour structurer les données de manière lisible.
+
+
+*   **`ObjetForum.SEPARATEUR_PARAMETRES`**
+    *   **Objectif :** Définir la chaîne de caractères utilisée pour séparer les différents paramètres d'un `ObjetForum` lors de leur concaténation pour l'enregistrement. Ceci est purement cosmétique.
+    *   **Utilisation :** Permet de contrôler la mise en page des paramètres dans le titre du sujet ou le message.
+    *   **Exemple :** `static SEPARATEUR_PARAMETRES = '\n';` (chaque paramètre sur une nouvelle ligne)
 
 ### 5.4 Compléments de Chargement et d'Affichage
 
@@ -123,6 +145,40 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
         }
     }
     ```
+
+*   **`_migrerValeur(valeurChargee)` (dans `ParametreObjetForum`)**
+    *   **Objectif :** Convertir une valeur de paramètre chargée depuis le forum d'un ancien format ou d'une ancienne valeur vers le format et la valeur actuels attendus par la classe fille.
+    *   **Utilisation :** Cette méthode est appelée par `ParametreObjetForum.chargerDepuisString()` juste après le parsing initial de la valeur. Elle doit être surchargée dans les classes filles lorsque le format interne (type de contenant) ou la signification de la valeur du paramètre change.
+    *   **Fonctionnement :**
+        1.  La méthode reçoit `valeurChargee`, qui est la valeur brute parsée depuis le forum (souvent une chaîne, un nombre, un booléen, ou un objet/tableau si le JSON a été parsé).
+        2.  La classe fille doit implémenter la logique de conversion pour transformer `valeurChargee` en un format et une valeur compatibles avec la propriété `valeur` actuelle de l'instance.
+        3.  Le framework tentera ensuite de valider et de caster la valeur retournée par `_migrerValeur` avec la méthode `_checkValeur`.
+    *   **Exemple (migration d'une valeur primitive vers un dictionnaire, et conversion de valeur) :**
+        ```javascript
+        class MonParametreMigrable extends ParametreObjetForum {
+            static VERSION_LOGIQUE = '2.0'; // Incrémenter la version logique si le format ou la valeur change
+            static FORMAT_HISTORY = [{ nom: 'MonParam', format: '(nom): (valeur) | ' }];
+            valeur = { 'cle1': 0, 'cle2': '' }; // Nouveau format: dictionnaire
+
+            async _migrerValeur(valeurChargee) {
+                // Migration de type de contenant (primitive vers dictionnaire)
+                if (typeof valeurChargee === 'number') {
+                    return { 'cle1': valeurChargee, 'cle2': 'valeur par défaut' };
+                }
+                // Migration de valeur (ex: 'a' en 0, 'b' en 1)
+                if (typeof valeurChargee === 'string') {
+                    switch (valeurChargee.toLowerCase()) {
+                        case 'a': return 0;
+                        case 'b': return 1;
+                        default: return valeurChargee; // Retourne la valeur telle quelle si pas de correspondance
+                    }
+                }
+                // Si c'est déjà un dictionnaire ou un autre type, le retourner tel quel
+                return valeurChargee;
+            }
+        }
+        ```
+    *   **Bonne Pratique :** Incrémentez `VERSION_LOGIQUE` de la classe de paramètre lorsque vous modifiez son format interne ou la signification de ses valeurs, et implémentez `_migrerValeur` pour assurer la rétro-compatibilité.
 
 *   **`completerRafraichissement()`**
     *   **Objectif :** Ajouter une logique spécifique à la fin du processus de rafraîchissement d'un objet.
@@ -162,6 +218,15 @@ Pour définir des attributs dont la valeur est dérivée d'autres paramètres et
         *   La chaîne `'<i>Restreint</i>'` si une `ErreurRestriction` est levée (indiquant que des données sous-jacentes sont restreintes).
         *   La chaîne `'<i>Incalculable</i>'` si le calcul aboutit à `NaN`, `null` ou `undefined` sans lever d'erreur.
 
+### 5.6 Affichage de Données en Colonnes Multiples
+
+La méthode `ObjetForum.afficher()` gère l'affichage de données en colonnes multiples.
+
+*   **Fonctionnement :**
+    1.  Si la valeur d'un `ParametreObjetForum` est un tableau, `afficher()` génère une cellule d'en-tête (`<th>`) avec un `colspan` égal à la taille du tableau (ou `1` si vide).
+    2.  Chaque élément du tableau est affiché dans une cellule `<td>` distincte. Si le tableau est vide, une seule cellule `<td></td>` est générée.
+    3.  Les paramètres manquants ou les valeurs `null`/`undefined` sont affichés comme des cellules vides.
+
 ---
 
 ## 6. Points de Fragilité
@@ -182,8 +247,9 @@ Ce document détaille les explications pour les points de vigilance identifiés 
 
 **Fonctionnement :**
 1.  Au démarrage, il découvre toutes les `FonctionnaliteAlliance` existantes via un registre global (`registreClasses.FonctionnaliteAlliance`).
-2.  Pour chaque fonctionnalité, il génère à la volée une classe `ParametreDroit` sur mesure, configurée avec l'historique des formats et des abréviations de la fonctionnalité (`FonctionnaliteAlliance.ABREVIATIONS_HISTORY`).
-3.  Toutes ces classes de paramètres sont ensuite regroupées pour définir la structure de la classe `ObjetForumDroits`, également créée dynamiquement.
+2.  Il crée dynamiquement une classe `ParametrePseudo` pour stocker le pseudo du joueur.
+3.  Pour chaque fonctionnalité découverte, il génère à la volée une classe `ParametreDroit` sur mesure. L'historique des formats (`FORMAT_HISTORY`) de ce paramètre est construit en combinant les templates de format de `GestionnaireDroits.FORMAT_HISTORY` avec chaque abréviation de `FonctionnaliteAlliance.ABREVIATIONS_HISTORY`.
+4.  Toutes ces classes de paramètres (`ParametrePseudo` et tous les `ParametreDroit`) sont ensuite regroupées pour définir la structure de la classe `ObjetForumDroits`, également créée dynamiquement.
 
 **Avantages :**
 *   **Flexibilité Extrême :** L'ajout d'une nouvelle `FonctionnaliteAlliance` ne requiert aucune modification manuelle du système de droits. Le framework la découvre et s'adapte automatiquement.
@@ -200,21 +266,32 @@ Ce mécanisme doit être accompagné de commentaires détaillés directement dan
 
 ### 7.2 Notes sur la Robustesse : Concurrence et Transactions
 
-**Contexte :** Le framework utilise un forum comme système de stockage, ce qui n'offre pas les garanties d'une base de données traditionnelle (comme les transactions atomiques ou le verrouillage de bas niveau).
+**Contexte :** Le framework utilise un forum comme système de stockage, ce qui n'offre pas les garanties d'une base de données traditionnelle. Pour pallier cela, un système de verrous (locks) a été implémenté pour gérer la concurrence d'accès depuis un même utilisateur.
 
-#### 7.2.1 Risque de Conditions de Concurrence (`Race Conditions`)
+#### 7.2.1 Gestion de la Concurrence par Verrous
 
-*   **Scénario :** Deux processus (par exemple, deux utilisateurs différents) tentent de modifier la même ressource sur le forum quasi-simultanément.
-    *   *Exemple 1 :* Deux extensions à jour détectent une version obsolète d'un paramètre sur le forum et essaient de mettre à jour le titre du sujet de version en même temps.
-    *   *Exemple 2 :* Deux nouveaux membres sont ajoutés à l'alliance, et le système tente de créer leurs objets de droits respectifs en parallèle.
-*   **Impact :** Dans la plupart des cas prévus par le framework, l'impact est bénin. La seconde écriture écrasera la première avec des données identiques. Cependant, cela constitue une faille de conception théorique.
-*   **Mesure :** Le système est conçu pour être "idempotent" : une opération répétée plusieurs fois produit le même résultat que si elle n'était exécutée qu'une seule fois. Il n'y a pas de verrouillage possible, donc la robustesse repose sur cette idempotence.
+Pour éviter les conditions de concurrence (`race conditions`), le framework utilise deux niveaux de verrous asynchrones :
 
-#### 7.2.2 Absence de Transactions Atomiques
+1.  **Verrou Global du `GestionnaireVersions` :**
+    *   **Objectif :** Empêcher que deux onglets ou processus tentent de lire ou de modifier simultanément les sujets de version dans la section 'Versions Outiiil'.
+    *   **Fonctionnement :** Le `GestionnaireVersions` possède un verrou unique. Toute opération (ex: `rafraichir`, `verifierCompatibiliteObjetForum`) doit d'abord acquérir ce verrou. Les demandes concurrentes sont mises en file d'attente et traitées séquentiellement, garantissant ainsi que les opérations sur la section des versions sont atomiques au niveau du gestionnaire.
 
-*   **Scénario :** Une opération métier complexe nécessite plusieurs écritures séquentielles sur le forum (par exemple, la création d'un `ObjetForum` principal dans un sujet, puis de ses 3 sous-objets dans des messages).
-*   **Risque :** Si une des écritures intermédiaires échoue (à cause d'une erreur réseau, d'une déconnexion, etc.), le système se retrouve dans un **état incohérent**. Les premières données sont écrites, mais pas les dernières.
+2.  **Verrous par Instance de `ParametreObjetForum` :**
+    *   **Objectif :** Gérer la concurrence au niveau de la lecture et de l'écriture de la valeur d'un paramètre individuel.
+    *   **Fonctionnement :** Chaque instance de `ParametreObjetForum` dispose d'un mécanisme de verrouillage sophistiqué :
+        *   **Verrou de Lecture (`Lire`, `genererStringPourEnregistrement`) :** Plusieurs opérations de lecture peuvent avoir lieu en parallèle.
+        *   **Verrou de Chargement (`chargerDepuisString`) :** Plusieurs opérations de chargement peuvent avoir lieu en parallèle, mais elles sont exclusives par rapport aux lectures et écritures.
+        *   **Verrou Exclusif (`Ecrire`) :** Une seule opération d'écriture est autorisée à la fois, et elle bloque toutes les autres opérations (lecture, chargement, autre écriture).
+    *   **Prévention du "Starvation" :** Un système de files d'attente priorise les écritures pour éviter qu'un flux constant de lectures n'empêche indéfiniment une écriture de s'exécuter.
+
+Grâce à ces mécanismes, les risques de corruption de données dus à des accès concurrents (par exemple, deux processus mettant à jour une version en même temps) sont considérablement réduits.
+
+#### 7.2.2 Transactions sur un Objet Unique (et ses objets contenus)
+
+*   **Scénario :** Une opération métier complexe nécessite de modifier un `ObjetForum` et tous ses `objetsForumContenus` en une seule fois (par exemple, via la méthode `enregistrerSurForum`).
+*   **Fonctionnement :** Le framework traite l'enregistrement d'un objet et de ses enfants comme une transaction unique. Il effectue toutes les écritures nécessaires sur le forum de manière séquentielle.
+*   **Limites :**
+    *   Cette atomicité est applicative, pas garantie par le système de stockage (le forum). Si une écriture intermédiaire échoue (erreur réseau, déconnexion), le système peut se retrouver dans un **état incohérent** (par exemple, l'objet parent est mis à jour mais pas ses enfants). Il n'y a pas de mécanisme de "rollback" (annulation).
+    *   La transaction ne s'applique qu'à **un seul `ObjetForum` parent et ses descendants directs**. Les opérations qui nécessitent de modifier plusieurs `ObjetForum` indépendants ne sont pas couvertes par ce mécanisme transactionnel.
 *   **Mesure :**
-    *   C'est une limitation inhérente à l'architecture. Il n'y a pas de mécanisme de "rollback" (annulation).
-    *   La logique de chargement (`ObjetForum.chargerDepuisString()`, `ObjetForum.chargerObjetForumsContenus()`) doit être suffisamment robuste pour gérer des données partiellement écrites (par exemple, en ignorant les objets conteneurs qui n'ont pas tous leurs enfants attendus).
-    *   Pour les opérations les plus critiques, il pourrait être envisagé d'ajouter une étape de validation post-écriture ou un flag "opération_terminée" pour marquer la complétude d'une écriture multi-étapes.
+    *   La logique de chargement (`ObjetForum.chargerDepuisString()`, `ObjetForum.chargerObjetForumsContenus()`) doit être conçue pour être robuste face à des données partiellement écrites.

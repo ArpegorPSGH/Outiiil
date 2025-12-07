@@ -14,7 +14,7 @@ Mettre en place affichage historiques :
 - Floods
 - Pex
 - Echange TdC
-- Statut membre (rang, priorité, coefficient, ajustement, droits accumulés)
+- Statut membre (grade, priorité, coefficient, ajustement, droits accumulés)
 - Chaque joueur accède à ses historiques et ceux globaux de l'alliance
 - Le conseil a également accès aux historiques de chaque joueur
 Pour cela, mettre en place un workflow extensible :

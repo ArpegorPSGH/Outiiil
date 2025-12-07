@@ -1,11 +1,11 @@
 # Tableau des floods
 
 ## Objectifs
-Tableau de floods (mesurer/sanctionner l’activité des passeurs)
+Tableau de floods
 
 ## Fonctionnement Détaillé
-- Détecter les floods non-opti
 - Gérer l'annulation des floods
+- Utiliser les floods en cours pour calculer l'armée dans la classe Joueur et par extension pour le recensement
 
 ## Plan d'Implémentation
 

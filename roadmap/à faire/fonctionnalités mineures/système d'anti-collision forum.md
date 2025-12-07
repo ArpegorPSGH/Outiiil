@@ -11,6 +11,9 @@ Empêcher les collisions de plusieurs clients sur un même sujet. A n'ajouter qu
 4. A l'issue du traitement, si le sujet est toujours réservé par le client, le mettre à jour et le libérer
 5. Sinon, il y a eu collision au moment de la réservation, et il faut reprendre à l'étape 2.
 - Retenter l'opération complète depuis le début en cas de collision pour ne pas rater de changement de situation
+- Résoudre problème mélange des marqueurs au moment de la réquisition causant état inconsistant
+- Résoudre problème attente indéfinie si un joueur ne termine jamais son opération
+- Ce système devrait être plus robuste et pouvoir remplacer celui avec les verrous?
 
 ## Plan d'Implémentation
 

@@ -1,13 +1,12 @@
-Timer les méthodes consulterSection et consulterSujet :
-    -   Si le temps d'exécution de consulterSujet est inférieur à 0.1ms, déléguer la lecture du forum pour le chargement des objets contenus aux objets contenus
-    -   Si le temps d'exécution est entre 0.1ms et 1ms, ne rien faire
-    -   Si le temps d'exécution de consulterSection est supérieure à 1ms, déléguer la lecture du forum pour le chargement des objets externes à la fonctionnalité
-    -   Si le temps d'exécution de consulterSujet est supérieur à 10ms, rajouter un flag pour ne pas charger les objets contenus si non nécessaire
+Définir l'adresse d'activation des pages dans une variable statique et les lancer via une boucle sur un registre des pages
 
-Vérification finale :
-    -   Cohérence avec le fonctionnement détaillé
-    -   Autocohérence
-    -   Concision
-    -   Optimisé
-    -   Complet
-    -   Clarté
+Retirer les fonctions obsolètes (notamment getters/setters, constructeur legacy) de joueur et les parties pour rétro-compatibilité
+Fusionner get et chargement recherche/construction joueur (si l'adresse n'est pas utilisée indépendamment ailleurs) et rajouter booléen de succès pour le succès de rafraichir
+
+Voir à créer une fonction page pour récupérer le contenu actuel de la page, prenant le nom du tableau et la classe d'objet à créer (statiquement?) et retournant une liste de ces objets. Permettre à la classe ObjetForum de s'initialiser à partir de la ligne d'en-tête et la ligne cible du tableau.
+
+Définir la politique de nommage des classes et des fichiers
+
+Lors du rafraîchissement du gestionnaire de droits, effectuer l'enregistrement sur forum des sujets de droit si toutes les fonctionnalités n'ont pas pu être chargées
+
+Créer un dictionnaire (nom colonne en clé) sur la pageAlliance pour stocker les colonnes du tableau et préciser si elles sont sortable/visibles (les fonctionnalités y inscrivent leurs colonnes ajoutées). La fonction d'ajout des en-têtes l'utilise.

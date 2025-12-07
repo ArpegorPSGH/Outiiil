@@ -36,10 +36,10 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
     *   Les cellules devront inclure :
         *   Un espace pour le bouton d'actualisation (peut-être vide ou un placeholder si non pertinent pour les joueurs extérieurs).
         *   Le pseudo du joueur avec son tag d'alliance (si `joueur.alliance` est différent de `Utils.alliance`). Le tag d'alliance devra être récupéré depuis l'objet `Joueur` du SDC.
-        *   Le rang du joueur.
+        *   Le grade du joueur.
         *   Le terrain, la technologie, la fourmilière (affichés comme N/C si non disponibles ou -1).
         *   Les colonnes Tdt et Retour (affichées comme N/C si `x` ou `y` sont -1).
-        *   Le bouton de modification de rang (`images/crayon.gif`) si l'utilisateur a les droits d'administration et que le joueur est connu de l'utilitaire.
+        *   Le bouton de modification de grade (`images/crayon.gif`) si l'utilisateur a les droits d'administration et que le joueur est connu de l'utilitaire.
 
 5.  **Mise à jour de `PageAlliance.actualiserMembre()` :**
     *   Cette méthode devra être revue pour s'assurer qu'elle gère correctement la recréation ou la mise à jour des lignes des joueurs hébergés à l'extérieur après une actualisation. La logique de `_fusionnerJoueursUtilitaire` et `_creerLigneJoueurExterieur` devra être réutilisée ou adaptée.
@@ -54,11 +54,11 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
 
 1.  **Test d'affichage initial :**
     *   **Scénario :** Un joueur est hébergé à l'extérieur et est connu dans l'utilitaire, mais n'est pas dans le tableau HTML de la page `/alliance.php`.
-    *   **Attendu :** Au chargement de la page, le joueur hébergé à l'extérieur apparaît dans le tableau des membres de l'alliance, avec son pseudo et son tag d'alliance (si différent de l'alliance courante). Ses informations (rang, technologie, fourmilière, etc.) sont affichées.
+    *   **Attendu :** Au chargement de la page, le joueur hébergé à l'extérieur apparaît dans le tableau des membres de l'alliance, avec son pseudo et son tag d'alliance (si différent de l'alliance courante). Ses informations (grade, technologie, fourmilière, etc.) sont affichées.
 
 2.  **Test de modification des données (avec droits admin) :**
     *   **Scénario :** L'utilisateur a les droits d'administration. Un joueur hébergé à l'extérieur est affiché dans le tableau.
-    *   **Attendu :** Un bouton ou un lien permet de modifier le rang et d'autres informations du joueur hébergé à l'extérieur. La modification est prise en compte et persistée via l'utilitaire.
+    *   **Attendu :** Un bouton ou un lien permet de modifier le grade et d'autres informations du joueur hébergé à l'extérieur. La modification est prise en compte et persistée via l'utilitaire.
 
 3.  **Test de modification des données (sans droits admin) :**
     *   **Scénario :** L'utilisateur n'a pas les droits d'administration. Un joueur hébergé à l'extérieur est affiché dans le tableau.

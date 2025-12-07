@@ -1,7 +1,7 @@
 # Réaffectation ouvrières
 
 ## Objectifs
-réaffecter automatiquement les ouvrières à la récolte.
+Réaffecter automatiquement les ouvrières à la récolte sans avoir à passer sur la page ressources.
 
 ## Fonctionnement Détaillé
 

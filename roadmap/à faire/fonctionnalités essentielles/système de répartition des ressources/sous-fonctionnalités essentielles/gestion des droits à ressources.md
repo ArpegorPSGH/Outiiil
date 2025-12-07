@@ -4,9 +4,9 @@
 Calculer et mettre à jour en continu les droits à ressources attribués à chaque joueur, et utiliser ces droits pour définir l'ordre de priorité des commandes.
 
 ## Fonctionnement Détaillé
-- Implémentation sur la page membres de nouvelles colonnes :
+- Implémentation dans une boite du dock invisible hors administration :
     - Coût du prochain TdP (masqué par défaut) : le minimum entre le coût du prochain niveau de Couveuse, du prochain niveau de Solarium et du prochain niveau de Laboratoire (accessibles via les données de recensement)
-    - Temps de base du prochain TdP (masqué par défaut) : Temps de construction/recherche du prochain TdP sans prendre en compte la réduction de 10% (géométriquement) par niveau d'architecture
+    - Temps de base du prochain TdP (masqué par défaut) : Temps de construction/recherche du prochain TdP sans prendre en compte la réduction de 10% (géométriquement) par niveau d'architecture (implémenter formule de calcul de temps de constructions/recherches)
     - Ratio coût/temps de base (masqué par défaut) : Coût du prochain TdP divisé par le temps de base du prochain TdP
     - Part du joueur de base (masqué par défaut) : Ratio coût/temps de base du joueur divisé par la somme des ratios coût/temps de base de tous les joueurs de l'alliance
     - Coefficient (en pourcentage, visible par défaut) : Enregistré dans le titre du sujet du joueur dans la section Membres Outiiil (initialisé à 0 lors de la création du sujet)
@@ -24,7 +24,7 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
 - Changer la logique de passage automatique d’en attente à en cours pour que la prochaine commande soit considérée d’après la valeur du score
 - Donner l’accès aux colonnes de calcul sur la page membres uniquement à ceux ayant les droits d’administration de l’alliance
 - Ajouter aux restrictions accès colonnes supplémentaires membres la présence d’un sujet pour le joueur dans la section membres
-- Donner possibilité modifier manuellement coefficient et droit accumulés à ceux ayant droit d’administration de l’alliance (utiliser la boîte rang actuelle)
+- Donner possibilité modifier manuellement coefficient et droit accumulés à ceux ayant droit d’administration de l’alliance (utiliser la boîte grade actuelle)
 - A chaque chargement de page, enregistrer dans l’extension la date, heure et minute de la prochaine récolte (affichée sur la page ressources)
 - Mise à jour (permettre la mise à jour à n'importe quel moment (pas nécessairement début de minute) si elle date de plus d'une demi-heure) :
     - A chaque début de minute de récolte (sur la base de la prochaine récolte enregistrée et le fait qu’elles ont lieu toutes les demi-heures), mettre à jour toutes les colonnes présentées dans l’image, de gauche à droite (sauf les colonnes de TdC à la dernière mise à jour et date de la dernière mise à jour qui sont mises à jour en dernier).
@@ -33,11 +33,13 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
     - Lorsque le coefficient ou la liberté d’ajustement sont changés pour un joueur, mettre à jour les parts des joueurs ajustées
     - Différence script de fond de l'extension et script lancé en fond par le main de l'extension?
 - Si un joueur dont le coefficient est non nul n'a aucun recensement dans son sujet membres, ne pas mettre à jour les droits accumulés pour tous les joueurs de l'alliance et afficher une notification toast informant que la mise à jour est bloquée à cause de certains joueurs n'ayant pas effectué de recensement et indiquer leurs pseudos
+- Créer une procédure de mise en place et la noter dans les instructions d'utilisation
 
 ## Plan d'Implémentation
 
 ## Tests à effectuer
 - Vérifier si la mise à jour se fait dès lors que l'onglet est ouvert, même sans être dessus.
+- Vérifier la procédure de mise en place
 
 ## Avancement
 - Les restrictions d'accès aux colonnes supplémentaires sur la page membres sous réserve de la présence d’un sujet pour le joueur dans la section membres ont été appliquées.

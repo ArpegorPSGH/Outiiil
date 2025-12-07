@@ -23,6 +23,7 @@ Permettre aux joueurs de communiquer et s'organiser facilement pour donner des t
 - Les troupes Xp sont postées sur le forum (à l'aide du simulateur?)
 - Prendre en compte les ressources volées
 - Gérer plusieurs cycles en cas de manquement des timings
+- Prendre en compte l'évolution de Attaque/Bouclier/Loge du défenseur ou Attaque/Bouclier/Etable à Cochenilles de l'attaquant entre le lancement et l'arrivée
 
 ## Plan d'Implémentation
 

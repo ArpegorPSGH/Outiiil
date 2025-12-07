@@ -1,7 +1,7 @@
-# Traceur
+# Eléments en cours
 
 ## Objectifs
-Réparer la fonctionnalité traceur de l'extension.
+Inclure dans le recensement les pontes, constructions et recherches en cours.
 
 ## Fonctionnement Détaillé
 
