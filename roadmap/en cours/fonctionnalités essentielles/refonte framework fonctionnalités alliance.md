@@ -47,7 +47,7 @@ classDiagram
         +verifierVersionSuffisanteEtPresenceSections()
         +verifierPresenceSujetMembre()
         +verifierDroits()
-        +chargerObjetForumsMultiples(classeObjetForum)
+        +chargerObjetsForum(classeObjetForum)
     }
 
     Page <|-- FonctionnaliteAlliance
@@ -133,7 +133,7 @@ Avant de s'exécuter, chaque `FonctionnaliteAlliance` suit une séquence de vali
 ##### **Chargement des Données**
 
 Le framework fournit des méthodes optimisées pour lire les données du forum :
-*   **Chargement de Masse (`chargerObjetForumsMultiples`) :** Permet de récupérer toutes les instances d'un type d'objet (ex: tous les `Joueur`) en une seule fois, en groupant les requêtes par section du forum.
+*   **Chargement de Masse (`chargerObjetsForum`) :** Permet de récupérer toutes les instances d'un type d'objet (ex: tous les `Joueur`) en une seule fois, en groupant les requêtes par section du forum.
 *   **Chargement Imbriqué (`chargerObjetForumsContenus`) :** Gère le cas où des objets sont contenus dans d'autres (ex: des `Commande` dans un `SujetDeCommandes`).
 *   **Mise en Cache :** Un cache au niveau de la `Page` évite de recharger plusieurs fois les mêmes données au sein d'une même page.
 
@@ -284,7 +284,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 *   **Objectif :** Vérifier si le joueur a un sujet membre en utilisant la liste des joueurs mise en cache.
 *   **Logique Détaillée :**
     1.  **Chargement des Joueurs :**
-        a.  La méthode appelle `await this.chargerObjetForumsMultiples(Joueur)` pour obtenir la liste des joueurs de l'alliance. Grâce au cache, cette opération ne contactera le forum que la première fois.
+        a.  La méthode appelle `await this.chargerObjetsForum(Joueur)` pour obtenir la liste des joueurs de l'alliance. Grâce au cache, cette opération ne contactera le forum que la première fois.
     2.  **Vérification :**
         a.  Elle récupère le pseudo du joueur actuel depuis les variables globales de l'extension.
         b.  Elle cherche une correspondance pour ce pseudo dans la liste des joueurs chargée.
@@ -317,9 +317,9 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
     3.  Appeler `this.page.estAdminFourmizzz` pour récupérer le statut éventuel d'admin Fourmizzz
     3.  Retourner le résultat du ou logique de ces appels.
 
-##### **8. `chargerObjetForumsMultiples(ClasseObjetForum)`**
+##### **8. `chargerObjetsForum(ClasseObjetForum)`**
 
-*   **Signature :** `async chargerObjetForumsMultiples(ClasseObjetForum: new () => T, chargerContenus: Boolean = true): Promise<Array<T>>`
+*   **Signature :** `async chargerObjetsForum(ClasseObjetForum: new () => T, chargerContenus: Boolean = true): Promise<Array<T>>`
 *   **Objectif :** Centraliser et optimiser la lecture du forum pour charger en masse toutes les instances d'un type d'objet, en utilisant un cache au niveau de la page pour éviter les chargements redondants.
 *   **Logique Détaillée :**
     1.  **Vérification du Cache :**
@@ -543,7 +543,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
                 const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
                 ordreAffichage = classesDerniereVersion.map(classe => {
                     const p = mapClasseInstance.get(classe);
-                    return p.constructor.getDernierNom();
+                    return p.constructor.getNomAffichage();
                 });
                 ```
                 ii. Les clés supplémentaires de `donnees` qui ne sont pas déjà dans `ordreAffichage` sont ajoutées.
@@ -940,10 +940,10 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     3.  Sinon, retourne une copie de `this.valeur`.
     4.  **Libération du verrou.**
 
-##### **15. `getDernierNom()`**
+##### **15. `getNomAffichage()`**
 
 *   **Classe :** `ParametreObjetForum`
-*   **Signature :** `static getDernierNom(): String`
+*   **Signature :** `static getNomAffichage(): String`
 *   **Objectif :** Retourner le nom le plus récent du paramètre à partir de son `FORMAT_HISTORY`.
 *   **Logique Détaillée :**
     1.  Retourne le `nom` du dernier élément du tableau statique `FORMAT_HISTORY`.
@@ -1064,8 +1064,8 @@ Hérite de la classe `ObjetForum`.
         a.  Lance en parallèle le chargement des droits existants et de la liste officielle des membres.
         ```javascript
         const [droitsActuels, membresOfficiels] = await Promise.all([
-            fonctionnaliteAppelante.chargerObjetForumsMultiples(this.classeObjetForumDroit),
-            fonctionnaliteAppelante.chargerObjetForumsMultiples(Joueur)
+            fonctionnaliteAppelante.chargerObjetsForum(this.classeObjetForumDroit),
+            fonctionnaliteAppelante.chargerObjetsForum(Joueur)
         ]);
         ```
 
@@ -1090,11 +1090,11 @@ Hérite de la classe `ObjetForum`.
             ```javascript
             this.mapDroits.clear();
             this.objetsForumContenus.forEach(droit => {
-                const pseudo = droit.lireParametreObjetForum('pseudo');
+                const pseudo = droit.lireParametreObjetForum('Pseudo');
                 if (pseudo) this.mapDroits.set(pseudo, droit);
             });
             ```
-        c.  Les droits des membres existants sont déjà à jour grâce au cache de `chargerObjetForumsMultiples`.
+        c.  Les droits des membres existants sont déjà à jour grâce au cache de `chargerObjetsForum`.
 
 ### **Plan Détaillé : Classe `GestionnaireVersions`**
 
@@ -1379,7 +1379,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
         a.  Remplacer le code de `run()` par :
             ```javascript
             console.log('TEST: Début lecture/MAJ...');
-            const commandes = await this.chargerObjetForumsMultiples(TestObjetForumCommande);
+            const commandes = await this.chargerObjetsForum(TestObjetForumCommande);
             const commandeChargee = commandes[0];
             commandeChargee.ecrireParametreObjetForum('Quantité', 200);
             await commandeChargee.enregistrerSurForum();
@@ -1416,9 +1416,9 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 #### **Procédure 1.3 : Robustesse au parsing (données corrompues)**
 *   **Contexte** : Le framework doit ignorer les données invalides sans planter.
 1.  **Préparation (Forum)** : Manuellement, éditer le titre du sujet de la commande pour qu'il soit invalide : `Quantité: ABC | Coordonnées: 1:1:1`.
-2.  **Action** : Lancer la page de test avec le code de `run()` qui exécute `chargerObjetForumsMultiples(TestObjetForumCommande)`.
+2.  **Action** : Lancer la page de test avec le code de `run()` qui exécute `chargerObjetsForum(TestObjetForumCommande)`.
 3.  **Vérification** :
-    *   **Critère de succès** : La méthode `chargerObjetForumsMultiples` doit retourner un tableau vide. L'extension ne doit afficher aucune erreur fatale dans la console.
+    *   **Critère de succès** : La méthode `chargerObjetsForum` doit retourner un tableau vide. L'extension ne doit afficher aucune erreur fatale dans la console.
 
 #### **Procédure 1.4 : Rafraîchissement d'un objet depuis le forum**
 *   **Contexte** : Valider que la méthode `rafraîchir()` met correctement à jour une instance d'objet avec des données modifiées manuellement sur le forum.
@@ -1429,7 +1429,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
     a.  Dans `run()`, insérer le code suivant :
         ```javascript
         console.log('TEST: Début rafraîchissement...');
-        const commandes = await this.chargerObjetForumsMultiples(TestObjetForumCommande);
+        const commandes = await this.chargerObjetsForum(TestObjetForumCommande);
         const commandeARafraichir = commandes.find(c => c.idSujet === ID_SUJET_MODIFIE); // Remplacer par l'ID réel
         await commandeARafraichir.rafraîchir();
         console.log('TEST: Fin rafraîchissement.');
@@ -1531,7 +1531,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
             console.log('TEST V1: Fin création.');
 
             // Recharger pour s'assurer que les versions sont bien prises en compte
-            const commandesChargeesV1 = await this.chargerObjetForumsMultiples(TestObjetForumCommandeV1);
+            const commandesChargeesV1 = await this.chargerObjetsForum(TestObjetForumCommandeV1);
             const commandeVerifieeV1 = commandesChargeesV1[0];
 
             console.log('TEST V1: Quantité chargée:', commandeVerifieeV1.lireParametreObjetForum('Quantité'));
@@ -1563,7 +1563,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
             ```javascript
             console.log('TEST V2: Début migration et vérification...');
             // Charger l'objet V1 existant, qui sera migré en mémoire vers V2
-            const commandesV2 = await this.chargerObjetForumsMultiples(TestObjetForumCommandeV2);
+            const commandesV2 = await this.chargerObjetsForum(TestObjetForumCommandeV2);
             const commandeMigreeV2 = commandesV2[0];
 
             console.log('TEST V2: NouvelleQuantite après migration:', commandeMigreeV2.lireParametreObjetForum('NouvelleQuantite'));
@@ -1727,7 +1727,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
     - La méthode `init` a été implémentée pour orchestrer la séquence de vérification complète (versions, présence membre, droits) et appeler `run()`.
     - La méthode privée `_decouvrirObjetForumsDependants` a été ajoutée pour analyser le code via un AST et trouver les dépendances d'objets.
     - Les méthodes de vérification `verifierVersionSuffisanteEtPresenceSections`, `verifierPresenceSujetMembre`, et `verifierDroits` (ainsi que ses helpers `rafraichirDroits` et `verifierDroit`) ont été implémentées.
-    - La méthode `chargerObjetForumsMultiples` a été implémentée pour charger en masse des objets avec un système de cache global.
+    - La méthode `chargerObjetsForum` a été implémentée pour charger en masse des objets avec un système de cache global.
 - **Note** : L'implémentation de la classe `FonctionnaliteAlliance` est maintenant complète.
 
 **Point 4 : Classe `ObjetForum` - Terminé**
@@ -1784,7 +1784,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 - **Logique implémentée dans `PageForum`** :
     - La méthode `transfererSujet(idSujet, idSectionDestination)` a été ajoutée.
 - **Logique implémentée dans `FonctionnaliteAlliance`** :
-    - La méthode `chargerObjetForumsMultiples` inclut désormais la logique de transfert du sujet vers la dernière section de l'objet si nécessaire.
+    - La méthode `chargerObjetsForum` inclut désormais la logique de transfert du sujet vers la dernière section de l'objet si nécessaire.
 - **Note** : La gestion dynamique des sections du forum est maintenant complète.
 
 **Point 9 : Fonctionnalités de modification de sujet/message - Terminé**

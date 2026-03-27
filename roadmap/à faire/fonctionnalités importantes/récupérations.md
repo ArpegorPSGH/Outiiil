@@ -4,7 +4,7 @@
 Gérer les ghosts/vols de TdC de l'alliance ou de joueurs extérieurs.
 
 ## Fonctionnement Détaillé
-- Système de suivi des soldes sur chaque alli/joueur :
+- Système de suivi des soldes sur chaque alli/joueur (dans les deux sens) :
     - Via le message de rapport au moment de l'impact
     - Via un tracé du TdC de l'alliance :
         - Identifier le/les joueurs extérieurs concernés si possible

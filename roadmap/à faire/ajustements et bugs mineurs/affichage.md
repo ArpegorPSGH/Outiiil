@@ -19,6 +19,7 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Activer l'adaptation automatique de la largeur des colonnes de la page membre (ou contracter technologie et fourmilière?). Voir alliance_old.
 - Mettre en cache le résultat de la vérification de version d'un paramètre/objet pour éviter les échecs de mise à jour à la chaîne
 - Mettre colonne exclusion de l'alliance en non visible par défaut
+- Dans boite C+, mettre 'Aucun Convoi' au lieu de Aucune
 
 ## Plan d'Implémentation
 

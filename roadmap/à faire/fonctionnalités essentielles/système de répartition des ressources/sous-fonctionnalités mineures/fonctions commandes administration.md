@@ -1,0 +1,15 @@
+# Fonctions commandes administration
+
+## Objectifs
+Ajouter des fonctions d'administration pour les commandes.
+
+## Fonctionnement Détaillé
+- Permettre de modifier l'état't d'une commande depuis la page commande
+- Ne pas autoriser l'annulation par l'administration (sur forum aussi)?
+- Permettre de modifier toutes les commandes depuis la page commande
+
+## Plan d'Implémentation
+
+## Tests à effectuer
+
+## Avancement

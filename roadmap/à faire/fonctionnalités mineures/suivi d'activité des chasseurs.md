@@ -5,8 +5,8 @@ Ajouter un tableau d'activité des chasseurs mentionnant la date et durée depui
 
 ## Fonctionnement Détaillé
 - Prendre en compte la date du dernier échange de C+
-- Gérer le cas où le joeur est en chasse ou en cours de descente (date et durée vide?)
-- Calculer le temps d'attente moyen entre le moment où la relance est possible et la relance effective pour chaque joueur sur les 10 dernières chasses
+- Gérer le cas où le joueur est en chasse ou en cours de descente (date et durée vide?)
+- Calculer le temps d'attente moyen entre le moment où la relance est possible et la relance effective pour chaque joueur sur les 10 dernières chasses, et prendre le min entre cette valeur et celle de la dernière chasse
 - Créer et piloter un bonus/malus du tableau des bonus en fonction de l'écart relatif du joueur à la moyenne de l'alliance
 
 ## Plan d'Implémentation

@@ -9,11 +9,13 @@ Corriger divers bugs mineurs pour des raisons esthétiques ou d'ergonomie.
 - Corriger le problème de classement des dates et des durées dans les tableaux
 - Corriger bug transfert sujet (envoyer une demande d'affichage du formulaire de transfert avant?)
 - Corriger non mise à jour du TdC du radar lors du clic sur refresh
-- Corriger première ligne du footer Alliance disparaît quand une colonne non visible de base est affichée
+- Corriger première ligne du footer Alliance disparaît quand le tableau est trop large pour tenir sur une ligne par joueur
 - Corriger classement affichage par temps de trajet page alliance
 - Corriger non conservation de l'ordre d'écriture des droits sur le forum lors de l'ajout d'une nouvelle fonctionnalité
 - Corriger non prise en compte dans le cache de la mise à jour sur le forum d'un objet droit lors de l'ajout d'une nouvelle fonctionnalité
 - Corriger colonne pour exclure de l'alliance sortable alors qu'elle ne devrait pas
+- Lorsqu'un élément de la boîte radar est déplacé en cliqué-glissé, l'extension reste bloquée
+- Par défaut, les champs de commande doivent être vides, et non comprter un objet
 
 ## Plan d'Implémentation
 
