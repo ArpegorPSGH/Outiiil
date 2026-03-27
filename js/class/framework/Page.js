@@ -21,7 +21,7 @@ class Page {
 
         for (const item of this.constructor.FONCTIONNALITES) {
             if (item.prototype instanceof FonctionnaliteAlliance) {
-                if(versionsPresentes) {
+                if (versionsPresentes) {
                     console.log('item fonctionnalite ', item)
                     const instance = new item(this);
                     await instance.init();

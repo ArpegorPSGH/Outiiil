@@ -8,10 +8,8 @@
 *
 * @class Commande
 */
-class Commande
-{
-    constructor(parametres = {})
-    {
+class Commande {
+    constructor(parametres = {}) {
         /**
         * id de la commande
         */
@@ -64,199 +62,171 @@ class Commande
     /**
     *
     */
-    get id()
-    {
+    get id() {
         return this._id;
     }
     /**
     *
     */
-    set id(newId)
-    {
+    set id(newId) {
         this._id = newId;
     }
     /**
     *
     */
-    get dateCommande()
-    {
+    get dateCommande() {
         return this._dateCommande;
     }
     /**
     *
     */
-    set dateCommande(newDate)
-    {
+    set dateCommande(newDate) {
         this._dateCommande = newDate;
     }
     /**
     *
     */
-    get dateSouhaite()
-    {
+    get dateSouhaite() {
         return this._dateSouhaite;
     }
     /**
     *
     */
-    set dateSouhaite(newDate)
-    {
+    set dateSouhaite(newDate) {
         this._dateSouhaite = newDate;
     }
     /**
     *
     */
-    get dateApres()
-    {
+    get dateApres() {
         return this._dateApres;
     }
     /**
     *
     */
-    set dateApres(newDate)
-    {
+    set dateApres(newDate) {
         this._dateApres = newDate;
     }
     /**
     *
     */
-    get demandeur()
-    {
+    get demandeur() {
         return this._demandeur;
     }
     /**
     *
     */
-    set demandeur(newJoueur)
-    {
+    set demandeur(newJoueur) {
         this._demandeur = newJoueur;
     }
     /**
     *
     */
-    get evolution()
-    {
+    get evolution() {
         return this._evolution;
     }
     /**
     *
     */
-    set evolution(newEvo)
-    {
+    set evolution(newEvo) {
         this._evolution = newEvo;
     }
     /**
      * Quantité restante de nourriture à livrer
      */
-    get nourriture()
-    {
+    get nourriture() {
         return this._totalNourritureDemandee - this._nourritureLivree;
     }
     /**
      * Quantité restante de materiaux à livrer
      */
-    get materiaux()
-    {
+    get materiaux() {
         return this._totalMateriauxDemandes - this._materiauxLivres;
     }
     /**
      * Quantité totale de nourriture demandée
      */
-    get totalNourritureDemandee()
-    {
+    get totalNourritureDemandee() {
         return this._totalNourritureDemandee;
     }
     /**
      *
      */
-    set totalNourritureDemandee(newTotal)
-    {
+    set totalNourritureDemandee(newTotal) {
         this._totalNourritureDemandee = newTotal;
     }
     /**
      * Quantité totale de materiaux demandés
      */
-    get totalMateriauxDemandes()
-    {
+    get totalMateriauxDemandes() {
         return this._totalMateriauxDemandes;
     }
     /**
      *
      */
-    set totalMateriauxDemandes(newTotal)
-    {
+    set totalMateriauxDemandes(newTotal) {
         this._totalMateriauxDemandes = newTotal;
     }
     /**
      * Quantité de nourriture déjà livrée
      */
-    get nourritureLivree()
-    {
+    get nourritureLivree() {
         return this._nourritureLivree;
     }
     /**
      *
      */
-    set nourritureLivree(newLivree)
-    {
+    set nourritureLivree(newLivree) {
         this._nourritureLivree = newLivree;
     }
     /**
      * Quantité de materiaux déjà livrée
      */
-    get materiauxLivres()
-    {
+    get materiauxLivres() {
         return this._materiauxLivres;
     }
     /**
      *
      */
-    set materiauxLivres(newLivres)
-    {
+    set materiauxLivres(newLivres) {
         this._materiauxLivres = newLivres;
     }
     /**
      *
      */
-    get etat()
-    {
+    get etat() {
         return this._etat;
     }
     /**
     *
     */
-    set etat(newEtat)
-    {
+    set etat(newEtat) {
         this._etat = newEtat;
     }
     /**
     *
     */
-    get dernierMiseAJour()
-    {
+    get dernierMiseAJour() {
         return this._dernierMiseAJour;
     }
     /**
     *
     */
-    set dernierMiseAJour(newDernier)
-    {
+    set dernierMiseAJour(newDernier) {
         this._dernierMiseAJour = newDernier;
     }
     /**
     *
     */
-    toUtilitaire()
-    {
-        return "[" + Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] == this._etat) + "] " + this._demandeur.x + " / " + this._demandeur.y + " / " + EVOLUTION[this._evolution] + " / " + this._totalMateriauxDemandes + " / " + this._materiauxLivres + " / " + this._totalNourritureDemandee + " / " + this._nourritureLivree + " / " + moment(this._dateSouhaite).format(("D MMM YYYY")) + (this._dateApres ? " / " + moment(this._dateApres).format(("D MMM YYYY")) : "");
+    async toUtilitaire() {
+        return "[" + Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] == this._etat) + "] " + await this._demandeur.x + " / " + await this._demandeur.y + " / " + EVOLUTION[this._evolution] + " / " + this._totalMateriauxDemandes + " / " + this._materiauxLivres + " / " + this._totalNourritureDemandee + " / " + this._nourritureLivree + " / " + moment(this._dateSouhaite).format(("D MMM YYYY")) + (this._dateApres ? " / " + moment(this._dateApres).format(("D MMM YYYY")) : "");
     }
     /**
      *
      */
-    parseUtilitaire(id, demandeur, etat, infos, dernierConvoi)
-    {
+    parseUtilitaire(id, demandeur, etat, infos, dernierConvoi) {
         this._id = id;
-        this._demandeur = new Joueur({pseudo : demandeur, x : infos[0], y : infos[1]});
+        this._demandeur = new Joueur({ pseudo: demandeur, x: infos[0], y: infos[1] });
         this._evolution = EVOLUTION.indexOf(infos[2]);
         this._totalMateriauxDemandes = parseInt(infos[3]) || 0;
         this._materiauxLivres = parseInt(infos[4]) || 0;
@@ -271,98 +241,90 @@ class Commande
     /**
      *
      */
-    estHorsTard()
-    {
+    estEnRetard() {
         return moment().diff(moment(this._dateSouhaite), "days") > 0;
     }
     /**
     *
     */
-    getAttente()
-    {
+    getAttente() {
         return moment().diff(moment(this._dateSouhaite), "days");
     }
     /**
     *
     */
-    estTermine()
-    {
+    estTermine() {
         return !this._nourriture && !this._materiaux;
     }
     /**
     *
     */
-    estTermineRecent()
-    {
+    estTermineRecent() {
         return this._derniereMiseAJour.isAfter(moment().subtract(1, 'days'));
     }
     /**
     *
     */
-    async estAFaire()
-    {
-        return !(this._etat == ETAT_COMMANDE["Supprimée"] || this._etat == ETAT_COMMANDE["Annulée"] || this._etat == ETAT_COMMANDE["Terminée"] || (this._etat == ETAT_COMMANDE["Nouvelle"] && await this._demandeur.lireParametre('pseudo') != await monProfilJoueur.lireParametre('pseudo')));
+    async estAFaire() {
+        return !(this._etat == ETAT_COMMANDE["Supprimée"] || this._etat == ETAT_COMMANDE["Annulée"] || this._etat == ETAT_COMMANDE["Terminée"] || (this._etat == ETAT_COMMANDE["Nouvelle"] && await this._demandeur.lireParametre('Pseudo') != await monProfilJoueur.lireParametre('Pseudo')));
     }
     /**
     *
     */
-    estValide()
-    {
+    estValide() {
         if (this._totalNourritureDemandee <= 0 && this._totalMateriauxDemandes <= 0)
             return "La quantité totale de nourriture ou de matériaux demandée doit être supérieure à zéro.";
-        if(this._totalNourritureDemandee < 0)
+        if (this._totalNourritureDemandee < 0)
             return "Quantité totale de nourriture demandée incorrecte.";
-        if(this._totalMateriauxDemandes < 0)
+        if (this._totalMateriauxDemandes < 0)
             return "Quantité totale de materiaux demandés incorrecte.";
-        if(this._nourritureLivree < 0 || this._nourritureLivree > this._totalNourritureDemandee)
-             return "Quantité de nourriture livrée incorrecte.";
-        if(this._materiauxLivres < 0 || this._materiauxLivres > this._totalMateriauxDemandes)
-             return "Quantité de materiaux livrés incorrecte.";
-        if(!this._dateSouhaite.isValid())
+        if (this._nourritureLivree < 0 || this._nourritureLivree > this._totalNourritureDemandee)
+            return "Quantité de nourriture livrée incorrecte.";
+        if (this._materiauxLivres < 0 || this._materiauxLivres > this._totalMateriauxDemandes)
+            return "Quantité de materiaux livrés incorrecte.";
+        if (!this._dateSouhaite.isValid())
             return "Date de la demande invalide.";
-        if(this._dateApres && !moment(this._dateApres, "YYYY-MM-DD").isValid())
+        if (this._dateApres && !moment(this._dateApres, "YYYY-MM-DD").isValid())
             return "Date de commencement livraison invalide.";
         return "";
     }
     /**
      *
      */
-    async toHTML()
-    {
+    async toHTML() {
         let apres = !this._dateApres || moment().isSameOrAfter(moment(this._dateApres));
         let html = `<tr data="${this._id}">
             <td>${await this._demandeur.getLienFourmizzz()}</a></td>
             <td>${moment(this._dateCommande).format("D MMM YYYY")}</td> <!-- Nouvelle colonne Date commande -->
             <td>${numeral(this._totalNourritureDemandee).format()}</td><td class='centre'>${numeral(this._totalMateriauxDemandes).format()}</td><td>${numeral(this.nourriture).format()}</td><td class='centre'>${numeral(this.materiaux).format()}</td>
             <td>${moment(this._dateSouhaite).format("D MMM YYYY")}</td>`;
-        if(apres){
+        if (apres) {
             let attente = this.getAttente();
-            switch(true){
-                case attente > 0 :
+            switch (true) {
+                case attente > 0:
                     html += `<td><img src='images/icone/3rondrouge.gif'/></td>`;
                     break;
-                case attente > -3 :
+                case attente > -3:
                     html += `<td><img src='images/icone/2rondorange.gif'/></td>`;
                     break;
-                default :
+                default:
                     html += `<td><img src='images/icone/1rondvert.gif'/></td>`;
                     break;
             }
-        }else
+        } else
             html += `<td><img src="${IMG_CROIX}" alt='supprimer' title='Ne pas livrer avant le ${moment(this._dateApres).format("DD-MM-YYYY")}'/></td>`;
         // Etat
         html += `<td ${this._etat == ETAT_COMMANDE.Nouvelle ? "title='Un chef doit valider cette commande.'" : ""}>${Object.keys(ETAT_COMMANDE).find(key => ETAT_COMMANDE[key] === this._etat)}</td>`;
         // Temps de trajet
         html += `<td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._demandeur))}</td>
             ${apres && this._etat == ETAT_COMMANDE["En cours"] ? "<td><a id='o_commande" + this._id + "' href=''><img src='" + IMG_LIVRAISON + "' alt='livrer'/></a></td>" : "<td></td>"}
-            ${(await this._demandeur.lireParametre('pseudo') == await monProfilJoueur.lireParametre('pseudo')) ? "<td><a id='o_modifierCommande" + this._id + "' href=''><img src='" + IMG_CRAYON + "' alt='modifier'/></a> <a id='o_supprimerCommande" + this._id + "' href=''><img src='" + IMG_CROIX + "' alt='supprimer'/></a></td></tr>" : "<td></td></tr>"}`;
+            ${(await this._demandeur.lireParametre('Pseudo') == await monProfilJoueur.lireParametre('Pseudo')) ? "<td><a id='o_modifierCommande" + this._id + "' href=''><img src='" + IMG_CRAYON + "' alt='modifier'/></a> <a id='o_supprimerCommande" + this._id + "' href=''><img src='" + IMG_CROIX + "' alt='supprimer'/></a></td></tr>" : "<td></td></tr>"}`;
         return html;
     }
     /**
     *
     */
-    ajouterEvent(page, utilitaire)
-    {
+    ajouterEvent(page, utilitaire) {
         $("#o_commande" + this._id).click(async (e) => {
             let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.niveauConstruction[11] / 2)));
             let materialsToPrefill = Math.min(this.materiaux, transportCapacity);
@@ -373,9 +335,9 @@ class Commande
 
             $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
             $("#nbNourriture").val(nourishmentToPrefill);
-            $("#pseudo_convoi").val(await this._demandeur.lireParametre('pseudo'));
+            $("#pseudo_convoi").val(await this._demandeur.lireParametre('Pseudo'));
             $("#o_idCommande").val(this._id);
-            $("html").animate({scrollTop : 0}, 600);
+            $("html").animate({ scrollTop: 0 }, 600);
             return false;
         });
         $("#o_modifierCommande" + this._id).click(async (e) => {
@@ -384,13 +346,13 @@ class Commande
             return false;
         });
         $("#o_supprimerCommande" + this._id).click(async (e) => {
-            if(confirm("Supprimer cette commande ?")){
+            if (confirm("Supprimer cette commande ?")) {
                 this._etat = ETAT_COMMANDE.Supprimée;
                 await utilitaire.modifierSujet(this.toUtilitaire(), " ", this._id).then(async (data) => {
-                    $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
+                    $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
                     await page.actualiserCommande();
                 }, (jqXHR, textStatus, errorThrown) => {
-                    $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
+                    $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la mise à jour des commandes." });
                 });
             }
             return false;
@@ -399,8 +361,7 @@ class Commande
     /**
     *
     */
-    ajouteConvoi(convoi)
-    {
+    ajouteConvoi(convoi) {
         console.log(`[Commande][ajouteConvoi] Début de l'ajout du convoi à la commande ${this._id}.`);
         console.log(`[Commande][ajouteConvoi] Convoi à ajouter: Nourriture=${convoi.nourriture}, Matériaux=${convoi.materiaux}`);
         console.log(`[Commande][ajouteConvoi] État actuel de la commande: Nourriture livrée=${this._nourritureLivree}, Matériaux livrés=${this._materiauxLivres}`);
@@ -421,7 +382,7 @@ class Commande
             this._materiauxLivres = this._totalMateriauxDemandes;
         }
         // on met a jour le status si tout est livré
-        if(!this.nourriture && !this.materiaux) {
+        if (!this.nourriture && !this.materiaux) {
             console.log(`[Commande][ajouteConvoi] Toutes les ressources ont été livrées. Changement de l'état de la commande à "Terminée".`);
             this._etat = ETAT_COMMANDE.Terminée;
         } else {

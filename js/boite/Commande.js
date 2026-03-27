@@ -10,123 +10,162 @@
 * @constructor
 * @extends Boite
 */
-class BoiteCommande extends Boite
-{
-    constructor(commande, utilitaire, page)
-    {
+class BoiteCommande extends Boite {
+    constructor(commande, page) {
         super("o_boiteCommande" + commande.id, "Commander des ressources");
         /**
-        *
+        * @type {Commande} Instance de la commande (ObjetForum)
         */
         this._commande = commande;
         /**
-        *
-        */
-        this._utilitaire = utilitaire;
-        /**
-        *
+        * @type {Page} Instance de la page Commerce
         */
         this._page = page;
+        /**
+        * @type {boolean} Indique si la commande est nouvelle (pas encore enregistrée)
+        */
+        this._estNouvelle = !commande.idSujet;
     }
-	/**
+    /**
     * Affiche la boite.
     *
-    * @private
     * @method afficher
     */
-	async afficher()
-	{
-        if(await super.afficher())
-            this.getForm().css().event();
+    async afficher() {
+        if (await super.afficher())
+            await this.getForm().then(async () => await this.css().event());
         return this;
-	}
-	/**
-	* Applique le style propre à la boite.
+    }
+    /**
+    * Applique le style propre à la boite.
     *
-	* @private
-	* @method css
-	*/
-	css()
-	{
+    * @private
+    * @method css
+    */
+    css() {
         super.css();
         return this;
     }
-	/**
-	* Ajoute les evenements propres à la boite.
+    /**
+    * Ajoute les evenements propres à la boite.
     *
-	* @private
-	* @method event
-	*/
-	event()
-	{
+    * @private
+    * @method event
+    */
+    async event() {
         super.event();
-        $("input[name='o_dateCommande'], input[name='o_dateApres']").datepicker({...DATEPICKER_OPTION, minDate : new Date(), dateFormat : "dd-mm-yy"});
-        // si la commande est en ajout on autocomplete les champs en fonction de l'evo
-        if(!this._utilitaire.commande.hasOwnProperty(this._commande.id))
-            $("#o_form" + this._commande.id + " select[name='o_evolution']").change((e) => {
-                let qte = Utils.calculQuantite(parseInt(e.currentTarget.value));
-                $("#o_form" + this._commande.id + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
-                $("#o_form" + this._commande.id + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
+        $("input[name='o_dateCommande'], input[name='o_dateApres']").datepicker({ ...DATEPICKER_OPTION, minDate: new Date(), dateFormat: "dd-mm-yy" });
+
+        // Autocomplete des champs en fonction de l'évolution (uniquement pour les nouvelles commandes)
+        if (this._estNouvelle) {
+            $("#o_form" + await this._commande.id + " select[name='o_evolution']").change(async (e) => {
+                let qte = await Utils.calculQuantite(parseInt(e.currentTarget.value));
+                $("#o_form" + await this._commande.id + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
+                $("#o_form" + await this._commande.id + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
             });
-        $("#o_form" + this._commande.id + " input[name^='o_quantite']").on("input", (e) => {
+        }
+
+        $("#o_form" + await this._commande.id + " input[name^='o_quantite']").on("input", (e) => {
             return $(e.currentTarget).val(numeral($(e.currentTarget).val()).format());
         });
-        $("#o_commander" + this._commande.id).click((e) => {
+
+        $("#o_commander" + await this._commande.id).click(async (e) => {
             e.preventDefault();
-            this._commande.evolution = $("#o_form" + this._commande.id + " select[name='o_evolution']").val();
-            this._commande.totalNourritureDemandee = numeral($("#o_form" + this._commande.id + " input[name='o_quantiteNou']").val()).value();
-            this._commande.totalMateriauxDemandes = numeral($("#o_form" + this._commande.id + " input[name='o_quantiteMat']").val()).value();
-            this._commande.dateSouhaite = moment($("#o_form" + this._commande.id + " input[name='o_dateCommande']").val(), "DD-MM-YYYY");
-            let dateApres = $("#o_form" + this._commande.id + " input[name='o_dateApres']").val();
-            this._commande.dateApres = dateApres ? moment($("#o_form" + this._commande.id + " input[name='o_dateApres']").val(), "DD-MM-YYYY") : null;
-            let message = this._commande.estValide();
-            if(!message){
-                // si la commande n'est pas dans l'utilitaire on est en ajout
-                if(!this._utilitaire.commande.hasOwnProperty(this._commande.id)){
-                    // si la commande n'est pas dans l'utilitaire c'est un ajout
-                    this._utilitaire.creerSujet(this._commande.toUtilitaire(), " ", monProfilUtilisateur.parametre["Commandes Outiiil"].valeur).then(async (data) => {
-                        let response = $(data).text();
-                        if(response.includes("Accès refusé."))
-                            $.toast({...TOAST_WARNING, text : response + " Vous n'avez pas les droits de créer de commandes."});
-                        else{
-                            $.toast({...TOAST_SUCCESS, text : "Commande ajoutée avec succès."});
-                            this._utilitaire.commande[this._commande.id] = this._commande;
-                            await this._page.actualiserCommande();
-                        }
-                    }, (jqXHR, textStatus, errorThrown) => {
-                         $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de l'ajout de votre commande."});
-                    });
-                }else{
-                    // si la commande est deja dans l'utilitaire c'est qu'on la modifie sinon c'est un ajout
-                    this._utilitaire.modifierSujet(this._commande.toUtilitaire(), " ", this._commande.id).then(async (data) => {
-                        $.toast({...TOAST_INFO, text : "Commande mise à jour avec succès."});
-                        this._utilitaire.commande[this._commande.id] = this._commande;
-                        await this._page.actualiserCommande();
-                    }, (jqXHR, textStatus, errorThrown) => {
-                         $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
+
+            // Récupérer les valeurs du formulaire
+            const evolution = parseInt($("#o_form" + await this._commande.id + " select[name='o_evolution']").val());
+            const nourritureDemandee = numeral($("#o_form" + await this._commande.id + " input[name='o_quantiteNou']").val()).value();
+            const materiauxDemandes = numeral($("#o_form" + await this._commande.id + " input[name='o_quantiteMat']").val()).value();
+            const dateSouhaiteeStr = $("#o_form" + await this._commande.id + " input[name='o_dateCommande']").val();
+            const dateApresStr = $("#o_form" + await this._commande.id + " input[name='o_dateApres']").val();
+
+            // Mettre à jour les paramètres de la commande
+            await this._commande.ecrireChaqueParametre({
+                'Évolution': evolution,
+                'Nourriture Demandée': nourritureDemandee,
+                'Matériaux Demandés': materiauxDemandes,
+                'Date Souhaitée': moment(dateSouhaiteeStr, "DD-MM-YYYY"),
+                'Date Après': dateApresStr ? moment(dateApresStr, "DD-MM-YYYY") : null
+            });
+
+            // Si c'est une nouvelle commande, définir les paramètres initiaux
+            if (this._estNouvelle) {
+                await this._commande.ecrireChaqueParametre({
+                    'Demandeur': await monProfilJoueur.lireParametre('Pseudo'),
+                    'Date Commande': moment()
+                });
+            }
+
+            // Valider la commande
+            let message = await this._commande.estValide();
+            if (!message) {
+                try {
+                    // Enregistrer sur le forum via le framework
+                    await this._commande.enregistrerSurForum();
+
+                    if (this._estNouvelle) {
+                        $.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
+                    } else {
+                        $.toast({ ...TOAST_INFO, text: "Commande mise à jour avec succès." });
+                    }
+
+                    // Actualiser l'affichage via GestionCommandes
+                    const gestionCommandes = this._commande.fonctionnaliteCreatrice;
+                    if (gestionCommandes) {
+                        await gestionCommandes.actualiserCommandes();
+                    }
+
+                    this.masquer();
+                } catch (error) {
+                    console.error("[BoiteCommande] Erreur lors de l'enregistrement:", error);
+                    $.toast({
+                        ...TOAST_ERROR,
+                        text: `Une erreur est survenue lors de ${this._estNouvelle ? "l'ajout" : "la mise à jour"} de la commande.`
                     });
                 }
-                this.masquer();
-            }else
-                $.toast({...TOAST_ERROR, text : message});
+            } else {
+                $.toast({ ...TOAST_ERROR, text: message });
+            }
             return false;
         });
         return this;
-	}
+    }
     /**
+    * Génère le formulaire de la boite.
     *
+    * @private
+    * @method getForm
     */
-    getForm()
-    {
-        let select = "", qte = Utils.calculQuantite(0);
-        for(let i = 0 ; i < EVOLUTION.length ; select += `<option value="${i}" ${i == this._commande.evolution ? "selected" : ""}>${EVOLUTION[i++]}</option>`);
-        $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${this._commande.id}">
+    async getForm() {
+        // Récupérer les paramètres actuels de la commande de manière asynchrone
+        const donneesCommande = await this._commande.lireChaqueParametre([
+            'Évolution',
+            'Nourriture Demandée',
+            'Matériaux Demandés',
+            'Date Souhaitée',
+            'Date Après'
+        ]);
+
+        const evolution = donneesCommande['Évolution'] || 0;
+        const nourritureDemandee = donneesCommande['Nourriture Demandée'] || 0;
+        const materiauxDemandes = donneesCommande['Matériaux Demandés'] || 0;
+        const dateSouhaite = moment.isMoment(donneesCommande['Date Souhaitée']) ? donneesCommande['Date Souhaitée'].format("DD-MM-YYYY") : (donneesCommande['Date Souhaitée'] || "");
+        const dateApres = moment.isMoment(donneesCommande['Date Après']) ? donneesCommande['Date Après'].format("DD-MM-YYYY") : (donneesCommande['Date Après'] || "");
+
+        // Générer les options d'évolution
+        let select = "";
+        let qte = await Utils.calculQuantite(evolution);
+        for (let i = 0; i < EVOLUTION.length; i++) {
+            select += `<option value="${i}" ${i == evolution ? "selected" : ""}>${EVOLUTION[i]}</option>`;
+        }
+
+        $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.id}">
             <div class="group"><select name="o_evolution" class="o_input" required>${select}</select><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Evolution</label></div>
-            <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${this._commande.totalNourritureDemandee ? numeral(this._commande.totalNourritureDemandee).format() : (qte[0] ? numeral(qte[0]).format() : 0)}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
-            <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${this._commande.totalMateriauxDemandes ? numeral(this._commande.totalMateriauxDemandes).format() : (qte[1] ? numeral(qte[1]).format() : 0)}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
-            <div class="group"><input name="o_dateCommande" class="o_input" type="text" value="${this._commande.dateSouhaite ? moment(this._commande.dateSouhaite).format("DD-MM-YYYY") : ""}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Pour le*</label></div>
-            <div class="group"><input name="o_dateApres" class="o_input" type="text" value="${this._commande.dateApres ? moment(this._commande.dateApres).format("DD-MM-YYYY") : ""}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>&Agrave; Partir du</label></div>
-            <br/><button id="o_commander${this._commande.id}" name="o_btnCommande" class="o_button f_success">Commander</button>
+            <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${nourritureDemandee}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
+            <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${materiauxDemandes}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
+            <div class="group"><input name="o_dateCommande" class="o_input" type="text" value="${dateSouhaite}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Pour le*</label></div>
+            <div class="group"><input name="o_dateApres" class="o_input" type="text" value="${dateApres}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>&Agrave; Partir du</label></div>
+            <br/><button id="o_commander${await this._commande.id}" name="o_btnCommande" class="o_button f_success">Commander</button>
             </form></div>`);
         return this;
     }

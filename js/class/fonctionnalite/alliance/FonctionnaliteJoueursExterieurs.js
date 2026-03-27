@@ -19,27 +19,53 @@ Utils.register(class FonctionnaliteJoueursExterieurs extends FonctionnaliteAllia
         await this.page.synchroniserJoueursDepuisDOM();
         const joueursDejaDansTableau = Object.keys(this.page._alliance.joueurs);
 
-        const tousLesMembres = await this.chargerObjetForumsMultiples(Joueur);
-        const membresAPotentiellementAjouter = [];
-        for(const membre of tousLesMembres) {
-            if(!joueursDejaDansTableau.includes(await membre.lireParametre('pseudo'))) {
-                membresAPotentiellementAjouter.push(membre);
+        const tousLesMembres = await this.chargerObjetsForum(Joueur);
+        const membresExterieurs = [];
+        for (const membre of tousLesMembres) {
+            if (!joueursDejaDansTableau.includes(await membre.lireParametre('Pseudo'))) {
+                membresExterieurs.push(membre);
             }
         }
-        console.log('membresAPotentiellementAjouter: ', membresAPotentiellementAjouter)
-        if (membresAPotentiellementAjouter.length > 0) {
-            console.log(`[${this.#nom}] ${membresAPotentiellementAjouter.length} joueur(s) à ajouter au tableau.`);
-            
+        console.log('membresExterieurs: ', membresExterieurs);
+
+        if (membresExterieurs.length > 0) {
+            console.log(`[${this.#nom}] ${membresExterieurs.length} joueur(s) extérieur(s) trouvé(s).`);
+
+            const pseudoColIndex = this.page.getColonneIndex('Pseudo');
+            let tagAllianceColIndex = this.page.getColonneIndex('Tag Alliance');
+
+            if (tagAllianceColIndex === -1) {
+                // Créer la colonne "Tag Alliance" juste après "Pseudo"
+                $('<th>Tag Alliance</th>').insertAfter($(`#tabMembresAlliance thead tr th:eq(${pseudoColIndex})`));
+                tagAllianceColIndex = pseudoColIndex + 1;
+                console.log(`[${this.#nom}] Colonne 'Tag Alliance' créée.`);
+            }
+
+            // Peupler la colonne pour tous les joueurs déjà dans le tableau
+            const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const row = $(elt);
+                const pseudo = row.find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
+                const joueur = tousLesMembres.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
+
+                let tag = '';
+                if (joueur) {
+                    tag = await joueur.lireAttribut('Tag Alliance') || '';
+                }
+                const tagCell = `<td align="center">${tag}</td>`;
+                $(tagCell).insertAfter(row.find(`td:eq(${pseudoColIndex})`));
+            }).get();
+            await Promise.all(promises);
+
+            // Ajouter les lignes des joueurs extérieurs
             const headers = [];
-            $("#tabMembresAlliance thead tr th").each(function() {
-                let headerText = $(this).text().toLowerCase().trim();
-                headers.push(headerText);
+            $("#tabMembresAlliance thead tr th").each(function () {
+                headers.push($(this).text().trim());
             });
-            console.log('headers: ', headers)
-            for (const membre of membresAPotentiellementAjouter) {
-                const { corps_html } = await membre.afficher(headers);
+
+            for (const membre of membresExterieurs) {
+                const corps_html = await membre.afficherCorps(headers);
                 $("#tabMembresAlliance tbody").append(corps_html);
-                const pseudo = await membre.lireParametre('pseudo');
+                const pseudo = await membre.lireParametre('Pseudo');
                 console.log(`[${this.#nom}] Ligne ajoutée pour le joueur ${pseudo}.`);
             }
         } else {

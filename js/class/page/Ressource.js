@@ -7,13 +7,11 @@
 * Classe de fonction pour la page /Ressource.php.
 *
 * @class PageRessource
-* @constructor
 * @extends Page
 */
-class PageRessource
-{
-    constructor(boiteComptePlus)
-    {
+class PageRessource extends Page {
+    constructor(boiteComptePlus) {
+        super();
         /**
         * Accés à la boite compte+
         */
@@ -21,7 +19,7 @@ class PageRessource
         /**
         * Nombre de chasse restante
         */
-        this._nbChasse = monProfilJoueur.niveauRecherche[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
+        this._nbChasse = 0;
         /**
         * Armée du joueur pour envoyer des chasses
         */
@@ -30,26 +28,29 @@ class PageRessource
     /**
     *
     */
-    executer()
-    {
-        this._armee.getArmee().then((data) => {
-            this._armee.chargeData(data);
-            // Ajout du lanceur de chasse
-            this.lanceur();
-        });
+    async executer() {
+        const recherches = await monProfilJoueur.lireAttribut('Niveau Recherche');
+        this._nbChasse = recherches[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
+        let data = await this._armee.getArmee();
+        this._armee.chargeData(data);
+        // Ajout du lanceur de chasse
+        await this.lanceur();
         // Sauvegarde les chasses en cours et ajoute les boutons max recolte
-        if(!Utils.comptePlus) this.plus();
+        if (!Utils.comptePlus) this.plus();
         return this;
     }
-	/**
-	* Formulaire de lancement pour les chasses.
+    /**
+    * Formulaire de lancement pour les chasses.
     *
-	* @private
-	* @method lanceur
-	*/
-	lanceur()
-	{
-		$("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
+    * @private
+    * @method lanceur
+    */
+    async lanceur() {
+        if (!$("#boite_tdc").length) {
+            console.warn("[PageRessource] Element #boite_tdc introuvable.");
+            return;
+        }
+        $("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
             <table id='o_lanceurChasse' class='o_maxWidth o_marginT15' cellspacing=0>
 			<tr class='ligne_paire'><td>Terrain à l'arrivée</td><td><input value='${Utils.terrain > 1000000 ? 1000000 : Utils.terrain}' size='21' id='o_chasseTDCDep'/></td><td></td></tr>
 			<tr><td>Nombre de chasse</td><td><input value='0' size='21' id='o_chasseNbr'/></td><td><input id='o_chasseNbrAuto' type='checkbox' checked='checked' name='optionAuto'/><label for='o_chasseNbrAuto'>Auto</label></td></tr>
@@ -71,169 +72,166 @@ class PageRessource
 			<tr><td>Difficulté</td><td>:</td><td id='o_chasseRefDiff'></td></tr>
 			<tr class='ligne_paire'><td>Perte estimé</td><td>:</td><td id='o_chassePerte'></td></tr>
 			</table></div>`);
-		$("#o_chasseTDCDep").spinner({min : 0, numberFormat : "i"});
-		$("#o_chasseJSN").spinner({min : 0, max : this._armee.nbrJSN, numberFormat : "i"});
-		$("#o_chasseTDCRep").spinner({min : 1, numberFormat : "i", disabled : true});
-        $("#o_chasseNbr").spinner({min : 1, max : this._nbChasse, numberFormat : "i", disabled : true});
+        $("#o_chasseTDCDep").spinner({ min: 0, numberFormat: "i" });
+        $("#o_chasseJSN").spinner({ min: 0, max: this._armee.nbrJSN, numberFormat: "i" });
+        $("#o_chasseTDCRep").spinner({ min: 1, numberFormat: "i", disabled: true });
+        $("#o_chasseNbr").spinner({ min: 1, max: this._nbChasse, numberFormat: "i", disabled: true });
         $("#o_chasseDiff, #o_chasseInt").outerWidth($("#o_chasseTDCDep").parent().width() + 4);
         $("#o_chasseDiff, #o_chasseInt").outerHeight($("#o_chasseTDCDep").parent().height());
         $("#o_chasseDiff").css("color", "green");
-		// Completion des valeurs
-		this.preparerChasse();
+        // Completion des valeurs
+        await this.preparerChasse();
         // Event
-        $("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", (e, ui) => {
-			let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-			$(e.currentTarget).spinner("value", nombre);
-            this.preparerChasse();
-		});
-		$("#o_chasseNbrAuto").click((e) => {
-			if(!$(e.currentTarget).is(':checked'))
-				$("#o_chasseNbr").spinner("enable");
-			else{
-				$("#o_chasseNbr").spinner("disable");
-				this.preparerChasse();
-			}
-		});
-		$("#o_chasseTDCRepAuto").click((e) => {
-			if(!$(e.currentTarget).is(':checked'))
-				$("#o_chasseTDCRep").spinner("enable");
-			else{
-				$("#o_chasseTDCRep").spinner("disable");
-				this.preparerChasse();
-			}
-		});
-		$("#o_chasseDiff").change((e) => {
-			let value = parseFloat(e.currentTarget.value);
-            switch(true){
-                case value <= 4 :
+        $("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
+            $(e.currentTarget).spinner("value", nombre);
+            await this.preparerChasse();
+        });
+        $("#o_chasseNbrAuto").click(async (e) => {
+            if (!$(e.currentTarget).is(':checked'))
+                $("#o_chasseNbr").spinner("enable");
+            else {
+                $("#o_chasseNbr").spinner("disable");
+                await this.preparerChasse();
+            }
+        });
+        $("#o_chasseTDCRepAuto").click(async (e) => {
+            if (!$(e.currentTarget).is(':checked'))
+                $("#o_chasseTDCRep").spinner("enable");
+            else {
+                $("#o_chasseTDCRep").spinner("disable");
+                await this.preparerChasse();
+            }
+        });
+        $("#o_chasseDiff").change(async (e) => {
+            let value = parseFloat(e.currentTarget.value);
+            switch (true) {
+                case value <= 4:
                     $(e.currentTarget).css("color", "black");
                     break;
-                case value > 4 && value <= 6 :
+                case value > 4 && value <= 6:
                     $(e.currentTarget).css("color", "red");
                     break;
-                case value > 6 && value <= 7.5 :
+                case value > 6 && value <= 7.5:
                     $(e.currentTarget).css("color", "orange");
                     break;
-                default :
+                default:
                     $(e.currentTarget).css("color", "green");
                     break;
             }
-			this.preparerChasse();
-		});
-		$("#o_chasseJSN").on("input spin", (e, ui) => {
-			let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
+            await this.preparerChasse();
+        });
+        $("#o_chasseJSN").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
             $(e.currentTarget).spinner("value", nombre);
-			this._armee.setJSN(nombre);
-			this.preparerChasse();
-		});
-		// Lancement des chasses
-		$("#o_chasseEnvoyer").click((e) => {
-            if(this._armee.getSommeUnite()){
+            this._armee.setJSN(nombre);
+            await this.preparerChasse();
+        });
+        // Lancement des chasses
+        $("#o_chasseEnvoyer").click((e) => {
+            if (this._armee.getSommeUnite()) {
                 let terrainChasse = $("#o_chasseTDCRep").spinner("value"), nbChasse = $("#o_chasseNbr").spinner("value"), intervalle = $("#o_chasseInt").val() * 1000;
-                $.ajax({url : "http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php"}).then((data) => {
+                $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php" }).then((data) => {
                     let parsed = $("<div/>").append(data);
                     this._armee.envoyerChasse(terrainChasse, nbChasse, 0, intervalle, parsed.find("#t:last").attr("name") + "=" + parsed.find("#t:last").attr("value"));
                 });
-            }else
-                $.toast({...TOAST_ERROR, text : "Vous n'avez pas d'armée à envoyer."});
+            } else
+                $.toast({ ...TOAST_ERROR, text: "Vous n'avez pas d'armée à envoyer." });
             return false;
-		});
+        });
         return this;
-	}
+    }
     /**
-	* Calcule les données de la chasse en fonction des valeurs souhaitées par le joueur.
+    * Calcule les données de la chasse en fonction des valeurs souhaitées par le joueur.
     *
-	* @private
-	* @method preparerChasse
-	*/
-	preparerChasse()
-	{
-		let tdcDep = $("#o_chasseTDCDep").spinner("value"),
-		  diffChasse = $("#o_chasseDiff").val(),
-		  nbChasse = $("#o_chasseNbr").spinner("value"),
-		  fixNB = nbChasse && !$("#o_chasseNbrAuto").is(':checked') ? nbChasse : 0,
-		  terrainChasse = $("#o_chasseTDCRep").spinner("value"),
-		  fixHF = terrainChasse && !$("#o_chasseTDCRepAuto").is(':checked') ? terrainChasse : 0;
+    * @private
+    * @method preparerChasse
+    */
+    async preparerChasse() {
+        let tdcDep = $("#o_chasseTDCDep").spinner("value"),
+            diffChasse = $("#o_chasseDiff").val(),
+            nbChasse = $("#o_chasseNbr").spinner("value"),
+            fixNB = nbChasse && !$("#o_chasseNbrAuto").is(':checked') ? nbChasse : 0,
+            terrainChasse = $("#o_chasseTDCRep").spinner("value"),
+            fixHF = terrainChasse && !$("#o_chasseTDCRepAuto").is(':checked') ? terrainChasse : 0;
         // Si une chasse peut être calculer
-        if(tdcDep){
-			let simu = this._armee.simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, this._nbChasse);
-			this.majSimulation(simu.repartition);
-            this.majRecapitulatif(simu.nbChasse, simu.terrainChasse, simu.ratio, simu.ratioRef, simu.iTabPerte);
-		}
-	}
+        if (tdcDep) {
+            let simu = await this._armee.simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, this._nbChasse);
+            this.majSimulation(simu.repartition);
+            await this.majRecapitulatif(simu.nbChasse, simu.terrainChasse, simu.ratio, simu.ratioRef, simu.iTabPerte);
+        }
+    }
     /**
-	* Affiche la répartition des unités pour les chasses.
+    * Affiche la répartition des unités pour les chasses.
     *
-	* @private
-	* @method majSimulation
-	* @param {Array} repartition
-	*/
-	majSimulation(repartition)
-	{
-		let simulation = `<tr class='gras'><td>Chasse</td>
-            ${this._armee.unite[0] ? "<td>JSN</td>" : ""}
-            ${this._armee.unite[1] ? "<td>SN</td>" : ""}
-            ${this._armee.unite[2] ? "<td>NE</td>" : ""}
-            ${this._armee.unite[3] ? "<td>JS</td>" : ""}
-            ${this._armee.unite[4] ? "<td>S</td>" : ""}
-            ${this._armee.unite[5] ? "<td>C</td>" : ""}
-            ${this._armee.unite[6] ? "<td>CE</td>" : ""}
-            ${this._armee.unite[7] ? "<td>A</td>" : ""}
-            ${this._armee.unite[8] ? "<td>AE</td>" : ""}
-            ${this._armee.unite[9] ? "<td>SE</td>" : ""}
-            ${this._armee.unite[10] ? "<td>Tk</td>" : ""}
-            ${this._armee.unite[11] ? "<td>TkE</td>" : ""}
-            ${this._armee.unite[12] ? "<td>Tu</td>" : ""}
-            ${this._armee.unite[13] ? "<td>TuE</td>" : ""}
+    * @private
+    * @method majSimulation
+    * @param {Array} repartition
+    */
+    majSimulation(repartition) {
+        let simulation = `<tr class='gras'><td>Chasse</td>
+            ${this._armee.unite[1] ? "<td>JSN</td>" : ""}
+            ${this._armee.unite[2] ? "<td>SN</td>" : ""}
+            ${this._armee.unite[3] ? "<td>NE</td>" : ""}
+            ${this._armee.unite[4] ? "<td>JS</td>" : ""}
+            ${this._armee.unite[5] ? "<td>S</td>" : ""}
+            ${this._armee.unite[6] ? "<td>C</td>" : ""}
+            ${this._armee.unite[7] ? "<td>CE</td>" : ""}
+            ${this._armee.unite[8] ? "<td>A</td>" : ""}
+            ${this._armee.unite[9] ? "<td>AE</td>" : ""}
+            ${this._armee.unite[10] ? "<td>SE</td>" : ""}
+            ${this._armee.unite[11] ? "<td>Tk</td>" : ""}
+            ${this._armee.unite[12] ? "<td>TkE</td>" : ""}
+            ${this._armee.unite[13] ? "<td>Tu</td>" : ""}
+            ${this._armee.unite[14] ? "<td>TuE</td>" : ""}
             </tr>`;
-		for(let i = 0, l = repartition.length ; i < l ; i++){
-			simulation += `<tr><td>${(i + 1)}</td>`;
-			for(let j = -1 ; ++j < 14 ; simulation += (this._armee.unite[j] ? "<td class='small' nowrap>" + (repartition[i][j] ? numeral(repartition[i][j]).format() : "") + "</td>" : ""));
-			simulation += `</tr>`;
-		}
-		$("#o_simulationChasse").html(simulation);
-		$("#o_simulationChasse tr:even").addClass("ligne_paire");
-	}
-	/**
-	* Affiche le compte rendu de la simulation.
+        for (let i = 0, l = repartition.length; i < l; i++) {
+            simulation += `<tr><td>${(i + 1)}</td>`;
+            for (let j = 0; ++j < 15; simulation += (this._armee.unite[j] ? "<td class='small' nowrap>" + (repartition[i][j] ? numeral(repartition[i][j]).format() : "") + "</td>" : ""));
+            simulation += `</tr>`;
+        }
+        $("#o_simulationChasse").html(simulation);
+        $("#o_simulationChasse tr:even").addClass("ligne_paire");
+    }
+    /**
+    * Affiche le compte rendu de la simulation.
     *
-	* @private
-	* @method majRecapitulatif
-	* @param {Integer} nbChasse
-	* @param {Integer} terrainChasse
-	* @param {Float} ratio
-	* @param {Float} ratioRef
-	* @param {Array} iTabPerte
-	*/
-	majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte)
-	{
-		$("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
-		let temps = Math.round((Utils.terrain +  terrainChasse) * Math.pow(0.9, monProfilJoueur.niveauRecherche[5]));
-		$("#o_chasseTemps").text(Utils.intToTime(temps));
-		$("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
-		$("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
-		$("#o_chasseRefDiff").text(ratio.toFixed(1) + " ~ " + ratioRef);
-		$("#o_chassePerte").text(numeral(Math.round(iTabPerte["AVG"])).format() + " JSN (max : " + numeral(Math.round(iTabPerte["MAX"])).format() + ")");
-	}
-	/**
-	* Ajoute les boutons "max", sauvegarde la chasse en cours.
+    * @private
+    * @method majRecapitulatif
+    * @param {Integer} nbChasse
+    * @param {Integer} terrainChasse
+    * @param {Float} ratio
+    * @param {Float} ratioRef
+    * @param {Array} iTabPerte
+    */
+    async majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte) {
+        let recherches = await monProfilJoueur.lireAttribut('Niveau Recherche');
+        $("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
+        let temps = Math.round((Utils.terrain + terrainChasse) * Math.pow(0.9, recherches[5]));
+        $("#o_chasseTemps").text(Utils.intToTime(temps));
+        $("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
+        $("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
+        $("#o_chasseRefDiff").text(ratio.toFixed(1) + " ~ " + ratioRef);
+        $("#o_chassePerte").text(numeral(Math.round(iTabPerte["AVG"])).format() + " JSN (max : " + numeral(Math.round(iTabPerte["MAX"])).format() + ")");
+    }
+    /**
+    * Ajoute les boutons "max", sauvegarde la chasse en cours.
     *
-	* @private
-	* @method plus
-	*/
-	plus()
-	{
+    * @private
+    * @method plus
+    */
+    plus() {
         // Ajout des boutons pour l'affectation max
-		$("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
-		$("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
-		// Affichage du retour des chasses
-		let listeChasse = new Array();
+        $("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
+        $("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
+        // Affichage du retour des chasses
+        let listeChasse = new Array();
         $("span[id^=chasse_]").each((i, elt) => {
-            listeChasse.push({quantite : numeral($(elt).parent().text().split("conquérir")[1].split("cm²")[0]).value(), exp : moment().add($(elt).parent().next().text().split("reste(")[1].split(",")[0], 's')});
+            listeChasse.push({ quantite: numeral($(elt).parent().text().split("conquérir")[1].split("cm²")[0]).value(), exp: moment().add($(elt).parent().next().text().split("reste(")[1].split(",")[0], 's') });
             $(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
         });
         // Sauvegarde de la chasse en cours
-		this.saveChasse(listeChasse);
+        this.saveChasse(listeChasse);
         let affection = parseInt(monProfilUtilisateur.parametre["affectationRessource"].valeur);
         // Ajout de la pref pour l'affectation auto
         $("#ChangeRessource").parent().parent().before(`<tr>
@@ -243,14 +241,14 @@ class PageRessource
             <label><input type="radio" name="choixOuvriere" value="rien" ${affection == 0 ? 'checked="checked"' : ''}> <img alt="rien" src="http:images/croix.gif" height="23" title="Pas d'affectation automatique"></label>
         </td></tr>`);
         $("input[name=choixOuvriere]").change(() => {
-            switch($("input[name=choixOuvriere]:checked").val()){
-                case "nourriture" :
+            switch ($("input[name=choixOuvriere]:checked").val()) {
+                case "nourriture":
                     monProfilUtilisateur.parametre["affectationRessource"].valeur = 2;
                     break;
-                case "materiaux" :
+                case "materiaux":
                     monProfilUtilisateur.parametre["affectationRessource"].valeur = 1;
                     break;
-                default :
+                default:
                     monProfilUtilisateur.parametre["affectationRessource"].valeur = 0;
                     break;
             }
@@ -258,35 +256,34 @@ class PageRessource
             return false;
         });
         // Affectation des ouvriéres inutilisé si on a la pref
-        if(affection){
-            let RecolteMateriaux = numeral($("#RecolteMateriaux").val()).value(), RecolteNourriture = numeral($("#RecolteMRecolteNourritureateriaux").val()).value();
+        if (affection) {
+            let RecolteMateriaux = numeral($("#RecolteMateriaux").val()).value(), RecolteNourriture = numeral($("#RecolteNourriture").val()).value();
             // si on ne couvre pas le terrain et qu'on a assez d'ouvriére
-            if((RecolteMateriaux + RecolteNourriture < Utils.terrain) && (RecolteMateriaux + RecolteNourriture < Utils.ouvrieres)){
-                switch(affection){
-                    case 1 :
+            if ((RecolteMateriaux + RecolteNourriture < Utils.terrain) && (RecolteMateriaux + RecolteNourriture < Utils.ouvrieres)) {
+                switch (affection) {
+                    case 1:
                         $("#RecolteMateriaux").val(Math.min(Utils.ouvrieres - RecolteNourriture, Utils.terrain - RecolteNourriture));
                         break;
-                    case 2 :
+                    case 2:
                         $("#RecolteNourriture").val(Math.min(Utils.ouvrieres - RecolteMateriaux, Utils.terrain - RecolteMateriaux));
                         break;
-                    default :
+                    default:
                         break;
                 }
                 $("#ChangeRessource").click();
             }
         }
-	}
-	/**
-	* Sauvegarde la chasse en cours.
+    }
+    /**
+    * Sauvegarde la chasse en cours.
     *
-	* @private
-	* @method saveChasse
-	*/
-	saveChasse(listeChasse)
-	{
+    * @private
+    * @method saveChasse
+    */
+    saveChasse(listeChasse) {
         this._boiteComptePlus.chasse = listeChasse;
         this._boiteComptePlus.startChasse = moment();
         this._boiteComptePlus.sauvegarder().majChasse();
         return this;
-	}
+    }
 }

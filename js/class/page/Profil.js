@@ -9,13 +9,11 @@
 * @class PageProfil
 * @constructor
 */
-class PageProfil
-{
+class PageProfil {
     /**
     *
     */
-    constructor(boiteRadar)
-    {
+    constructor(boiteRadar) {
         /**
         * Creation du modele profil
         */
@@ -28,17 +26,16 @@ class PageProfil
     /**
     *
     */
-    async executer()
-    {
-        this._profil = new Joueur({pseudo : $("h2").text()});
-        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne  = $(".boite_membre").find("a[href^='carte2.php?']").text();
-        this._profil.x = ~~(ligne.replace(regexp, "$1"));
-        this._profil.y = ~~(ligne.replace(regexp, "$2"));
-        this._profil.mv = $(".boite_membre table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances");
-        this._profil.id = $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0];
-        this._profil.terrain = numeral($(".tableau_score tr:eq(1) td:eq(1)").text()).value();
+    async executer() {
+        this._profil = new Joueur({ pseudo: $("h2").text() });
+        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(".boite_membre").find("a[href^='carte2.php?']").text();
+        await this._profil.ecrireAttribut('X', ~~(ligne.replace(regexp, "$1")));
+        await this._profil.ecrireAttribut('Y', ~~(ligne.replace(regexp, "$2")));
+        await this._profil.ecrireAttribut('Activité', $(".boite_membre table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances"));
+        await this._profil.ecrireAttribut('Id', $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0]);
+        await this._profil.ecrireAttribut('Terrain', numeral($(".tableau_score tr:eq(1) td:eq(1)").text()).value());
         // si on consulte un profil différent du sien
-        if(! await this._profil.estJoueurCourant()){
+        if (! await this._profil.estJoueurCourant()) {
             // si on a pas de compte+ on affiche le temps de trajet
             !Utils.comptePlus && await this.plus();
             // Affichage du retour dynamique
@@ -47,44 +44,42 @@ class PageProfil
         }
 
         // Ajout des options pour ajouter au radar et utiliser l'historique
-        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lireParametre('pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
+        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lireParametre('Pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
 
         $("#o_historique").click((e) => {
-			$(e.currentTarget).off().css("color", "#555555");
-			this.historique();
-		});
-		$("#o_surveiller").click(async (e) => {
-			if(!this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lireParametre('pseudo'))){
-				$(e.currentTarget).text("Supprimer la surveillance");
+            $(e.currentTarget).off().css("color", "#555555");
+            this.historique();
+        });
+        $("#o_surveiller").click(async (e) => {
+            if (!this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lireParametre('Pseudo'))) {
+                $(e.currentTarget).text("Supprimer la surveillance");
                 await this._boiteRadar.ajouteJoueur(this._profil);
-			}else{
-				$(e.currentTarget).text("Surveiller ce joueur");
+            } else {
+                $(e.currentTarget).text("Surveiller ce joueur");
                 await this._boiteRadar.supprimeJoueur(this._profil);
-			}
+            }
             await this._boiteRadar.sauvegarder();
             this._boiteRadar.actualiser();
-		});
+        });
         return this;
     }
-	/**
-	* Récupére et Affiche l'historique du joueur.
+    /**
+    * Récupére et Affiche l'historique du joueur.
     *
-	* @private
-	* @method historique
-	*/
-	historique()
-	{
+    * @private
+    * @method historique
+    */
+    historique() {
         $("#centre center .boite_membre:eq(1)").after(`<div class='boite_membre' id='o_boiteHistorique'>
             <div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div>
             <div id='o_chartJoueur'></div></div>`);
         this._profil.getHistorique("o_chartJoueur");
         return this;
-	}
+    }
     /**
     *
     */
-    async plus()
-    {
+    async plus() {
         // Affichage du temps de trajet
         $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
         return this;

@@ -8,10 +8,8 @@
 *
 * @class Convoi
 */
-class Convoi
-{
-    constructor(parametres)
-    {
+class Convoi {
+    constructor(parametres) {
         /**
         * id du convoi
         */
@@ -56,162 +54,139 @@ class Convoi
     /**
     *
     */
-    get id()
-    {
+    get id() {
         return this._id;
     }
     /**
     *
     */
-    set id(newId)
-    {
+    set id(newId) {
         this._id = newId;
     }
     /**
     *
     */
-    get expediteur()
-    {
+    get expediteur() {
         return this._expediteur;
     }
     /**
     *
     */
-    set expediteur(newExpediteur)
-    {
+    set expediteur(newExpediteur) {
         this._expediteur = newExpediteur;
     }
     /**
     *
     */
-    get destinataire()
-    {
+    get destinataire() {
         return this._destinataire;
     }
     /**
     *
     */
-    set destinataire(newDestinataire)
-    {
+    set destinataire(newDestinataire) {
         this._destinataire = newDestinataire;
     }
     /**
     *
     */
-    get nourriture()
-    {
+    get nourriture() {
         return this._nourriture;
     }
     /**
     *
     */
-    set nourriture(newNourriture)
-    {
+    set nourriture(newNourriture) {
         this._nourriture = newNourriture;
     }
     /**
     *
     */
-    get materiaux()
-    {
+    get materiaux() {
         return this._materiaux;
     }
     /**
     *
     */
-    set materiaux(newMateriaux)
-    {
+    set materiaux(newMateriaux) {
         this._materiaux = newMateriaux;
     }
     /**
     *
     */
-    get idCommande()
-    {
+    get idCommande() {
         return this._idCommande;
     }
     /**
     *
     */
-    set idCommande(newIdCommande)
-    {
+    set idCommande(newIdCommande) {
         this._idCommande = newIdCommande;
     }
     /**
     *
     */
-    get dateArrivee()
-    {
+    get dateArrivee() {
         return this._dateArrivee;
     }
     /**
     *
     */
-    set dateArrivee(newArrivee)
-    {
+    set dateArrivee(newArrivee) {
         this._dateArrivee = newArrivee;
     }
     /**
     *
     */
-    get datePost()
-    {
+    get datePost() {
         return this._datePost;
     }
     /**
     *
     */
-    set datePost(newDatePost)
-    {
+    set datePost(newDatePost) {
         this._datePost = newDatePost;
     }
     /**
     *
     */
-    get idAnnulation()
-    {
+    get idAnnulation() {
         return this._idAnnulation;
     }
     /**
     *
     */
-    set idAnnulation(newIdAnnulation)
-    {
+    set idAnnulation(newIdAnnulation) {
         this._idAnnulation = newIdAnnulation;
     }
     /**
     *
     */
-    get ouvrieres()
-    {
+    get ouvrieres() {
         return this._ouvrieres;
     }
     /**
     *
     */
-    set ouvrieres(newOuvrieres)
-    {
+    set ouvrieres(newOuvrieres) {
         this._ouvrieres = newOuvrieres;
     }
     /**
     *
     */
-    async estDestinataire()
-    {
-        return this._destinataire == await monProfilJoueur.lireParametre('pseudo');
+    async estDestinataire() {
+        return this._destinataire == await monProfilJoueur.lireParametre('Pseudo');
     }
     /**
     *
     */
-    estTermine()
-    {
+    estTermine() {
         return moment(this._dateArrivee).diff(moment()) < 0;
     }
     /**
     *
     */
-    toUtilitaire()
-    {
+    toUtilitaire() {
         // Calculer le temps restant pour les deux cas (convoi normal ou annulation)
         let tempsRestant = moment(this._dateArrivee).diff(moment()) / 1000;
 
@@ -226,8 +201,7 @@ class Convoi
     /**
     *
     */
-    toHTML(id)
-    {
+    toHTML(id) {
         // Si le convoi m'est destiné et que le datetime d'arrivée n'est pas dépassé
         let tempsRestant = moment(this._dateArrivee).diff(moment()) / 1000;
         $(id).after(`<strong>- Vous allez recevoir ${numeral(this._nourriture).format()} ${IMG_POMME} et ${numeral(this._materiaux).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${this._expediteur}">${this._expediteur}</a> dans <span id='convoi_${this._id}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}</small><br/>`);

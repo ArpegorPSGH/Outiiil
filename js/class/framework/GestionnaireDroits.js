@@ -16,14 +16,14 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * Configuration déclarative. Historique des noms et lieux pour les paramètres de droits.
      * @type {Array<Object>}
      */
-    static LOCATION_HISTORY = [{section: 'Droits Outiiil', lieu: 'titre'}];
+    static LOCATION_HISTORY = [{ section: 'Droits Outiiil', lieu: 'titre' }];
 
     /**
      * Formats historiques pour les paramètres de pseudo et de droits.
-     * Le nom 'droit_{abrev}' sert de template.
+     * Le nom '{abrev}' sert de template.
      * @type {Array<Object>}
      */
-    static FORMAT_HISTORY = [{ nom_pseudo: 'pseudo_droits', nom_droit: 'droit_{abrev}', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom_pseudo: 'p', nom_droit: '{abrev}', format: ' (nom):(valeur) |' }];
 
     /**
      * Contiendra la liste des instances d'ObjetForum représentant les droits pour chaque joueur.
@@ -53,7 +53,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         super(null); // Le GestionnaireDroits est global, pas de créateur direct.
         console.log('Construction du gestionnaire droits')
         // Étape 1 : Création de la classe ObjetForumDroits
-        class ObjetForumDroits extends ObjetForum {}
+        class ObjetForumDroits extends ObjetForum { }
         ObjetForumDroits.VERSION_LOGIQUE = this.constructor.VERSION_LOGIQUE; // Peupler la VERSION_LOGIQUE de l'ObjetForumDroits
         ObjetForumDroits.LOCATION_HISTORY = [...new Map(this.constructor.LOCATION_HISTORY.map(item => [JSON.stringify(item), item])).values()];
 
@@ -62,25 +62,30 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
 
         // Ajout d'un paramètre pour le pseudo, essentiel pour la synchronisation
         const ParametrePseudo = class extends ParametreObjetForum { valeur = ''; };
+        Object.defineProperty(ParametrePseudo, 'name', { value: 'ParametrePseudo' });
         ParametrePseudo.VERSION_LOGIQUE = this.constructor.VERSION_LOGIQUE;
+        ParametrePseudo.NOM_APPEL = ['Pseudo'];
         ParametrePseudo.FORMAT_HISTORY = this.constructor.FORMAT_HISTORY.map(f => ({ nom: f.nom_pseudo, format: f.format }));
         parametresDroitClasses.push(ParametrePseudo);
 
         const fonctionnalites = registreClasses.FonctionnaliteAlliance || new Map();
 
         for (const [nomFonctionnalite, classeFonctionnalite] of fonctionnalites) {
-            
+
             // Création de la classe ParametreDroit sur mesure
+            const nomClassePourParametre = `ParametreDroit_${nomFonctionnalite.replace(/\s+/g, '')}`;
             const ParametreDroit = class extends ParametreObjetForum {
                 valeur = 'B'; // Droit par défaut
             };
+            Object.defineProperty(ParametreDroit, 'name', { value: nomClassePourParametre });
             ParametreDroit.VERSION_LOGIQUE = this.constructor.VERSION_LOGIQUE;
+
+            const abrevs = [...new Set(classeFonctionnalite.ABREVIATIONS_HISTORY || [])];
 
             // Construction de FORMAT_HISTORY for ParametreDroit
             const formatHistory = [];
-            const abrevs = [...new Set(classeFonctionnalite.ABREVIATIONS_HISTORY || [])];
             const formatTemplates = [...new Set(this.constructor.FORMAT_HISTORY.map(f => ({ nom: f.nom_droit, format: f.format })))];
-            
+
             formatTemplates.forEach(formatInfo => {
                 abrevs.forEach(abrev => {
                     const nomFinal = formatInfo.nom.replace('{abrev}', abrev);
@@ -92,6 +97,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             parametresDroitClasses.push(ParametreDroit);
         }
 
+        console.log('ParametresDroitClasses', parametresDroitClasses)
         // Étape 3 : Finalisation de la classe ObjetForumDroits
         ObjetForumDroits.CLASSES_PARAMETRES = [parametresDroitClasses];
         this.constructor.classeObjetsForumContenus = ObjetForumDroits;
@@ -106,7 +112,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      */
     async verifierDroit(abrevFonctionnalite, niveauRequis) {
         // 1. Identifier le Joueur Actuel
-        const pseudoJoueur = await monProfilJoueur.lireParametre('pseudo'); // Supposant que le pseudo est dans pseudo
+        const pseudoJoueur = await monProfilJoueur.lireParametre('Pseudo'); // Supposant que le pseudo est dans pseudo
         if (!pseudoJoueur) {
             console.warn(`[GestionnaireDroits] Pseudo du joueur non trouvé.`);
             return false;
@@ -119,8 +125,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         }
 
         // 3. Trouver le Droit Spécifique à la Fonctionnalité
-        const nomParametre = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1].nom_droit.replace('{abrev}', abrevFonctionnalite);
-        const droitActuel = await objetDroit.lireParametre(nomParametre);
+        const droitActuel = await objetDroit.lireParametre(abrevFonctionnalite);
         if (droitActuel === null) {
             return false; // Pas de paramètre de droit pour cette fonctionnalité
         }
@@ -148,26 +153,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             return null;
         }
 
-        const formatInfo = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1];
-        const nomParametrePseudo = formatInfo.nom_pseudo;
-
-        // On délègue à l'objet droit, puis on simplifie le résultat
-        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('pseudo');
-        const droitsComplexes = await objetDroit.lireChaqueParametre();
-        const droitsSimples = { [nomParametrePseudo]: pseudoCible };
-
-        const templateNom = formatInfo.nom_droit; // e.g., 'droit_{abrev}'
-        const prefix = templateNom.split('{')[0];
-        const suffix = templateNom.split('}')[1] || '';
-
-        for (const nomComplet in droitsComplexes) {
-            if (nomComplet.startsWith(prefix) && nomComplet.endsWith(suffix)) {
-                const abrev = nomComplet.substring(prefix.length, nomComplet.length - suffix.length);
-                droitsSimples[abrev] = droitsComplexes[nomComplet].valeur;
-            }
-        }
-
-        return droitsSimples;
+        return await objetDroit.lireChaqueParametre();
     }
 
     /**
@@ -182,29 +168,29 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             return false;
         }
 
-        const templateNom = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1].nom_droit; // e.g., 'droit_{abrev}'
-        
-        const donneesCompletes = {};
-        for (const abrev in nouvellesValeurs) {
-            const nomComplet = templateNom.replace('{abrev}', abrev);
-            donneesCompletes[nomComplet] = nouvellesValeurs[abrev];
-        }
-
-        await objetDroit.ecrireChaqueParametre(donneesCompletes);
+        await objetDroit.ecrireChaqueParametre(nouvellesValeurs);
         return true;
     }
 
     /**
-     * Obtient la structure HTML complète (en-tête et corps) pour un joueur spécifique.
-     * @param {Joueur|String} joueur - L'instance Joueur ou le pseudo du joueur.
-     * @returns {{en_tete_html: String, corps_html: String}|null} - Un objet contenant les chaînes HTML, or null if the player is not found.
+     * Obtient l'en-tête HTML pour un joueur spécifique.
+     * @returns {String|null} - La chaîne HTML de l'en-tête, or null if the player is not found.
      */
-    async afficher(joueur) {
+    async afficherEntete() {
+        return await ObjetForumDroits.afficherEntete();
+    }
+
+    /**
+     * Obtient le corps HTML pour un joueur spécifique.
+     * @param {Joueur|String} joueur - L'instance Joueur ou le pseudo du joueur.
+     * @returns {String|null} - La chaîne HTML du corps, or null if the player is not found.
+     */
+    async afficherCorps(joueur) {
         const objetDroit = await this._getObjetForumDroit(joueur);
         if (!objetDroit) {
             return null;
         }
-        return await objetDroit.afficher();
+        return await objetDroit.afficherCorps();
     }
 
     /**
@@ -214,7 +200,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @private
      */
     async _getObjetForumDroit(joueur) {
-        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('pseudo');
+        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('Pseudo');
         if (!pseudoCible) {
             return null;
         }
@@ -229,12 +215,12 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         console.log('Rafraichissement gstionnaire droits')
         // 1. Chargement parallèle
         const [droitsActuels, membresOfficiels] = await Promise.all([
-            fonctionnaliteAppelante.chargerObjetForumsMultiples(this.constructor.classeObjetsForumContenus),
-            fonctionnaliteAppelante.chargerObjetForumsMultiples(Joueur) // Assurez-vous que la classe Joueur est disponible
+            fonctionnaliteAppelante.chargerObjetsForum(this.constructor.classeObjetsForumContenus),
+            fonctionnaliteAppelante.chargerObjetsForum(Joueur) // Assurez-vous que la classe Joueur est disponible
         ]);
 
         // 2. Indexation et Synchronisation
-        const nomParametrePseudo = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1].nom_pseudo;
+        const nomParametrePseudo = 'Pseudo';
         this.mapDroits.clear();
         for (const droit of droitsActuels) {
             const pseudo = await droit.lireParametre(nomParametrePseudo);
@@ -249,7 +235,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         for (const droit of droitsActuels) {
             const versionChargée = droit._determinerVersionChargee();
             const derniereVersionIndex = droit.constructor.CLASSES_PARAMETRES.length - 1;
-            
+
             if (versionChargée < derniereVersionIndex) {
                 console.log(`[GestionnaireDroits.rafraichir] Droit obsolète détecté pour le sujet ID ${droit.idSujet} (Version: ${versionChargée}, Attendu: ${derniereVersionIndex}). Ré-enregistrement planifié.`);
                 promessesEnregistrement.push(droit.enregistrerSurForum());
@@ -257,7 +243,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         }
 
         for (const membre of membresOfficiels) {
-            const pseudoMembre = await membre.lireParametre('pseudo');
+            const pseudoMembre = await membre.lireParametre('Pseudo');
             if (membresTraites.has(pseudoMembre)) {
                 continue;
             }

@@ -21,13 +21,13 @@ Utils.register(class FonctionnaliteModificationGrade extends FonctionnaliteAllia
      */
     async run() {
         console.log(`[${this.#nom}] Exécution`);
-        const membresForum = await this.chargerObjetForumsMultiples(Joueur, false);
+        const membresForum = await this.chargerObjetsForum(Joueur, false);
         const pseudoColIndex = this.page.getColonneIndex('Pseudo');
-        
+
         // Parcourir toutes les lignes pour ajouter l'icône de modification
         await $("#tabMembresAlliance tbody tr").each(async (i, elt) => {
             const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
-            const joueur = membresForum.find(j => j.mapParametres.get('pseudo').valeur === pseudo);
+            const joueur = membresForum.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
 
             if (joueur) {
                 const bouton = $(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);

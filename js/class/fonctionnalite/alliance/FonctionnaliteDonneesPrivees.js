@@ -16,8 +16,8 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
      */
     async run() {
         console.log(`[${this.#nom}] Exécution`);
-        
-        const membresForum = await this.chargerObjetForumsMultiples(Joueur, false);
+
+        const membresForum = await this.chargerObjetsForum(Joueur, false);
         console.log('membresForum: ', membresForum);
 
         const initialPseudoColIndex = this.page.getColonneIndex('Pseudo');
@@ -28,20 +28,15 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
             // La colonne 'Grade' n'existe pas, on la crée
             console.log(`[${this.#nom}] Création de la colonne 'Grade'.`);
             $('<th class="dt-head-center">Grade</th>').insertBefore($(`#tabMembresAlliance thead tr th:eq(${initialRangColIndex})`));
-            
-            this.page._columnSettings.Grade = {sortable: false, visible: true};
-            let rangSetting = this.page._columnSettings.Rang;
-            rangSetting.visible = false;
-            this.page._columnSettings.Rang = rangSetting;
 
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
                 const row = $(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
-                const joueur = membresForum.find(j => j.mapParametres.get('pseudo').valeur === pseudo);
-                
+                const joueur = membresForum.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
+
                 let grade = '';
                 if (joueur) {
-                    grade = await joueur.lireParametre('grade') || '';
+                    grade = await joueur.lireParametre('Grade') || '';
                 }
                 const gradeCell = `<td align="center">${grade}</td>`;
                 $(gradeCell).insertBefore(row.find(`td:eq(${initialRangColIndex})`));
@@ -55,11 +50,11 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
                 const row = $(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
-                const joueur = membresForum.find(j => j.mapParametres.get('pseudo').valeur === pseudo);
+                const joueur = membresForum.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
 
                 let grade = '';
                 if (joueur) {
-                    grade = await joueur.lireParametre('grade') || '';
+                    grade = await joueur.lireParametre('Grade') || '';
                 }
                 row.find(`td:eq(${gradeColIndex})`).text(grade);
             }).get();

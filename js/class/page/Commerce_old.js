@@ -9,10 +9,8 @@
 * @class PageCommerce
 * @constructor
 */
-class PageCommerce
-{
-    constructor(boiteComptePlus)
-    {
+class PageCommerce {
+    constructor(boiteComptePlus) {
         /**
         * Accés à la boite compte+
         */
@@ -25,8 +23,7 @@ class PageCommerce
     /**
     *
     */
-    async executer()
-    {
+    async executer() {
         // ajout d'information
         $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${monProfilJoueur.niveauConstruction[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (monProfilJoueur.niveauConstruction[11] / 2))}</strong> ressources.</td></tr>`);
         // ajout des boutons pour arrondir les quantités
@@ -54,12 +51,12 @@ class PageCommerce
             return false;
         });
         // option c+
-        if(!Utils.comptePlus) this.plus();
+        if (!Utils.comptePlus) this.plus();
 
         // Si on dispose d'un utilitaire pour le commerce ET que le joueur a un sujet dans la section membres
         const idSectionCommande = monProfilUtilisateur.parametre["Commandes Outiiil"].valeur;
         const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"].valeur;
-        const pseudoJoueur = await monProfilJoueur.lireParametre('pseudo');
+        const pseudoJoueur = await monProfilJoueur.lireParametre('Pseudo');
 
         if (idSectionCommande && idSectionMembre) {
             await this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur).then(async sujetExiste => {
@@ -78,7 +75,7 @@ class PageCommerce
                         this.formulaireConvoi();
 
                     } catch (error) {
-                        $.toast({...TOAST_ERROR, text : `Erreur lors de la récupération des commandes ou des convois: ${error.message || error}`});
+                        $.toast({ ...TOAST_ERROR, text: `Erreur lors de la récupération des commandes ou des convois: ${error.message || error}` });
                         console.error("Erreur dans PageCommerce.executer (chargement initial):", error);
                     }
                 } else {
@@ -86,12 +83,12 @@ class PageCommerce
                     // $.toast({...TOAST_INFO, text : "Votre sujet membre n'a pas été trouvé. Le tableau des commandes n'est pas disponible."});
                 }
             }).catch(error => {
-                $.toast({...TOAST_ERROR, text : `Erreur lors de la vérification de votre sujet membre: ${error.message || error}`});
+                $.toast({ ...TOAST_ERROR, text: `Erreur lors de la vérification de votre sujet membre: ${error.message || error}` });
                 console.error("Erreur dans PageCommerce.executer (verifierSujetMembre):", error);
             });
         } else {
-             // Optionnel: Afficher un message à l'utilisateur
-             // $.toast({...TOAST_INFO, text : "Les paramètres du forum ne sont pas configurés. Le tableau des commandes n'est pas disponible."});
+            // Optionnel: Afficher un message à l'utilisateur
+            // $.toast({...TOAST_INFO, text : "Les paramètres du forum ne sont pas configurés. Le tableau des commandes n'est pas disponible."});
         }
 
         return this;
@@ -113,7 +110,7 @@ class PageCommerce
         if (convoiAPosterString && !idsAnnulationApresRechargementInitialString) {
             // Premier rechargement après l'interception du clic
             const convoiData = JSON.parse(convoiAPosterString);
-            
+
             // Compléter les champs du formulaire de convoi
             $("#pseudo_convoi").val(convoiData.destinataire);
             $("#input_nbNourriture").val(numeral(convoiData.nourriture).format());
@@ -151,24 +148,24 @@ class PageCommerce
 
                     await this._utilitaire.envoyerMessage(idCommande, monConvoi.toUtilitaire());
 
-                    this._utilitaire.commande[idCommande].ajouteConvoi(monConvoi);
+                    await this._utilitaire.commande[idCommande].ajouteConvoi(monConvoi);
                     await this._utilitaire.modifierSujet(this._utilitaire.commande[idCommande].toUtilitaire(), " ", idCommande);
-                    $.toast({...TOAST_SUCCESS, text : "Commande mise à jour sur le forum."});
+                    $.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour sur le forum." });
 
                     let cmdSuivante = 99999999999999999;
                     let foundActiveCommand = false;
-                    for(let id in this._utilitaire.commande){
-                        if(this._utilitaire.commande[id].etat === ETAT_COMMANDE["En cours"]){
+                    for (let id in this._utilitaire.commande) {
+                        if (this._utilitaire.commande[id].etat === ETAT_COMMANDE["En cours"]) {
                             foundActiveCommand = true;
                             break;
                         }
-                        if(this._utilitaire.commande[id].etat === ETAT_COMMANDE["En attente"] && id < cmdSuivante)
+                        if (this._utilitaire.commande[id].etat === ETAT_COMMANDE["En attente"] && id < cmdSuivante)
                             cmdSuivante = id;
                     }
-                    if(!foundActiveCommand && cmdSuivante !== 99999999999999999){
+                    if (!foundActiveCommand && cmdSuivante !== 99999999999999999) {
                         this._utilitaire.commande[cmdSuivante].etat = ETAT_COMMANDE["En cours"];
                         await this._utilitaire.modifierSujet(this._utilitaire.commande[cmdSuivante].toUtilitaire(), " ", cmdSuivante);
-                        $.toast({...TOAST_SUCCESS, text : "Nouvelle commande en cours à jour."});
+                        $.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours à jour." });
                     }
 
                     this.actualiserConvois();
@@ -176,11 +173,11 @@ class PageCommerce
 
                 } else {
                     console.error("[PageCommerce][_traiterConvoiApresEnvoiJeu] Aucun nouvel ID d'annulation détecté. Le convoi ne sera pas posté par Outiiil.");
-                    $.toast({...TOAST_INFO, text : "Aucun nouvel ID d'annulation détecté après l'envoi du convoi. Le convoi n'a pas été posté sur le forum par Outiiil."});
+                    $.toast({ ...TOAST_INFO, text: "Aucun nouvel ID d'annulation détecté après l'envoi du convoi. Le convoi n'a pas été posté sur le forum par Outiiil." });
                 }
             } catch (error) {
                 console.error(`[PageCommerce][_traiterConvoiApresEnvoiJeu] Erreur lors du traitement du convoi après envoi:`, error);
-                $.toast({...TOAST_ERROR, text : `Erreur lors du traitement du convoi après envoi: ${error.message || error}`});
+                $.toast({ ...TOAST_ERROR, text: `Erreur lors du traitement du convoi après envoi: ${error.message || error}` });
             } finally {
                 localStorage.removeItem('outiiil_convoi_a_poster');
                 localStorage.removeItem('outiiil_ids_annulation_apres_rechargement_initial');
@@ -202,7 +199,7 @@ class PageCommerce
         const idAnnulationPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
 
         if (idAnnulationPending) {
-            
+
             // Récupérer les IDs d'annulation de tous les convois actuellement affichés sur la page
             const idsActuelsPage = this.getConvoiAnnulationIds();
 
@@ -227,7 +224,7 @@ class PageCommerce
                         const convoiAnnuleForum = tousLesConvoisForum.find(convoi => convoi.idAnnulation === idAnnulationPending);
 
                         if (convoiAnnuleForum) {
-                            
+
                             // Créer un nouvel objet Convoi avec des quantités négatives pour les ressources "nourriture" et "matériaux"
                             const convoiNegatif = new Convoi({
                                 expediteur: convoiAnnuleForum.expediteur,
@@ -244,10 +241,10 @@ class PageCommerce
                             const commandeAssociee = this._utilitaire.commande[convoiAnnuleForum.idCommande];
 
                             if (commandeAssociee) {
-                                
+
                                 // Poster le convoi négatif sur le forum
                                 await this._utilitaire.envoyerMessage(commandeAssociee.id, convoiNegatif.toUtilitaire());
-                                $.toast({...TOAST_SUCCESS, text : "Annulation de convoi enregistrée sur le forum."});
+                                $.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum." });
 
                                 // Mettre à jour la quantité livrée de la commande associée en mémoire
                                 commandeAssociee.nourritureLivree += convoiNegatif.nourriture; // Ajoute une valeur négative
@@ -258,9 +255,9 @@ class PageCommerce
                                 commandeAssociee.materiauxLivres = Math.max(0, commandeAssociee.materiauxLivres);
 
                                 // Si la commande était "Terminée" et que la quantité livrée redevient inférieure à la quantité demandée, repasser son statut en "En cours".
-                                if (commandeAssociee.etat === ETAT_COMMANDE.Terminée && 
-                                    (commandeAssociee.nourritureLivree < commandeAssociee.totalNourritureDemandee || 
-                                     commandeAssociee.materiauxLivres < commandeAssociee.totalMateriauxDemandes)) {
+                                if (commandeAssociee.etat === ETAT_COMMANDE.Terminée &&
+                                    (commandeAssociee.nourritureLivree < commandeAssociee.nourritureDemandee ||
+                                        commandeAssociee.materiauxLivres < commandeAssociee.materiauxDemandes)) {
                                     commandeAssociee.etat = ETAT_COMMANDE["En cours"];
                                 }
 
@@ -272,59 +269,58 @@ class PageCommerce
                                 await this.actualiserCommande();
 
                             } else {
-                                $.toast({...TOAST_WARNING, text : "Commande associée introuvable pour le convoi annulé sur le forum."});
+                                $.toast({ ...TOAST_WARNING, text: "Commande associée introuvable pour le convoi annulé sur le forum." });
                             }
                         } else {
-                            $.toast({...TOAST_WARNING, text : "Convoi annulé considéré hors système."});
+                            $.toast({ ...TOAST_WARNING, text: "Convoi annulé considéré hors système." });
                         }
                     } catch (error) {
                         console.error(`[PageCommerce][_traiterAnnulationConvoiApresRechargement] Erreur lors du traitement de l'annulation:`, error);
-                        $.toast({...TOAST_ERROR, text : `Erreur lors du traitement de l'annulation du convoi: ${error.message || error}`});
+                        $.toast({ ...TOAST_ERROR, text: `Erreur lors du traitement de l'annulation du convoi: ${error.message || error}` });
                     }
                 } else {
-                    $.toast({...TOAST_INFO, text : "Le convoi a déjà été annulé ou n'est plus annulable. Aucune action Outiiil nécessaire."});
+                    $.toast({ ...TOAST_INFO, text: "Le convoi a déjà été annulé ou n'est plus annulable. Aucune action Outiiil nécessaire." });
                 }
             }
             // Dans tous les cas, effacer les clés du localStorage
             localStorage.removeItem('outiiil_convoi_annulation_pending_id');
             localStorage.removeItem('outiiil_convoi_annulation_forwarded_id');
-        } 
+        }
     } // Fin de _traiterAnnulationConvoiApresRechargement();
 
-	/**
-	* Affiche les retours, et sauvegarde les convois en cours pour la boite compte plus.
+    /**
+    * Affiche les retours, et sauvegarde les convois en cours pour la boite compte plus.
     *
-	* @private
-	* @method plus
-	*/
-	plus()
-	{
+    * @private
+    * @method plus
+    */
+    plus() {
         // autocomplete sur le champs pseudo
         $("#pseudo_convoi").autocomplete({
-            source : (request, response) => {
+            source: (request, response) => {
                 // requete pour autocomplete
-                Joueur.rechercher(request.term).then((data) => {response(Utils.extraitRecherche(data, true, false));});
+                Joueur.rechercher(request.term).then((data) => { response(Utils.extraitRecherche(data, true, false)); });
             },
-            position : {my : "left top-5", at : "left bottom"},
-            delay : 0,
-            minLength : 3
+            position: { my: "left top-5", at: "left bottom" },
+            delay: 0,
+            minLength: 3
         });
         // sauvegarde des convois
-		let listeConvoi = new Array(), nombres = new Array();
-		$("#centre > strong").each((i, elt) => {
+        let listeConvoi = new Array(), nombres = new Array();
+        $("#centre > strong").each((i, elt) => {
             // Affichage du retour des convois
-            if($(elt).next().text().indexOf("Retour") == -1)
+            if ($(elt).next().text().indexOf("Retour") == -1)
                 $(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(Utils.timeToInt($(elt).text().split("dans")[1].trim())).format("D MMM YYYY à HH[h]mm")}</span>`);
             nombres = $(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
-            let convoiData = {"cible" : $(elt).find("a").text(), "sens" : $(elt).text().includes("livrer"), "nou" : nombres[0], "mat" : nombres[1], "exp" : moment().add(Utils.timeToInt($(elt).text().split("dans")[1].trim()), 's')};
+            let convoiData = { "cible": $(elt).find("a").text(), "sens": $(elt).text().includes("livrer"), "nou": nombres[0], "mat": nombres[1], "exp": moment().add(Utils.timeToInt($(elt).text().split("dans")[1].trim()), 's') };
             listeConvoi.push(convoiData);
         });
         // tri les convois par ordre d'arrivée
-        listeConvoi.sort((a, b) => {return moment(a.exp).diff(moment(b.exp));});
+        listeConvoi.sort((a, b) => { return moment(a.exp).diff(moment(b.exp)); });
         this.saveConvoi(listeConvoi);
         return this;
-	} // Fin de plus();
-    
+    } // Fin de plus();
+
     /**
     * Attache des listeners aux liens d'annulation de convoi.
     *
@@ -345,7 +341,7 @@ class PageCommerce
             const originalHref = $(e.currentTarget).attr('href');
             const convoiIdMatch = originalHref.match(/annuler=(\d+)/);
             if (!convoiIdMatch) {
-                $.toast({...TOAST_ERROR, text : "Erreur: Impossible d'identifier le convoi à annuler."});
+                $.toast({ ...TOAST_ERROR, text: "Erreur: Impossible d'identifier le convoi à annuler." });
                 return;
             }
             const convoiId = convoiIdMatch[1];
@@ -374,27 +370,25 @@ class PageCommerce
         return annulationIds;
     } // Fin de getConvoiAnnulationIds();
     /**
-	* Sauvegarde les convois en cours.
+    * Sauvegarde les convois en cours.
     *
-	* @private
-	* @method saveConvoi
-	*/
-	saveConvoi(liste)
-	{
+    * @private
+    * @method saveConvoi
+    */
+    saveConvoi(liste) {
         this._boiteComptePlus.convoi = liste;
         this._boiteComptePlus.startConvoi = moment();
         this._boiteComptePlus.sauvegarder().majConvoi();
         return this;
-	} // Fin de saveConvoi();
+    } // Fin de saveConvoi();
     /**
-	* Affiche les commandes en cours issu de l'utilitaire.
+    * Affiche les commandes en cours issu de l'utilitaire.
     *
-	* @private
-	* @method afficherCommande
+    * @private
+    * @method afficherCommande
     * @param {Object} liste des lignes de commandes.
-	*/
-	async afficherCommande()
-	{
+    */
+    async afficherCommande() {
         // Vérifier si le tableau des commandes existe déjà
         if ($("#o_tableListeCommande").length === 0) {
             // Créer la structure HTML du tableau (sans les lignes de données)
@@ -407,35 +401,35 @@ class PageCommerce
             // Initialiser DataTables pour le tableau des commandes
             $("#o_tableListeCommande").DataTable({
                 data: [], // Les données seront ajoutées par actualiserCommande
-                bInfo : false,
-                bPaginate : false,
-                bAutoWidth : false,
-                dom : "Bfrti",
-                buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-                order : [[7, "desc"]], // Index de colonne ajusté pour l'échéance
-                stripeClasses : ["", "ligne_paire"],
-                responsive : true,
-                language : {
-                    zeroRecords : "Aucune commande trouvée",
-                    infoEmpty : "Aucun enregistrement",
-                    infoFiltered : "(Filtré par _MAX_ enregistrements)",
-                    search : "Rechercher : ",
-                    buttons : {colvis : "Colonne"}
+                bInfo: false,
+                bPaginate: false,
+                bAutoWidth: false,
+                dom: "Bfrti",
+                buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+                order: [[7, "desc"]], // Index de colonne ajusté pour l'échéance
+                stripeClasses: ["", "ligne_paire"],
+                responsive: true,
+                language: {
+                    zeroRecords: "Aucune commande trouvée",
+                    infoEmpty: "Aucun enregistrement",
+                    infoFiltered: "(Filtré par _MAX_ enregistrements)",
+                    search: "Rechercher : ",
+                    buttons: { colvis: "Colonne" }
                 },
-                columnDefs : [
-                    {targets: 1, title: "Date commande", visible: false}, // Nouvelle colonne Date commande
-                    {targets: 2, title: "Évolution", visible: false}, // Nouvelle colonne Évolution
-                    {type : "quantite-grade", targets : [5, 6]}, // Indices ajustés
-                    {type : "moment-D MMM YYYY", targets : 7}, // Indice ajusté
-                    {type : "time-unformat", targets : 10}, // Indice ajusté
-                    {sortable : false, targets : [11, 12]}, // Indices ajustés
-                    {visible: false, targets: [3, 4]} // Indices ajustés pour les quantités demandées
+                columnDefs: [
+                    { targets: 1, title: "Date commande", visible: false }, // Nouvelle colonne Date commande
+                    { targets: 2, title: "Évolution", visible: false }, // Nouvelle colonne Évolution
+                    { type: "quantite-grade", targets: [5, 6] }, // Indices ajustés
+                    { type: "moment-D MMM YYYY", targets: 7 }, // Indice ajusté
+                    { type: "time-unformat", targets: 10 }, // Indice ajusté
+                    { sortable: false, targets: [11, 12] }, // Indices ajustés
+                    { visible: false, targets: [3, 4] } // Indices ajustés pour les quantités demandées
                 ]
             });
 
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
             $("#o_ajouterCommande").click(async (e) => {
-                let boiteCommande = new BoiteCommande(new Commande(), this._utilitaire, this);
+                let boiteCommande = new BoiteCommande(new Commande(this), this._utilitaire, this);
                 await boiteCommande.afficher();
             });
 
@@ -454,9 +448,9 @@ class PageCommerce
 
                 $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
                 $("#nbNourriture").val(nourishmentToPrefill);
-                $("#pseudo_convoi").val(await commande.demandeur.lireParametre('pseudo'));
+                $("#pseudo_convoi").val(await commande.demandeur.lireParametre('Pseudo'));
                 $("#o_idCommande").val(commande.id);
-                $("html").animate({scrollTop : 0}, 600);
+                $("html").animate({ scrollTop: 0 }, 600);
                 return false;
             });
 
@@ -472,13 +466,13 @@ class PageCommerce
             $("#o_tableListeCommande").on('click', "a[id^='o_supprimerCommande']", async (e) => {
                 const commandeId = $(e.currentTarget).attr('id').replace('o_supprimerCommande', '');
                 const commande = this._utilitaire.commande[commandeId];
-                if(confirm("Supprimer cette commande ?")){
+                if (confirm("Supprimer cette commande ?")) {
                     commande.etat = ETAT_COMMANDE.Supprimée;
                     await this._utilitaire.modifierSujet(commande.toUtilitaire(), " ", commande.id).then(async (data) => {
-                        $.toast({...TOAST_INFO, text : "Commande supprimée avec succès."});
+                        $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
                         await this.actualiserCommande();
                     }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la mise à jour des commandes."});
+                        $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la mise à jour des commandes." });
                     });
                 }
                 return false;
@@ -494,24 +488,24 @@ class PageCommerce
             // Initialiser DataTables pour le tableau des convois
             $("#o_tableListeConvoi").DataTable({
                 data: [], // Les données seront ajoutées par actualiserConvois
-                bInfo : false,
-                bPaginate : false,
-                bAutoWidth : false,
-                dom : "Bfrti",
-                buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-                order : [[4, "asc"]], // Trier par date d'arrivée
-                stripeClasses : ["", "ligne_paire"],
-                responsive : true,
-                language : {
-                    zeroRecords : "Aucun convoi en cours",
-                    infoEmpty : "Aucun enregistrement",
-                    infoFiltered : "(Filtré par _MAX_ enregistrements)",
-                    search : "Rechercher : ",
-                    buttons : {colvis : "Colonne"}
+                bInfo: false,
+                bPaginate: false,
+                bAutoWidth: false,
+                dom: "Bfrti",
+                buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+                order: [[4, "asc"]], // Trier par date d'arrivée
+                stripeClasses: ["", "ligne_paire"],
+                responsive: true,
+                language: {
+                    zeroRecords: "Aucun convoi en cours",
+                    infoEmpty: "Aucun enregistrement",
+                    infoFiltered: "(Filtré par _MAX_ enregistrements)",
+                    search: "Rechercher : ",
+                    buttons: { colvis: "Colonne" }
                 },
-                columnDefs : [
-                    {type : "quantite-grade", targets : [2, 3]},
-                    {type : "moment-D MMM YYYY à HH[h]mm", targets : 4}
+                columnDefs: [
+                    { type: "quantite-grade", targets: [2, 3] },
+                    { type: "moment-D MMM YYYY à HH[h]mm", targets: 4 }
                 ]
             });
         }
@@ -523,34 +517,34 @@ class PageCommerce
     * Actualise le tableau des commandes en cours.
     *
     * @private
-	* @method actualiserCommande
+    * @method actualiserCommande
     */
     async actualiserCommande() {
         let total = 0, totalRouge = 0, tabCommandeAff = new Array();
         let tableData = []; // Tableau pour les données de DataTables
 
-        for(let id in this._utilitaire.commande){
-            if(await this._utilitaire.commande[id].estAFaire()){
+        for (let id in this._utilitaire.commande) {
+            if (await this._utilitaire.commande[id].estAFaire()) {
                 const commande = this._utilitaire.commande[id];
                 // Construire un tableau de données pour chaque ligne
                 const rowData = [
                     await commande.demandeur.getLienFourmizzz(), // Pseudo
                     moment(commande.dateCommande).format("D MMM YYYY"), // Date commande
                     EVOLUTION[commande.evolution], // Évolution
-                    numeral(commande.totalNourritureDemandee).format(), // Qté demandée Nourriture
-                    numeral(commande.totalMateriauxDemandes).format(), // Qté demandée Matériaux
+                    numeral(commande.nourritureDemandee).format(), // Qté demandée Nourriture
+                    numeral(commande.materiauxDemandes).format(), // Qté demandée Matériaux
                     numeral(commande.nourriture).format(), // Qté à livrer Nourriture
                     numeral(commande.materiaux).format(), // Qté à livrer Matériaux
                     moment(commande.dateSouhaite).format("D MMM YYYY"), // Echéance
                     // Status (image ou croix)
-                    (() => {
+                    (async () => {
                         let apres = !commande.dateApres || moment().isSameOrAfter(moment(commande.dateApres));
-                        if(apres){
-                            let attente = commande.getAttente();
-                            switch(true){
-                                case attente > 0 : return `<img src='images/icone/3rondrouge.gif'/>`;
-                                case attente > -3 : return `<img src='images/icone/2rondorange.gif'/>`;
-                                default : return `<img src='images/icone/1rondvert.gif'/>`;
+                        if (apres) {
+                            let attente = await commande.getAttente();
+                            switch (true) {
+                                case attente > 0: return `<img src='images/icone/3rondrouge.gif'/>`;
+                                case attente > -3: return `<img src='images/icone/2rondorange.gif'/>`;
+                                default: return `<img src='images/icone/1rondvert.gif'/>`;
                             }
                         } else {
                             return `<img src="${IMG_CROIX}" alt='supprimer' title='Ne pas livrer avant le ${moment(commande.dateApres).format("DD-MM-YYYY")}'/>`;
@@ -567,13 +561,13 @@ class PageCommerce
                     })(),
                     // Options (boutons ou vide)
                     await (async () => {
-                        return (await commande.demandeur.lireParametre('pseudo') == await monProfilJoueur.lireParametre('pseudo')) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
+                        return (await commande.demandeur.lireParametre('Pseudo') == await monProfilJoueur.lireParametre('Pseudo')) ? `<a id='o_modifierCommande${commande.id}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a> <a id='o_supprimerCommande${commande.id}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>` : "";
                     })()
                 ];
                 tableData.push(rowData);
 
                 total += parseInt(commande.materiaux);
-                if(commande.estHorsTard()) totalRouge += parseInt(commande.materiaux);
+                if (await commande.estEnRetard()) totalRouge += parseInt(commande.materiaux);
                 tabCommandeAff.push(id);
             }
         }
@@ -591,7 +585,7 @@ class PageCommerce
     * Actualise le tableau des convois en cours.
     *
     * @private
-	* @method actualiserConvois
+    * @method actualiserConvois
     */
     actualiserConvois() {
         // Recharger les convois
@@ -612,13 +606,12 @@ class PageCommerce
         });
     } // Fin de actualiserConvois();
     /**
-	* Modifie le bouton d'envoie des convois pour prendre ne compte l'utilitaire.
+    * Modifie le bouton d'envoie des convois pour prendre ne compte l'utilitaire.
     *
-	* @private
-	* @method formulaireConvoi
-	*/
-	formulaireConvoi()
-	{
+    * @private
+    * @method formulaireConvoi
+    */
+    formulaireConvoi() {
         $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>").after(` <button id='o_resetConvoi'>Effacer</button>`).click(async (e) => {
             let idCommande = $("#o_idCommande").val();
             let convoiAPosterString = localStorage.getItem('outiiil_convoi_a_poster');
@@ -635,39 +628,39 @@ class PageCommerce
             let nourriture = numeral($("#nbNourriture").val()).value();
 
             if (materiaux === 0 && nourriture === 0) {
-                $.toast({...TOAST_ERROR, text : "Impossible de lancer un convoi vide."});
+                $.toast({ ...TOAST_ERROR, text: "Impossible de lancer un convoi vide." });
                 e.preventDefault();
                 return false;
             }
 
-            if(idCommande != -1){ // Enregistrement du convoi
+            if (idCommande != -1) { // Enregistrement du convoi
                 e.preventDefault(); // Empêcher la soumission immédiate du formulaire par le jeu.
 
                 const commande = this._utilitaire.commande[idCommande];
                 const destinataireConvoi = $("#pseudo_convoi").val();
 
-                if (commande && await commande.demandeur.lireParametre('pseudo') !== destinataireConvoi) {
+                if (commande && await commande.demandeur.lireParametre('Pseudo') !== destinataireConvoi) {
                     // Le destinataire du convoi ne correspond pas au demandeur de la commande
-                    $.toast({...TOAST_ERROR, text : `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${await commande.demandeur.lireParametre('pseudo')}).`});
+                    $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${await commande.demandeur.lireParametre('Pseudo')}).` });
                     return false; // Empêcher l'envoi du convoi
                 }
-                
+
                 let destinatairePseudo = $("#pseudo_convoi").val();
                 let dateArriveeCalculee = moment().add(await monProfilJoueur.getTempsParcours2(this._utilitaire.commande[idCommande].demandeur), 's');
 
                 let monConvoi = new Convoi({
-                    expediteur  : await monProfilJoueur.lireParametre('pseudo'),
-                    destinataire : destinatairePseudo,
-                    materiaux   : materiaux,
-                    nourriture  : nourriture,
-                    idCommande  : numeral(idCommande).value(),
-                    dateArrivee : dateArriveeCalculee,
-                    ouvrieres   : numeral($("#nbOuvriere").val()).value() // Ajout du nombre d'ouvrières
+                    expediteur: await monProfilJoueur.lireParametre('Pseudo'),
+                    destinataire: destinatairePseudo,
+                    materiaux: materiaux,
+                    nourriture: nourriture,
+                    idCommande: numeral(idCommande).value(),
+                    dateArrivee: dateArriveeCalculee,
+                    ouvrieres: numeral($("#nbOuvriere").val()).value() // Ajout du nombre d'ouvrières
                 });
-                
+
                 // Enregistrer les données du convoi dans le localStorage
                 localStorage.setItem('outiiil_convoi_a_poster', JSON.stringify(monConvoi.toObject()));
-                
+
                 // Recharger la page
                 window.location.href = "commerce.php";
                 return false; // Empêcher toute autre action après le rechargement
@@ -679,5 +672,5 @@ class PageCommerce
             return false;
         });
         return this;
-	} // Fin de formulaireConvoi();
+    } // Fin de formulaireConvoi();
 } // Fin de la classe PageCommerce

@@ -3,11 +3,8 @@ class ParametreRecensementUnites extends ParametreObjetForum {
     static FORMAT_HISTORY = [
         { nom: 'Unités', format: '--- Unités ---\n(nom): (valeur) | ' }
     ];
-    valeur = {
-        'Ouvrières': 0,
-        ...NOM_UNITES.reduce((acc, nom) => {
-            acc[nom] = 0;
-            return acc;
-        }, {})
-    };
+    valeur = NOM_UNITES.reduce((acc, nom) => {
+        acc[nom] = 0;
+        return acc;
+    }, {});
 };

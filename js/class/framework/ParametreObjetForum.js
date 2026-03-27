@@ -1,60 +1,10 @@
-class ParametreObjetForum {
+class ParametreObjetForum extends DonneeValidable {
     /**
      * Configuration déclarative. Version de la logique de fonctionnement du paramètre.
      * Ex: '1.0'. Doit être surchargée dans chaque classe fille si le paramètre est versionné.
      * @type {String|null}
      */
     static VERSION_LOGIQUE = null;
-
-    /**
-     * Configuration déclarative. Liste des formats historiques du paramètre, du plus ancien au plus récent.
-     * Chaque élément est un dictionnaire {'nom': 'Nom du paramètre', 'format': 'template string avec (nom) et (valeur)'}.
-     * Ex: { nom: 'Nourriture', format: '--- Ressources ---\n(nom): (valeur) | ' }
-     * Doit être surchargée dans chaque classe fille.
-     * @type {Array<Object>}
-     */
-    static FORMAT_HISTORY = [];
-
-    /**
-     * Configuration déclarative. Chaîne à afficher si l'accès est restreint.
-     * Si null, la donnée n'est pas restreinte.
-     * Doit être surchargée dans la classe fille si nécessaire.
-     * @type {String|null}
-     * @protected
-     */
-    static STRING_RESTRICTION = null;
-
-    /**
-     * Configuration déclarative. Indique si la colonne est visible par défaut dans les tableaux.
-     * @type {boolean}
-     */
-    static VISIBLE_PAR_DEFAUT = true;
-
-    /**
-     * Retourne le nom du format le plus récent.
-     * @returns {string} Le dernier nom de format.
-     */
-    static getDernierNom() {
-        if (this.FORMAT_HISTORY.length === 0) {
-            return '';
-        }
-        return this.FORMAT_HISTORY[this.FORMAT_HISTORY.length - 1].nom;
-    }
-
-    /**
-     * Valeur réelle de la donnée.
-     * La valeur initiale est définie directement dans la déclaration de la classe fille.
-     * @type {any}
-     * @protected
-     */
-    valeur = null;
-
-    /**
-     * Référence à l'instance de l'ObjetForum qui contient ce paramètre.
-     * @type {ObjetForum|null}
-     * @protected
-     */
-    objetParent = null;
 
     /**
      * Passe à true uniquement lorsque le paramètre a réussi à charger une valeur.
@@ -103,15 +53,6 @@ class ParametreObjetForum {
      * @private
     */
     _waitingExclusives = []; // For Ecrire
-
-
-    /**
-     * Crée une instance "vierge" du paramètre et établit la liaison avec son objet parent.
-     * @param {ObjetForum} objetParent - L'instance de l'ObjetForum qui contient ce paramètre.
-     */
-    constructor(objetParent) {
-        this.objetParent = objetParent;
-    }
 
     /**
      * Acquiert un verrou de lecture sur l'instance de l'objet.
@@ -218,90 +159,7 @@ class ParametreObjetForum {
         return await gestionnaireVersions.verifierCompatibiliteParametre(this);
     }
 
-    /**
-     * Valide et caste une valeur par rapport à la valeur actuelle du paramètre.
-     * @param {any} valeurAParser - La valeur extraite à valider.
-     * @returns {{success: boolean, value: any}} - Le résultat de l'opération.
-     * @private
-     */
-    _checkValeur(valeurAValider) {
-        if (this.valeur === null || this.valeur === undefined) {
-            console.error(`[${this.constructor.name}] La valeur actuelle est nulle, impossible de valider le type.`);
-            return { success: false };
-        }
-
-        const typeContenantActuel = Array.isArray(this.valeur) ? 'array' : (typeof this.valeur === 'object' && this.valeur !== null) ? 'object' : 'primitive';
-        const typeContenantAValider = Array.isArray(valeurAValider) ? 'array' : (typeof valeurAValider === 'object' && valeurAValider !== null) ? 'object' : 'primitive';
-
-        if (typeContenantActuel !== typeContenantAValider) {
-            console.error(`[${this.constructor.name}] Le type de contenant ne correspond pas: attendu ${typeContenantActuel}, reçu ${typeContenantAValider}.`);
-            return { success: false };
-        }
-
-        if (typeContenantActuel === 'primitive') {
-            const typeCible = typeof this.valeur;
-            let valeurCastee;
-            switch (typeCible) {
-                case 'number':
-                    valeurCastee = Number(valeurAValider);
-                    if (isNaN(valeurCastee)) {
-                        console.error(`[${this.constructor.name}] Échec du casting de "${valeurAValider}" en nombre.`);
-                        return { success: false };
-                    }
-                    break;
-                case 'boolean':
-                    const strVal = String(valeurAValider).toLowerCase();
-                    if (strVal === 'true' || strVal === '1' || valeurAValider === true) valeurCastee = true;
-                    else if (strVal === 'false' || strVal === '0' || valeurAValider === false) valeurCastee = false;
-                    else {
-                        console.error(`[${this.constructor.name}] Échec du casting de "${valeurAValider}" en booléen.`);
-                        return { success: false };
-                    }
-                    break;
-                default:
-                    valeurCastee = String(valeurAValider);
-            }
-            return { success: true, value: valeurCastee };
-        }
-
-        if (typeContenantActuel === 'array') {
-            if (this.valeur.length === 0) {
-                console.error(`[${this.constructor.name}] La liste actuelle est vide, impossible de valider le type des éléments.`);
-                return { success: false };
-            }
-            const resultatListe = [];
-            for (const element of valeurAValider) {
-                const checkResult = this._checkValeur.call({ valeur: this.valeur[0] }, element);
-                if (!checkResult.success) {
-                    console.error(`[${this.constructor.name}] Échec du casting de l'élément "${element}" de la liste.`);
-                    return { success: false };
-                }
-                resultatListe.push(checkResult.value);
-            }
-            return { success: true, value: resultatListe };
-        }
-
-        if (typeContenantActuel === 'object') {
-            for (const cle in this.valeur) {
-                if (!valeurAValider.hasOwnProperty(cle)) {
-                    console.error(`[${this.constructor.name}] La clé attendue "${cle}" est manquante dans la valeur validée.`);
-                    return { success: false };
-                }
-            }
-            const resultatDict = {};
-            for (const cle in valeurAValider) {
-                if (!this.valeur.hasOwnProperty(cle)) {
-                    console.error(`[${this.constructor.name}] La clé "${cle}" n'est pas attendue dans le dictionnaire.`);
-                    return { success: false };
-                }
-                const checkResult = this._checkValeur.call({ valeur: this.valeur[cle] }, valeurAValider[cle]);
-                if (!checkResult.success) return { success: false };
-                resultatDict[cle] = checkResult.value;
-            }
-            return { success: true, value: resultatDict };
-        }
-        return { success: false };
-    }
+    // La méthode _checkValeur est maintenant héritée de DonneeValidable
 
     /**
      * Peuple la valeur du paramètre en parsant une chaîne de caractères fournie.
@@ -351,7 +209,12 @@ class ParametreObjetForum {
                 // ou un nombre/booléen non stringifié en JSON.
                 // Dans ce cas, on considère que c'est la valeur brute.
                 valeurAParser = meilleureValeurExtraite.trim();
-                console.warn(`[${this.constructor.name}] Le parsing JSON a échoué pour la valeur extraite: "${meilleureValeurExtraite.trim()}". La valeur sera traitée comme une chaîne brute.`);
+                const strTrimee = valeurAParser;
+                if (strTrimee.startsWith('{') || strTrimee.startsWith('[')) {
+                    console.warn(`[${this.constructor.name}] Le parsing JSON a échoué pour la valeur extraite qui semble être un objet/tableau: "${strTrimee}". La valeur sera traitée comme une chaîne brute.`);
+                } else {
+                    console.log(`[${this.constructor.name}] Valeur lue comme chaîne brute: "${strTrimee}"`);
+                }
             }
 
             // Étape de migration : convertir l'ancienne valeur parsée vers le format actuel si nécessaire
@@ -405,7 +268,12 @@ class ParametreObjetForum {
         try {
             const dernierFormatInfo = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1];
             let valeurStringifiee;
-            if (typeof this.valeur === 'object' && this.valeur !== null) {
+
+            // Gérer spécifiquement les objets moment
+            if (moment.isMoment(this.valeur)) {
+                // Sérialiser en ISO 8601 string
+                valeurStringifiee = this.valeur.toISOString();
+            } else if (typeof this.valeur === 'object' && this.valeur !== null) {
                 valeurStringifiee = JSON.stringify(this.valeur);
             } else {
                 valeurStringifiee = String(this.valeur);
@@ -439,33 +307,23 @@ class ParametreObjetForum {
         }
     }
 
-    _appliquerRestriction(valeur) {
-        const typeContenant = Array.isArray(valeur) ? 'array' : (typeof valeur === 'object' && valeur !== null) ? 'object' : 'primitive';
-        if (typeContenant === 'primitive') {
-            return this.constructor.STRING_RESTRICTION;
-        }
-        if (typeContenant === 'array') {
-            return valeur.map(v => this._appliquerRestriction(v));
-        }
-        if (typeContenant === 'object') {
-            const res = {};
-            for (const key in valeur) {
-                res[key] = this._appliquerRestriction(valeur[key]);
-            }
-            return res;
-        }
-    }
+    // La méthode _appliquerRestriction est maintenant héritée de DonneeValidable
 
     /**
      * Fournit un accès direct en lecture à la valeur du paramètre, en respectant les restrictions.
+     * Si les données sont restreintes et que l'utilisateur n'a pas les droits, émet une ErreurRestriction.
      * @param {Boolean} [peutVoirDonneesRestreintes=true] - Indique si l'utilisateur a les droits.
-     * @returns {*} - La valeur ou la chaîne de restriction.
+     * @returns {*} - La valeur du paramètre.
+     * @throws {ErreurRestriction} Si les données sont restreintes et que l'utilisateur n'a pas les droits.
      */
     async Lire(peutVoirDonneesRestreintes = true) {
         await this._acquireReadLock();
         try {
             if (this.constructor.STRING_RESTRICTION !== null && !peutVoirDonneesRestreintes) {
-                return this._appliquerRestriction(this.valeur);
+                const valeurRestreinte = this._appliquerRestriction(this.valeur);
+                const err = new ErreurRestriction(`Accès restreint au paramètre ${this.constructor.getDernierNom()}`);
+                err.donnees = valeurRestreinte;
+                throw err;
             }
             return this.valeur;
         } finally {

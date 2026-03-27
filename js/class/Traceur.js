@@ -136,3 +136,5 @@ class Traceur
         return texte.replace(/\[t\](.*?)\[\/t\]/g, "<a href='classementAlliance.php?alliance=$1'>$1</a>");
     }
 }
+
+

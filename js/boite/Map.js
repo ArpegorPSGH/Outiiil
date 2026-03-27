@@ -10,132 +10,125 @@
 * @constructor
 * @extends Boite
 */
-class BoiteMap extends Boite
-{
-    constructor()
-    {
+class BoiteMap extends Boite {
+    constructor() {
         super("o_boiteMap", "Carte du serveur " + Utils.serveur, `<div id='o_mapContent'></div>`);
     }
-	/**
+    /**
     * Affiche la boite.
     *
     * @private
     * @method afficher
     */
-	async afficher()
-	{
-        if(await super.afficher()){
+    async afficher() {
+        if (await super.afficher()) {
             await this.getMap().then(async (data) => {
                 let donnees = JSON.parse(data);
-                if(donnees.error == "0") await this.afficherMap(donnees.message);
+                if (donnees.error == "0") await this.afficherMap(donnees.message);
             }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({...TOAST_ERROR, text : "Une erreur réseau a été rencontrée lors de la récupération de la map."});
+                $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la map." });
             });
             this.css().event();
         }
         return this;
-	}
-	/**
-	* Applique le style propre à la boite.
+    }
+    /**
+    * Applique le style propre à la boite.
     *
-	* @private
-	* @method css
-	*/
-	css()
-	{
+    * @private
+    * @method css
+    */
+    css() {
         super.css();
         return this;
-	}
-	/**
-	* Ajoute les evenements propres à la boite.
+    }
+    /**
+    * Ajoute les evenements propres à la boite.
     *
-	* @private
-	* @method event
-	*/
-	event()
-	{
+    * @private
+    * @method event
+    */
+    event() {
         super.event();
         return this;
-	}
+    }
     /**
     *
     */
-    getMap()
-    {
+    getMap() {
         return $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map");
     }
     /**
     *
     */
-    async afficherMap(data)
-    {
+    async afficherMap(data) {
         // on parsed les données pour le graph
         let mesDatas = new Array();
-        for(let i = 0, l = data.split("\n") ; i < l.length ; i++){
+        for (let i = 0, l = data.split("\n"); i < l.length; i++) {
             let tmp = l[i].split(";");
             // si c'est moi on met en evidence
-            if(tmp[1] == await monProfilJoueur.lireParametre('pseudo'))
-                mesDatas.push({x : parseInt(tmp[3]), y : parseInt(tmp[2]), id : tmp[0], name : tmp[1], color : "#00FF00", marker : {radius : 4}});
+            if (tmp[1] == await monProfilJoueur.lireParametre('Pseudo'))
+                mesDatas.push({ x: parseInt(tmp[3]), y: parseInt(tmp[2]), id: tmp[0], name: tmp[1], color: "#00FF00", marker: { radius: 4 } });
             else
-                mesDatas.push({x : parseInt(tmp[3]), y : parseInt(tmp[2]), id : tmp[0], name : tmp[1]});
+                mesDatas.push({ x: parseInt(tmp[3]), y: parseInt(tmp[2]), id: tmp[0], name: tmp[1] });
         }
         // affichage du graph
         let chart = new Highcharts.Chart({
-            chart : {
-                renderTo : "o_mapContent",
-                height : "45%",
-                backgroundColor : null
+            chart: {
+                renderTo: "o_mapContent",
+                height: "45%",
+                backgroundColor: null
             },
-            title : {text: ''},
-            credits : {enabled : false},
-            xAxis : {
-                lineColor : "#333333",
-                gridLineColor : "#333333",
-                gridLineWidth : 0,
-                tickInterval : 1,
-                minorGridLineColor : "#333333",
-                minorTickInterval : 4,
-                labels : {style : {color : monProfilUtilisateur.parametre["couleurTexte"].valeur}},
-                min : Math.max(0, monProfilJoueur.y - 10),
-                max : monProfilJoueur.y + 10 + (monProfilJoueur.y - 10 < 10 ? Math.abs(monProfilJoueur.y - 10) : 0),
-                scrollbar : {
-                    enabled : true
+            title: { text: '' },
+            credits: { enabled: false },
+            xAxis: {
+                lineColor: "#333333",
+                gridLineColor: "#333333",
+                gridLineWidth: 0,
+                tickInterval: 1,
+                minorGridLineColor: "#333333",
+                minorTickInterval: 4,
+                labels: { style: { color: monProfilUtilisateur.parametre["couleurTexte"].valeur } },
+                min: Math.max(0, await monProfilJoueur.y - 10),
+                max: await monProfilJoueur.y + 10 + (await monProfilJoueur.y - 10 < 10 ? Math.abs(await monProfilJoueur.y - 10) : 0),
+                scrollbar: {
+                    enabled: true
                 }
             },
-            yAxis : {
-                lineColor : "#333333",
-                gridLineColor : "#333333",
-                labels : {align : "left", x : 0, y : -2, style : {color : monProfilUtilisateur.parametre["couleurTexte"].valeur}},
-                min : 0,
-                max : 50
+            yAxis: {
+                lineColor: "#333333",
+                gridLineColor: "#333333",
+                labels: { align: "left", x: 0, y: -2, style: { color: monProfilUtilisateur.parametre["couleurTexte"].valeur } },
+                min: 0,
+                max: 50
             },
-            tooltip : {
-                crosshairs : true,
-                formatter : function(){
-                    return `<b>${this.point.name}</b><br/>x : ${this.x}, y : ${this.y}<br/>Temps de trajet : ${Utils.intToTime(monProfilJoueur.getTempsParcours(this.y, this.x))}`;
+            tooltip: {
+                crosshairs: true,
+                formatter: async function () {
+                    return `<b>${this.point.name}</b><br/>x : ${this.x}, y : ${this.y}<br/>Temps de trajet : ${Utils.intToTime(await monProfilJoueur.getTempsParcours(this.y, this.x))}`;
                 }
             },
-            plotOptions : {
-                series : {
-                    cursor : 'pointer',
-                    point : {
-                        events : {
-                            click : function(){
+            plotOptions: {
+                series: {
+                    cursor: 'pointer',
+                    point: {
+                        events: {
+                            click: function () {
                                 window.open("/Membre.php?Pseudo=" + this.name, "_blank");
                             }
                         }
                     }
                 }
             },
-            series : [{
-                type : "scatter",
-                data : mesDatas,
-                showInLegend : false,
-                marker : {
-                    radius : 3,
-                    symbol : "diamond"
+            series: [{
+                type: "scatter",
+                data: mesDatas,
+                showInLegend: false,
+                marker: {
+                    radius: 3,
+                    symbol: "diamond"
                 },
-                turboThreshold : 0
+                turboThreshold: 0
             }]
         });
     }

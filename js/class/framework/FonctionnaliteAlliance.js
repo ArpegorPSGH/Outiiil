@@ -12,6 +12,12 @@ class FonctionnaliteAlliance {
     static NIVEAU_DROIT_REQUIS = 'R';
 
     /**
+     * Vérification de l'état de membre requis pour initialiser la fonctionnalité.
+     * @type {boolean}
+     */
+    static VERIFICATION_MEMBRE_REQUIS = true;
+
+    /**
      * Liste des instances des classes ObjetForum utilisées par la fonctionnalité.
      * @private
      * @type {Array<ObjetForum>}
@@ -44,20 +50,20 @@ class FonctionnaliteAlliance {
                 console.warn(`[${this.constructor.name}] Conditions de version ou de section non remplies.`);
                 return false;
             }
-            if (!await this.verifierPresenceSujetMembre()) {
+            console.log('verifierPresenceSujetMembre')
+            if (this.constructor.VERIFICATION_MEMBRE_REQUIS && !await this.verifierPresenceSujetMembre()) {
                 console.warn(`[${this.constructor.name}] Le joueur n'est pas membre.`);
                 return false;
             }
+            console.log('verifierDroits')
             if (!await this.verifierDroits()) {
                 console.warn(`[${this.constructor.name}] Droits d'initialisation insuffisants.`);
                 return false;
             }
 
             // La méthode run() doit être implémentée par la classe fille.
-            if (typeof this.run === 'function') {
-                await this.run();
-            }
-            
+            await this.run();
+
             console.log(`[${this.constructor.name}] Initialisation terminée avec succès.`);
             return true;
         } catch (error) {
@@ -86,7 +92,7 @@ class FonctionnaliteAlliance {
             // Utilise acorn pour parser le code et générer un AST.
             // Mise à jour de ecmaVersion à 2022 pour supporter les champs de classe statiques.
             const ast = acorn.parse(codeSource, { ecmaVersion: 2022, sourceType: 'script' });
-            
+
             // Fonction récursive simple pour parcourir l'AST et collecter tous les identifiants.
             function collectIdentifiers(node) {
                 if (!node) return;
@@ -176,17 +182,19 @@ class FonctionnaliteAlliance {
      * @returns {Promise<Boolean>} - True si le joueur est membre, sinon false.
      */
     async verifierPresenceSujetMembre() {
-        const joueurs = await this.chargerObjetForumsMultiples(Joueur);
-        const pseudoJoueurActuel = await monProfilJoueur.lireParametre('pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
-
+        console.log('Inside verifierPresenceSujetMembre')
+        const joueurs = await this.chargerObjetsForum(Joueur);
+        console.log('joueurs chargés', joueurs)
+        const pseudoJoueurActuel = await monProfilJoueur.lireParametre('Pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
+        console.log('pseudoJoueurActuel', pseudoJoueurActuel)
         if (!pseudoJoueurActuel) {
             console.error(`[${this.constructor.name}] Le pseudo du joueur actuel n'a pas pu être déterminé.`);
             return false;
         }
 
         const estMembre = await Promise.all(joueurs.map(async joueur => {
-            const joueurPseudo = await joueur.lireParametre('pseudo');
-            // 'pseudo' est le nom du paramètre dans la classe Joueur.
+            const joueurPseudo = await joueur.lireParametre('Pseudo');
+            // 'Pseudo' est le nom du paramètre dans la classe Joueur.
             return joueurPseudo === pseudoJoueurActuel;
         })).then(results => results.some(result => result));
 
@@ -204,7 +212,7 @@ class FonctionnaliteAlliance {
      */
     async rafraichirDroits() {
         // On passe 'this' pour que le gestionnaire puisse utiliser les méthodes de la fonctionnalité,
-        // comme chargerObjetForumsMultiples, pour charger les données nécessaires.
+        // comme chargerObjetsForum, pour charger les données nécessaires.
         await gestionnaireDroits.rafraichir(this);
     }
 
@@ -244,18 +252,19 @@ class FonctionnaliteAlliance {
      * @param {Boolean} chargerContenus - Si true, charge aussi les objets contenus.
      * @returns {Promise<Array<T>>} - Une promesse qui résout avec un tableau d'instances de l'objet.
      */
-    async chargerObjetForumsMultiples(ClasseObjetForum, chargerContenus = true) {
+    async chargerObjetsForum(ClasseObjetForum, chargerContenus = true) {
+        console.log('Inside chargerObjetsForum')
         const nomClasse = ClasseObjetForum.name;
         if (cacheObjetForums.has(nomClasse)) {
             return cacheObjetForums.get(nomClasse);
         }
-
+        console.log('nomClasse', nomClasse)
         const instanceTemporaire = new ClasseObjetForum();
         if (!instanceTemporaire.idsSection || instanceTemporaire.idsSection.length === 0) {
             console.warn(`La classe ${nomClasse} n'a pas d'idsSection configurés.`);
             return [];
         }
-
+        console.log('instanceTemporaire.idsSection', instanceTemporaire.idsSection)
         let tousLesSujets = [];
         for (const idSection of instanceTemporaire.idsSection) {
             try {
@@ -271,17 +280,22 @@ class FonctionnaliteAlliance {
         console.log('tousLesSujets: ', tousLesSujets)
         const objetsCharges = [];
         for (const sujet of tousLesSujets) {
+            console.log('sujet: ', sujet)
             const instance = new ClasseObjetForum(this, { idSujet: parseInt(sujet.id, 10) });
+            console.log('instanceClasse: ', instance)
             const chargementReussi = await instance.rafraichir(chargerContenus);
             console.log('chargementReussi: ', chargementReussi)
             if (chargementReussi) {
                 // Transfert du sujet si nécessaire :
                 const idDerniereSection = instance.idsSection[instance.idsSection.length - 1];
+                console.log('idDerniereSection', idDerniereSection)
                 if (sujet.idSectionSource !== idDerniereSection) {
                     console.log(`[${this.constructor.name}] Transfert du sujet ID ${instance.idSujet} de la section ${sujet.idSectionSource} vers la section ${idDerniereSection}.`);
                     await pageForum.transfererSujet(instance.idSujet, idDerniereSection);
                 }
+                console.log('instance pushing', instance);
                 objetsCharges.push(instance);
+                console.log('instance pushed:');
             } else {
                 console.warn(`Échec du chargement de l'objet depuis le sujet: "${sujet.titre}" (ID: ${sujet.id})`);
             }

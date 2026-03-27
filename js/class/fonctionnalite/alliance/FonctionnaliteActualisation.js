@@ -15,6 +15,11 @@ Utils.register(class FonctionnaliteActualisation extends FonctionnaliteAlliance 
     static NIVEAU_DROIT_REQUIS = 'A';
 
     /**
+     * @property {boolean} VERIFICATION_MEMBRE_REQUIS - Vérification de l'état de membre requis pour cette fonctionnalité
+     */
+    static VERIFICATION_MEMBRE_REQUIS = false;
+
+    /**
      * Exécute la fonctionnalité.
      * @async
      * @returns {Promise<void>}
@@ -39,8 +44,8 @@ Utils.register(class FonctionnaliteActualisation extends FonctionnaliteAlliance 
 
         try {
             await this.page.synchroniserJoueursDepuisDOM();
-            const membresForum = await this.chargerObjetForumsMultiples(Joueur, false);
-            const membresForumMap = new Map(membresForum.map(m => [m.mapParametres.get('pseudo').valeur, m]));
+            const membresForum = await this.chargerObjetsForum(Joueur, false);
+            const membresForumMap = new Map(membresForum.map(m => [m.mapParametres.get('Pseudo').valeur, m]));
 
             const promessesProfil = [];
             const nouveauxJoueurs = [];
@@ -48,7 +53,7 @@ Utils.register(class FonctionnaliteActualisation extends FonctionnaliteAlliance 
                 let joueurForum = membresForumMap.get(pseudo);
 
                 if (!joueurForum) {
-                    joueurForum = new Joueur(this, {donneesInitiales: {pseudo: pseudo, alliance_rattachement: this.page._alliance.tag }});
+                    joueurForum = new Joueur(this, { donneesInitiales: { 'Pseudo': pseudo, 'Alliance Rattachement': this.page._alliance.tag } });
                     promessesProfil.push(joueurForum.enregistrerSurForum());
                     nouveauxJoueurs.push(joueurForum);
                 }

@@ -9,14 +9,12 @@
 * @class PageAlliance
 * @constructor
 */
-class PageAlliance
-{
-    constructor()
-    {
+class PageAlliance {
+    constructor() {
         /**
         * Creation du modele Alliance
         */
-        this._alliance = new Alliance({tag : Utils.alliance});
+        this._alliance = new Alliance({ tag: Utils.alliance });
         /**
         * Connexion à l'utilitaire.
         */
@@ -25,26 +23,25 @@ class PageAlliance
     /**
     *
     */
-    executer()
-    {
+    executer() {
         // si les membres sont deja chargé on peux executé la fonction sinon on observe
-        if($("#tabMembresAlliance").length)
+        if ($("#tabMembresAlliance").length)
             this.traitementMembre();
-        else{
+        else {
             // Ajout des infos sur le tableau des membres
             let observer = new MutationObserver(async (mutationsList) => { // Rendre la callback asynchrone
                 this.traitementMembre();
                 observer.disconnect();
             });
-            observer.observe($("#alliance")[0], {childList : true});
+            observer.observe($("#alliance")[0], { childList: true });
         }
         return this;
     }
     /**
-	* Affiche les modifications du tableau des membres.
+    * Affiche les modifications du tableau des membres.
     *
-	* @private
-	* @method traitementMembre
+    * @private
+    * @method traitementMembre
     */
     async traitementMembre() // Rendre la fonction asynchrone
     {
@@ -67,16 +64,16 @@ class PageAlliance
         await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
             let pseudo = $(elt).find("td:eq(3)").text(), terrain = numeral($(elt).find("td:eq(5)").text()).value(), rang = $(elt).find("td:eq(2)").text();
             tmpJoueurs[pseudo] = new Joueur({
-                pseudo : pseudo,
-                rang : rang,
-                terrain : terrain,
-                fourmiliere : ~~($(elt).find("td:eq(8)").text()),
-                technologie : ~~($(elt).find("td:eq(7)").text())
+                pseudo: pseudo,
+                rang: rang,
+                terrain: terrain,
+                fourmiliere: ~~($(elt).find("td:eq(8)").text()),
+                technologie: ~~($(elt).find("td:eq(7)").text())
             });
-            if(!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()){
-                if(tmpJoueurs[pseudo].estAttaquable())
+            if (!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()) {
+                if (await tmpJoueurs[pseudo].estAttaquable())
                     $(elt).find("td:eq(6)").html(IMG_ATT);
-                if(tmpJoueurs[pseudo].estAttaquant())
+                if (await tmpJoueurs[pseudo].estAttaquant())
                     $(elt).find("td:eq(4)").html(IMG_DEF);
             }
         });
@@ -85,11 +82,11 @@ class PageAlliance
 
         // Recupération des données de l'utilitaire sinon on met en forme le tableau directement
         $("#tabMembresAlliance tr:first").remove();
-		$("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmiliere</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
+        $("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmiliere</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
 
         // Si on dispose d'un utilitaire pour la gestion des membres ET que le joueur a un sujet dans la section membres
         const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"].valeur;
-        const pseudoJoueur = await monProfilJoueur.lireParametre('pseudo');
+        const pseudoJoueur = await monProfilJoueur.lireParametre('Pseudo');
 
         if (idSectionMembre) {
             try {
@@ -97,7 +94,7 @@ class PageAlliance
                 if (sujetExiste) {
                     // recuperation des données sur l'utilitaire
                     const data = await this._utilitaire.consulterSection(idSectionMembre);
-                    if(this._utilitaire.chargerJoueur(data)) {
+                    if (this._utilitaire.chargerJoueur(data)) {
                         console.log("[PageAlliance] traitementMembre: Avant _fusionnerJoueursUtilitaire, joueurs dans this._alliance.joueurs:", Object.keys(this._alliance.joueurs));
                         await this._fusionnerJoueursUtilitaire(); // Appel de la nouvelle méthode
                         console.log("[PageAlliance] traitementMembre: Après _fusionnerJoueursUtilitaire, joueurs dans this._alliance.joueurs:", Object.keys(this._alliance.joueurs));
@@ -135,9 +132,9 @@ class PageAlliance
                             // On ajoute le bouton Recensement après le bouton Actualiser s'il existe, sinon au début du conteneur.
                             const $actualiserButton = $("#o_actualiserAlliance");
                             if ($actualiserButton.length > 0) {
-                                 $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`).insertAfter($actualiserButton);
+                                $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`).insertAfter($actualiserButton);
                             } else {
-                                 dtButtonsContainer.prepend(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
+                                dtButtonsContainer.prepend(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
                             }
 
                             // Ajouter ici un span pour le loading si souhaité (il faudrait l'insérer aussi après le bouton Recensement)
@@ -152,13 +149,13 @@ class PageAlliance
                                 try {
                                     const recensementReussi = await monProfilJoueur.effectuerRecensement();
                                     if (recensementReussi) {
-                                        $.toast({...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum."});
+                                        $.toast({ ...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum." });
                                     } else {
                                         throw new Error("Échec de l'opération de recensement.");
                                     }
                                 } catch (error) {
                                     console.error("Erreur lors du recensement:", error);
-                                    $.toast({...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}`});
+                                    $.toast({ ...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}` });
                                 } finally {
                                     $button.removeClass('processing').css('pointer-events', 'auto'); // Réactiver
                                 }
@@ -178,7 +175,7 @@ class PageAlliance
                 }
             } catch (error) {
                 console.error("Erreur lors de la vérification ou de la consultation du sujet membre:", error);
-                $.toast({...TOAST_ERROR, text : "Erreur lors de la récupération des membres."});
+                $.toast({ ...TOAST_ERROR, text: "Erreur lors de la récupération des membres." });
                 this.tableau(); // Fallback to basic table if verification fails
                 await this.optionAdmin(); // Appeler optionAdmin en cas d'erreur de vérification si section existe
             }
@@ -210,46 +207,44 @@ class PageAlliance
         return this;
     }
     /**
-	* Ajoute le tri.
+    * Ajoute le tri.
     *
-	* @private
-	* @method tableau
-	*/
-	tableau()
-	{
-        $("#tabMembresAlliance th:eq(7), #tabMembresAlliance th:eq(8)").css({maxWidth:"50px",textOverflow:"ellipsis",overflow:"hidden"});
+    * @private
+    * @method tableau
+    */
+    tableau() {
+        $("#tabMembresAlliance th:eq(7), #tabMembresAlliance th:eq(8)").css({ maxWidth: "50px", textOverflow: "ellipsis", overflow: "hidden" });
         $("#tabMembresAlliance").DataTable({
-            bInfo : false,
-            bPaginate : false,
-            bAutoWidth : false,
-            dom : "Bfrti",
-            buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            order : [[5, "desc"]], // Tri par défaut par la colonne "Terrain" (index 5) en ordre décroissant
-            stripeClasses : ["", "alt"],
-            responsive : true,
-            language : {
-                zeroRecords : "Aucun joueur trouvé",
-                infoEmpty : "Aucun enregistrement",
-                infoFiltered : "(Filtré par _MAX_ enregistrements)",
-                search : "Rechercher : ",
-                buttons : {colvis : "Colonne"}
+            bInfo: false,
+            bPaginate: false,
+            bAutoWidth: false,
+            dom: "Bfrti",
+            buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+            order: [[5, "desc"]], // Tri par défaut par la colonne "Terrain" (index 5) en ordre décroissant
+            stripeClasses: ["", "alt"],
+            responsive: true,
+            language: {
+                zeroRecords: "Aucun joueur trouvé",
+                infoEmpty: "Aucun enregistrement",
+                infoFiltered: "(Filtré par _MAX_ enregistrements)",
+                search: "Rechercher : ",
+                buttons: { colvis: "Colonne" }
             },
-            columnDefs : [
-                {className: "dt-body-center", targets: "_all"}, // Centrer toutes les cellules du corps du tableau
-                {type : "quantite-grade", targets : 5},
-                {sortable : false, targets : [0, 1, 4, 6, 10, 11]}
+            columnDefs: [
+                { className: "dt-body-center", targets: "_all" }, // Centrer toutes les cellules du corps du tableau
+                { type: "quantite-grade", targets: 5 },
+                { sortable: false, targets: [0, 1, 4, 6, 10, 11] }
             ]
         });
         return this;
-	}
+    }
     /**
-	* Ajout des infos du SDC.
+    * Ajout des infos du SDC.
     *
-	* @private
-	* @method traitementUtilitaire
-	*/
-    async traitementUtilitaire()
-    {
+    * @private
+    * @method traitementUtilitaire
+    */
+    async traitementUtilitaire() {
         // On retraicie les colonnes des niveaux
         $("#tabMembresAlliance th:eq(1)").after(`<th class="dt-head-center">Grade</th>`);
         $("#tabMembresAlliance th:eq(9)").after(`<th class="dt-head-center">Tdt</th><th class="dt-head-center">Retour</th>`);
@@ -261,16 +256,16 @@ class PageAlliance
             // Vérifier si le joueur existe et a les propriétés x et y définies
             if (joueur && typeof joueur.x === 'number' && typeof joueur.y === 'number' && joueur.x !== -1 && joueur.y !== -1) {
                 // si nous avons les coordonnées on affiche les temps de trajet
-                $(elt).find("td:eq(1)").after(`<td align="center">${await joueur.lireParametre('grade') !== undefined ? await joueur.lireParametre('grade') : Utils.alliance}</td>`);
-                
+                $(elt).find("td:eq(1)").after(`<td align="center">${await joueur.lireParametre('Grade') !== undefined ? await joueur.lireParametre('Grade') : Utils.alliance}</td>`);
+
                 const tempsParcours = await monProfilJoueur.getTempsParcours2(joueur);
-                
+
                 const tdtDisplay = Utils.intToTime(tempsParcours);
                 const retourDisplay = Utils.roundMinute(tempsParcours).format("D MMM à HH[h]mm");
 
                 $(elt).find("td:eq(9)").after(`<td align="center">${tdtDisplay}</td><td align="center">${retourDisplay}</td>`);
                 // si on est chef de l'alliance on peut modifier les rangs et que le joueur est dans l'utilitaire
-                if($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)){
+                if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)) {
                     $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                     $("#o_rang" + joueur.id).click(async (e) => {
                         let boiteForm = new BoiteGrade(joueur, this._utilitaire, this);
@@ -280,10 +275,10 @@ class PageAlliance
                 }
             } else {
                 // Si le joueur n'existe pas ou n'a pas de coordonnées valides, afficher N/C pour les temps de trajet
-                $(elt).find("td:eq(1)").after(`<td align="center">${joueur && await joueur.lireParametre('grade') !== undefined ? await joueur.lireParametre('grade') : Utils.alliance}</td>`);
+                $(elt).find("td:eq(1)").after(`<td align="center">${joueur && await joueur.lireParametre('Grade') !== undefined ? await joueur.lireParametre('Grade') : Utils.alliance}</td>`);
                 $(elt).find("td:eq(9)").after(`<td align="center">N/C</td><td align="center">N/C</td>`);
                 // Gérer le bouton de grade même si les coordonnées sont N/C, si le joueur existe dans l'utilitaire
-                if($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)){
+                if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)) {
                     $(elt).find("td:eq(0)").append(`<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                     $("#o_rang" + joueur.id).click(async (e) => {
                         let boiteForm = new BoiteGrade(joueur, this._utilitaire, this);
@@ -361,10 +356,10 @@ class PageAlliance
     */
     async _creerLigneJoueurExterieur(joueur) {
         const pseudoDisplay = joueur.allianceTag
-            ? `${await joueur.lireParametre('pseudo')} (${joueur.allianceTag})`
-            : await joueur.lireParametre('pseudo');
+            ? `${await joueur.lireParametre('Pseudo')} (${joueur.allianceTag})`
+            : await joueur.lireParametre('Pseudo');
 
-        const rangDisplay = await joueur.lireParametre('grade') !== undefined && await joueur.lireParametre('grade') !== "" ? await joueur.lireParametre('grade') : "N/C";
+        const rangDisplay = await joueur.lireParametre('Grade') !== undefined && await joueur.lireParametre('Grade') !== "" ? await joueur.lireParametre('Grade') : "N/C";
         const terrainDisplay = joueur.terrain !== -1 ? numeral(joueur.terrain).format() : "N/C";
         const technologieDisplay = joueur.technologie !== -1 ? numeral(joueur.technologie).format() : "N/C";
         const fourmiliereDisplay = joueur.fourmiliere !== -1 ? numeral(joueur.fourmiliere).format() : "N/C";
@@ -376,17 +371,17 @@ class PageAlliance
 
         let editButtonHtml = "";
         // Si l'utilisateur a les droits d'administration et que le joueur est connu de l'utilitaire
-        if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(await joueur.lireParametre('pseudo'))) {
+        if ($("img[src='images/crayon.gif']").length && this._utilitaire.alliance.joueurs.hasOwnProperty(await joueur.lireParametre('Pseudo'))) {
             editButtonHtml = `<a id="o_rang${joueur.id}" href=""><img src="${IMG_UTILITY}" alt="grade"/></a>`;
         }
 
         let imgDefHtml = "";
         let imgAttHtml = "";
         if (! await joueur.estJoueurCourant()) {
-            if (joueur.estAttaquant()) {
+            if (await joueur.estAttaquant()) {
                 imgDefHtml = IMG_DEF;
             }
-            if (joueur.estAttaquable()) {
+            if (await joueur.estAttaquable()) {
                 imgAttHtml = IMG_ATT;
             }
         }
@@ -395,7 +390,7 @@ class PageAlliance
         // <th></th><th>Grade</th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmiliere</span></th><th>Tdt</th><th>Retour</th><th>État</th><th></th>
         // Total de 15 colonnes (12 + 3 ajoutées)
         return `
-            <tr class="ligne_paire o_joueurExterieur" data-pseudo="${await joueur.lireParametre('pseudo')}">
+            <tr class="ligne_paire o_joueurExterieur" data-pseudo="${await joueur.lireParametre('Pseudo')}">
                 <td align="center">${editButtonHtml}</td>
                 <td align="center"></td>
                 <td align="center">${rangDisplay}</td>
@@ -433,20 +428,20 @@ class PageAlliance
                 console.log(`[PageAlliance] Nouveau joueur externe détecté: ${pseudo}. Ajout à l'alliance.`);
                 const nouveauJoueur = new Joueur({
                     id: joueurUtilitaire.id,
-                    pseudo: await joueurUtilitaire.lireParametre('pseudo'),
+                    pseudo: await joueurUtilitaire.lireParametre('Pseudo'),
                     x: parseInt(joueurUtilitaire.x), // Convertir en nombre
                     y: parseInt(joueurUtilitaire.y), // Convertir en nombre
                     // terrain, fourmiliere, technologie seront chargés par getProfil()
                     mv: joueurUtilitaire.mv,
                     ordreRadar: joueurUtilitaire.ordreRadar,
                     sujetForum: joueurUtilitaire.sujetForum,
-                    grade: await joueurUtilitaire.lireParametre('grade'),
-                    ordreGrade: await joueurUtilitaire.lireParametre('ordre_grade'),
+                    grade: await joueurUtilitaire.lireParametre('Grade'),
+                    ordreGrade: await joueurUtilitaire.lireParametre('Ordre Grade'),
                     allianceTag: joueurUtilitaire.allianceTag,
                     colonise: joueurUtilitaire.colonise // Assurez-vous que cette propriété est passée
                 });
                 this._alliance.joueurs[pseudo] = nouveauJoueur;
-                console.log(`[PageAlliance] Nouveau joueur externe créé:`, { pseudo: nouveauJoueur.pseudo, id: nouveauJoueur.id, estExterieur: await nouveauJoueur.estExterieur(), allianceTag: nouveauJoueur.allianceTag });
+                console.log(`[PageAlliance] Nouveau joueur externe créé:`, { pseudo: await nouveauJoueur.pseudo, id: nouveauJoueur.id, estExterieur: await nouveauJoueur.estExterieur(), allianceTag: nouveauJoueur.allianceTag });
 
                 // Déclencher le chargement du profil pour obtenir terrain, fourmiliere, technologie, et colonise
                 const profilPromise = await nouveauJoueur.getProfil();
@@ -457,7 +452,7 @@ class PageAlliance
                         await nouveauJoueur.chargerProfil(html);
                         console.log(`[PageAlliance] Données de profil chargées pour ${pseudo}: Terrain=${nouveauJoueur.terrain}, Fourmiliere=${nouveauJoueur.fourmiliere}, Technologie=${nouveauJoueur.technologie}, Colonise=${nouveauJoueur.colonise}, EstExterieur=${await nouveauJoueur.estExterieur()}`);
                     }).catch(async error => {
-                        console.error(`[PageAlliance] Erreur lors du chargement du profil de ${await nouveauJoueur.lireParametre('pseudo')}:`, error);
+                        console.error(`[PageAlliance] Erreur lors du chargement du profil de ${await nouveauJoueur.lireParametre('Pseudo')}:`, error);
                         // Assigner des valeurs par défaut en cas d'échec de chargement
                         nouveauJoueur.terrain = -1;
                         nouveauJoueur.fourmiliere = -1;
@@ -476,8 +471,8 @@ class PageAlliance
                 joueurExistant.y = parseInt(joueurUtilitaire.y); // Convertir en nombre
                 joueurExistant.id = joueurUtilitaire.id;
                 joueurExistant.sujetForum = joueurUtilitaire.sujetForum;
-                joueurExistant.ecrireParametre('grade', await joueurUtilitaire.lireParametre('grade'));
-                joueurExistant.ecrireParametre('ordre_grade', await joueurUtilitaire.lireParametre('ordre_grade'));
+                joueurExistant.ecrireParametre('Grade', await joueurUtilitaire.lireParametre('Grade'));
+                joueurExistant.ecrireParametre('Ordre Grade', await joueurUtilitaire.lireParametre('Ordre Grade'));
                 joueurExistant.allianceTag = joueurUtilitaire.allianceTag;
                 joueurExistant.colonise = joueurUtilitaire.colonise; // Mettre à jour la propriété colonise
                 console.log(`[PageAlliance] Joueur existant ${pseudo} mis à jour: X=${joueurExistant.x}, Y=${joueurExistant.y}, EstExterieur=${await joueurExistant.estExterieur()}, Colonise=${joueurExistant.colonise}`);
@@ -490,11 +485,10 @@ class PageAlliance
     /**
     *
     */
-    async optionAdmin()
-    {
+    async optionAdmin() {
         // si on est chef de l'alliance on peut mettre à jour les membres
         const crayonIcon = $("img[src='images/crayon.gif']");
-        if(crayonIcon.length){
+        if (crayonIcon.length) {
             const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
             if (dtButtonsContainer.length > 0) {
                 dtButtonsContainer.prepend(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
@@ -506,8 +500,8 @@ class PageAlliance
                     const idSectionMembre = monProfilUtilisateur.parametre["Membres Outiiil"]?.valeur;
 
                     if (!idSectionMembre) {
-                         $.toast({...TOAST_ERROR, text : "Le paramètre Membres Outiiil n'est pas configuré."});
-                         return false;
+                        $.toast({ ...TOAST_ERROR, text: "Le paramètre Membres Outiiil n'est pas configuré." });
+                        return false;
                     }
 
                     try {
@@ -521,13 +515,13 @@ class PageAlliance
 
                         let promiseJoueur = new Array(), pseudoJoueur = new Array();
                         // si coordonnée inconnu on va les chercher
-                        for(let pseudo in this._alliance.joueurs){ // Utiliser pseudo pour itérer sur les clés
+                        for (let pseudo in this._alliance.joueurs) { // Utiliser pseudo pour itérer sur les clés
                             const joueur = this._alliance.joueurs[pseudo];
                             // si le joueur n'est pas connu dans l'utilitaire
-                            if(!this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)) // Utiliser pseudo ici aussi
+                            if (!this._utilitaire.alliance.joueurs.hasOwnProperty(pseudo)) // Utiliser pseudo ici aussi
                                 this._utilitaire.alliance.joueurs[pseudo] = joueur; // Utiliser pseudo ici aussi
                             // si ses coordonnées ne sont pas connu
-                            if(this._utilitaire.alliance.joueurs[pseudo].x == -1 && this._utilitaire.alliance.joueurs[pseudo].y == -1){ // Utiliser pseudo ici aussi
+                            if (this._utilitaire.alliance.joueurs[pseudo].x == -1 && this._utilitaire.alliance.joueurs[pseudo].y == -1) { // Utiliser pseudo ici aussi
                                 promiseJoueur.push(this._utilitaire.alliance.joueurs[pseudo].getProfil()); // Utiliser pseudo ici aussi
                                 pseudoJoueur.push(pseudo); // Utiliser pseudo ici aussi
                             }
@@ -536,12 +530,12 @@ class PageAlliance
                         const valuesProfil = await Promise.all(promiseJoueur); // Utilisation de await
 
                         let promiseForum = new Array();
-                        for(let i = 0 ; i < valuesProfil.length ; i++){
+                        for (let i = 0; i < valuesProfil.length; i++) {
                             const pseudo = pseudoJoueur[i]; // Récupérer le pseudo correspondant
                             const joueurUtilitaire = this._utilitaire.alliance.joueurs[pseudo];
                             await joueurUtilitaire.chargerProfil(valuesProfil[i]);
                             // on enregistre
-                            if(!joueurUtilitaire.sujetForum)
+                            if (!joueurUtilitaire.sujetForum)
                                 promiseForum.push(this._utilitaire.creerSujet(await joueurUtilitaire.toUtilitaire(), " ", idSectionMembre)); // Utiliser idSectionMembre
                         }
                         // on creer les sujets pour les membres qui n'en disposent pas
@@ -551,12 +545,12 @@ class PageAlliance
                         // pour s'assurer que monProfilJoueur.sujetForum est mis à jour si un sujet a été créé pour le joueur courant.
                         await this._utilitaire.verifierSujetMembre(idSectionMembre, pseudoJoueur);
 
-                        $.toast({...TOAST_SUCCESS, text : "la mise à jour c'est correctement effectuée."});
+                        $.toast({ ...TOAST_SUCCESS, text: "la mise à jour c'est correctement effectuée." });
                         await this.actualiserMembre();
 
                     } catch (error) {
                         console.error("Erreur lors de l'actualisation de l'alliance:", error);
-                        $.toast({...TOAST_ERROR, heading: "Erreur Actualisation", text: `${error.message || 'Une erreur est survenue.'}`});
+                        $.toast({ ...TOAST_ERROR, heading: "Erreur Actualisation", text: `${error.message || 'Une erreur est survenue.'}` });
                     }
 
                     return false;
@@ -569,8 +563,7 @@ class PageAlliance
     /**
     *
     */
-    async actualiserMembre()
-    {
+    async actualiserMembre() {
         const dataTable = $("#tabMembresAlliance").DataTable();
         if (dataTable) {
             dataTable.destroy();
@@ -589,7 +582,7 @@ class PageAlliance
         for (const pseudo in this._alliance.joueurs) {
             const joueur = this._alliance.joueurs[pseudo];
             let ligneHtml = "";
-            console.log(`[PageAlliance] actualiserMembre: Reconstruction ligne pour joueur ${pseudo}: estExterieur=${await joueur.estExterieur()}, alliance_rattachement=${await joueur.lireParametre('alliance_rattachement')}, _allianceTag=${joueur.allianceTag}`);
+            console.log(`[PageAlliance] actualiserMembre: Reconstruction ligne pour joueur ${pseudo}: estExterieur=${await joueur.estExterieur()}, alliance_rattachement=${await joueur.lireParametre('Alliance Rattachement')}, _allianceTag=${joueur.allianceTag}`);
 
             if (await joueur.estExterieur()) {
                 ligneHtml = await this._creerLigneJoueurExterieur(joueur);
@@ -600,8 +593,8 @@ class PageAlliance
                     <tr class="${Object.keys(this._alliance.joueurs).indexOf(pseudo) % 2 ? "ligne_paire" : ""}">
                         <td align="center"></td>
                         <td align="center"></td>
-                        <td align="center">${await joueur.lireParametre('grade')}</td>
-                        <td align="center">${await joueur.lireParametre('pseudo')}</td>
+                        <td align="center">${await joueur.lireParametre('Grade')}</td>
+                        <td align="center">${await joueur.lireParametre('Pseudo')}</td>
                         <td align="center"></td>
                         <td align="center">${numeral(joueur.terrain).format()}</td>
                         <td align="center"></td>
@@ -628,38 +621,37 @@ class PageAlliance
         return this;
     }
     /**
-	* Ajoute le tri.
+    * Ajoute le tri.
     *
-	* @private
-	* @method tableauUtilitaire
-	*/
-	tableauUtilitaire()
-	{
-        $("#tabMembresAlliance th:eq(8), #tabMembresAlliance th:eq(9)").css({maxWidth:"50px",textOverflow:"ellipsis",overflow:"hidden"});
+    * @private
+    * @method tableauUtilitaire
+    */
+    tableauUtilitaire() {
+        $("#tabMembresAlliance th:eq(8), #tabMembresAlliance th:eq(9)").css({ maxWidth: "50px", textOverflow: "ellipsis", overflow: "hidden" });
         $("#tabMembresAlliance").DataTable({
-            bInfo : false,
-            bPaginate : false,
-            bAutoWidth : false,
-            dom : "Bfrti",
-            order : [[6, "desc"]], // Tri par défaut par la colonne "Terrain" (index 6) en ordre décroissant
+            bInfo: false,
+            bPaginate: false,
+            bAutoWidth: false,
+            dom: "Bfrti",
+            order: [[6, "desc"]], // Tri par défaut par la colonne "Terrain" (index 6) en ordre décroissant
             stripeClasses: ["", "alt"],
-            buttons : ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            responsive : true,
-            language : {
-                zeroRecords : "Aucun joueur trouvé",
-                info : "Page _PAGE_ de _PAGES_",
-                infoEmpty : "Aucun enregistrement",
-                infoFiltered : "(Filtré par _MAX_ enregistrements)",
-                search : "Rechercher : ",
-                buttons : {colvis : "Colonne"}
+            buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
+            responsive: true,
+            language: {
+                zeroRecords: "Aucun joueur trouvé",
+                info: "Page _PAGE_ de _PAGES_",
+                infoEmpty: "Aucun enregistrement",
+                infoFiltered: "(Filtré par _MAX_ enregistrements)",
+                search: "Rechercher : ",
+                buttons: { colvis: "Colonne" }
             },
-            columnDefs : [
-                {className: "dt-body-center", targets: "_all"},
-                {type : "quantite-grade", targets : 6},
-                {visible : false, targets : [3, 8, 9, 14]},
-                {sortable : false, targets : [0, 1, 5, 7, 12, 13]}
+            columnDefs: [
+                { className: "dt-body-center", targets: "_all" },
+                { type: "quantite-grade", targets: 6 },
+                { visible: false, targets: [3, 8, 9, 14] },
+                { sortable: false, targets: [0, 1, 5, 7, 12, 13] }
             ]
         });
         return this;
-	}
+    }
 }
