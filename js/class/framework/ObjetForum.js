@@ -117,6 +117,13 @@ class ObjetForum {
     mapAttributs = new Map();
 
     /**
+     * Indique si les objets contenus de cette instance ont été chargés depuis le forum.
+     * @type {Boolean}
+     * @protected
+     */
+    contenusCharges = false;
+
+    /**
      * Indique si l'objet a été modifié depuis son dernier chargement/enregistrement.
      * C'est un getter qui retourne le OU logique des estModifie des paramètres de la dernière version de l'objet.
      * @private
@@ -459,6 +466,7 @@ class ObjetForum {
         try {
             // 1. Vérification des prérequis
             if (!this.constructor.classeObjetsForumContenus) {
+                this.contenusCharges = true;
                 return true;
             }
             if (!(this.constructor.classeObjetsForumContenus.prototype instanceof ObjetForum)) {
@@ -495,6 +503,7 @@ class ObjetForum {
 
                 // Remplacement de l'ancienne liste par la nouvelle
                 this.objetsForumContenus = nouveauxObjetForumsContenus; // Cette affectation utilisera le setter si une classe fille en définit un.
+                this.contenusCharges = true;
                 return true;
 
             } catch (error) {
@@ -638,7 +647,6 @@ class ObjetForum {
      */
     async afficherCorps(liste = this.constructor.COLONNES_DEFAUT) {
         const idSujet = this.idSujet;
-        const pseudo = await this.lireParametre('Pseudo');
 
         // 1. Vérification des droits et lecture des données
         const peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N');
@@ -693,7 +701,8 @@ class ObjetForum {
                 if (Array.isArray(valeur)) {
                     if (valeur.length > 0) {
                         valeur.forEach(item => {
-                            corps_html += `<td>${item !== null && item !== undefined ? item : ''}</td>`;
+                            let itemFormate = (item !== null && item !== undefined) ? Utils.formatNombre(item) : '';
+                            corps_html += `<td>${itemFormate}</td>`;
                             totalCells++;
                         });
                     } else {
@@ -701,7 +710,7 @@ class ObjetForum {
                         totalCells++;
                     }
                 } else {
-                    corps_html += `<td>${valeur}</td>`;
+                    corps_html += `<td>${Utils.formatNombre(valeur)}</td>`;
                     totalCells++;
                 }
             } else {
@@ -711,7 +720,7 @@ class ObjetForum {
         });
         corps_html += '</tr>';
 
-        console.log(`[ObjetForum] afficherCorps(${pseudo}): ${totalCells} cellules générées.`);
+        console.log(`[ObjetForum] afficherCorps(): ${totalCells} cellules générées.`);
         return corps_html;
     }
 

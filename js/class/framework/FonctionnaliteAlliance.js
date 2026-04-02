@@ -256,7 +256,16 @@ class FonctionnaliteAlliance {
         console.log('Inside chargerObjetsForum')
         const nomClasse = ClasseObjetForum.name;
         if (cacheObjetForums.has(nomClasse)) {
-            return cacheObjetForums.get(nomClasse);
+            const objetsEnCache = cacheObjetForums.get(nomClasse);
+            if (chargerContenus && ClasseObjetForum.classeObjetsForumContenus) {
+                for (const objet of objetsEnCache) {
+                    if (!objet.contenusCharges) {
+                        console.log(`[${this.constructor.name}] Chargement des contenus manquants pour l'objet en cache ${nomClasse} (ID: ${objet.idSujet}).`);
+                        await objet.rafraichir(true);
+                    }
+                }
+            }
+            return objetsEnCache;
         }
         console.log('nomClasse', nomClasse)
         const instanceTemporaire = new ClasseObjetForum();

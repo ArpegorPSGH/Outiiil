@@ -335,4 +335,25 @@ class Utils {
     static sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
+
+    /**
+     * Formate un nombre avec un séparateur de milliers (espace par défaut).
+     *
+     * @static
+     * @method formatNombre
+     * @param {Number|String} val - Le nombre à formater.
+     * @param {String} [separateur=' '] - Le séparateur à utiliser.
+     * @return {String} Le nombre formaté sous forme de chaîne.
+     */
+    static formatNombre(val, separateur = ' ') {
+        if (val === null || val === undefined) return '';
+        let s = val.toString().trim();
+        // Vérifier si la chaîne représente un nombre pur (entier ou décimal)
+        if (!/^-?\d+(\.\d+)?$/.test(s)) return val;
+
+        let parts = s.split(".");
+        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, separateur);
+        return parts.join(".");
+    }
 }
+
