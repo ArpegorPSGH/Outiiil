@@ -21,7 +21,7 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
         console.log('membresForum: ', membresForum);
         const membresForumMap = new Map();
         for (const j of membresForum) {
-            membresForumMap.set(await j.lireParametre('Pseudo'), j);
+            membresForumMap.set(await j.lire('Pseudo'), j);
         }
 
         const initialPseudoColIndex = this.page.getColonneIndex('Pseudo');
@@ -40,7 +40,7 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
 
                 let grade = '';
                 if (joueur) {
-                    grade = await joueur.lireParametre('Grade') || '';
+                    grade = await joueur.lire('Grade') || '';
                 }
                 const gradeCell = `<td align="center">${grade}</td>`;
                 $(gradeCell).insertBefore(row.find(`td:eq(${initialRangColIndex})`));
@@ -58,7 +58,7 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
 
                 let grade = '';
                 if (joueur) {
-                    grade = await joueur.lireParametre('Grade') || '';
+                    grade = await joueur.lire('Grade') || '';
                 }
                 row.find(`td:eq(${gradeColIndex})`).text(grade);
             }).get();

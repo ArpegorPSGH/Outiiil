@@ -67,7 +67,7 @@ class BoiteMap extends Boite {
         for (let i = 0, l = data.split("\n"); i < l.length; i++) {
             let tmp = l[i].split(";");
             // si c'est moi on met en evidence
-            if (tmp[1] == await monProfilJoueur.lireParametre('Pseudo'))
+            if (tmp[1] == await monProfilJoueur.lire('Pseudo'))
                 mesDatas.push({ x: parseInt(tmp[3]), y: parseInt(tmp[2]), id: tmp[0], name: tmp[1], color: "#00FF00", marker: { radius: 4 } });
             else
                 mesDatas.push({ x: parseInt(tmp[3]), y: parseInt(tmp[2]), id: tmp[0], name: tmp[1] });

@@ -46,15 +46,15 @@ class BoiteRadar {
     *
     */
     async ajouteJoueur(joueur) {
-        this._joueurs[await joueur.lireParametre('Pseudo')] = joueur;
-        await this._joueurs[await joueur.lireParametre('Pseudo')].ecrireAttribut('Ordre Radar', await this.getOrdreMax() + 1);
+        this._joueurs[await joueur.lire('Pseudo')] = joueur;
+        await this._joueurs[await joueur.lire('Pseudo')].ecrire('Ordre Radar', await this.getOrdreMax() + 1);
         return this;
     }
     /**
     *
     */
     async supprimeJoueur(joueur) {
-        delete this._joueurs[await joueur.lireParametre('Pseudo')];
+        delete this._joueurs[await joueur.lire('Pseudo')];
         return this;
     }
     /**
@@ -99,7 +99,7 @@ class BoiteRadar {
             lien = $("#o_item_" + item[1]).find("a:eq(1)");
             // si l'item correspond à un joueur
             if (lien.attr("href").includes("Membre.php"))
-                await this._joueurs[lien.text()].ecrireAttribut('Ordre Radar', i);
+                await this._joueurs[lien.text()].ecrire('Ordre Radar', i);
             else // sinon c'est une alliance
                 this._alliances[lien.text()].ordreRadar = i;
         }
@@ -140,7 +140,7 @@ class BoiteRadar {
         for (let j in this._joueurs) {
             const joueur = this._joueurs[j];
             joueurs[j] = {
-                pseudo: await joueur.lireParametre("Pseudo"),
+                pseudo: await joueur.lire("Pseudo"),
                 id: await joueur.id,
                 x: await joueur.x,
                 y: await joueur.y,

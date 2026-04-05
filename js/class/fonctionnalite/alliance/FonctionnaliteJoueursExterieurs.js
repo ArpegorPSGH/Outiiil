@@ -22,12 +22,12 @@ Utils.register(class FonctionnaliteJoueursExterieurs extends FonctionnaliteAllia
         const tousLesMembres = await this.chargerObjetsForum(Joueur);
         const tousLesMembresMap = new Map();
         for (const m of tousLesMembres) {
-            tousLesMembresMap.set(await m.lireParametre('Pseudo'), m);
+            tousLesMembresMap.set(await m.lire('Pseudo'), m);
         }
 
         const membresExterieurs = [];
         for (const membre of tousLesMembres) {
-            if (!joueursDejaDansTableau.includes(await membre.lireParametre('Pseudo'))) {
+            if (!joueursDejaDansTableau.includes(await membre.lire('Pseudo'))) {
                 membresExterieurs.push(membre);
             }
         }
@@ -54,7 +54,10 @@ Utils.register(class FonctionnaliteJoueursExterieurs extends FonctionnaliteAllia
 
                 let tag = '';
                 if (joueur) {
-                    tag = await joueur.lireAttribut('Tag Alliance') || '';
+                    const tagBrut = await joueur.lire('Tag Alliance');
+                    if (tagBrut) {
+                        tag = `<a href="classementAlliance.php?alliance=${encodeURIComponent(tagBrut)}" target="_blank">${tagBrut}</a>`;
+                    }
                 }
                 const tagCell = `<td align="center">${tag}</td>`;
                 $(tagCell).insertAfter(row.find(`td:eq(${pseudoColIndex})`));
@@ -70,7 +73,7 @@ Utils.register(class FonctionnaliteJoueursExterieurs extends FonctionnaliteAllia
             for (const membre of membresExterieurs) {
                 const corps_html = await membre.afficherCorps(headers);
                 $("#tabMembresAlliance tbody").append(corps_html);
-                const pseudo = await membre.lireParametre('Pseudo');
+                const pseudo = await membre.lire('Pseudo');
                 console.log(`[${this.#nom}] Ligne ajoutée pour le joueur ${pseudo}.`);
             }
         } else {

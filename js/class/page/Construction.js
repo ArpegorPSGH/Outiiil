@@ -26,7 +26,7 @@ class PageConstruction {
         let constructions = await monProfilJoueur.niveauConstruction;
         if (niveau.join(",") != constructions.join(",")) {
             constructions = niveau;
-            await monProfilJoueur.ecrireAttribut("Niveau Construction", constructions);
+            await monProfilJoueur.ecrire("Niveau Construction", constructions);
             await monProfilJoueur.enregistrerLocalStorage();
         }
         // Affichage de la rentabilité

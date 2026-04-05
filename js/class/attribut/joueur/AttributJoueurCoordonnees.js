@@ -7,7 +7,7 @@ class AttributJoueurCoordonnees extends AttributObjet {
      * @returns {Promise<string>} Les coordonnées formatées
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
-        const { x, y } = await this.objetParent.lireChaqueAttribut(['x', 'y'], peutVoirDonneesRestreintes);
+        const { x, y } = await this.objetParent.lire(['x', 'y'], peutVoirDonneesRestreintes);
         return `(${x}, ${y})`;
     }
 }

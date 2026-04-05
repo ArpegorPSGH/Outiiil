@@ -8,13 +8,13 @@ class AttributCommandeTempsParcours extends AttributObjet {
      * @returns {Promise<string>} Temps formaté
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
-        const demandeur = await this.objetParent.lireParametre('Demandeur', peutVoirDonneesRestreintes);
+        const demandeur = await this.objetParent.lire('Demandeur', peutVoirDonneesRestreintes);
 
         // Rechercher le joueur demandeur dans le cache
         const joueurs = await this.objetParent.fonctionnaliteCreatrice.chargerObjetsForum(Joueur, false);
         let joueurDemandeur = null;
         for (const j of joueurs) {
-            const pseudo = await j.lireParametre('Pseudo');
+            const pseudo = await j.lire('Pseudo');
             if (pseudo === demandeur) {
                 joueurDemandeur = j;
                 break;

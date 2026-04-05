@@ -185,7 +185,7 @@ class FonctionnaliteAlliance {
         console.log('Inside verifierPresenceSujetMembre')
         const joueurs = await this.chargerObjetsForum(Joueur);
         console.log('joueurs chargés', joueurs)
-        const pseudoJoueurActuel = await monProfilJoueur.lireParametre('Pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
+        const pseudoJoueurActuel = await monProfilJoueur.lire('Pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
         console.log('pseudoJoueurActuel', pseudoJoueurActuel)
         if (!pseudoJoueurActuel) {
             console.error(`[${this.constructor.name}] Le pseudo du joueur actuel n'a pas pu être déterminé.`);
@@ -193,7 +193,7 @@ class FonctionnaliteAlliance {
         }
 
         const estMembre = await Promise.all(joueurs.map(async joueur => {
-            const joueurPseudo = await joueur.lireParametre('Pseudo');
+            const joueurPseudo = await joueur.lire('Pseudo');
             // 'Pseudo' est le nom du paramètre dans la classe Joueur.
             return joueurPseudo === pseudoJoueurActuel;
         })).then(results => results.some(result => result));

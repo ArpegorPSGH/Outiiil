@@ -21,7 +21,7 @@ class AttributObjet extends DonneeValidable {
      * @param {Boolean} [peutVoirDonneesRestreintes=true] - Si l'utilisateur peut voir les données restreintes.
      * @returns {Promise<*>} La valeur de l'attribut.
      */
-    async obtenirValeur(peutVoirDonneesRestreintes = true) {
+    async lire(peutVoirDonneesRestreintes = true) {
         if (this._estCalcule()) {
             return await this._invoquerCalculSecurise(peutVoirDonneesRestreintes);
         }
@@ -81,9 +81,9 @@ class AttributObjet extends DonneeValidable {
      * Modifie la valeur de l'attribut avec validation du type.
      * Bloque la modification si l'attribut est calculé.
      * @param {*} nouvelleValeur - La nouvelle valeur à assigner.
-     * @returns {Boolean} True si la modification a réussi, false sinon.
+     * @returns {Promise<Boolean>} True si la modification a réussi, false sinon.
      */
-    modifierValeur(nouvelleValeur) {
+    async ecrire(nouvelleValeur) {
         if (this._estCalcule()) {
             console.error(`[${this.constructor.name}] Impossible de modifier un attribut calculé.`);
             return false;

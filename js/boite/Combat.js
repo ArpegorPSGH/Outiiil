@@ -261,12 +261,12 @@ class BoiteCombat extends Boite {
         recherchesAttaquant[2] = $("#o_armes1").spinner("value");
         recherchesDefenseur[1] = $("#o_bouclier2").spinner("value");
         recherchesDefenseur[2] = $("#o_armes2").spinner("value");
-        await combat.attaquant.ecrireAttribut("Niveau Recherche", recherchesAttaquant);
-        await combat.defenseur.ecrireAttribut("Niveau Recherche", recherchesDefenseur);
+        await combat.attaquant.ecrire("Niveau Recherche", recherchesAttaquant);
+        await combat.defenseur.ecrire("Niveau Recherche", recherchesDefenseur);
         let constructionsDefenseur = await combat.defenseur.niveauConstruction;
         constructionsDefenseur[9] = $("#o_domeNiveau").spinner("value");
         constructionsDefenseur[10] = $("#o_logeNiveau").spinner("value");
-        await combat.defenseur.ecrireAttribut("Niveau Construction", constructionsDefenseur);
+        await combat.defenseur.ecrire("Niveau Construction", constructionsDefenseur);
         // lancement du combat
         if (combat.armee1.getSommeUnite() && combat.armee2.getSommeUnite()) {
             await combat.simuler()
@@ -452,13 +452,13 @@ class BoiteCombat extends Boite {
     eventCalculatrice() {
         $("#o_placementJ").click(async () => {
             // si les infos sont deja renseigné on vide
-            if ($("#o_pseudoTemps").val() == await monProfilJoueur.lireParametre('Pseudo')) {
+            if ($("#o_pseudoTemps").val() == await monProfilJoueur.lire('Pseudo')) {
                 $("#o_pseudoTemps").val("");
                 $("#o_vaTemps").val(0);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(0));
             } else {
                 let recherches = await monProfilJoueur.niveauRecherche;
-                $("#o_pseudoTemps").val(await monProfilJoueur.lireParametre('Pseudo'));
+                $("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
                 $("#o_vaTemps").val(recherches[6]);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(recherches[6]));
             }
@@ -509,9 +509,9 @@ class BoiteCombat extends Boite {
             let ref = new Joueur({ pseudo: $("#o_pseudoTemps").val() });
             let recherches = await ref.niveauRecherche;
             recherches[6] = $("#o_vaTemps").val();
-            await ref.ecrireAttribut("Niveau Recherche", recherches);
+            await ref.ecrire("Niveau Recherche", recherches);
             // si pas de referentiel on ne peut rien calculer
-            if (! await ref.lireParametre('Pseudo')) {
+            if (! await ref.lire('Pseudo')) {
                 $.toast({ ...TOAST_ERROR, text: "Le joueur 1 n'est pas renseigné." });
                 return false;
             }
@@ -576,7 +576,7 @@ class BoiteCombat extends Boite {
             for (let i = 0; i < joueurs.length; i++) {
                 await joueurs[i].chargerProfil(values[i + ind]);
                 let tempsP = await ref.getTempsParcours2(joueurs[i]);
-                rows.push($(`<tr><td>${await joueurs[i].lireParametre('Pseudo')}</td><td>${numeral(await joueurs[i].terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
+                rows.push($(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
             }
             // on recup les pseudos des alliances
             for (let i = 0; i < alliances.length; i++) {
@@ -600,10 +600,10 @@ class BoiteCombat extends Boite {
                             <td>${numeral(terrain).format()}</td>
                             <td>${Utils.intToTime(tempsP)}</td>
                             <td>${dernierMvt
-                                ? moment(dernierMvt, "DD-MM-YYYY HH:mm")
-                                    .add(tempsP, "s")
-                                    .format("D MMM à HH[h]mm[m]ss[s]")
-                                : ""
+                                    ? moment(dernierMvt, "DD-MM-YYYY HH:mm")
+                                        .add(tempsP, "s")
+                                        .format("D MMM à HH[h]mm[m]ss[s]")
+                                    : ""
                                 }</td>
                         </tr>`)[0]
                         );

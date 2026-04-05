@@ -8,7 +8,7 @@ class AttributCommandeStatut extends AttributObjet {
      * @returns {Promise<string>} HTML de l'icône
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
-        const dateApres = await this.objetParent.lireParametre('Date Après', peutVoirDonneesRestreintes);
+        const dateApres = await this.objetParent.lire('Date Après', peutVoirDonneesRestreintes);
         const attente = await this.objetParent.getAttente();
         const apres = !dateApres || moment().isSameOrAfter(moment(dateApres));
 

@@ -283,27 +283,27 @@ class Combat {
             let tmpPseudo = new Array();
             // recup du lieu
             this._lieu = this._rc.includes("Loge") ? 2 : (this._rc.includes("fourmilière") ? 1 : 0);
-            await this._attaquant.ecrireParametre('Pseudo', "Vous");
+            await this._attaquant.ecrire('Pseudo', "Vous");
             // Récuperation des armées si on nous attaque on est en défense
             if (this._rc.includes("attaque votre") || this._rc.includes("attaque une de vos colonies")) {
                 this._pointDeVue = 1;
                 this._armeeAv.parseArmee(this._rc.split("Troupes en défense : ")[1].split(".")[0]);
                 this._armeeEnnemieAv.parseArmee(this._rc.split("Troupes en attaque : ")[1].split(".")[0]);
                 tmpPseudo = this._rc.split(" attaque")[0].split(" ");
-                await this._defenseur.ecrireParametre('Pseudo', tmpPseudo.length > 1 ? tmpPseudo[tmpPseudo.length - 1] : tmpPseudo[0]);
+                await this._defenseur.ecrire('Pseudo', tmpPseudo.length > 1 ? tmpPseudo[tmpPseudo.length - 1] : tmpPseudo[0]);
             } else { // sinon en attaque
                 this._armeeAv.parseArmee(this._rc.split("Troupes en attaque : ")[1].split(".")[0]);
                 this._armeeEnnemieAv.parseArmee(this._rc.split("Troupes en défense : ")[1].split(".")[0]);
                 // attaque attaque sur colonisateur
                 if (this._rc.includes("mais une armée d'occupation est déjà présente")) {
-                    await this._defenseur.ecrireParametre('Pseudo', this._rc.split("e de ")[1].split(",")[0]);
+                    await this._defenseur.ecrire('Pseudo', this._rc.split("e de ")[1].split(",")[0]);
                     // attaque normale
                 } else if (this._rc.includes("Vous attaquez l")) {
-                    await this._defenseur.ecrireParametre('Pseudo', this._rc.split("e de ")[1].split("\nTroupes")[0]);
+                    await this._defenseur.ecrire('Pseudo', this._rc.split("e de ")[1].split("\nTroupes")[0]);
                     this._defenseurTDP = this.calculerTDP(this._armeeEnnemieAv);
                     // rebellion
                 } else {
-                    await this._defenseur.ecrireParametre('Pseudo', this._rc.split("contre ")[1].split("\nTroupes")[0]);
+                    await this._defenseur.ecrire('Pseudo', this._rc.split("contre ")[1].split("\nTroupes")[0]);
                 }
             }
             let recherchesAttaquant = await this._attaquant.niveauRecherche;
@@ -473,7 +473,7 @@ class Combat {
             bonusAtt = `${(this._defenseurBonusLieu.length ? this._defenseurBonusLieu.join(" - ") : (recherchesDefenseur[1] != -1 ? recherchesDefenseur[1] : "N/A"))}`;
             bonusDef = `${(this._attaquantBonusLieu.length ? this._attaquantBonusLieu.join(" - ") : (recherchesAttaquant[1] != -1 ? recherchesAttaquant[1] : "N/A"))}`;
         }
-        let html = `<tr class='gras'><td></td><td style='width:38%'>${await this._attaquant.lireParametre('Pseudo')}</td><td style='width:38%'>${await this._defenseur.getLienFourmizzz()}</td></tr>
+        let html = `<tr class='gras'><td></td><td style='width:38%'>${await this._attaquant.lire('Pseudo')}</td><td style='width:38%'>${await this._defenseur.getLienFourmizzz()}</td></tr>
 			<tr><td>Bouclier (/ ${LIBELLE_LIEU[this._lieu]})</td><td>${bonusAtt}</td><td>${bonusDef}</td></tr>
 			<tr><td>Armes</td><td>${this._pointDeVue == 0 ? recherchesAttaquant[2] : recherchesDefenseur[2]}</td><td>${this._pointDeVue == 0 ? recherchesDefenseur[2] : recherchesAttaquant[2]}</td></tr>
 			<tr><td></td><td colspan='2' class='gras'>Bilan unités</td></tr>`;

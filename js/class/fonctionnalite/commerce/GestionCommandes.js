@@ -117,7 +117,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
             $("#nbMateriaux").val(materialsToPrefill);
             $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
             $("#nbNourriture").val(nourishmentToPrefill);
-            $("#pseudo_convoi").val(await commande.lireParametre('Demandeur'));
+            $("#pseudo_convoi").val(await commande.lire('Demandeur'));
             $("#o_idCommande").val(commande.idSujet);
             $("html").animate({ scrollTop: 0 }, 600);
             return false;
@@ -142,7 +142,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
             if (!commande) return false;
 
             if (confirm("Supprimer cette commande ?")) {
-                await commande.ecrireParametre('État', ETAT_COMMANDE.Supprimée);
+                await commande.ecrire('État', ETAT_COMMANDE.Supprimée);
                 await commande.enregistrerSurForum();
                 $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
                 await this.actualiserCommandes();
@@ -223,7 +223,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
 
                     const commande = this.commandes.find(c => c.idSujet == idCommande);
                     const destinataireConvoi = $("#pseudo_convoi").val();
-                    const demandeur = await commande.lireParametre('Demandeur');
+                    const demandeur = await commande.lire('Demandeur');
 
                     if (commande && demandeur !== destinataireConvoi) {
                         $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
@@ -233,7 +233,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
                     const joueurs = await this.chargerObjetsForum(Joueur, false);
                     let joueurDemandeur = null;
                     for (const j of joueurs) {
-                        const pseudo = await j.lireParametre('Pseudo');
+                        const pseudo = await j.lire('Pseudo');
                         if (pseudo === demandeur) {
                             joueurDemandeur = j;
                             break;
@@ -253,7 +253,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
                     console.warn('dateArriveeCalculee', dateArriveeCalculee.format("D MMM YYYY à HH[h]mm"))
                     const monConvoi = new Convoi(this, {
                         donneesInitiales: {
-                            'Expéditeur': await monProfilJoueur.lireParametre('Pseudo'),
+                            'Expéditeur': await monProfilJoueur.lire('Pseudo'),
                             'Destinataire': destinataireConvoi,
                             'Matériaux': materiaux,
                             'Nourriture': nourriture,
@@ -318,7 +318,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
         console.log('convoiDataObj', convoiDataObj)
         console.log('idsAnnulationInitString', idsAnnulationInitString)
         if (convoiCharge && !idsAnnulationInitString) {
-            const donneesConvoi = await convoiDataObj.lireChaqueParametre();
+            const donneesConvoi = await convoiDataObj.lire();
             console.log('donneesConvoi', donneesConvoi)
 
             $("#pseudo_convoi").val(donneesConvoi['Destinataire']);
@@ -341,10 +341,10 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
 
             try {
                 if (nouvelId) {
-                    const idCommande = await convoiDataObj.lireParametre('Id Commande');
+                    const idCommande = await convoiDataObj.lire('Id Commande');
                     const commande = this.commandes.find(c => c.idSujet == idCommande);
                     if (commande) {
-                        await convoiDataObj.ecrireParametre('Id Annulation', nouvelId);
+                        await convoiDataObj.ecrire('Id Annulation', nouvelId);
                         await commande.ajouteConvoi(convoiDataObj);
                         console.log('commande', commande)
                         await commande.enregistrerSurForum();
@@ -421,7 +421,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
         let cmdSuivante = null;
         let foundActive = false;
         for (const cmd of this.commandes) {
-            const etat = await cmd.lireParametre('État');
+            const etat = await cmd.lire('État');
             if (etat === ETAT_COMMANDE["En cours"]) {
                 foundActive = true;
                 break;
@@ -432,7 +432,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
         }
 
         if (!foundActive && cmdSuivante) {
-            await cmdSuivante.ecrireParametre('État', ETAT_COMMANDE["En cours"]);
+            await cmdSuivante.ecrire('État', ETAT_COMMANDE["En cours"]);
             await cmdSuivante.enregistrerSurForum();
             $.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours." });
         }

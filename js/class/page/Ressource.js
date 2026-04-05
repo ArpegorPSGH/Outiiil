@@ -29,7 +29,7 @@ class PageRessource extends Page {
     *
     */
     async executer() {
-        const recherches = await monProfilJoueur.lireAttribut('Niveau Recherche');
+        const recherches = await monProfilJoueur.lire('Niveau Recherche');
         this._nbChasse = recherches[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
         let data = await this._armee.getArmee();
         this._armee.chargeData(data);
@@ -205,7 +205,7 @@ class PageRessource extends Page {
     * @param {Array} iTabPerte
     */
     async majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte) {
-        let recherches = await monProfilJoueur.lireAttribut('Niveau Recherche');
+        let recherches = await monProfilJoueur.lire('Niveau Recherche');
         $("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
         let temps = Math.round((Utils.terrain + terrainChasse) * Math.pow(0.9, recherches[5]));
         $("#o_chasseTemps").text(Utils.intToTime(temps));

@@ -23,8 +23,8 @@ class BoitePonte extends Boite {
 	async afficher() {
 		if (!$("#" + this._id).length) {
 			let tdp = await monProfilJoueur.getTDP();
-			let recherches = await monProfilJoueur.lireAttribut('Niveau Recherche');
-			let constructions = await monProfilJoueur.lireAttribut('Niveau Construction');
+			let recherches = await monProfilJoueur.lire('Niveau Recherche');
+			let constructions = await monProfilJoueur.lire('Niveau Construction');
 			this._content = `<div id='o_ponteContent'><table class='o_maxWidth'>
                 <tr class='gras'><td>Unité</td><td><img width='17' height='18' src='images/icone/icone_sablier.gif' alt='Durée :'/></td><td>Nombre</td><td>Jour</td><td>Heure</td><td>Minute</td><td>Seconde</td><td></td></tr>
                 <tr><td>${NOM_RAC_UNITE[0]}</td><td>${BoitePonte.arrondiTemps(TEMPS_UNITE[0] * Math.pow(0.9, tdp))}</td><td><input value='0' size='15' name='o_nombre0'/></td><td><input name='o_jour0' value='0' size='3'/></td><td><input name='o_heure0' value='0' size='2'/></td><td><input name='o_minute0' value='0' size='2'/></td><td><input name='o_seconde0' value='0' size='2'/></td><td class='cursor'><img id='o_lancer0' height='20' src='images/icone/fourmi.png' alt='Lancer'></td></tr>

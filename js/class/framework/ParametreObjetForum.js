@@ -297,7 +297,7 @@ class ParametreObjetForum extends DonneeValidable {
      * @param {*} nouvelleValeur - La nouvelle valeur.
      * @returns {Boolean} - True si l'écriture a réussi.
      */
-    async Ecrire(nouvelleValeur) {
+    async ecrire(nouvelleValeur) {
         await this._acquireExclusiveLock();
         try {
             const checkResult = this._checkValeur(nouvelleValeur);
@@ -306,7 +306,7 @@ class ParametreObjetForum extends DonneeValidable {
                 this.estModifie = true;
                 return true;
             }
-            console.error(`[${this.constructor.name}] La nouvelle valeur fournie pour Ecrire n'est pas valide.`);
+            console.error(`[${this.constructor.name}] La nouvelle valeur fournie pour ecrire n'est pas valide.`);
             return false;
         } finally {
             this._releaseExclusiveLock();
@@ -322,7 +322,7 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {*} - La valeur du paramètre.
      * @throws {ErreurRestriction} Si les données sont restreintes et que l'utilisateur n'a pas les droits.
      */
-    async Lire(peutVoirDonneesRestreintes = true) {
+    async lire(peutVoirDonneesRestreintes = true) {
         await this._acquireReadLock();
         try {
             if (this.constructor.STRING_RESTRICTION !== null && !peutVoirDonneesRestreintes) {

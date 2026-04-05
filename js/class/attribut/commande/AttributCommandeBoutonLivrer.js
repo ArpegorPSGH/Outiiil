@@ -8,8 +8,8 @@ class AttributCommandeBoutonLivrer extends AttributObjet {
      * @returns {Promise<string>} HTML du bouton ou chaîne vide
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
-        const dateApres = await this.objetParent.lireParametre('Date Après', peutVoirDonneesRestreintes);
-        const etat = await this.objetParent.lireParametre('État', peutVoirDonneesRestreintes);
+        const dateApres = await this.objetParent.lire('Date Après', peutVoirDonneesRestreintes);
+        const etat = await this.objetParent.lire('État', peutVoirDonneesRestreintes);
         const apres = !dateApres || moment().isSameOrAfter(moment(dateApres));
 
         console.log("dateApres", dateApres, "etat", etat, "apres", apres, "en cours", ETAT_COMMANDE["En cours"]);

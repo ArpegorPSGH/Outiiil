@@ -38,145 +38,145 @@ Utils.register(class Commande extends ObjetForum {
     *
     */
     get dateCommande() {
-        return this.lireParametre('Date Commande');
+        return this.lire('Date Commande');
     }
     /**
     *
     */
     set dateCommande(newDate) {
-        this.ecrireParametre('Date Commande', newDate);
+        this.ecrire('Date Commande', newDate);
     }
     /**
     *
     */
     get dateSouhaite() {
-        return this.lireParametre('Date Souhaitée');
+        return this.lire('Date Souhaitée');
     }
     /**
     *
     */
     set dateSouhaite(newDate) {
-        this.ecrireParametre('Date Souhaitée', newDate);
+        this.ecrire('Date Souhaitée', newDate);
     }
     /**
     *
     */
     get dateApres() {
-        return this.lireParametre('Date Après');
+        return this.lire('Date Après');
     }
     /**
     *
     */
     set dateApres(newDate) {
-        this.ecrireParametre('Date Après', newDate);
+        this.ecrire('Date Après', newDate);
     }
     /**
     *
     */
     get demandeur() {
-        return this.lireParametre('Demandeur');
+        return this.lire('Demandeur');
     }
     /**
     *
     */
     set demandeur(newJoueur) {
-        this.ecrireParametre('Demandeur', newJoueur);
+        this.ecrire('Demandeur', newJoueur);
     }
     /**
     *
     */
     get evolution() {
-        return this.lireParametre('Évolution');
+        return this.lire('Évolution');
     }
     /**
     *
     */
     set evolution(newEvo) {
-        this.ecrireParametre('Évolution', newEvo);
+        this.ecrire('Évolution', newEvo);
     }
     /**
      * Quantité totale de nourriture demandée
      */
     get nourritureDemandee() {
-        return this.lireParametre('Nourriture Demandée');
+        return this.lire('Nourriture Demandée');
     }
     /**
      *
      */
     set nourritureDemandee(newTotal) {
-        this.ecrireParametre('Nourriture Demandée', newTotal);
+        this.ecrire('Nourriture Demandée', newTotal);
     }
     /**
      * Quantité totale de materiaux demandés
      */
     get materiauxDemandes() {
-        return this.lireParametre('Matériaux Demandés');
+        return this.lire('Matériaux Demandés');
     }
     /**
      *
      */
     set materiauxDemandes(newTotal) {
-        this.ecrireParametre('Matériaux Demandés', newTotal);
+        this.ecrire('Matériaux Demandés', newTotal);
     }
     /**
      * Quantité de nourriture déjà livrée
      */
     get nourritureLivree() {
-        return this.lireParametre('Nourriture Livrée');
+        return this.lire('Nourriture Livrée');
     }
     /**
      *
      */
     set nourritureLivree(newLivree) {
-        this.ecrireParametre('Nourriture Livrée', newLivree);
+        this.ecrire('Nourriture Livrée', newLivree);
     }
     /**
      * Quantité de materiaux déjà livrée
      */
     get materiauxLivres() {
-        return this.lireParametre('Matériaux Livrés');
+        return this.lire('Matériaux Livrés');
     }
     /**
      *
      */
     set materiauxLivres(newLivres) {
-        this.ecrireParametre('Matériaux Livrés', newLivres);
+        this.ecrire('Matériaux Livrés', newLivres);
     }
     /**
      *
      */
     get nourritureRestante() {
-        return this.lireAttribut('Nourriture Restante');
+        return this.lire('Nourriture Restante');
     }
     /**
      *
      */
     set nourritureRestante(newRestante) {
-        this.ecrireAttribut('Nourriture Restante', newRestante);
+        this.ecrire('Nourriture Restante', newRestante);
     }
     /**
      *
      */
     get materiauxRestants() {
-        return this.lireAttribut('Matériaux Restants');
+        return this.lire('Matériaux Restants');
     }
     /**
      *
      */
     set materiauxRestants(newRestants) {
-        this.ecrireAttribut('Matériaux Restants', newRestants);
+        this.ecrire('Matériaux Restants', newRestants);
     }
     /**
      *
      */
     get etat() {
-        return this.lireParametre('État');
+        return this.lire('État');
     }
     /**
     *
     */
     set etat(newEtat) {
-        this.ecrireParametre('État', newEtat);
+        this.ecrire('État', newEtat);
     }
     /**
     *
@@ -195,19 +195,19 @@ Utils.register(class Commande extends ObjetForum {
      *
      */
     async estEnRetard() {
-        return moment().diff(moment(await this.lireParametre('Date Souhaitée')), "days") > 0;
+        return moment().diff(moment(await this.lire('Date Souhaitée')), "days") > 0;
     }
     /**
     *
     */
     async getAttente() {
-        return moment().diff(moment(await this.lireParametre('Date Souhaitée')), "days");
+        return moment().diff(moment(await this.lire('Date Souhaitée')), "days");
     }
     /**
     *
     */
     async estTermine() {
-        const params = await this.lireChaqueParametre(['Nourriture', 'Matériaux']);
+        const params = await this.lire(['Nourriture', 'Matériaux']);
         return !params['Nourriture'] && !params['Matériaux'];
     }
     /**
@@ -220,14 +220,14 @@ Utils.register(class Commande extends ObjetForum {
     *
     */
     async estAFaire() {
-        const params = await this.lireChaqueParametre(['État', 'Demandeur']);
-        return !(params['État'] == ETAT_COMMANDE["Supprimée"] || params['État'] == ETAT_COMMANDE["Annulée"] || params['État'] == ETAT_COMMANDE["Terminée"] || (params['État'] == ETAT_COMMANDE["Nouvelle"] && params['Demandeur'] != await monProfilJoueur.lireParametre('Pseudo')));
+        const params = await this.lire(['État', 'Demandeur']);
+        return !(params['État'] == ETAT_COMMANDE["Supprimée"] || params['État'] == ETAT_COMMANDE["Annulée"] || params['État'] == ETAT_COMMANDE["Terminée"] || (params['État'] == ETAT_COMMANDE["Nouvelle"] && params['Demandeur'] != await monProfilJoueur.lire('Pseudo')));
     }
     /**
     *
     */
     async estValide() {
-        const params = await this.lireChaqueParametre(['Nourriture Demandée', 'Matériaux Demandés', 'Nourriture Livrée', 'Matériaux Livrés', 'Date Souhaitée', 'Date Après']);
+        const params = await this.lire(['Nourriture Demandée', 'Matériaux Demandés', 'Nourriture Livrée', 'Matériaux Livrés', 'Date Souhaitée', 'Date Après']);
         console.log('NourritureDemandee:', params['Nourriture Demandée'], 'DateSouhaite:', params['Date Souhaitée'], 'DateApres:', params['Date Après'])
         if (params['Nourriture Demandée'] <= 0 && params['Matériaux Demandés'] <= 0)
             return "La quantité totale de nourriture ou de matériaux demandée doit être supérieure à zéro.";
@@ -249,8 +249,8 @@ Utils.register(class Commande extends ObjetForum {
     *
     */
     async ajouteConvoi(convoi) {
-        const params = await this.lireChaqueParametre(['Nourriture Livrée', 'Nourriture Demandée', 'Matériaux Livrés', 'Matériaux Demandés', 'État']);
-        const convoiParams = await convoi.lireChaqueParametre(['Nourriture', 'Matériaux']);
+        const params = await this.lire(['Nourriture Livrée', 'Nourriture Demandée', 'Matériaux Livrés', 'Matériaux Demandés', 'État']);
+        const convoiParams = await convoi.lire(['Nourriture', 'Matériaux']);
         console.log(`[Commande][ajouteConvoi] Début de l'ajout du convoi à la commande ${this.idSujet}.`);
         console.log(`[Commande][ajouteConvoi] Convoi à ajouter: Nourriture=${convoiParams['Nourriture']}, Matériaux=${convoiParams['Matériaux']}`);
 
@@ -288,7 +288,7 @@ Utils.register(class Commande extends ObjetForum {
             console.log(`[Commande][ajouteConvoi] Ressources restantes: Nourriture=${params['Nourriture Demandée'] - params['Nourriture Livrée']}, Matériaux = ${params['Matériaux Demandés'] - params['Matériaux Livrés']}. L'état de la commande reste inchangé.`);
         }
 
-        await this.ecrireChaqueParametre(nouveauxParametres);
+        await this.ecrire(nouveauxParametres);
 
         // Ajout du convoi aux objets contenus
         convoi.objetParent = this;
@@ -309,7 +309,7 @@ Utils.register(class Commande extends ObjetForum {
         // Rechercher le convoi avec cet ID d'annulation dans les convois de cette commande
         let convoiTrouve = null;
         for (const convoi of this.objetsForumContenus) {
-            const idAnnulationConvoi = await convoi.lireParametre('Id Annulation');
+            const idAnnulationConvoi = await convoi.lire('Id Annulation');
             console.log(`[Commande][annulerConvoi] ID annulation trouvé: ${idAnnulationConvoi} ${idAnnulationConvoi === idAnnulation}`);
             console.log('types', typeof idAnnulationConvoi, typeof idAnnulation);
             if (idAnnulationConvoi === idAnnulation) {
@@ -329,7 +329,7 @@ Utils.register(class Commande extends ObjetForum {
         console.log(`[Commande][annulerConvoi] Convoi trouvé, création du convoi négatif`);
 
         // Récupérer les paramètres du convoi à annuler
-        const convoiParams = await convoiTrouve.lireChaqueParametre([
+        const convoiParams = await convoiTrouve.lire([
             'Expéditeur',
             'Destinataire',
             'Nourriture',
@@ -357,12 +357,12 @@ Utils.register(class Commande extends ObjetForum {
         await this.ajouteConvoi(convoiNegatif);
 
         // Vérifier si l'état doit être modifié
-        const params = await this.lireChaqueParametre(['État', 'Nourriture Livrée', 'Matériaux Livrés', 'Nourriture Demandée', 'Matériaux Demandés']);
+        const params = await this.lire(['État', 'Nourriture Livrée', 'Matériaux Livrés', 'Nourriture Demandée', 'Matériaux Demandés']);
 
         if (params['État'] === ETAT_COMMANDE.Terminée) {
             if (params['Nourriture Livrée'] < params['Nourriture Demandée'] || params['Matériaux Livrés'] < params['Matériaux Demandés']) {
                 console.log(`[Commande][annulerConvoi] La commande n'est plus terminée, passage à "En cours"`);
-                await this.ecrireParametre('État', ETAT_COMMANDE["En cours"]);
+                await this.ecrire('État', ETAT_COMMANDE["En cours"]);
             }
         }
 

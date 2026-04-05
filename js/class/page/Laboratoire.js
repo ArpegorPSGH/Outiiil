@@ -30,7 +30,7 @@ class PageLaboratoire {
         $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         if (niveau.join(",") != recherches.join(",")) {
             recherches = niveau;
-            await monProfilJoueur.ecrireAttribut("Niveau Recherche", recherches);
+            await monProfilJoueur.ecrire("Niveau Recherche", recherches);
             await monProfilJoueur.enregistrerLocalStorage();
         }
         // ajout title evolution

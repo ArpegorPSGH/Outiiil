@@ -43,6 +43,13 @@ class DonneeValidable {
     static TYPE_AFFICHAGE = null;
 
     /**
+     * Configuration déclarative. Indique le type de lien automatique à appliquer lors de l'affichage ('joueur' ou 'alliance').
+     * Si null, aucun lien n'est appliqué.
+     * @type {string|null}
+     */
+    static TYPE_LIEN = null;
+
+    /**
      * Catégorie de nom, utilisée pour l'appel du paramètre depuis ObjetForum ou ailleurs.
      * @type {String}
      */

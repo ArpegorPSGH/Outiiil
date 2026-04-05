@@ -80,7 +80,7 @@ class BoiteCommande extends Boite {
             const dateApresStr = $("#o_form" + await this._commande.id + " input[name='o_dateApres']").val();
 
             // Mettre à jour les paramètres de la commande
-            await this._commande.ecrireChaqueParametre({
+            await this._commande.ecrire({
                 'Évolution': evolution,
                 'Nourriture Demandée': nourritureDemandee,
                 'Matériaux Demandés': materiauxDemandes,
@@ -90,8 +90,8 @@ class BoiteCommande extends Boite {
 
             // Si c'est une nouvelle commande, définir les paramètres initiaux
             if (this._estNouvelle) {
-                await this._commande.ecrireChaqueParametre({
-                    'Demandeur': await monProfilJoueur.lireParametre('Pseudo'),
+                await this._commande.ecrire({
+                    'Demandeur': await monProfilJoueur.lire('Pseudo'),
                     'Date Commande': moment()
                 });
             }
@@ -138,7 +138,7 @@ class BoiteCommande extends Boite {
     */
     async getForm() {
         // Récupérer les paramètres actuels de la commande de manière asynchrone
-        const donneesCommande = await this._commande.lireChaqueParametre([
+        const donneesCommande = await this._commande.lire([
             'Évolution',
             'Nourriture Demandée',
             'Matériaux Demandés',

@@ -410,8 +410,8 @@ class PageForum {
 
                         joueurs[pseudo] = { id: joueurId, pseudo: pseudo, x: x, y: y, sujetForum: id };
                         if (grade !== null) {
-                            joueurs[pseudo].ecrireParametre('Grade', grade);
-                            joueurs[pseudo].ecrireParametre('Ordre Grade', ordreGrade);
+                            joueurs[pseudo].ecrire('Grade', grade);
+                            joueurs[pseudo].ecrire('Ordre Grade', ordreGrade);
                         }
                     } else {
                         console.warn(`[PageForum] chargerJoueur() - Format de titre de sujet inattendu pour le joueur: ${titreSujet}`);
@@ -538,7 +538,7 @@ class PageForum {
                             commande.idSujet = parseInt(id, 10);
                             promiseCmdModif.push((async () => {
                                 await commande.rafraichir(false);
-                                await commande.ecrireParametre('État', $("#o_selectEtatCommande").val());
+                                await commande.ecrire('État', $("#o_selectEtatCommande").val());
                                 return commande.enregistrerSurForum();
                             })());
                         }

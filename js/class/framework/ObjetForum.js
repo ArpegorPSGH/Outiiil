@@ -101,20 +101,12 @@ class ObjetForum {
     objetsForumContenus = [];
 
     /**
-     * Cache des instances de paramètres, indexées par leur dernier nom normalisé.
-     * Ce cache est reconstruit dynamiquement lorsqu'il est accédé via le getter.
-     * @type {Map<String, ParametreObjetForum>}
+     * Cache unifié des instances de DonneeValidable (paramètres et attributs), indexées par leurs noms normalisés.
+     * Remplace mapParametres et mapAttributs. Aucun attribut et paramètre ne peut porter le même nom.
+     * @type {Map<String, DonneeValidable>}
      * @private
      */
-    mapParametres = new Map();
-
-    /**
-     * Cache des instances d'attributs, indexées par leur dernier nom normalisé.
-     * Ce cache est reconstruit dynamiquement lorsqu'il est accédé via le getter.
-     * @type {Map<String, AttributObjet>}
-     * @private
-     */
-    mapAttributs = new Map();
+    mapDonnees = new Map();
 
     /**
      * Indique si les objets contenus de cette instance ont été chargés depuis le forum.
@@ -224,10 +216,12 @@ class ObjetForum {
 
             // Mise en cache des noms pour un accès rapide
             nouveauParametre.constructor.NOM_APPEL.forEach(nom => {
-                this.mapParametres.set(nom, nouveauParametre);
+                if (this.mapDonnees.has(nom)) console.warn(`[${this.constructor.name}] Collision de nom dans mapDonnees: "${nom}" est déjà enregistré.`);
+                this.mapDonnees.set(nom, nouveauParametre);
             });
             nouveauParametre.constructor.FORMAT_HISTORY.forEach(format => {
-                this.mapParametres.set(format.nom, nouveauParametre);
+                if (this.mapDonnees.has(format.nom)) console.warn(`[${this.constructor.name}] Collision de nom dans mapDonnees: "${format.nom}" est déjà enregistré.`);
+                this.mapDonnees.set(format.nom, nouveauParametre);
             });
         });
 
@@ -237,14 +231,16 @@ class ObjetForum {
             const nouvelAttribut = new ClasseAttribut(this);
             this.attributs.push(nouvelAttribut);
 
-            // Mettre à jour le cache mapAttributs pour tous les noms de l'historique
+            // Mettre à jour le cache mapDonnees pour tous les noms de l'historique
             const nomsAffichage = ClasseAttribut.NOM_AFFICHAGE || [];
             for (const nom of nomsAffichage) {
-                this.mapAttributs.set(nom, nouvelAttribut);
+                if (this.mapDonnees.has(nom)) console.warn(`[${this.constructor.name}] Collision de nom dans mapDonnees: "${nom}" est déjà enregistré.`);
+                this.mapDonnees.set(nom, nouvelAttribut);
             }
             const nomsAppel = ClasseAttribut.NOM_APPEL || [];
             for (const nom of nomsAppel) {
-                this.mapAttributs.set(nom, nouvelAttribut);
+                if (this.mapDonnees.has(nom)) console.warn(`[${this.constructor.name}] Collision de nom dans mapDonnees: "${nom}" est déjà enregistré.`);
+                this.mapDonnees.set(nom, nouvelAttribut);
             }
         }
 
@@ -279,29 +275,19 @@ class ObjetForum {
      * @private
      */
     _initialiserAttributsEtParametres(donneesInitiales) {
-
         console.log('donneesInitiales:', donneesInitiales)
-        // 2. Appliquer les données initiales fournies, qui écrasent les valeurs par défaut
+        // Appliquer les données initiales fournies, qui écrasent les valeurs par défaut
         if (donneesInitiales && typeof donneesInitiales === 'object') {
-            const parametresAInitialiser = {};
-
             for (const cle in donneesInitiales) {
-                const attribut = this.mapAttributs.get(cle);
                 const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(this), cle);
-
                 if (descriptor && descriptor.set) {
                     // Si un setter public existe (ex: 'etat'), l'utiliser
                     this[cle] = donneesInitiales[cle];
-                } else if (attribut) {
-                    // Si un attribut correspondant existe, l'affecter directement
-                    attribut.modifierValeur(donneesInitiales[cle]);
                 } else {
-                    // Sinon, considérer que c'est un paramètre à initialiser
-                    parametresAInitialiser[cle] = donneesInitiales[cle];
+                    // Déléguer à ecrire() qui gère paramètres et attributs uniformément
+                    this.ecrire(cle, donneesInitiales[cle]);
                 }
             }
-            console.log('parametresAInitialiser: ', parametresAInitialiser)
-            this.ecrireChaqueParametre(parametresAInitialiser);
         }
     }
 
@@ -653,47 +639,33 @@ class ObjetForum {
 
         if (!peutVoirDonneesRestreintes) {
             let pseudoCourant = "";
-            pseudoCourant = await monProfilJoueur.lireParametre('Pseudo');
+            pseudoCourant = await monProfilJoueur.lire('Pseudo');
 
             if (pseudoCourant) {
-                for (const parametre of this.parametres) {
-                    const val = await parametre.Lire(true);
+                for (const donnee of [...this.parametres, ...this.attributs]) {
+                    const val = await donnee.lire(true);
                     if (val === pseudoCourant) {
                         peutVoirDonneesRestreintes = true;
                         break;
                     }
                 }
-                if (!peutVoirDonneesRestreintes) {
-                    for (const attribut of this.attributs) {
-                        const val = await attribut.obtenirValeur(true);
-                        if (val === pseudoCourant) {
-                            peutVoirDonneesRestreintes = true;
-                            break;
-                        }
-                    }
-                }
             }
         }
 
-        // Lire les paramètres
-        let donneesParametres = {};
+        // Lire toutes les données (paramètres dernière version + attributs) via la méthode unifiée
+        let donnees = {};
         try {
-            donneesParametres = await this.lireChaqueParametre(liste, peutVoirDonneesRestreintes);
+            donnees = await this.lire(liste, peutVoirDonneesRestreintes);
         } catch (error) {
             if (error instanceof ErreurRestriction) {
-                console.log('Données via ErreurRestriction:', error.donnees)
-                donneesParametres = error.donnees;
+                console.log('Données via ErreurRestriction:', error.donnees);
+                donnees = error.donnees;
             } else {
                 // On relance les erreurs inattendues.
                 throw error;
             }
         }
-        console.log('donneesParametres:', donneesParametres)
-        // Lire les attributs (pas d'ErreurRestriction émise par les attributs)
-        const donneesAttributs = await this.lireChaqueAttribut(liste, peutVoirDonneesRestreintes);
-        console.log('donneesAttributs:', donneesAttributs)
-        // Combiner paramètres et attributs
-        const donnees = { ...donneesParametres, ...donneesAttributs };
+        console.log('donnees:', donnees);
 
         // 2. Détermination de l'ordre d'affichage
         let ordreAffichage;
@@ -716,16 +688,31 @@ class ObjetForum {
             }
         }
 
+        const proprietes = this.constructor.recupererProprietesAffichage(ordreAffichage);
+
         // 3. Construction du corps HTML
         let corps_html = '<tr>';
         let totalCells = 0;
         ordreAffichage.forEach(nomParametre => {
             const valeur = donnees[nomParametre];
             if (valeur !== undefined && valeur !== null) {
+                const typeLien = proprietes[nomParametre] ? proprietes[nomParametre].typeLien : null;
+
+                const formaterValeur = (val) => {
+                    if (val === null || val === undefined || val === '') return '';
+                    let affichage = Utils.formatNombre(val);
+                    if (typeLien === 'joueur') {
+                        return `<a href="Membre.php?Pseudo=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
+                    } else if (typeLien === 'alliance') {
+                        return `<a href="classementAlliance.php?alliance=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
+                    }
+                    return affichage;
+                };
+
                 if (Array.isArray(valeur)) {
                     if (valeur.length > 0) {
                         valeur.forEach(item => {
-                            let itemFormate = (item !== null && item !== undefined) ? Utils.formatNombre(item) : '';
+                            let itemFormate = (item !== null && item !== undefined) ? formaterValeur(item) : '';
                             corps_html += `<td>${itemFormate}</td>`;
                             totalCells++;
                         });
@@ -734,7 +721,7 @@ class ObjetForum {
                         totalCells++;
                     }
                 } else {
-                    corps_html += `<td>${Utils.formatNombre(valeur)}</td>`;
+                    corps_html += `<td>${formaterValeur(valeur)}</td>`;
                     totalCells++;
                 }
             } else {
@@ -749,9 +736,9 @@ class ObjetForum {
     }
 
     /**
-     * Récupère les propriétés d'affichage (visibilité, tri, type) pour une liste d'éléments.
+     * Récupère les propriétés d'affichage (visibilité, tri, type, lien) pour une liste d'éléments.
      * @param {Array<String>} [liste=null] - Liste optionnelle des noms de paramètres/attributs. Si null, la liste par défaut de l'objet est utilisée.
-     * @returns {Object} Un dictionnaire associant le nom de chaque paramètre à ses propriétés ({visible, sortable, type}).
+     * @returns {Object} Un dictionnaire associant le nom de chaque paramètre à ses propriétés ({visible, sortable, type, typeLien}).
      * @static
      */
     static recupererProprietesAffichage(liste = this.COLONNES_DEFAUT) {
@@ -780,14 +767,16 @@ class ObjetForum {
                 proprietes[nom] = {
                     visible: element.VISIBLE_PAR_DEFAUT,
                     sortable: element.SORTABLE_PAR_DEFAUT,
-                    type: element.TYPE_AFFICHAGE
+                    type: element.TYPE_AFFICHAGE,
+                    typeLien: element.TYPE_LIEN
                 };
             } else {
                 // Valeurs par défaut si le nom ne correspond pas à un paramètre défini
                 proprietes[nom] = {
                     visible: true,
                     sortable: nom !== "",
-                    type: null
+                    type: null,
+                    typeLien: null
                 };
             }
         });
@@ -795,66 +784,86 @@ class ObjetForum {
         return proprietes;
     }
 
+    // =========================================================================
+    // MÉTHODES UNIFIÉES DE LECTURE / ÉCRITURE
+    // =========================================================================
+
     /**
-     * Agrège les valeurs des paramètres en un dictionnaire. Garantit que chaque paramètre est unique.
-     * Si une `liste` est fournie, la clé est le nom de la liste ; sinon, c'est le nom d'affichage le plus récent.
-     * @param {Array<String>} [liste=null] - Liste optionnelle des noms de paramètres à lire.
-     * @param {Boolean} [peutVoirDonneesRestreintes=true] - Si l'utilisateur peut voir les données restreintes.
-     * @returns {Promise<Object>} Un dictionnaire associant chaque nom de paramètre à un objet {valeur, nom_affiche}.
+     * Résout un nom de donnée (paramètre ou attribut) en son instance DonneeValidable.
+     * @param {string} nom - Le nom à rechercher dans mapDonnees.
+     * @returns {DonneeValidable|null} L'instance trouvée ou null.
+     * @private
      */
-    async lireChaqueParametre(liste = null, peutVoirDonneesRestreintes = true) {
+    _resoudreDonnee(nom) {
+        const donnee = this.mapDonnees.get(nom);
+        if (!donnee) {
+            console.warn(`[${this.constructor.name}] Donnée "${nom}" introuvable dans mapDonnees.`);
+        }
+        return donnee || null;
+    }
+
+    /**
+     * Point d'accès unique en lecture pour les paramètres et les attributs.
+     *
+     * - `lire('Pseudo')` → retourne la valeur seule
+     * - `lire(['Pseudo', 'Grade'])` → retourne `{ Pseudo: ..., Grade: ... }`
+     * - `lire(null)` → retourne l'ensemble : paramètres (dernière version) + tous les attributs
+     *
+     * En mode liste, les ErreurRestriction sont agrégées dans l'objet résultat puis relancées
+     * sous forme d'une unique ErreurRestriction portant l'objet partiel en `.donnees`.
+     *
+     * @param {string|string[]|null} noms - Nom unique, liste de noms, ou null pour tout lire.
+     * @param {boolean} [peutVoirDonneesRestreintes=true]
+     * @returns {Promise<*|Object>} Valeur unique (string) ou objet {nom: valeur} (liste/null).
+     */
+    async lire(noms = null, peutVoirDonneesRestreintes = true) {
+        // --- Mode unitaire ---
+        if (typeof noms === 'string') {
+            const donnee = this._resoudreDonnee(noms);
+            if (!donnee) return null;
+            return await donnee.lire(peutVoirDonneesRestreintes);
+        }
+
+        // --- Mode liste ou null ---
         const resultats = {};
         const erreursRestriction = [];
 
-        if (liste) {
-            for (const nom of liste) {
-                const parametre = this.mapParametres.get(nom);
-                if (parametre !== undefined) {
-                    try {
-                        console.log('classe parametre:', parametre)
-                        const val = await parametre.Lire(peutVoirDonneesRestreintes);
-                        console.log('parametre:', nom, 'val:', val)
-                        resultats[nom] = val;
-                    } catch (error) {
-                        if (error instanceof ErreurRestriction) {
-                            erreursRestriction.push(error);
-                            resultats[nom] = error.donnees;
-                            console.log('parametre:', nom, 'val:', error.donnees)
-                        } else {
-                            throw error;
-                        }
-                    }
-                }
-            }
+        let entrees; // [{nom, donnee}]
+        if (Array.isArray(noms)) {
+            // Liste explicite : on résout chaque nom
+            entrees = noms
+                .map(nom => ({ nom, donnee: this._resoudreDonnee(nom) }))
+                .filter(e => e.donnee !== null);
         } else {
-            // Lire uniquement les paramètres de la dernière version
-            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+            // null : paramètres de la dernière version + tous les attributs
+            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1] || [];
             const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
-            const parametresCibles = classesDerniereVersion.map(classe => mapClasseInstance.get(classe));
+            entrees = classesDerniereVersion
+                .map(classe => mapClasseInstance.get(classe))
+                .filter(Boolean)
+                .map(p => ({ nom: p.constructor.getDernierNom(), donnee: p }));
+            // Ajouter les attributs
+            for (const attribut of this.attributs) {
+                entrees.push({ nom: attribut.constructor.getDernierNom(), donnee: attribut });
+            }
+        }
 
-            for (const parametre of parametresCibles) {
-                if (!parametre) continue;
-                const nom = parametre.constructor.getDernierNom();
-                try {
-                    const val = await parametre.Lire(peutVoirDonneesRestreintes);
-                    // const nomAffiche = parametre.constructor.getNomAffichage();
-                    resultats[nom] = val;
-                    // resultats[nom] = { valeur: val, nom_affiche: nomAffiche };
-                } catch (error) {
-                    if (error instanceof ErreurRestriction) {
-                        erreursRestriction.push(error);
-                        // Utiliser les données de l'erreur au lieu de remplacer par '<i>Restreint</i>'
-                        resultats[nom] = error.donnees;
-                        // resultats[nom] = { valeur: error.donnees, nom_affiche: parametre.constructor.getNomAffichage() };
-                    } else {
-                        throw error;
-                    }
+        for (const { nom, donnee } of entrees) {
+            try {
+                resultats[nom] = await donnee.lire(peutVoirDonneesRestreintes);
+            } catch (error) {
+                if (error instanceof ErreurRestriction) {
+                    erreursRestriction.push(error);
+                    // Utiliser les données de l'erreur au lieu de remplacer par '<i>Restreint</i>'
+                    resultats[nom] = error.donnees;
+                } else {
+                    throw error;
                 }
             }
         }
 
         if (erreursRestriction.length > 0) {
-            const err = new ErreurRestriction("Certaines données sont restreintes.");
+            const err = new ErreurRestriction('Certaines données sont restreintes.');
             err.donnees = resultats;
             throw err;
         }
@@ -863,81 +872,34 @@ class ObjetForum {
     }
 
     /**
-     * Agrège les valeurs des attributs en un dictionnaire. Garantit que chaque attribut est unique.
-     * Si une `liste` est fournie, la clé est le nom de la liste ; sinon, c'est le nom d'affichage le plus récent.
-     * Les attributs n'émettent pas d'ErreurRestriction, leurs valeurs sont utilisées telles quelles.
-     * @param {Array<String>} [liste=null] - Liste optionnelle des noms d'attributs à lire.
-     * @param {Boolean} [peutVoirDonneesRestreintes=true] - Si l'utilisateur peut voir les données restreintes.
-     * @returns {Promise<Object>} Un dictionnaire associant chaque nom d'attribut à un objet {valeur, nom_affiche}.
+     * Point d'accès unique en écriture pour les paramètres et les attributs.
+     *
+     * - `ecrire('Pseudo', 'Tartempion')` → retourne true/false
+     * - `ecrire({ Pseudo: 'Tartempion', Grade: 'R1' })` → retourne `{ Pseudo: true, Grade: true }`
+     *
+     * @param {string|Object} noms - Nom unique ou objet {nom: valeur}.
+     * @param {*} [valeur] - Valeur si noms est un string.
+     * @returns {Promise<boolean|Object>} Résultat ou dictionnaire de résultats.
      */
-    async lireChaqueAttribut(liste = null, peutVoirDonneesRestreintes = true) {
-        await this._acquireReadLock();
-        try {
-            const resultats = {};
+    async ecrire(noms, valeur) {
+        // --- Mode unitaire ---
+        if (typeof noms === 'string') {
+            const donnee = this._resoudreDonnee(noms);
+            if (!donnee) return false;
+            return await donnee.ecrire(valeur);
+        }
 
-            if (liste) {
-                for (const nom of liste) {
-                    const attribut = this.mapAttributs.get(nom);
-                    if (attribut !== undefined) {
-                        const val = await attribut.obtenirValeur(peutVoirDonneesRestreintes);
-                        resultats[nom] = val;
-                    }
-                }
+        // --- Mode objet ---
+        const resultats = {};
+        for (const nom in noms) {
+            const donnee = this._resoudreDonnee(nom);
+            if (donnee) {
+                resultats[nom] = await donnee.ecrire(noms[nom]);
             } else {
-                for (const attribut of this.attributs) {
-                    const nom = attribut.constructor.getDernierNom();
-                    const val = await attribut.obtenirValeur(peutVoirDonneesRestreintes);
-                    const nomAffiche = attribut.constructor.getNomAffichage();
-                    resultats[nom] = val;
-                    // resultats[nom] = { valeur: val, nom_affiche: nomAffiche };
-                }
+                resultats[nom] = false;
             }
-
-            return resultats;
-        } finally {
-            this._releaseReadLock();
         }
-    }
-
-    /**
-     * Lit la valeur d'un attribut unique par son nom.
-     * @param {String} nomAttribut - Le nom de l'attribut à lire (premier ou dernier nom de NOM_AFFICHAGE).
-     * @param {Boolean} [peutVoirDonneesRestreintes=true] - Si l'utilisateur peut voir les données restreintes.
-     * @returns {Promise<*>} La valeur de l'attribut, ou null s'il n'existe pas.
-     */
-    async lireAttribut(nomAttribut, peutVoirDonneesRestreintes = true) {
-        const attribut = this.mapAttributs.get(nomAttribut);
-        console.log("mapAttributs", this.mapAttributs);
-        if (!attribut) {
-            console.warn(`[${this.constructor.name}] Attribut "${nomAttribut}" introuvable.`);
-            return null;
-        }
-        return await attribut.obtenirValeur(peutVoirDonneesRestreintes);
-    }
-
-    /**
-     * Écrit la valeur d'un attribut unique par son nom.
-     * @param {String} nomAttribut - Le nom de l'attribut à écrire.
-     * @param {*} nouvelleValeur - La nouvelle valeur à assigner.
-     * @returns {Boolean} True si la modification a réussi, false sinon.
-     */
-    ecrireAttribut(nomAttribut, nouvelleValeur) {
-        const attribut = this.mapAttributs.get(nomAttribut);
-        if (!attribut) {
-            console.warn(`[${this.constructor.name}] Attribut "${nomAttribut}" introuvable.`);
-            return false;
-        }
-        return attribut.modifierValeur(nouvelleValeur);
-    }
-
-    /**
-     * Met à jour rapidement les valeurs des paramètres à partir d'un objet clé-valeur.
-     * @param {Object} donnees - Un objet où les clés sont les noms des paramètres.
-     */
-    async ecrireChaqueParametre(donnees) {
-        for (const nomParametre in donnees) {
-            await this.ecrireParametre(nomParametre, donnees[nomParametre])
-        }
+        return resultats;
     }
 
     /**
@@ -1026,7 +988,7 @@ class ObjetForum {
         for (const parametre of this.parametres) {
             if (classesDerniereVersion.has(parametre.constructor)) {
                 const nom = parametre.constructor.getDernierNom();
-                obj[nom] = await parametre.Lire();
+                obj[nom] = await parametre.lire();
             }
         }
 
@@ -1034,7 +996,7 @@ class ObjetForum {
         for (const attribut of this.attributs) {
             const nom = attribut.constructor.getDernierNom();
             try {
-                const valeur = await attribut.obtenirValeur();
+                const valeur = await attribut.lire();
                 // Vérifier que la valeur est sérialisable (lève une exception sinon)
                 JSON.stringify(valeur);
                 obj[nom] = valeur;
@@ -1075,57 +1037,12 @@ class ObjetForum {
         const data = JSON.parse(localStorage.getItem(cleStockage));
         if (!data || typeof data !== 'object') return false;
 
-        // Charger les paramètres
-        for (const parametre of this.parametres) {
-            const nom = parametre.constructor.getDernierNom();
-            if (nom in data) {
-                parametre.Ecrire(data[nom]);
-            }
-        }
-
-        // Charger les attributs
-        for (const attribut of this.attributs) {
-            const nom = attribut.constructor.getDernierNom();
-            if (nom in data) {
-                attribut.modifierValeur(data[nom]);
-            }
+        // Charger toutes les données via la méthode unifiée ecrire()
+        for (const [nom, valeur] of Object.entries(data)) {
+            await this.ecrire(nom, valeur);
         }
 
         return true;
-    }
-
-    /**
-     * Fournit un accès direct et rapide en lecture à la valeur brute d'un paramètre.
-     * @param {String} nomParametre - Le nom du paramètre à lire.
-     * @param {Boolean} [peutVoirDonneesRestreintes=true] - Si l'utilisateur peut voir les données restreintes.
-     * @returns {*} La valeur brute du paramètre, ou null si non trouvé.
-     * @throws {ErreurRestriction} Si le paramètre est restreint et que l'utilisateur n'a pas les droits.
-     */
-    async lireParametre(nomParametre, peutVoirDonneesRestreintes = true) {
-        const parametre = this.mapParametres.get(nomParametre);
-        if (!parametre) {
-            console.warn(`[${this.constructor.name}] Tentative de lecture d'un paramètre inexistant ou non normalisé: "${nomParametre}".`);
-            // Le calcul échouera avec une erreur TypeError si on tente d'utiliser ce résultat.
-            return null;
-        }
-
-        return await parametre.Lire(peutVoirDonneesRestreintes);
-    }
-
-    /**
-     * Fournit un accès direct et rapide en écriture à un paramètre.
-     * @param {String} nomParametre - Le nom du paramètre à écrire.
-     * @param {*} valeur - La nouvelle valeur pour le paramètre.
-     */
-    async ecrireParametre(nomParametre, valeur) {
-        const parametre = this.mapParametres.get(nomParametre);
-        if (parametre) {
-            parametre.Ecrire(valeur);
-            // L'état estModifie de l'objet est géré par le getter/setter
-        } else {
-            console.warn(`[${this.constructor.name}] Tentative d'écriture sur un paramètre inexistant ou non normalisé: "${nomParametre}".`);
-        }
-        console.log('valeur parametre après: ', parametre)
     }
 
     /**

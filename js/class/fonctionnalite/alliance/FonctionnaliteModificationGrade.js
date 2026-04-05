@@ -24,8 +24,8 @@ Utils.register(class FonctionnaliteModificationGrade extends FonctionnaliteAllia
         const membresForum = await this.chargerObjetsForum(Joueur, false);
         const membresForumMap = new Map();
         for (const j of membresForum) {
-            const pseudo = await j.lireParametre('Pseudo');
-            const id = await j.lireAttribut('Id');
+            const pseudo = await j.lire('Pseudo');
+            const id = await j.lire('Id');
             membresForumMap.set(pseudo, { joueur: j, id });
         }
 

@@ -20,85 +20,85 @@ Utils.register(class Convoi extends ObjetForum {
     *
     */
     get id() {
-        return this.lireParametre('Id');
+        return this.lire('Id');
     }
     /**
     *
     */
     set id(newId) {
-        this.ecrireParametre('Id', newId);
+        this.ecrire('Id', newId);
     }
     /**
     *
     */
     get expediteur() {
-        return this.lireParametre('Expéditeur');
+        return this.lire('Expéditeur');
     }
     /**
     *
     */
     set expediteur(newExpediteur) {
-        this.ecrireParametre('Expéditeur', newExpediteur);
+        this.ecrire('Expéditeur', newExpediteur);
     }
     /**
     *
     */
     get destinataire() {
-        return this.lireParametre('Destinataire');
+        return this.lire('Destinataire');
     }
     /**
     *
     */
     set destinataire(newDestinataire) {
-        this.ecrireParametre('Destinataire', newDestinataire);
+        this.ecrire('Destinataire', newDestinataire);
     }
     /**
     *
     */
     get nourriture() {
-        return this.lireParametre('Nourriture');
+        return this.lire('Nourriture');
     }
     /**
     *
     */
     set nourriture(newNourriture) {
-        this.ecrireParametre('Nourriture', newNourriture);
+        this.ecrire('Nourriture', newNourriture);
     }
     /**
     *
     */
     get materiaux() {
-        return this.lireParametre('Matériaux');
+        return this.lire('Matériaux');
     }
     /**
     *
     */
     set materiaux(newMateriaux) {
-        this.ecrireParametre('Matériaux', newMateriaux);
+        this.ecrire('Matériaux', newMateriaux);
     }
     /**
     *
     */
     get idCommande() {
-        return this.lireParametre('Id Commande');
+        return this.lire('Id Commande');
     }
     /**
     *
     */
     set idCommande(newIdCommande) {
-        this.ecrireParametre('Id Commande', newIdCommande);
+        this.ecrire('Id Commande', newIdCommande);
     }
     /**
     *
     */
     get dateArrivee() {
-        return this.lireParametre('Date Arrivée');
+        return this.lire('Date Arrivée');
     }
     /**
     *
     */
     set dateArrivee(newArrivee) {
-        this.ecrireParametre('Date Arrivée', newArrivee);
+        this.ecrire('Date Arrivée', newArrivee);
     }
     /**
     *
@@ -116,44 +116,44 @@ Utils.register(class Convoi extends ObjetForum {
     *
     */
     get idAnnulation() {
-        return this.lireParametre('Id Annulation');
+        return this.lire('Id Annulation');
     }
     /**
     *
     */
     set idAnnulation(newIdAnnulation) {
-        this.ecrireParametre('Id Annulation', newIdAnnulation);
+        this.ecrire('Id Annulation', newIdAnnulation);
     }
     /**
     *
     */
     get ouvrieres() {
-        return this.lireParametre('Ouvrières');
+        return this.lire('Ouvrières');
     }
     /**
     *
     */
     set ouvrieres(newOuvrieres) {
-        this.ecrireParametre('Ouvrières', newOuvrieres);
+        this.ecrire('Ouvrières', newOuvrieres);
     }
 
     async estDestinataire() {
-        return await this.lireParametre('Destinataire') == await monProfilJoueur.lireParametre('Pseudo')
+        return await this.lire('Destinataire') == await monProfilJoueur.lire('Pseudo')
     }
     /**
     *
     */
     async estTermine() {
-        return moment(await this.lireParametre('Date Arrivée')).diff(moment()) < 0;
+        return moment(await this.lire('Date Arrivée')).diff(moment()) < 0;
     }
     /**
     *
     */
     async toHTML(id) {
         // Si le convoi m'est destiné et que le datetime d'arrivée n'est pas dépassé
-        let tempsRestant = moment(await this.lireParametre('Date Arrivée')).diff(moment()) / 1000;
-        $(id).after(`<strong>- Vous allez recevoir ${numeral(await this.lireParametre('Nourriture')).format()} ${IMG_POMME} et ${numeral(await this.lireParametre('Matériaux')).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${await this.lireParametre('Expéditeur')}">${await this.lireParametre('Expéditeur')}</a> dans <span id='convoi_${this._id}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(await this.lireParametre('Date Arrivée')).format("D MMM YYYY à HH[h]mm")}</small><br/>`);
-        Utils.decreaseTime(moment(await this.lireParametre('Date Arrivée')).diff(moment()) / 1000, "convoi_" + await this.lireParametre('Id Annulation'));
+        let tempsRestant = moment(await this.lire('Date Arrivée')).diff(moment()) / 1000;
+        $(id).after(`<strong>- Vous allez recevoir ${numeral(await this.lire('Nourriture')).format()} ${IMG_POMME} et ${numeral(await this.lire('Matériaux')).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${await this.lire('Expéditeur')}">${await this.lire('Expéditeur')}</a> dans <span id='convoi_${this._id}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(await this.lire('Date Arrivée')).format("D MMM YYYY à HH[h]mm")}</small><br/>`);
+        Utils.decreaseTime(moment(await this.lire('Date Arrivée')).diff(moment()) / 1000, "convoi_" + await this.lire('Id Annulation'));
         return this;
     }
 

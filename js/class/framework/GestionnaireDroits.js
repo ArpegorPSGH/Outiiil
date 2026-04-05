@@ -112,7 +112,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      */
     async verifierDroit(abrevFonctionnalite, niveauRequis) {
         // 1. Identifier le Joueur Actuel
-        const pseudoJoueur = await monProfilJoueur.lireParametre('Pseudo'); // Supposant que le pseudo est dans pseudo
+        const pseudoJoueur = await monProfilJoueur.lire('Pseudo'); // Supposant que le pseudo est dans pseudo
         if (!pseudoJoueur) {
             console.warn(`[GestionnaireDroits] Pseudo du joueur non trouvé.`);
             return false;
@@ -125,7 +125,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         }
 
         // 3. Trouver le Droit Spécifique à la Fonctionnalité
-        const droitActuel = await objetDroit.lireParametre(abrevFonctionnalite);
+        const droitActuel = await objetDroit.lire(abrevFonctionnalite);
         if (droitActuel === null) {
             return false; // Pas de paramètre de droit pour cette fonctionnalité
         }
@@ -153,7 +153,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             return null;
         }
 
-        return await objetDroit.lireChaqueParametre();
+        return await objetDroit.lire();
     }
 
     /**
@@ -168,7 +168,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
             return false;
         }
 
-        await objetDroit.ecrireChaqueParametre(nouvellesValeurs);
+        await objetDroit.ecrire(nouvellesValeurs);
         return true;
     }
 
@@ -200,7 +200,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @private
      */
     async _getObjetForumDroit(joueur) {
-        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lireParametre('Pseudo');
+        const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lire('Pseudo');
         if (!pseudoCible) {
             return null;
         }
@@ -223,7 +223,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         const nomParametrePseudo = 'Pseudo';
         this.mapDroits.clear();
         for (const droit of droitsActuels) {
-            const pseudo = await droit.lireParametre(nomParametrePseudo);
+            const pseudo = await droit.lire(nomParametrePseudo);
             if (pseudo) this.mapDroits.set(pseudo, droit);
         }
 
@@ -243,7 +243,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         }
 
         for (const membre of membresOfficiels) {
-            const pseudoMembre = await membre.lireParametre('Pseudo');
+            const pseudoMembre = await membre.lire('Pseudo');
             if (membresTraites.has(pseudoMembre)) {
                 continue;
             }
@@ -276,7 +276,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         console.log('droitsSynchronises', droitsSynchronises)
         cacheObjetForums.set(this.constructor.classeObjetsForumContenus.name, droitsSynchronises)
         for (const droit of this.objetsForumContenus) {
-            const pseudo = await droit.lireParametre(nomParametrePseudo);
+            const pseudo = await droit.lire(nomParametrePseudo);
             if (pseudo) this.mapDroits.set(pseudo, droit);
         }
     }

@@ -254,7 +254,7 @@ class BoiteComptePlus {
             let index = CONSTRUCTION.findIndex((elt) => { return this._construction.toLowerCase().includes(elt.toLowerCase()); });
             let constructions = await monProfilJoueur.niveauConstruction;
             constructions[index]++;
-            await monProfilJoueur.ecrireAttribut("Niveau Construction", constructions);
+            await monProfilJoueur.ecrire("Niveau Construction", constructions);
             // si la construction est une evolution de ponte, on met a jour les pontes
             if (this._construction.includes("Couveuse") || this._construction.includes("Solarium"))
                 this.recalculeTempsPonte();
@@ -268,7 +268,7 @@ class BoiteComptePlus {
             let index = RECHERCHE.findIndex((elt) => { return this._recherche.toLowerCase().includes(elt.toLowerCase()); });
             let recherches = await monProfilJoueur.niveauRecherche;
             recherches[index]++;
-            await monProfilJoueur.ecrireAttribut("Niveau Recherche", recherches);
+            await monProfilJoueur.ecrire("Niveau Recherche", recherches);
             // si la recherche est une evolution de ponte, on met a jour les pontes
             if (this._recherche.includes("Technique de ponte"))
                 this.recalculeTempsPonte();

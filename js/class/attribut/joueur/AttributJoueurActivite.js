@@ -7,9 +7,9 @@ class AttributJoueurActivite extends AttributObjet {
      * Accepte une chaîne d'activité directe ('actif', 'vacances', etc.)
      * ou une URL/tag HTML d'image et la convertit.
      * @param {string|object} nouvelleValeur - La nouvelle valeur d'activité.
-     * @returns {Boolean} Vrai si la modification a réussi.
+     * @returns {Promise<Boolean>} Vrai si la modification a réussi.
      */
-    modifierValeur(nouvelleValeur) {
+    async ecrire(nouvelleValeur) {
         console.log('invocation surcharge avec :', nouvelleValeur);
         let valeurNormalisee = nouvelleValeur;
         if (typeof nouvelleValeur === 'object' && nouvelleValeur !== null && typeof nouvelleValeur.attr === 'function') {
@@ -22,7 +22,7 @@ class AttributJoueurActivite extends AttributObjet {
             valeurNormalisee = this._convertirImageEtatEnString(src);
         }
 
-        return super.modifierValeur(valeurNormalisee);
+        return await super.ecrire(valeurNormalisee);
     }
 
     /**

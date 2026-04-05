@@ -9,7 +9,7 @@ class AttributCommandeNourritureRestante extends AttributObjet {
      * @returns {Promise<number>} Quantité restante
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
-        const params = await this.objetParent.lireChaqueParametre(['Nourriture Demandée', 'Nourriture Livrée'], peutVoirDonneesRestreintes);
+        const params = await this.objetParent.lire(['Nourriture Demandée', 'Nourriture Livrée'], peutVoirDonneesRestreintes);
         return params['Nourriture Demandée'] - params['Nourriture Livrée'];
     }
 }

@@ -38,10 +38,10 @@ class PageAttaquer {
             this.majStatistique(this._armee);
             // ajoute event
             $("input[id^=unite]").on("input", (e) => { this.majStatistique(); });
-            
-            const niveauRecherche = await monProfilJoueur.lireAttribut('Niveau Recherche');
+
+            const niveauRecherche = await monProfilJoueur.lire('Niveau Recherche');
             this._nbAttaque = niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
-            
+
             // on recupére le profil du joueur pour les coordonnées
             await this._cible.getProfil().then(async (data) => {
                 await this._cible.chargerProfil(data);
@@ -136,7 +136,7 @@ class PageAttaquer {
         let methode = monProfilUtilisateur.parametre["methodeFlood"].valeur;
         $(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
             <table id='o_simulationFlood' class='o_maxWidth' cellspacing=0>
-			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${await this._cible.lireParametre('Pseudo')} (${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
+			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${await this._cible.lire('Pseudo')} (${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
 			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${await this._cible.terrain}' size='12' id='o_floodTDCB'/></td></tr>
 			<tr><td>Antisonde (<span id="o_pourcentAttaque0">0</span>%)</td><td><input value='0' size='12' id='o_floodAntiSonde'/></td><td></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.terrain).format()}</td></tr>
             <tr class="gras reduce"><td colspan="3"></td><td><span id="o_supprimeAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Supprimer une attaque</span></td><td><span id="o_ajouteAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Ajouter une attaque</span></td></tr>

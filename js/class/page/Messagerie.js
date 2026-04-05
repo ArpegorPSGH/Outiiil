@@ -57,7 +57,7 @@ class PageMessagerie {
                             if (element.hasClass("contenu_conversation")) {
                                 // correction pour chrome
                                 element.find(".message").removeAttr("colspan");
-                                
+
                                 // On cherche l'en-tête de la conversation pour récupérer l'ID
                                 const header = element.prevAll("[id^='conversation_']:first");
                                 if (!header.length) continue;
@@ -239,14 +239,14 @@ class PageMessagerie {
         if (!this._messagesOuvert.hasOwnProperty(id_mess)) {
             let chasse = new Chasse(message);
             if (!chasse.analyse()) return this;
-            
+
             // On marque immédiatement pour éviter les analyses multiples du même message
             this._messagesOuvert[id_mess] = chasse;
 
             // Ajout de la chasse au bilan de la conversation (objet bilan séparé)
             const keyConv = "conv_" + id_conv;
-            this._messagesOuvert[keyConv] = this._messagesOuvert.hasOwnProperty(keyConv) ? 
-                this._messagesOuvert[keyConv].ajoute(chasse) : 
+            this._messagesOuvert[keyConv] = this._messagesOuvert.hasOwnProperty(keyConv) ?
+                this._messagesOuvert[keyConv].ajoute(chasse) :
                 new Chasse("").ajoute(chasse);
 
             const htmlAnalyse = await chasse.toHTMLMessagerie();
@@ -272,14 +272,14 @@ class PageMessagerie {
 
             const conversationContainer = $("#conversation_" + id_conv).next().next();
             const lastMessage = conversationContainer.find(".message:last");
-            
+
             if (lastMessage.length) {
                 // Création initiale
                 lastMessage.append(`<p id="show_bilan_${id_conv}" class="gras cursor souligne">Bilan</p><div id="o_bilan_${id_conv}" class="info_supp separateur_messages_meme_expe" style="display:none"></div>`);
-                
+
                 // On attache l'événement une seule fois
-                $(idBouton).click((e) => { 
-                    $(e.currentTarget).next().toggle("blind", 400); 
+                $(idBouton).click((e) => {
+                    $(e.currentTarget).next().toggle("blind", 400);
                 });
 
                 // Chargement du contenu
@@ -392,7 +392,7 @@ class PageMessagerie {
             // on ajoute l'heure du RC
             html += "[b]" + $(elt).find(".expe span > span").text() + "[/b] " + texte + "\n";
             // si on veut le temps HOF
-            if (hof) html += `Perte ${await monProfilJoueur.lireParametre('Pseudo')} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
+            if (hof) html += `Perte ${await monProfilJoueur.lire('Pseudo')} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
             // si on veut les bonus
             if (bonus) html += `${detail.find("#bonus_ennemie_" + id).text()}\n`;
         });

@@ -47,7 +47,7 @@ Utils.register(class FonctionnaliteActualisation extends FonctionnaliteAlliance 
             const membresForum = await this.chargerObjetsForum(Joueur, false);
             const membresForumMap = new Map();
             for (const m of membresForum) {
-                membresForumMap.set(await m.lireParametre('Pseudo'), m);
+                membresForumMap.set(await m.lire('Pseudo'), m);
             }
 
             const promessesProfil = [];

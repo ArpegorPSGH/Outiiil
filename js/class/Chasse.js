@@ -178,7 +178,7 @@ class Chasse {
 	*
 	*/
 	async toHTMLBoite(bVisible) {
-		const recherches = await monProfilJoueur.lireAttribut('Niveau Recherche');
+		const recherches = await monProfilJoueur.lire('Niveau Recherche');
 		const diffNbr = this._armeeAp.getSommeUnite() - this._armeeAv.getSommeUnite();
 		const diffVie = this._armeeAp.getTotalVie(recherches[1]) - this._armeeAv.getTotalVie(recherches[1]);
 		const diffAtt = this._armeeAp.getTotalAtt(recherches[2]) - this._armeeAv.getTotalAtt(recherches[2]);

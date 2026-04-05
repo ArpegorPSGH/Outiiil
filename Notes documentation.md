@@ -95,7 +95,7 @@ Pour garantir la robustesse des fonctionnalités :
 - **Exécution des fonctionnalités :** Le run des fonctionnalités ne doit contenir que les opérations à effectuer séquentiellement au moment du chargement de la page, le reste devra être lancé dans des fonctions `async` non `await`-ées.
 - **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` ou d'un `ParametreObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente, incrémentez sa propriété statique `VERSION_LOGIQUE`. Pour un `ObjetForum`, cela concerne des situations où, dans des conditions identiques, les paramètres ne seraient plus censés prendre la même valeur. Pour un `ParametreObjetForum`, cela s'applique quand une même valeur brute est traitée différemment.
 - **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
-- **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lireParametre()`, `ObjetForum.lireChaqueParametre()`, `ObjetForum.ecrireParametre()`, `ObjetForum.ecrireChaqueParametre()`. Ces méthodes délèguent aux méthodes `Lire()` et `Ecrire()` de `ParametreObjetForum`, qui gèrent la concurrence via un système de verrous (locks) et assurent la validation des types de données. Ne jamais accéder directement à la propriété `valeur` d'un paramètre.
+- **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lire()` et `ObjetForum.ecrire()`. Ces méthodes délèguent aux méthodes `lire()` et `ecrire()` de `ParametreObjetForum`, qui gèrent la concurrence via un système de verrous (locks) et assurent la validation des types de données. Ne jamais accéder directement à la propriété `valeur` d'un paramètre.
 - **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.
 - **Mise à jour de la documentation :** Après chaque fonctionnalité implémentée, assurez-vous de mettre à jour la documentation (si nécessaire) pour refléter les changements et les nouvelles pratiques.
 - **Gestion des droits d'administration Fourmizzz :** Il n'est pas nécessaire de surcharger la méthode `verifierDroits()` dans les classes héritant de `FonctionnaliteAlliance` pour gérer les droits d'administration Fourmizzz. La vérification est déjà incluse et délègue à la méthode `estAdminFourmizzz()` de la classe `Page` qui lance la fonctionnalité. Il suffit donc d'implémenter correctement la vérification dans la classe fille de `Page` concernée.
@@ -118,7 +118,7 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
 *   **`completerChargementPourVersionsAnterieures()`**
     *   **Objectif :** Gérer la migration des données lors du chargement d'une version antérieure de l'objet.
     *   **Utilisation :** Cette méthode est appelée par `ObjetForum.chargerDepuisString()` après que les paramètres de l'objet aient été chargés depuis une chaîne. Elle permet de calculer et de peupler les paramètres des versions récentes à partir des données d'une version plus ancienne.
-    *   **Bonne Pratique :** Utilisez `this._determinerVersionChargee()` pour identifier la version chargée et un `switch` pour implémenter la logique de migration spécifique à chaque version. Utilisez `this.ecrireParametre()` pour mettre à jour les valeurs des paramètres afin de garantir que l'état `estModifie` est correctement géré.
+    *   **Bonne Pratique :** Utilisez `this._determinerVersionChargee()` pour identifier la version chargée et un `switch` pour implémenter la logique de migration spécifique à chaque version. Utilisez `this.ecrire()` pour mettre à jour les valeurs des paramètres afin de garantir que l'état `estModifie` est correctement géré.
     ```javascript
     completerChargementPourVersionsAnterieures() {
         let versionActuelle = this._determinerVersionChargee();
@@ -130,13 +130,13 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
                 case 0:
                     // Logique pour migrer de la v0 à la v1
                     console.log('Migration de v0 à v1...');
-                    // ... mettre à jour les paramètres de la v1 en utilisant this.ecrireParametre() ...
+                    // ... mettre à jour les paramètres de la v1 en utilisant this.ecrire() ...
                     break; // On sort du switch pour la v0
 
                 case 1:
                     // Logique pour migrer de la v1 à la v2
                     console.log('Migration de v1 à v2...');
-                    // ... mettre à jour les paramètres de la v2 en utilisant this.ecrireParametre() ...
+                    // ... mettre à jour les paramètres de la v2 en utilisant this.ecrire() ...
                     break; // On sort du switch pour la v1
             }
             
@@ -196,7 +196,7 @@ Pour définir des attributs dont la valeur est dérivée d'autres paramètres et
     *   **Objectif :** Invoquer de manière sécurisée une méthode de calcul d'un attribut dérivé. Gère automatiquement les droits d'accès et les erreurs de calcul (notamment dues à des données restreintes).
     *   **Utilisation :**
         1.  Définissez une méthode privée dans votre classe fille qui contient la logique de calcul de l'attribut. Cette méthode doit prendre un argument `peutVoirDonneesRestreintes` (un booléen) qui indique si l'utilisateur a les droits suffisants pour voir les données normales.
-        2.  Dans cette méthode de calcul, utilisez `this.lireParametre()` (ou `this.lireChaqueParametre()` éventuellement) pour accéder aux valeurs des paramètres nécessaires au calcul. Si `peutVoirDonneesRestreintes` est `false`, `lire(Chaque)Parametre()` lèvera une `ErreurRestriction` si le paramètre est restreint.
+        2.  Dans cette méthode de calcul, utilisez `this.lire()` pour accéder aux valeurs des paramètres nécessaires au calcul. Si `peutVoirDonneesRestreintes` est `false`, `this.lire()` lèvera une `ErreurRestriction` si le paramètre est restreint.
         3.  Appelez `_invoquerCalculSecurise()` en lui passant votre méthode de calcul liée à l'instance de l'objet (`votreMethodeDeCalcul.bind(this)`).
     *   **Exemple :**
         ```javascript
@@ -209,7 +209,7 @@ Pour définir des attributs dont la valeur est dérivée d'autres paramètres et
             }
 
             async _calculerMonAttribut(peutVoirDonneesRestreintes) {
-                return await this.lireParametre('Quantité', peutVoirDonneesRestreintes) * await this.lireParametre('PrixUnitaire', peutVoirDonneesRestreintes);
+                return await this.lire('Quantité', peutVoirDonneesRestreintes) * await this.lire('PrixUnitaire', peutVoirDonneesRestreintes);
             }
         }
         ```

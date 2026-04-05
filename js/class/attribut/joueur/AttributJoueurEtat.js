@@ -10,7 +10,7 @@ class AttributJoueurEtat extends AttributObjet {
      * @returns {Promise<Array<string>>} Tableau de 2 chaînes HTML [imageStatut, imageColonise]
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
-        const attributs = await this.objetParent.lireChaqueAttribut(['Activité', 'Colonisé'], peutVoirDonneesRestreintes);
+        const attributs = await this.objetParent.lire(['Activité', 'Colonisé'], peutVoirDonneesRestreintes);
 
         let etatImage = '';
 

@@ -412,7 +412,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
         a.  Il vérifie si `options.donneesInitiales` a été fourni et s'il s'agit bien d'un objet.
         b.  Si c'est le cas, il regarde pour chaque donnée initiale si elle correspond à un attribut
         c.  Si c'est le cas, il utilise le setter associé si existant, sinon il affecte directement à l'attribut
-        b.  Si la donnée initiale correpsond à un paramètre, il appelle `this.ecrireChaqueParametreObjetForum(options.donneesInitiales)` pour peupler les paramètres qui viennent d'être instanciés avec les valeurs fournies.
+        b.  Si la donnée initiale correpsond à un paramètre, il appelle `this.ecrireObjetForum(options.donneesInitiales)` pour peupler les paramètres qui viennent d'être instanciés avec les valeurs fournies.
 
     5.  **Initialisation des IDs de Section :** Le constructeur accède à la propriété statique `LOCATION_HISTORY` de la classe fille, convertit les noms de section en IDs numériques, et stocke ces IDs uniques dans le tableau `this.idsSection`.
 
@@ -1007,7 +1007,7 @@ Hérite de la classe `ObjetForum`.
         a.  Utilise la `mapDroits` pour un accès direct à l'objet de droits du joueur. Si non trouvé, retourne `false`.
     3.  **Trouver le Droit Spécifique à la Fonctionnalité :**
         a.  Construit le nom du paramètre à rechercher en utilisant le template `nom_droit` du format le plus récent dans `FORMAT_HISTORY` et en y injectant l'`abrevFonctionnalite` (ex: `droit_{abrev}` -> `droit_sdc`).
-        b.  Appelle `objetDroit.lireParametre(nomParametre)` pour obtenir le niveau de droit actuel du joueur.
+        b.  Appelle `objetDroit.lire(nomParametre)` pour obtenir le niveau de droit actuel du joueur.
     4.  **Comparaison des Droits :**
         a.  Elle utilise la liste statique `NIVEAUX_ORDONNES` pour comparer le niveau de droit du joueur avec le `niveauRequis`.
         b.  Elle trouve l'index du droit du joueur (ex: `NIVEAUX_ORDONNES.indexOf('N')`) et l'index du droit requis (ex: `NIVEAUX_ORDONNES.indexOf('R')`).
@@ -1044,7 +1044,7 @@ Hérite de la classe `ObjetForum`.
 *   **Logique Détaillée :**
     1.  **Rechercher l'ObjetForum de Droits :** Appelle `_getObjetForumDroit(joueur)`. Si `null`, retourne `false`.
     2.  **Préparer les Données :** Récupère le template de nom de droit depuis `FORMAT_HISTORY`. Transforme l'objet de droits simples (`{sdc: 'A'}`) en un objet complet attendu par la méthode de l'objet enfant (`{droit_sdc: 'A'}`).
-    3.  **Déléguer la Mise à Jour :** Appelle `objetDroit.ecrireChaqueParametre()` avec les données complètes.
+    3.  **Déléguer la Mise à Jour :** Appelle `objetDroit.ecrire()` avec les données complètes.
     4.  **Confirmer le Succès :** Retourne `true`.
 
 ##### **6. `afficher(joueur)`**
