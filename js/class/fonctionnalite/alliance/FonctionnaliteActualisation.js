@@ -45,7 +45,10 @@ Utils.register(class FonctionnaliteActualisation extends FonctionnaliteAlliance 
         try {
             await this.page.synchroniserJoueursDepuisDOM();
             const membresForum = await this.chargerObjetsForum(Joueur, false);
-            const membresForumMap = new Map(membresForum.map(m => [m.mapParametres.get('Pseudo').valeur, m]));
+            const membresForumMap = new Map();
+            for (const m of membresForum) {
+                membresForumMap.set(await m.lireParametre('Pseudo'), m);
+            }
 
             const promessesProfil = [];
             const nouveauxJoueurs = [];

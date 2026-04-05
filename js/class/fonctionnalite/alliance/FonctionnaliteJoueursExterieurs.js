@@ -20,6 +20,11 @@ Utils.register(class FonctionnaliteJoueursExterieurs extends FonctionnaliteAllia
         const joueursDejaDansTableau = Object.keys(this.page._alliance.joueurs);
 
         const tousLesMembres = await this.chargerObjetsForum(Joueur);
+        const tousLesMembresMap = new Map();
+        for (const m of tousLesMembres) {
+            tousLesMembresMap.set(await m.lireParametre('Pseudo'), m);
+        }
+
         const membresExterieurs = [];
         for (const membre of tousLesMembres) {
             if (!joueursDejaDansTableau.includes(await membre.lireParametre('Pseudo'))) {
@@ -45,7 +50,7 @@ Utils.register(class FonctionnaliteJoueursExterieurs extends FonctionnaliteAllia
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
                 const row = $(elt);
                 const pseudo = row.find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
-                const joueur = tousLesMembres.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
+                const joueur = tousLesMembresMap.get(pseudo);
 
                 let tag = '';
                 if (joueur) {

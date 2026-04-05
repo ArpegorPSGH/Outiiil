@@ -1,10 +1,10 @@
 class ParametreAncien extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'AncienParam', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'AncienParam', format: '(nom): (valeur) |' }];
     valeur = '';
 }
 
 class ParametreNouveau extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'AncienParam', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'AncienParam', format: '(nom): (valeur) |' }];
     valeur = ['test']; // La nouvelle version attend une liste
 
     async _migrerValeur(valeurChargee) {
@@ -17,13 +17,13 @@ class ParametreNouveau extends ParametreObjetForum {
 }
 
 class ParametreRestreint extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'Restreint', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'Restreint', format: '(nom): (valeur) |' }];
     static STRING_RESTRICTION = 'ACCES REFUSE';
     valeur = ['secret1', 'secret2'];
 }
 
 class ParametreNouveauDict extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'AncienParam', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'AncienParam', format: '(nom): (valeur) |' }];
     valeur = { cle: 'test' }; // La nouvelle version attend un dictionnaire
 
     async _migrerValeur(valeurChargee) {
@@ -36,19 +36,19 @@ class ParametreNouveauDict extends ParametreObjetForum {
 }
 
 class ParametreRestreintDict extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'Restreint', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'Restreint', format: '(nom): (valeur) |' }];
     static STRING_RESTRICTION = 'ACCES REFUSE';
     valeur = { secret: 'valeur' };
 }
 
 // Nouveaux paramètres et objets pour le test de migration d'ObjetForum
 class ParametreAncienObjetForum extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'AncienParamObjetForum', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'AncienParamObjetForum', format: '(nom): (valeur) |' }];
     valeur = 'valeur ancienne';
 }
 
 class ParametreNouveauObjetForum extends ParametreObjetForum {
-    static FORMAT_HISTORY = [{ nom: 'AncienParamObjetForum', format: '(nom): (valeur) | ' }];
+    static FORMAT_HISTORY = [{ nom: 'AncienParamObjetForum', format: '(nom): (valeur) |' }];
     valeur = ['valeur initiale']; // La nouvelle version attend une liste
 
     async _migrerValeur(valeurChargee) {
@@ -108,7 +108,7 @@ Utils.register(class TestFonctionnaliteMigration extends FonctionnaliteAlliance 
         const valeurLue = await paramRestreint.Lire(false); // Lecture sans droits
 
         console.log("Valeur lue (sans droits):", valeurLue);
-        
+
         const attendu = ['ACCES REFUSE', 'ACCES REFUSE'];
         if (Array.isArray(valeurLue) && valeurLue.length === 2 && valeurLue[0] === 'ACCES REFUSE' && valeurLue[1] === 'ACCES REFUSE') {
             console.log("%cTest de lecture restreinte réussi.", "color: green; font-weight: bold;");
@@ -221,7 +221,7 @@ Utils.register(class TestFonctionnaliteMigration extends FonctionnaliteAlliance 
                 throw new Error("Échec de l'enregistrement initial sur le forum.");
             }
             console.log("    ObjetForumAncien enregistré avec succès. ID Sujet:", objetAncien.idSujet);
-            
+
             await Utils.sleep(10000)
 
             // Étape 2: Charger avec ObjetForumNouveau (migration)
@@ -240,6 +240,6 @@ Utils.register(class TestFonctionnaliteMigration extends FonctionnaliteAlliance 
 
         } catch (error) {
             console.error("%cTest de migration réussie d'ObjetForum a rencontré une erreur inattendue.", "color: red; font-weight: bold;", error);
-        } 
+        }
     }
 })

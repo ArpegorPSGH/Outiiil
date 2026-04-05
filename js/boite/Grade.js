@@ -11,8 +11,8 @@
 * @extends Boite
 */
 class BoiteGrade extends Boite {
-    constructor(joueur, page) {
-        super("o_boiteGrade" + joueur.mapAttributs.get('Id').valeur, "Attribuer un grade", "");
+    constructor(joueur, page, joueurId) {
+        super("o_boiteGrade" + joueurId, "Attribuer un grade", "");
         /**
         *
         */

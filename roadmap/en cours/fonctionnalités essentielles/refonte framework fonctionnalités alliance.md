@@ -961,7 +961,7 @@ Hérite de la classe `ObjetForum`.
 | `VERSION_LOGIQUE` | `String` | `static` | **Configuration déclarative.** Version de la logique de fonctionnement du gestionnaire de droits. | `'1.0.0'` |
 | `NIVEAUX_ORDONNES` | `Array<String>` | `static` | Liste ordonnée des niveaux de droits. | `['B', 'R', 'N', 'A']` |
 | `LOCATION_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des lieux de stockage. | `[{section: 'Droits Outiiil', lieu: 'titre'}]` |
-| `FORMAT_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des formats pour les paramètres de droits, incluant des templates pour le nom du pseudo et le nom des droits par fonctionnalité. | `[{ nom_pseudo: 'pseudo_droits', nom_droit: 'droit_{abrev}', format: '(nom): (valeur) | ' }]` |
+| `FORMAT_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des formats pour les paramètres de droits, incluant des templates pour le nom du pseudo et le nom des droits par fonctionnalité. | `[{ nom_pseudo: 'pseudo_droits', nom_droit: 'droit_{abrev}', format: '(nom): (valeur) |' }]` |
 | `objetsForumContenus` | `Array<ObjetForum>` | `instance` | Contiendra la liste des instances d'`ObjetForum` représentant les droits pour chaque joueur. | `[]` |
 | `mapDroits` | `Map<String, ObjetForum>` | `instance` | Cache qui associe un pseudo de joueur à son instance `ObjetForumDroit` pour un accès O(1). | `new Map()` |
 | `classeObjetsForumContenus` | `Class` | `static` | Spécifie le type d'objet contenu. La classe `ObjetForumDroits` créée dynamiquement sera assignée ici. | `null` |
@@ -1487,7 +1487,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
     a.  **Modifier `js/framework/ParametreObjetForum.js`** : S'assurer que la classe `ParametreObjetForum` contient la propriété statique `FORMATS` avec le format initial :
         ```javascript
         // Dans js/framework/ParametreObjetForum.js
-        static FORMATS = ['(nom): (valeur) | '];
+        static FORMATS = ['(nom): (valeur) |'];
         ```
     b.  Créer `TestParametreObjetForumQuantite.js` avec :
         *   `NAME_HISTORY = ['Quantité']`
@@ -1552,7 +1552,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
         a.  **Modifier `js/framework/ParametreObjetForum.js`** pour inclure le nouveau format générique :
             ```javascript
             // Dans js/framework/ParametreObjetForum.js
-            static FORMATS = ['(nom): (valeur) | ', '(nom)=(valeur) #']; // Ajout du nouveau format
+            static FORMATS = ['(nom): (valeur) |', '(nom)=(valeur) #']; // Ajout du nouveau format
             ```
         b.  **Modifier `TestParametreObjetForumQuantite.js`** pour inclure le nouveau nom :
             ```javascript

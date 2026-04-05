@@ -157,7 +157,7 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
         ```javascript
         class MonParametreMigrable extends ParametreObjetForum {
             static VERSION_LOGIQUE = '2.0'; // Incrémenter la version logique si le format ou la valeur change
-            static FORMAT_HISTORY = [{ nom: 'MonParam', format: '(nom): (valeur) | ' }];
+            static FORMAT_HISTORY = [{ nom: 'MonParam', format: '(nom): (valeur) |' }];
             valeur = { 'cle1': 0, 'cle2': '' }; // Nouveau format: dictionnaire
 
             async _migrerValeur(valeurChargee) {

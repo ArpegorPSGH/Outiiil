@@ -19,6 +19,10 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
 
         const membresForum = await this.chargerObjetsForum(Joueur, false);
         console.log('membresForum: ', membresForum);
+        const membresForumMap = new Map();
+        for (const j of membresForum) {
+            membresForumMap.set(await j.lireParametre('Pseudo'), j);
+        }
 
         const initialPseudoColIndex = this.page.getColonneIndex('Pseudo');
         const initialRangColIndex = this.page.getColonneIndex('Rang');
@@ -32,7 +36,7 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
                 const row = $(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
-                const joueur = membresForum.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
+                const joueur = membresForumMap.get(pseudo);
 
                 let grade = '';
                 if (joueur) {
@@ -50,7 +54,7 @@ Utils.register(class FonctionnaliteDonneesPrivees extends FonctionnaliteAlliance
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
                 const row = $(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
-                const joueur = membresForum.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
+                const joueur = membresForumMap.get(pseudo);
 
                 let grade = '';
                 if (joueur) {

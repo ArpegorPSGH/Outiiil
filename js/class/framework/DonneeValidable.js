@@ -9,7 +9,7 @@ class DonneeValidable {
     /**
      * Configuration déclarative. Liste des formats historiques du paramètre, du plus ancien au plus récent.
      * Chaque élément est un dictionnaire {'nom': 'Nom du paramètre', 'format': 'template string avec (nom) et (valeur)'}.
-     * Ex: { nom: 'Nourriture', format: '--- Ressources ---\n(nom): (valeur) | ' }
+     * Ex: { nom: 'Nourriture', format: '--- Ressources ---\n(nom): (valeur) |' }
      * Doit être surchargée dans chaque classe fille.
      * @type {Array<Object>}
      */

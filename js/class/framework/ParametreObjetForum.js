@@ -173,12 +173,18 @@ class ParametreObjetForum extends DonneeValidable {
 
             for (const formatInfo of this.constructor.FORMAT_HISTORY) {
                 console.log(`[${this.constructor.name}] Tentative d'extraction avec le format:`, formatInfo);
-                const formatAvecNom = formatInfo.format.replace('(nom)', formatInfo.nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-                const [prefix, suffix] = formatAvecNom.split('(valeur)');
+                const formatTrime = formatInfo.format.trim();
+                const nomTrime = formatInfo.nom.trim();
+
+                const formatAvecNom = formatTrime.replace('(nom)', nomTrime.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+                let [prefix, suffix] = formatAvecNom.split('(valeur)');
                 if (prefix === undefined || suffix === undefined) {
                     console.log(`[${this.constructor.name}] Format invalide (manque '(valeur)'): "${formatInfo.format}"`);
                     continue;
                 }
+
+                prefix = prefix.trim();
+                suffix = suffix.trim();
 
                 const regex = new RegExp(`${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*?)${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 's');
                 console.log(`[${this.constructor.name}] Regex construite:`, regex);

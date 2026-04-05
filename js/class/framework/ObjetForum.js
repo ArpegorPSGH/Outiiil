@@ -24,7 +24,7 @@ class ObjetForum {
      * Configuration déclarative. Séparateur à utiliser entre les chaînes de paramètres lors de l'enregistrement.
      * @type {String}
      */
-    static SEPARATEUR_PARAMETRES = '';
+    static SEPARATEUR_PARAMETRES = ' ';
 
     /**
      * Configuration déclarative. Liste de listes des classes de ParametreObjetForum.
@@ -61,14 +61,14 @@ class ObjetForum {
     /**
      * Conteneur des instances de ParametreObjetForum.
      * @type {Array<ParametreObjetForum>}
-     * @protected
+     * @private
      */
     parametres = [];
 
     /**
      * Conteneur des instances d'AttributObjet.
      * @type {Array<AttributObjet>}
-     * @protected
+     * @private
      */
     attributs = [];
 
@@ -104,7 +104,7 @@ class ObjetForum {
      * Cache des instances de paramètres, indexées par leur dernier nom normalisé.
      * Ce cache est reconstruit dynamiquement lorsqu'il est accédé via le getter.
      * @type {Map<String, ParametreObjetForum>}
-     * @protected
+     * @private
      */
     mapParametres = new Map();
 
@@ -112,7 +112,7 @@ class ObjetForum {
      * Cache des instances d'attributs, indexées par leur dernier nom normalisé.
      * Ce cache est reconstruit dynamiquement lorsqu'il est accédé via le getter.
      * @type {Map<String, AttributObjet>}
-     * @protected
+     * @private
      */
     mapAttributs = new Map();
 
@@ -649,7 +649,31 @@ class ObjetForum {
         const idSujet = this.idSujet;
 
         // 1. Vérification des droits et lecture des données
-        const peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N');
+        let peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N');
+
+        if (!peutVoirDonneesRestreintes) {
+            let pseudoCourant = "";
+            pseudoCourant = await monProfilJoueur.lireParametre('Pseudo');
+
+            if (pseudoCourant) {
+                for (const parametre of this.parametres) {
+                    const val = await parametre.Lire(true);
+                    if (val === pseudoCourant) {
+                        peutVoirDonneesRestreintes = true;
+                        break;
+                    }
+                }
+                if (!peutVoirDonneesRestreintes) {
+                    for (const attribut of this.attributs) {
+                        const val = await attribut.obtenirValeur(true);
+                        if (val === pseudoCourant) {
+                            peutVoirDonneesRestreintes = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
 
         // Lire les paramètres
         let donneesParametres = {};

@@ -22,18 +22,26 @@ Utils.register(class FonctionnaliteModificationGrade extends FonctionnaliteAllia
     async run() {
         console.log(`[${this.#nom}] Exécution`);
         const membresForum = await this.chargerObjetsForum(Joueur, false);
+        const membresForumMap = new Map();
+        for (const j of membresForum) {
+            const pseudo = await j.lireParametre('Pseudo');
+            const id = await j.lireAttribut('Id');
+            membresForumMap.set(pseudo, { joueur: j, id });
+        }
+
         const pseudoColIndex = this.page.getColonneIndex('Pseudo');
 
         // Parcourir toutes les lignes pour ajouter l'icône de modification
-        await $("#tabMembresAlliance tbody tr").each(async (i, elt) => {
+        $("#tabMembresAlliance tbody tr").each((i, elt) => {
             const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
-            const joueur = membresForum.find(j => j.mapParametres.get('Pseudo').valeur === pseudo);
+            const data = membresForumMap.get(pseudo);
 
-            if (joueur) {
+            if (data) {
+                const { joueur, id } = data;
                 const bouton = $(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                 bouton.on('click', (e) => {
                     e.preventDefault();
-                    const boite = new BoiteGrade(joueur, this.page);
+                    const boite = new BoiteGrade(joueur, this.page, id);
                     boite.afficher();
                 });
                 $(elt).find('td:eq(0)').append(bouton);
