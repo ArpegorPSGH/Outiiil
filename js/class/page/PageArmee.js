@@ -9,8 +9,22 @@
 * @class PageArmee
 * @constructor
 */
-class PageArmee {
+class PageArmee extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.recupereArmeeTdc,
+        this.prototype.recupereArmeeDome,
+        this.prototype.recupereArmeeLoge,
+        this.prototype.afficherAttaquesRestantes,
+        this.prototype.afficherTotalUnite,
+        this.prototype.boutonAntisonde,
+        this.prototype.plus,
+        this.prototype.afficherHoF,
+        this.prototype.afficherStatistique
+    ];
+
     constructor(boiteComptePlus) {
+        super();
         /**
         * Accés à la boite compte+
         */
@@ -48,18 +62,19 @@ class PageArmee {
         */
         this._nbAttaque = $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length - 1;
     }
-    /**
-    *
-    */
-    async executer() {
-        this.recupereArmeeTdc();
-        this.recupereArmeeDome();
-        this.recupereArmeeLoge();
+
+    async afficherAttaquesRestantes() {
         let recherche = await monProfilJoueur.niveauRecherche;
         // Affichage du nombre d'attaque restante
         $("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(recherche[6] + 1 - this._nbAttaque)}.</p>`);
+    }
+
+    async afficherTotalUnite() {
         // Affichage du nombre total d'unité
         $("h3:first").append(` (${numeral(this._armeeTdc.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeLoge.getSommeUnite()).format()})</p>`);
+    }
+
+    async boutonAntisonde() {
         // Bouton antisonde
         $(".simulateur:eq(0) tr:eq(0)").after(`<tr><td colspan="10" class='right'><button id='o_replaceArmee' class='o_button f_success'>Replacer l'armée</button></td></tr>`);
         $("#o_replaceArmee").click(() => {
@@ -83,13 +98,11 @@ class PageArmee {
                 $.toast({ ...TOAST_ERROR, text: "Aucune unité n'est transférable." });
             return false;
         });
+    }
 
-        if (!Utils.comptePlus) await this.plus();
+    async afficherHoF() {
         // Affichage du temps Hof de votre armée
         $(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(await monProfilJoueur.getTDP()) + this._armeeDome.getTemps(await monProfilJoueur.getTDP()) + this._armeeLoge.getTemps(await monProfilJoueur.getTDP())) + "</span></td></tr>");
-        // Affichage des statistiques detaillés
-        await this.afficherStatistique();
-        return this;
     }
     /**
     * Initialise l'armée en terrain de chasse.
@@ -174,7 +187,7 @@ class PageArmee {
     placerAntisondeSuffisant(indUnite, nbTroupeDispo) {
         let securite = $("#t").attr("name") + "=" + $("#t").val();
         $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
-            let correspondanceUnite = [1, 2, 3, 4, 5, 6, 14, 7, 8, 9, 10, 13, 11, 12];
+            let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
             // si on a pas assez de troupes on prend un nombre au hasard
             let nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur - monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9);
             if (nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
@@ -197,7 +210,7 @@ class PageArmee {
     placerAntisondeInsuffisant(indUnite, nbTroupeDispo) {
         let securite = $("#t").attr("name") + "=" + $("#t").val();
         $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
-            let correspondanceUnite = [1, 2, 3, 4, 5, 6, 14, 7, 8, 9, 10, 13, 11, 12];
+            let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
             // on place l'antisonde en dome
             $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + Math.round(nbTroupeDispo * 0.3) + "&" + securite, (data) => {
                 $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=1&" + securite, (data) => {
@@ -214,6 +227,7 @@ class PageArmee {
     * @method plus
     */
     async plus() {
+        if (Utils.comptePlus) return;
         // Affiche les fléches de deplacement des unités
         $(".simulateur td").each((i, elt) => {
             if (/^[0-9,]+$/.test($(elt).text().replace(/ /g, ''))) {
@@ -367,5 +381,4 @@ class PageArmee {
         return this;
     }
 }
-
 

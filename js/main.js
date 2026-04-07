@@ -78,7 +78,7 @@
                     break;
                 case (uri == "/Armee.php"):
                     page = new PageArmee(boiteComptePlus);
-                    await page.executer();
+                    await page.init();
                     break;
                 case (uri == "/commerce.php"):
                     page = new PageCommerce();
