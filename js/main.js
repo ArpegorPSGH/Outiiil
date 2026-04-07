@@ -95,7 +95,7 @@
                     break;
                 case (location.href.indexOf("/alliance.php?forum_menu") > 0):
                     page = new PageForum();
-                    page.executer();
+                    page.init();
                     break;
                 case (location.href.indexOf("/alliance.php?Membres") > 0):
                     page = new PageAlliance();
@@ -244,7 +244,6 @@ async function initialiserFrameworkGlobal() {
     // 1c. Initialiser les caches globaux
     window.dependancesObjetForumsCache = new Map();
     window.cacheObjetForums = new Map(); // Nouvelle variable globale
-    window.pageForum = new PageForum(); // Nouvelle variable globale
     window.sectionsEnCache = new Map();
 
     // Création de la liste globale des sections

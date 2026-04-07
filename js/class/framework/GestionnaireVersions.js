@@ -79,7 +79,7 @@ class GestionnaireVersions {
 
                 let estValide = false;
                 try {
-                    const xmlDoc = await pageForum.consulterSection(idSection); // Assuming this already returns a parsed XML Document
+                    const xmlDoc = await Utils.consulterSection(idSection); // Assuming this already returns a parsed XML Document
 
                     // Check for parsing errors if the document itself indicates them (e.g., from a previous internal parse)
                     if (xmlDoc.querySelector('parsererror')) {
@@ -139,9 +139,9 @@ class GestionnaireVersions {
             try {
                 // 2. Chargement des Sujets
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
-                
+
                 // 2. Chargement des Sujets via recupererSujetsSection
-                const sujets = await pageForum.recupererSujetsSection(idSection);
+                const sujets = await Utils.recupererSujetsSection(idSection);
 
                 // 3. Parsing des Sujets et Messages
                 for (const sujet of sujets) {
@@ -156,7 +156,7 @@ class GestionnaireVersions {
                         const nomClasse = titreMatch[2];
 
                         // Lecture des Messages avec IDs
-                        const { messages: messagesDuSujet } = await pageForum.consulterSujetAvecMessagesEtIds(sujet.id);
+                        const { messages: messagesDuSujet } = await Utils.consulterSujetAvecMessagesEtIds(sujet.id);
 
                         // Le message 0 est le message initial du sujet, les données commencent à l'index 1.
                         // Nous devons donc ajuster les index pour récupérer les messages de données.
@@ -186,16 +186,16 @@ class GestionnaireVersions {
                         }
 
                         if (type === 'objet') {
-                        if (!versionLogique || !classesParametres || !formatsLieux) {
+                            if (!versionLogique || !classesParametres || !formatsLieux) {
                                 console.warn(`[GestionnaireVersions.rafraichir] Sujet objet ${sujet.contenu} (ID: ${sujet.id}) n'a pas toutes les données requises. Données récupérées : ${versionLogique}, ${classesParametres}, ${formatsLieux}`);
                                 continue;
                             }
-                            this.versionsObjetsForum.push({ 
-                                idSujet: sujet.id, 
-                                type, 
-                                nomClasse, 
-                                versionLogique, 
-                                classesParametres, 
+                            this.versionsObjetsForum.push({
+                                idSujet: sujet.id,
+                                type,
+                                nomClasse,
+                                versionLogique,
+                                classesParametres,
                                 formatsLieux,
                                 idMessageVersionLogique,
                                 idMessageClassesParametres,
@@ -206,12 +206,12 @@ class GestionnaireVersions {
                                 console.warn(`[GestionnaireVersions.rafraichir] Sujet parametre ${sujet.contenu} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
                                 continue;
                             }
-                            this.versionsParamsForum.push({ 
-                                idSujet: sujet.id, 
-                                type, 
-                                nomClasse, 
+                            this.versionsParamsForum.push({
+                                idSujet: sujet.id,
+                                type,
+                                nomClasse,
                                 versionLogique,
-                                formatHistory, 
+                                formatHistory,
                                 idMessageVersionLogique,
                                 idMessageFormatHistory
                             });
@@ -270,8 +270,8 @@ class GestionnaireVersions {
     _parseFormatHistory(contenu) {
         try {
             const parsed = JSON.parse(contenu);
-            if (Array.isArray(parsed) && parsed.every(item => 
-                typeof item === 'object' && item !== null && 
+            if (Array.isArray(parsed) && parsed.every(item =>
+                typeof item === 'object' && item !== null &&
                 'nom' in item &&
                 'format' in item
             )) {
@@ -315,7 +315,7 @@ class GestionnaireVersions {
             // 1. Construire l'Empreinte Locale
             const nomClasseLocale = objet.constructor.name;
             const versionLogiqueLocale = objet.constructor.VERSION_LOGIQUE;
-            
+
             const mapClasseParametreVersIdSujet = new Map();
             this.versionsParamsForum.forEach(vpf => {
                 // L'ancre pour un paramètre est basée sur le premier élément de son FORMAT_HISTORY.
@@ -324,12 +324,12 @@ class GestionnaireVersions {
                     mapClasseParametreVersIdSujet.set(paramAnchor, vpf.idSujet);
                 }
             });
-            
+
             let convertirIdsEnClasses;
 
             if (objet instanceof ObjetForumDroits) {
                 const mapIdSujetVersClasse = new Map();
-                objet.constructor.CLASSES_PARAMETRES.forEach(versionParams => 
+                objet.constructor.CLASSES_PARAMETRES.forEach(versionParams =>
                     versionParams.forEach(classeParam => {
                         if (classeParam.FORMAT_HISTORY && classeParam.FORMAT_HISTORY.length > 0) {
                             const localParamAnchor = JSON.stringify(classeParam.FORMAT_HISTORY[0]);
@@ -342,13 +342,13 @@ class GestionnaireVersions {
                 );
 
                 convertirIdsEnClasses = (historiqueIds) => {
-                    return historiqueIds.map(version => 
+                    return historiqueIds.map(version =>
                         version.map(id => mapIdSujetVersClasse.get(id) || id)
                     );
                 };
             }
 
-            const classesParametresLocales = objet.constructor.CLASSES_PARAMETRES.map(versionParams => 
+            const classesParametresLocales = objet.constructor.CLASSES_PARAMETRES.map(versionParams =>
                 versionParams.map(classeParam => {
                     // Construire l'ancre locale pour le paramètre actuel en utilisant son FORMAT_HISTORY.
                     if (classeParam.FORMAT_HISTORY && classeParam.FORMAT_HISTORY.length > 0) {
@@ -390,21 +390,21 @@ class GestionnaireVersions {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Nouvel objet ${nomClasseLocale} détecté. Création de la version sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `objet: ${nomClasseLocale}`;
-                const newId = await pageForum.creerSujetEtRetournerId(titreSujet, ' ', idSection);
+                const newId = await Utils.creerSujetEtRetournerId(titreSujet, ' ', idSection);
                 if (newId) {
                     // Le message 0 est créé automatiquement avec le sujet. Les messages suivants commencent à l'index 1.
                     // On envoie les données dans les messages suivants et on récupère leurs IDs.
-                    const idMessageVersionLogique = await pageForum.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
+                    const idMessageVersionLogique = await Utils.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
                     await Utils.sleep(10)
-                    const idMessageClassesParametres = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(classesParametresLocales)); // Message 2
+                    const idMessageClassesParametres = await Utils.envoyerMessageEtRetournerId(newId, JSON.stringify(classesParametresLocales)); // Message 2
                     await Utils.sleep(10)
-                    const idMessageFormatsLieux = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(formatsLieuxLocaux)); // Message 3
-                    this.versionsObjetsForum.push({ 
-                        idSujet: newId, 
-                        type: 'objet', 
-                        nomClasse: nomClasseLocale, 
-                        versionLogique: versionLogiqueLocale, 
-                        classesParametres: classesParametresLocales, 
+                    const idMessageFormatsLieux = await Utils.envoyerMessageEtRetournerId(newId, JSON.stringify(formatsLieuxLocaux)); // Message 3
+                    this.versionsObjetsForum.push({
+                        idSujet: newId,
+                        type: 'objet',
+                        nomClasse: nomClasseLocale,
+                        versionLogique: versionLogiqueLocale,
+                        classesParametres: classesParametresLocales,
                         formatsLieux: formatsLieuxLocaux,
                         idMessageVersionLogique,
                         idMessageClassesParametres,
@@ -474,12 +474,12 @@ class GestionnaireVersions {
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.CLASSES_PARAMETRES);
                 }
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Forum obsolète pour ${nomClasseLocale}. Mise à jour de la version sur le forum.`);
-                await pageForum.modifierSujet(`objet: ${nomClasseLocale}`, ' ', versionForum.idSujet);
+                await Utils.modifierSujet(`objet: ${nomClasseLocale}`, ' ', versionForum.idSujet);
                 // Les messages sont modifiés en utilisant leurs IDs.
-                await pageForum.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale); // Message pour versionLogique
-                await pageForum.modifierMessage(versionForum.idMessageClassesParametres, JSON.stringify(nouvelHistoriqueComplet)); // Message pour classesParametres
-                await pageForum.modifierMessage(versionForum.idMessageFormatsLieux, JSON.stringify(formatsLieuxLocaux)); // Message pour formatsLieux
-                
+                await Utils.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale); // Message pour versionLogique
+                await Utils.modifierMessage(versionForum.idMessageClassesParametres, JSON.stringify(nouvelHistoriqueComplet)); // Message pour classesParametres
+                await Utils.modifierMessage(versionForum.idMessageFormatsLieux, JSON.stringify(formatsLieuxLocaux)); // Message pour formatsLieux
+
                 // Mettre à jour le cache local
                 versionForum.versionLogique = versionLogiqueLocale;
                 versionForum.classesParametres = nouvelHistoriqueComplet;
@@ -531,17 +531,17 @@ class GestionnaireVersions {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 4: Nouveau paramètre. Création du sujet sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `parametre: ${nomClasseLocale}`;
-                const newId = await pageForum.creerSujetEtRetournerId(titreSujet, ' ', idSection);
+                const newId = await Utils.creerSujetEtRetournerId(titreSujet, ' ', idSection);
                 if (newId) {
-                    const idMessageVersionLogique = await pageForum.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
+                    const idMessageVersionLogique = await Utils.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
                     await Utils.sleep(10)
-                    const idMessageFormatHistory = await pageForum.envoyerMessageEtRetournerId(newId, JSON.stringify(formatHistoryLocal)); // Message 2
-                    this.versionsParamsForum.push({ 
-                        idSujet: newId, 
-                        type: 'parametre', 
-                        nomClasse: nomClasseLocale, 
+                    const idMessageFormatHistory = await Utils.envoyerMessageEtRetournerId(newId, JSON.stringify(formatHistoryLocal)); // Message 2
+                    this.versionsParamsForum.push({
+                        idSujet: newId,
+                        type: 'parametre',
+                        nomClasse: nomClasseLocale,
                         versionLogique: versionLogiqueLocale,
-                        formatHistory: formatHistoryLocal, 
+                        formatHistory: formatHistoryLocal,
                         idMessageVersionLogique,
                         idMessageFormatHistory
                     });
@@ -588,9 +588,9 @@ class GestionnaireVersions {
             // Scénario 2 (Forum obsolète)
             else if (compVersion > 0 || compFormatHistory > 0) {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 2: Forum obsolète. Mise à jour du sujet et des messages pour le paramètre ${nomClasseLocale}.`);
-                await pageForum.modifierSujet(`parametre: ${nomClasseLocale}`, ' ', versionForum.idSujet);
-                await pageForum.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale);
-                await pageForum.modifierMessage(versionForum.idMessageFormatHistory, JSON.stringify(formatHistoryLocal));
+                await Utils.modifierSujet(`parametre: ${nomClasseLocale}`, ' ', versionForum.idSujet);
+                await Utils.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale);
+                await Utils.modifierMessage(versionForum.idMessageFormatHistory, JSON.stringify(formatHistoryLocal));
                 versionForum.versionLogique = versionLogiqueLocale; // Mise à jour du cache
                 versionForum.formatHistory = formatHistoryLocal; // Mise à jour du cache
                 return true;

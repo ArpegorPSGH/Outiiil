@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "Outiiil",
-	"version": "3.2.3",
+	"version": "3.3.0",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
 		"48": "images/icons/gear_48.png",
@@ -157,6 +157,8 @@
 				"js/class/fonctionnalite/alliance/FonctionnaliteRecensement.js",
 				"js/class/fonctionnalite/commerce/AffichageConvois.js",
 				"js/class/fonctionnalite/commerce/GestionCommandes.js",
+				"js/class/fonctionnalite/forum/FonctionnaliteForumAdminUtils.js",
+				"js/class/fonctionnalite/forum/FonctionnaliteForumAdminCommandes.js",
 				"js/class/page/PageAlliance.js",
 				"js/class/page/Armee.js",
 				"js/class/page/Attaquer.js",
@@ -164,7 +166,7 @@
 				"js/class/page/PageCommerce.js",
 				"js/class/page/Construction.js",
 				"js/class/page/Description.js",
-				"js/class/page/Forum.js",
+				"js/class/page/PageForum.js",
 				"js/class/page/Laboratoire.js",
 				"js/class/page/Messagerie.js",
 				"js/class/page/Profil.js",

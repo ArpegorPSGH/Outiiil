@@ -312,7 +312,7 @@ class ObjetForum {
                     let estValide = false;
                     try {
                         const nomSection = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1].section;
-                        const xmlDoc = await pageForum.consulterSection(dernierId);
+                        const xmlDoc = await Utils.consulterSection(dernierId);
 
                         if (xmlDoc.querySelector('parsererror')) {
                             console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML pour la section '${nomSection}'.`);
@@ -392,7 +392,7 @@ class ObjetForum {
             }
             console.log('rafraichir 1')
             try {
-                const { titre: titreLu, messages: messagesLu } = await pageForum.consulterSujetAvecMessagesEtIds(this.idSujet);
+                const { titre: titreLu, messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.idSujet);
                 if (titreLu === null) {
                     console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
                     return false;
@@ -919,12 +919,12 @@ class ObjetForum {
 
                 if (formatLieu.lieu === 'titre') {
                     if (this.idSujet === null) {
-                        this.idSujet = await pageForum.creerSujetEtRetournerId(contenuFinal, ' ', idSection);
+                        this.idSujet = await Utils.creerSujetEtRetournerId(contenuFinal, ' ', idSection);
                         if (!this.idSujet) {
                             console.error(`[${this.constructor.name}] Échec de la création du sujet.`);
                         }
                     } else {
-                        await pageForum.modifierSujet(contenuFinal, ' ', this.idSujet);
+                        await Utils.modifierSujet(contenuFinal, ' ', this.idSujet);
                     }
                 } else if (formatLieu.lieu === 'message') {
                     if (!this.objetParent || !this.objetParent.idSujet) {
@@ -932,12 +932,12 @@ class ObjetForum {
                         throw new Error("Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.");
                     }
                     if (this.idMessage === null) {
-                        this.idMessage = await pageForum.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
+                        this.idMessage = await Utils.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
                         if (this.idMessage === null) {
                             console.error(`[${this.constructor.name}] Échec de l'envoi du message.`);
                         }
                     } else {
-                        await pageForum.modifierMessage(this.idMessage, contenuFinal);
+                        await Utils.modifierMessage(this.idMessage, contenuFinal);
                     }
                 }
                 this.estModifie = false; // Utilise le setter pour réinitialiser les estModifie des paramètres

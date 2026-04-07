@@ -175,7 +175,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
         a.  Construit le **registre global de classes** en scannant le `manifest.json` pour créer une `Map` de toutes les classes `FonctionnaliteAlliance` et `ObjetForum`.
         b.  Analyse le code d'initialisation pour créer la **"carte des types"** des variables globales (ex: `window.gd` -> `GestionnaireDroits`).
         c.  Crée les instances globales des gestionnaires (`GestionnaireDroits`, `GestionnaireVersions`) et les stocke dans l'objet `window`.
-        d.  Initialise les caches globaux (`window.dependancesObjetForumsCache`, `window.cacheObjetForums`, `window.pageForum`).
+        d.  Initialise les caches globaux (`window.dependancesObjetForumsCache`, `window.cacheObjetForums`).
         e.  Crée la liste des noms de section requis.
     *   Cette fonction est appelée une première fois au démarrage de l'extension.
 
@@ -336,7 +336,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 
     4.  **Lecture Groupée du Forum :**
         a.  Parcourt chaque `idSection` dans la liste récupérée.
-        b.  Pour chaque ID, appelle `pageForum.recupererSujetsSection(idSection)` pour obtenir la liste des sujets.
+        b.  Pour chaque ID, appelle `Utils.recupererSujetsSection(idSection)` pour obtenir la liste des sujets.
         c.  La méthode `recupererSujetsSection` retourne déjà une liste de sujets contenant `{id, derniere_activite, contenu}`.
         d.  Concatène les sujets récupérés à la liste `tousLesSujets`.
 
@@ -349,7 +349,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
                 -   **Transfert du sujet si nécessaire :**
                     -   Récupère le dernier ID de section de l'objet : `const idDerniereSection = instance.idsSection[instance.idsSection.length - 1];`.
                     -   Si l'ID de la section actuelle du sujet (`idSection`) est différent de `idDerniereSection` :
-                        -   Appelle `await pageForum.transfererSujet(instance.idSujet, idDerniereSection);`.
+                        -   Appelle `await Utils.transfererSujet(instance.idSujet, idDerniereSection);`.
                 -   Ajoute l'instance au tableau `objetsCharges`.
 
     6.  **Mise en Cache et Retour :**
@@ -427,7 +427,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     1.  **Acquisition du verrou de lecture :** `await this._acquireReadLock();`
     2.  **Vérification du cache :** Si `window.sectionsEnCache` existe et contient le résultat pour l'ID de section, retourne la valeur mise en cache.
     3.  **Validation de la Présence de la Section :**
-        a.  Si `this.idsSection` n'est pas vide, la méthode tente de consulter la section correspondante au dernier ID de section via `window.pageForum.consulterSection()`. Si cette consultation lève une erreur, ou le titre de la section retourné ne correspond pas à celui attendu, la section est considérée comme invalide et la méthode retourne `false`.
+        a.  Si `this.idsSection` n'est pas vide, la méthode tente de consulter la section correspondante au dernier ID de section via `Utils.consulterSection()`. Si cette consultation lève une erreur, ou le titre de la section retourné ne correspond pas à celui attendu, la section est considérée comme invalide et la méthode retourne `false`.
         b. **Mise en cache du résultat :** Le résultat de la validation est stocké dans `window.sectionsEnCache` pour l'ID de section.
 
     3.  **Validation des Paramètres :**
@@ -461,7 +461,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     2.  **Bloc `try...finally` :**
         a.  **Vérification des prérequis :** Si `this.idSujet` est `null` ou invalide, la méthode retourne `false`.
         b.  **Lecture du Titre et des Messages :**
-            i.  Appelle `const { titre, messages } = await window.pageForum.consulterSujetAvecMessagesEtIds(this.idSujet);`.
+            i.  Appelle `const { titre, messages } = await Utils.consulterSujetAvecMessagesEtIds(this.idSujet);`.
             ii. Si la lecture échoue, retourne `false`.
         c.  **Délégation au Parsing du Titre :**
             i.  `const titreCharge = await this.chargerDepuisString(titre);`
@@ -1142,7 +1142,7 @@ Hérite de la classe `ObjetForum`.
     2.  **Bloc `try...finally` :**
         a.  **Vérification du cache :** Si `window.sectionsEnCache` existe et contient le résultat pour l'ID de section, retourne la valeur mise en cache.
         b.  **Validation de la Présence de la Section :**
-            i.  La méthode tente de consulter la section correspondante au dernier ID de section via `window.pageForum.consulterSection()`. Si cette consultation lève une erreur, ou le titre de la section retourné ne correspond pas à celui attendu, la section est considérée comme invalide et la méthode retourne `false`.
+            i.  La méthode tente de consulter la section correspondante au dernier ID de section via `Utils.consulterSection()`. Si cette consultation lève une erreur, ou le titre de la section retourné ne correspond pas à celui attendu, la section est considérée comme invalide et la méthode retourne `false`.
             ii. **Mise en cache du résultat :** Le résultat de la validation est stocké dans `window.sectionsEnCache` pour l'ID de section.
     3.  **Libération du verrou :** Dans le bloc `finally`, `this._releaseLock();` est appelé.
 
@@ -1154,10 +1154,10 @@ Hérite de la classe `ObjetForum`.
     1.  **Acquisition du verrou :** `await this._acquireLock();`
     2.  **Bloc `try...finally` :**
         a.  **Réinitialisation :** Vide `versionsObjetsForum` et `versionsParamsForum`.
-        b.  **Chargement des Sujets :** Récupère tous les sujets de la section `Versions Outiiil` en utilisant `window.pageForum.recupererSujetsSection(idSectionVersion)`.
+        b.  **Chargement des Sujets :** Récupère tous les sujets de la section `Versions Outiiil` en utilisant `Utils.recupererSujetsSection(idSectionVersion)`.
         c.  **Parsing des Sujets et Messages :** Pour chaque `sujet` (où `sujet.contenu` est le titre) :
             i.  **Extraction du Type et Nom de Classe :** `sujet.contenu` est parsé pour extraire le `type` (ex: 'objet', 'parametre') et le `nomClasse` (ex: 'TestObjetForumCommande', 'TestParametreObjetForumQuantite'). Le `nomClasse` est à titre indicatif pour l'utilisateur.
-            ii. **Lecture des Messages :** Appelle `const { messages } = await window.pageForum.consulterSujetAvecMessagesEtIds(sujet.id);` pour obtenir le contenu de tous les messages du sujet, avec leurs IDs.
+            ii. **Lecture des Messages :** Appelle `const { messages } = await Utils.consulterSujetAvecMessagesEtIds(sujet.id);` pour obtenir le contenu de tous les messages du sujet, avec leurs IDs.
             iii. **Extraction des Données Spécifiques (ordre indépendant) :**
                 -   Initialise des variables temporaires pour stocker les données extraites : `let versionLogique, classesParametreObjetForums, formatsLieux, formatHistory;`.
                 -   **Pour chaque `message` dans `messages` :**
@@ -1798,10 +1798,10 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 - **Fichiers modifiés** : `js/page/Forum.js`, `js/framework/ObjetForum.js`.
 - **Logique implémentée** :
     - La méthode `consulterSujetAvecMessagesEtIds(idSujet)` a été ajoutée à la classe `PageForum`.
-    - La méthode `chargerObjetForumsContenus` de la classe `ObjetForum` a été mise à jour pour utiliser `window.pageForum.consulterSujetAvecMessagesEtIds` et pour extraire directement les IDs des messages.
-    - La méthode `rafraichir` de la classe `ObjetForum` a été mise à jour pour utiliser `window.pageForum.consulterSujetAvecMessagesEtIds` et extraire le titre du sujet.
+    - La méthode `chargerObjetForumsContenus` de la classe `ObjetForum` a été mise à jour pour utiliser `Utils.consulterSujetAvecMessagesEtIds` et pour extraire directement les IDs des messages.
+    - La méthode `rafraichir` de la classe `ObjetForum` a été mise à jour pour utiliser `Utils.consulterSujetAvecMessagesEtIds` et extraire le titre du sujet.
     - La méthode `getTitreSujet` a été supprimée de `js/page/Forum.js` car elle n'est plus utilisée.
-    - La méthode `rafraichir` de la classe `GestionnaireVersions` a été mise à jour pour utiliser `window.pageForum.consulterSujetAvecMessagesEtIds` pour la lecture des messages des sujets de version.
+    - La méthode `rafraichir` de la classe `GestionnaireVersions` a été mise à jour pour utiliser `Utils.consulterSujetAvecMessagesEtIds` pour la lecture des messages des sujets de version.
 - **Note** : La fonctionnalité de consultation de sujet avec messages et IDs est implémentée et intégrée.
 
 ### Tests

@@ -277,7 +277,7 @@ class FonctionnaliteAlliance {
         let tousLesSujets = [];
         for (const idSection of instanceTemporaire.idsSection) {
             try {
-                const sujetsSection = await pageForum.recupererSujetsSection(idSection);
+                const sujetsSection = await Utils.recupererSujetsSection(idSection);
                 sujetsSection.forEach(sujet => {
                     sujet.idSectionSource = idSection;
                     tousLesSujets.push(sujet);
@@ -300,7 +300,7 @@ class FonctionnaliteAlliance {
                 console.log('idDerniereSection', idDerniereSection)
                 if (sujet.idSectionSource !== idDerniereSection) {
                     console.log(`[${this.constructor.name}] Transfert du sujet ID ${instance.idSujet} de la section ${sujet.idSectionSource} vers la section ${idDerniereSection}.`);
-                    await pageForum.transfererSujet(instance.idSujet, idDerniereSection);
+                    await Utils.transfererSujet(instance.idSujet, idDerniereSection);
                 }
                 console.log('instance pushing', instance);
                 objetsCharges.push(instance);
