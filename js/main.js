@@ -91,7 +91,7 @@
                 case (uri == "/alliance.php" && location.search == ""):
                 case (uri == "/chat.php"):
                     page = new PageChat();
-                    page.executer();
+                    page.init();
                     break;
                 case (location.href.indexOf("/alliance.php?forum_menu") > 0):
                     page = new PageForum();

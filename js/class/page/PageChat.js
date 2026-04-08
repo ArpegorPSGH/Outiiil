@@ -9,10 +9,18 @@
 * @class PageChat
 * @constructor
 */
-class PageChat
-{
-    constructor()
-    {
+class PageChat extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.plus,
+        this.prototype.couleur,
+        this.prototype.emoticone,
+        this.prototype.afficheMessage,
+        this.prototype.envoiFormulaire,
+    ];
+
+    constructor() {
+        super();
         /**
         * Compteur pour l'autoactualisation
         */
@@ -21,33 +29,22 @@ class PageChat
     /**
     *
     */
-    executer()
-    {
-        // fonction plus
-        if(!Utils.comptePlus) this.plus();
-        // Couleur du texte
-        this.couleur();
-        // Emoticone
-        this.emoticone();
-        // Reaffichage message
-        this.afficheMessage();
+    envoiFormulaire() {
         // Modification pour l'envoie du formulaire
         $("#message").on("keypress", (e) => {
             let code = e.keyCode || e.which;
-            if(code == 13)
+            if (code == 13)
                 this.parserMessage();
         });
-        $("input[name='Envoyer']").click((e) => {this.parserMessage();});
-        return this;
+        $("input[name='Envoyer']").click((e) => { this.parserMessage(); });
     }
-	/**
-	* Change l'apparance de l'affichage des messages, "Pseudo (datetime) :" au lieu de "datetime pseudo :"
+    /**
+    * Change l'apparance de l'affichage des messages, "Pseudo (datetime) :" au lieu de "datetime pseudo :"
     *
-	* @private
-	* @method afficheMessage
-	*/
-    afficheMessage()
-    {
+    * @private
+    * @method afficheMessage
+    */
+    afficheMessage() {
         // ajoute du cite sur les anciens messages
         $("#anciensMessages p, #nouveauxMessages p").each((i, elt) => {
             $(elt).html((i, html) => {
@@ -98,22 +95,21 @@ class PageChat
     /**
     *
     */
-    getMessage()
-    {
-        return $.ajax({url : "http://" + Utils.serveur + ".fourmizzz.fr/appelAjax.php", data : "actualiserChat=" + ($(".titre:first").text().includes("Alliance") ? "alliance" : "general")});
+    getMessage() {
+        return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/appelAjax.php", data: "actualiserChat=" + ($(".titre:first").text().includes("Alliance") ? "alliance" : "general") });
     }
-	/**
-	* Ajoute la Couleur, options de chat.
+    /**
+    * Ajoute la Couleur, options de chat.
     *
-	* @private
-	* @method plus
-	*/
-	plus()
-	{
+    * @private
+    * @method plus
+    */
+    plus() {
+        if (Utils.comptePlus) return
         // ajout de l'auto actualisation
         $("#actualiser").after(" --- <label><input id='o_autoActualiser' type='checkbox' name='autoActualiser'/>auto</label> ");
         $("#o_autoActualiser").change(() => {
-            if($("#o_autoActualiser").prop("checked"))
+            if ($("#o_autoActualiser").prop("checked"))
                 this.actualiserMessage();
             else
                 clearTimeout(this._timeoutChat);
@@ -124,35 +120,34 @@ class PageChat
             <div class='o_group_bouton o_group_bouton_chat'><span id='o_msgImg' class='option_gestion' onclick="miseEnForme('message','img');"><img height='12' src='images/BBCode/picture.png' title='Image' /></span><span id='o_msgLink' class='option_gestion' class='btn' onclick="miseEnForme('message','url');"><img height='12' src='images/BBCode/link.png' title='Lien' /></span><span id='o_msgPlay' class='option_gestion' onclick="miseEnForme('message','player');"><img height='12' src='images/BBCode/membre.gif' title='Pseudo'/></span><span id='o_msgAlly' class='option_gestion' onclick="miseEnForme('message','ally');"><img height='12' src='images/BBCode/groupe.gif' title='Alliance'/></span></div>`);
         $(".o_group_bouton span").css("background-color", monProfilJoueur.couleur1);
 
-		$("#o_msgUp").click((e) => {
-			e.preventDefault();
-			$("#message").val("[size=4]" + $("#message").val() + "[/size]");
-			$("#message")[0].selectionStart += 8;
-			$("#message")[0].selectionEnd -= 7;
-			$("#message").focus();
-		});
-		$("#o_msgDown").click((e) => {
-			e.preventDefault();
-			$("#message").val("[size=2]" + $("#message").val() + "[/size]");
-			$("#message")[0].selectionStart += 8;
-			$("#message")[0].selectionEnd -= 7;
-			$("#message").focus();
-		});
-		$("#o_msgB, #o_msgI, #o_msgU, #o_msgImg, #o_msgLink, #o_msgPlay, #o_msgAlly").click((e) => {e.preventDefault();});
+        $("#o_msgUp").click((e) => {
+            e.preventDefault();
+            $("#message").val("[size=4]" + $("#message").val() + "[/size]");
+            $("#message")[0].selectionStart += 8;
+            $("#message")[0].selectionEnd -= 7;
+            $("#message").focus();
+        });
+        $("#o_msgDown").click((e) => {
+            e.preventDefault();
+            $("#message").val("[size=2]" + $("#message").val() + "[/size]");
+            $("#message")[0].selectionStart += 8;
+            $("#message")[0].selectionEnd -= 7;
+            $("#message").focus();
+        });
+        $("#o_msgB, #o_msgI, #o_msgU, #o_msgImg, #o_msgLink, #o_msgPlay, #o_msgAlly").click((e) => { e.preventDefault(); });
         // Ajout des emoticone
         $("#listeSmiley20").html(LISTESMILEY1);
         $("#listeSmiley30").html(LISTESMILEY2);
-		$("#listeSmiley40").html(LISTESMILEY3);
-		$("#listeSmiley50").html(LISTESMILEY4);
-		$("#listeSmiley60").html(LISTESMILEY5);
-		$("#listeSmiley70").html(LISTESMILEY6);
-	}
+        $("#listeSmiley40").html(LISTESMILEY3);
+        $("#listeSmiley50").html(LISTESMILEY4);
+        $("#listeSmiley60").html(LISTESMILEY5);
+        $("#listeSmiley70").html(LISTESMILEY6);
+    }
     /**
     *
     */
-    actualiserMessage(nbTour = 40)
-    {
-        if(nbTour){
+    actualiserMessage(nbTour = 40) {
+        if (nbTour) {
             this.getMessage().then((data) => {
                 $("#anciensMessages").prepend($('#nouveauxMessages').html());
                 $("#nouveauxMessages").html(data.message);
@@ -160,86 +155,82 @@ class PageChat
                 $("#NonLuRapComb").html(data.NonLuRapComb);
                 $("#NonLuRapChass").html(data.NonLuRapChass);
             }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({...TOAST_ERROR, text : "Mise à jour des messages impossible."});
+                $.toast({ ...TOAST_ERROR, text: "Mise à jour des messages impossible." });
             });
-            this._timeoutChat = setTimeout(() => {this.actualiserMessage(--nbTour);}, 5000);
-        }else
+            this._timeoutChat = setTimeout(() => { this.actualiserMessage(--nbTour); }, 5000);
+        } else
             $("#o_autoActualiser").prop("checked", false);
         return this;
     }
     /**
     *
     */
-    citerMessage(e)
-    {
+    citerMessage(e) {
         let clone = $(e.currentTarget).parent().clone();
         $("span", clone).remove();
         let texte = clone.text();
-        if(texte.length > 80) texte = texte.substring(0, 80) + "...";
+        if (texte.length > 80) texte = texte.substring(0, 80) + "...";
         return texte;
     }
-	/**
-	* Parse le message pour convertir les smiley par le bbcode correspondant.
+    /**
+    * Parse le message pour convertir les smiley par le bbcode correspondant.
     *
-	* @private
-	* @method parserMessage
-	*/
-	parserMessage()
-	{
-		let color = $("#inputCouleur").val();
-		if(color != "000000" && color != "0000000")
-			$("#message").val("[color=#" + color + "]" + $("#message").val() + "[/color]");
-		$("#message").val($("#message").val().replace(/\{outiiil([1-9]|1[0-9]|2[0-6])\}/g, "[img]http://outiiil.fr/images/outiiil/$1.gif[/img]"));
+    * @private
+    * @method parserMessage
+    */
+    parserMessage() {
+        let color = $("#inputCouleur").val();
+        if (color != "000000" && color != "0000000")
+            $("#message").val("[color=#" + color + "]" + $("#message").val() + "[/color]");
+        $("#message").val($("#message").val().replace(/\{outiiil([1-9]|1[0-9]|2[0-6])\}/g, "[img]http://outiiil.fr/images/outiiil/$1.gif[/img]"));
         return this;
-	}
-	/**
-	* Ajoute/modifie le color picker.
+    }
+    /**
+    * Ajoute/modifie le color picker.
     *
-	* @private
-	* @method couleur
-	*/
-	couleur()
-    {
-		$("#inputCouleur").val(monProfilUtilisateur.parametre["couleurChat"].valeur.substring(1));
-		$("#boutonCouleur").remove();
-		$("#smileySuivant0").after(`<span><input id='color' type='color' name='couleur' value='${monProfilUtilisateur.parametre["couleurChat"].valeur}'/></span>`);
-		$("#color").change((e) => {
+    * @private
+    * @method couleur
+    */
+    couleur() {
+        $("#inputCouleur").val(monProfilUtilisateur.parametre["couleurChat"].valeur.substring(1));
+        $("#boutonCouleur").remove();
+        $("#smileySuivant0").after(`<span><input id='color' type='color' name='couleur' value='${monProfilUtilisateur.parametre["couleurChat"].valeur}'/></span>`);
+        $("#color").change((e) => {
             let color = e.currentTarget.value;
-			$("#inputCouleur").val(color.substring(1));
-			monProfilUtilisateur.parametre["couleurChat"].valeur = color;
+            $("#inputCouleur").val(color.substring(1));
+            monProfilUtilisateur.parametre["couleurChat"].valeur = color;
             monProfilUtilisateur.parametre["couleurChat"].sauvegarde();
-		});
-	}
-	/**
-	* Ajoute les emoticones de base pour les non compte+.
+        });
+    }
+    /**
+    * Ajoute les emoticones de base pour les non compte+.
     *
-	* @private
-	* @method emoticone
-	*/
-	emoticone()
-    {
-		// Ajout des emoticones d'outiiil
-		let ligne = `<div id='listeSmiley80' style='display:none'>`;
-		for(let i = 0 ; ++i < 27 ; ligne += `<img id='smiley_${i}' src='http://outiiil.fr/images/outiiil/${i}.gif'>`);
-		$("#tousLesSmiley0").append(ligne + `</div>`);
-		$("img[id^=smiley_]").click((e) => {$("#message").val($("#message").val() + "{outiiil" + $(e.currentTarget).attr("id").slice(7) + "}");});
+    * @private
+    * @method emoticone
+    */
+    emoticone() {
+        // Ajout des emoticones d'outiiil
+        let ligne = `<div id='listeSmiley80' style='display:none'>`;
+        for (let i = 0; ++i < 27; ligne += `<img id='smiley_${i}' src='http://outiiil.fr/images/outiiil/${i}.gif'>`);
+        $("#tousLesSmiley0").append(ligne + `</div>`);
+        $("img[id^=smiley_]").click((e) => { $("#message").val($("#message").val() + "{outiiil" + $(e.currentTarget).attr("id").slice(7) + "}"); });
         // Modification de la fleche preedante
-        $("#smileyPrecedent0").replaceWith(() => {return `<span id="smileyPrecedent0"><img title='Précédent' class='cursor' src='images/bouton/fleche-champs-gauche.gif'/></span>`;});
+        $("#smileyPrecedent0").replaceWith(() => { return `<span id="smileyPrecedent0"><img title='Précédent' class='cursor' src='images/bouton/fleche-champs-gauche.gif'/></span>`; });
         // Event sur la fleche preedante
-		$("#smileyPrecedent0").click((e) => {
+        $("#smileyPrecedent0").click((e) => {
             let div = $("#tousLesSmiley0 > div:visible");
             div.hide();
             div.is(':first-child') ? $("#tousLesSmiley0 div:last").show() : div.prev().show();
         });
         // Modification de la fleche suivante
-        $("#smileySuivant0").replaceWith(() => {return `<span id="smileySuivant0"><img title='Suivant' class='cursor' src='images/bouton/fleche-champs-droite.gif'/></span>`;});
+        $("#smileySuivant0").replaceWith(() => { return `<span id="smileySuivant0"><img title='Suivant' class='cursor' src='images/bouton/fleche-champs-droite.gif'/></span>`; });
         // Event sur la fleche suivante
-		$("#smileySuivant0").click((e) => {
+        $("#smileySuivant0").click((e) => {
             let div = $("#tousLesSmiley0 > div:visible");
             div.hide();
             div.is(':last-child') ? $("#tousLesSmiley0 div:first").show() : div.next().show();
         });
-	}
+    }
 }
 
 
