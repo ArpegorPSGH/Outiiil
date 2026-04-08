@@ -66,7 +66,7 @@
                     break;
                 case (uri == "/construction.php"):
                     page = new PageConstruction(boiteComptePlus);
-                    page.executer();
+                    page.init();
                     break;
                 case (uri == "/laboratoire.php"):
                     page = new PageLaboratoire(boiteComptePlus);

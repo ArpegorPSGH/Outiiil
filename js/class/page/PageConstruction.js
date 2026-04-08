@@ -9,8 +9,16 @@
 * @class PageConstruction
 * @constructor
 */
-class PageConstruction {
+class PageConstruction extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.recuperationConstruction,
+        this.prototype.titleEtable,
+        this.prototype.plus,
+    ];
+
     constructor(boiteComptePlus) {
+        super();
         /**
         * Accés à la boite compte+
         */
@@ -19,7 +27,7 @@ class PageConstruction {
     /**
     *
     */
-    async executer() {
+    async recuperationConstruction() {
         // verification des niveaux
         let niveau = new Array(13);
         $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
@@ -29,11 +37,6 @@ class PageConstruction {
             await monProfilJoueur.ecrire("Niveau Construction", constructions);
             await monProfilJoueur.enregistrerLocalStorage();
         }
-        // Affichage de la rentabilité
-        if (!$(".desciption_amelioration:eq(11) table").find(".verificationOK").length) this.titleEtable();
-        // Sauvegarde construction
-        if (!Utils.comptePlus) this.plus();
-        return this;
     }
     /**
     * Ajoute un title detaillé pour connaitre la rentabilité de la construction : etable à pucerons.
@@ -42,6 +45,7 @@ class PageConstruction {
     * @method titleEtable
     */
     async titleEtable() {
+        if ($(".desciption_amelioration:eq(11) table").find(".verificationOK").length) return;
         let recherche = await monProfilJoueur.niveauRecherche;
         let constructions = await monProfilJoueur.niveauConstruction;
         let ouvDispo = Utils.ouvrieres - Utils.terrain, perte = 80 * Math.pow(2, recherche[4]);
@@ -68,6 +72,7 @@ class PageConstruction {
     * @method plus
     */
     plus() {
+        if (Utils.comptePlus) return;
         // Affichage de la fin de la construction
         if ($("#centre > strong").length)
             $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
