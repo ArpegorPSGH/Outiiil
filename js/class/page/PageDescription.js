@@ -9,8 +9,15 @@
 * @class PageDescription
 * @constructor
 */
-class PageDescription {
+class PageDescription extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.constructionAlliance,
+        this.prototype.ajoutFooter,
+    ];
+
     constructor(boiteRadar) {
+        super();
         /**
         * Creation de la classe modele d'une alliance
         */
@@ -20,13 +27,8 @@ class PageDescription {
         */
         this._boiteRadar = boiteRadar;
     }
-    /**
-    *
-    * @private
-    * @method initialize
-    * @return
-    */
-    async executer() {
+
+    async constructionAlliance() {
         // Suppression du cadre classement
         $("#centre center:first").remove();
         // construction de l'alliance
@@ -47,7 +49,14 @@ class PageDescription {
             }
         });
         this._alliance.joueurs = tmpJoueurs;
-
+    }
+    /**
+    *
+    * @private
+    * @method initialize
+    * @return
+    */
+    async ajoutFooter() {
         $("#tabMembresAlliance tr:first").remove();
         $("#tabMembresAlliance")
             .append(`<tfoot><tr class='gras centre'><td colspan='8'>Terrain : <span id='totalTerrain'>${numeral(await this._alliance.calculTerrain()).format()}</span> cm² | Fourmilière : ${numeral(await this._alliance.calculFourmiliere()).format()} | Technologie : ${numeral(await this._alliance.calculTechnologie()).format()}.</td></tr></tfoot>`)
@@ -72,7 +81,6 @@ class PageDescription {
             await this._boiteRadar.sauvegarder(); // Await the promise to get the BoiteRadar instance
             this._boiteRadar.actualiser();       // Call actualiser on the BoiteRadar instance
         });
-        return this;
     }
     /**
     * Ajoute le tri sur le tableau des membres.

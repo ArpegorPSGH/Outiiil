@@ -108,7 +108,7 @@
                     break;
                 case (uri == "/classementAlliance.php" && Utils.extractUrlParams()["alliance"] != "" && Utils.extractUrlParams()["alliance"] != undefined):
                     page = new PageDescription(boiteRadar);
-                    page.executer();
+                    page.init();
                     break;
                 case (uri == "/colonies.php"):
                     page = new TestPage();
