@@ -78,7 +78,7 @@
                     break;
                 case (uri == "/Armee.php"):
                     page = new PageArmee(boiteComptePlus);
-                    await page.init();
+                    page.init();
                     break;
                 case (uri == "/commerce.php"):
                     page = new PageCommerce();
@@ -117,7 +117,7 @@
                 case (location.href.indexOf("/ennemie.php?Attaquer") > 0):
                 case (location.href.indexOf("/ennemie.php?annuler") > 0):
                     page = new PageAttaquer(boiteComptePlus);
-                    page.executer();
+                    page.init();
                     break;
                 case (uri == "/ennemie.php" && location.search == ""):
                     // Affichage des temps de trajet

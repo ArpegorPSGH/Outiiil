@@ -9,8 +9,17 @@
 * @class PageAttaquer
 * @constructor
 */
-class PageAttaquer {
+class PageAttaquer extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.chargerDonnees,
+        this.prototype.ajouterOption,
+        this.prototype.formulaireFlood,
+        this.prototype.plus
+    ];
+
     constructor(boiteComptePlus) {
+        super();
         /**
         * Accés à la boite compte+
         */
@@ -28,10 +37,8 @@ class PageAttaquer {
         */
         this._armee = null;
     }
-    /**
-    *
-    */
-    async executer() {
+
+    async chargerDonnees() {
         if ($("#tabChoixArmee").length) {
             // récupération de l'armée
             this._armee = new Armee({ unite: this.extraitArmee() });
@@ -45,14 +52,8 @@ class PageAttaquer {
             // on recupére le profil du joueur pour les coordonnées
             await this._cible.getProfil().then(async (data) => {
                 await this._cible.chargerProfil(data);
-                // affichage des options avancées de lancement de l'armée
-                await this.ajouterOption();
-                // ajoute des outils de floods
-                await this.formulaireFlood();
             });
         }
-        if (!Utils.comptePlus) this.plus();
-        return this;
     }
     /**
     *
@@ -281,6 +282,7 @@ class PageAttaquer {
     * @method plus
     */
     plus() {
+        if (Utils.comptePlus) return;
         // Sauvegarde des attaques en cours
         let listeAttaque = new Array();
         $("span[id^='attaque_']").each((i, elt) => {
