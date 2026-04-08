@@ -15,7 +15,7 @@ class PageRessource extends Page {
         /**
         * Accés à la boite compte+
         */
-        this._boiteComptePlus = boiteComptePlus;
+        boiteComptePlus = boiteComptePlus;
         /**
         * Nombre de chasse restante
         */
@@ -281,9 +281,9 @@ class PageRessource extends Page {
     * @method saveChasse
     */
     saveChasse(listeChasse) {
-        this._boiteComptePlus.chasse = listeChasse;
-        this._boiteComptePlus.startChasse = moment();
-        this._boiteComptePlus.sauvegarder().majChasse();
+        boiteComptePlus.chasse = listeChasse;
+        boiteComptePlus.startChasse = moment();
+        boiteComptePlus.sauvegarder().majChasse();
         return this;
     }
 }

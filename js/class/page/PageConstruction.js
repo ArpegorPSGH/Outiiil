@@ -16,14 +16,6 @@ class PageConstruction extends Page {
         this.prototype.titleEtable,
         this.prototype.plus,
     ];
-
-    constructor(boiteComptePlus) {
-        super();
-        /**
-        * Accés à la boite compte+
-        */
-        this._boiteComptePlus = boiteComptePlus;
-    }
     /**
     *
     */
@@ -81,10 +73,10 @@ class PageConstruction extends Page {
         // Suppresion de la construction en cours si on annule
         if ($("a:contains('Annuler')").length)
             $("a:contains('Annuler')").click((e) => {
-                this._boiteComptePlus.expConstruction = 0;
-                this._boiteComptePlus.construction = "";
-                this._boiteComptePlus.startConstruction = 0;
-                this._boiteComptePlus.sauvegarder();
+                boiteComptePlus.expConstruction = 0;
+                boiteComptePlus.construction = "";
+                boiteComptePlus.startConstruction = 0;
+                boiteComptePlus.sauvegarder();
             });
         return this;
     }
@@ -97,11 +89,11 @@ class PageConstruction extends Page {
     saveConstruction() {
         let str = $("#centre > strong").text();
         let construction = str.substring(2, str.indexOf("se termine") - 1);
-        if (construction && (!this._boiteComptePlus.construction || moment().diff(moment(this._boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
-            this._boiteComptePlus.construction = construction.substr(0, 1).toUpperCase() + construction.substr(1);
-            this._boiteComptePlus.expConstruction = moment().add(parseInt(str.split(',')[0].split('(')[1]), 's');
-            this._boiteComptePlus.startConstruction = moment();
-            this._boiteComptePlus.sauvegarder().majConstruction();
+        if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
+            boiteComptePlus.construction = construction.substr(0, 1).toUpperCase() + construction.substr(1);
+            boiteComptePlus.expConstruction = moment().add(parseInt(str.split(',')[0].split('(')[1]), 's');
+            boiteComptePlus.startConstruction = moment();
+            boiteComptePlus.sauvegarder().majConstruction();
         }
         return this;
     }

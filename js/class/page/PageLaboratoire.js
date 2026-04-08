@@ -9,21 +9,18 @@
 * @class PageLaboratoire
 * @constructor
 */
-class PageLaboratoire {
-    constructor(boiteComptePlus) {
-        /**
-        * Accés à la boite compte+
-        */
-        this._boiteComptePlus = boiteComptePlus;
-        /**
-        * Armée du joueur pour calculer le rentabilité Armes et Bouclier
-        */
-        this._armee = new Armee();
-    }
+class PageLaboratoire extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.chargerRecherche,
+        this.prototype.titleBouclier,
+        this.prototype.titleArmes,
+        this.prototype.plus,
+    ];
     /**
     *
     */
-    async executer() {
+    async chargerRecherche() {
         // verification des niveaux
         let niveau = new Array(10);
         let recherches = await monProfilJoueur.niveauRecherche;
@@ -33,15 +30,6 @@ class PageLaboratoire {
             await monProfilJoueur.ecrire("Niveau Recherche", recherches);
             await monProfilJoueur.enregistrerLocalStorage();
         }
-        // ajout title evolution
-        await this._armee.getArmee().then(async (data) => {
-            this._armee.chargeData(data);
-            // Affichage de la rentabilité du bouclier et de la rentabilité de l'armes
-            await this.titleBouclier().titleArmes();
-        });
-        // Sauvegarde recherche
-        if (!Utils.comptePlus) this.plus();
-        return this;
     }
     /**
     * Ajoute un title detaillé pour connaitre la rentabilité du niveau bouclier.
@@ -51,10 +39,11 @@ class PageLaboratoire {
     */
     async titleBouclier() {
         let recherches = await monProfilJoueur.niveauRecherche;
-        let vieAB = this._armee.getBaseVie() + this._armee.getBonusVie(recherches[1]);
+        let armee = await monProfilJoueur.lire('Armée');
+        let vieAB = armee.getBaseVie() + armee.getBonusVie(recherches[1]);
         let tOuv = numeral($(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
         let apportPonte = Math.round(parseInt(tOuv / (TEMPS_UNITE[1] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (8 + 8 * recherches[1] / 10));
-        let vieABSupp = this._armee.getBaseVie() + this._armee.getBonusVie(recherches[1] + 1);
+        let vieABSupp = armee.getBaseVie() + armee.getBonusVie(recherches[1] + 1);
         let bLigneGras = vieAB + apportPonte >= vieABSupp ? true : false;
         let title = `<table>
             <tr><td>Vie AB actuelle</td><td class='right'>${numeral(vieAB).format()}</td></tr>
@@ -75,17 +64,18 @@ class PageLaboratoire {
     */
     async titleArmes() {
         let recherches = await monProfilJoueur.niveauRecherche;
-        let attAB = this._armee.getTotalAtt(recherches[2]);
+        let armee = await monProfilJoueur.lire('Armée');
+        let attAB = armee.getTotalAtt(recherches[2]);
         let tOuv = numeral($(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
         let apportPonteJS = Math.round(parseInt(tOuv / (TEMPS_UNITE[4] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (10 + 10 * recherches[1] / 10));
         let apportPonteTk = Math.round(parseInt(tOuv / (TEMPS_UNITE[11] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (55 + 55 * recherches[1] / 10));
-        let attABSupp = this._armee.getTotalAtt(recherches[2] + 1);
+        let attABSupp = armee.getTotalAtt(recherches[2] + 1);
         let bLigneGrasJS = attAB + apportPonteJS >= attABSupp ? true : false;
         let bLigneGrasTk = attAB + apportPonteTk >= attABSupp ? true : false;
 
-        let defAB = this._armee.getTotalDef(recherches[2]);
+        let defAB = armee.getTotalDef(recherches[2]);
         let apportPonteTuE = Math.round(parseInt(tOuv / (TEMPS_UNITE[14] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (55 + 55 * recherches[1] / 10));
-        let defABSupp = this._armee.getTotalDef(recherches[2] + 1);
+        let defABSupp = armee.getTotalDef(recherches[2] + 1);
         let bLigneGrasTuE = defAB + apportPonteTuE >= defABSupp ? true : false;
 
         let title = `<table>
@@ -111,6 +101,7 @@ class PageLaboratoire {
     * @method plus
     */
     plus() {
+        if (Utils.comptePlus) return;
         // Affichage de la fin de la recherche
         if ($("#centre > strong").length)
             $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
@@ -119,10 +110,10 @@ class PageLaboratoire {
         // Suppresion de la recherche en cours si on annule
         if ($("a:contains('Je confirme')").length)
             $("a:contains('Je confirme')").click((e) => {
-                this._boiteComptePlus.expRecherche = 0;
-                this._boiteComptePlus.recherche = "";
-                this._boiteComptePlus.startRecherche = 0;
-                this._boiteComptePlus.sauvegarder();
+                boiteComptePlus.expRecherche = 0;
+                boiteComptePlus.recherche = "";
+                boiteComptePlus.startRecherche = 0;
+                boiteComptePlus.sauvegarder();
             });
         return this;
     }
@@ -136,11 +127,11 @@ class PageLaboratoire {
     saveRecherche() {
         let str = $("#centre strong").text();
         let recherche = str.substring(2, str.indexOf("termin") - 1);
-        if (recherche && (!this._boiteComptePlus.recherche || moment().diff(moment(this._boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
-            this._boiteComptePlus.recherche = recherche.substr(0, 1).toUpperCase() + recherche.substr(1);
-            this._boiteComptePlus.expRecherche = moment().add(parseInt(str.split(",")[0].split("(")[1]), 's');
-            this._boiteComptePlus.startRecherche = moment();
-            this._boiteComptePlus.sauvegarder().majRecherche();
+        if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
+            boiteComptePlus.recherche = recherche.substr(0, 1).toUpperCase() + recherche.substr(1);
+            boiteComptePlus.expRecherche = moment().add(parseInt(str.split(",")[0].split("(")[1]), 's');
+            boiteComptePlus.startRecherche = moment();
+            boiteComptePlus.sauvegarder().majRecherche();
         }
         return this;
     }

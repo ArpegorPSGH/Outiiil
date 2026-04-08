@@ -16,16 +16,12 @@ class PageDescription extends Page {
         this.prototype.ajoutFooter,
     ];
 
-    constructor(boiteRadar) {
+    constructor() {
         super();
         /**
         * Creation de la classe modele d'une alliance
         */
         this._alliance = new Alliance({ tag: Utils.extractUrlParams()["alliance"] });
-        /**
-        * Accés au radar
-        */
-        this._boiteRadar = boiteRadar;
     }
 
     async constructionAlliance() {
@@ -63,7 +59,7 @@ class PageDescription extends Page {
             .wrap("<div class='simulateur'>")
             .css({ "border": "0px", "width": "100%", "padding": "0px" })
             .prepend(`<thead><tr class='alt'><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmiliere</span></th></tr></thead>`)
-            .after(`<div id='o_bouton_alliance' class='o_group_bouton'><span id='o_historique' class='option_gestion'><img src="${IMG_HISTORIQUE}" alt="historique"/> Historique</span><span id='o_surveiller' class='option_gestion'><img src="${IMG_RADAR}" alt="surveiller"/>${this._boiteRadar.alliances.hasOwnProperty(this._alliance.tag) ? " Ignorer" : " Surveiller"}</span></div><div id='o_separation_graph' class='clear'></div>`);
+            .after(`<div id='o_bouton_alliance' class='o_group_bouton'><span id='o_historique' class='option_gestion'><img src="${IMG_HISTORIQUE}" alt="historique"/> Historique</span><span id='o_surveiller' class='option_gestion'><img src="${IMG_RADAR}" alt="surveiller"/>${boiteRadar.alliances.hasOwnProperty(this._alliance.tag) ? " Ignorer" : " Surveiller"}</span></div><div id='o_separation_graph' class='clear'></div>`);
         this.tableau();
 
         $("#o_historique").click((e) => {
@@ -71,15 +67,15 @@ class PageDescription extends Page {
             this.historique();
         });
         $("#o_surveiller").click(async (e) => {
-            if (!this._boiteRadar.alliances.hasOwnProperty(this._alliance.tag)) {
+            if (!boiteRadar.alliances.hasOwnProperty(this._alliance.tag)) {
                 $(e.currentTarget).html($(e.currentTarget).html().replace(/Surveiller/, "Ignorer"));
-                await this._boiteRadar.ajouteAlliance(this._alliance);
+                await boiteRadar.ajouteAlliance(this._alliance);
             } else {
                 $(e.currentTarget).html($(e.currentTarget).html().replace(/Ignorer/, "Surveiller"));
-                await this._boiteRadar.supprimeAlliance(this._alliance);
+                await boiteRadar.supprimeAlliance(this._alliance);
             }
-            await this._boiteRadar.sauvegarder(); // Await the promise to get the BoiteRadar instance
-            this._boiteRadar.actualiser();       // Call actualiser on the BoiteRadar instance
+            await boiteRadar.sauvegarder(); // Await the promise to get the BoiteRadar instance
+            boiteRadar.actualiser();       // Call actualiser on the BoiteRadar instance
         });
     }
     /**

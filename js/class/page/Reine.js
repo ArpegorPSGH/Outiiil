@@ -15,7 +15,7 @@ class PageReine {
         /**
         * Accés à la boite compte+
         */
-        this._boiteComptePlus = boiteComptePlus;
+        boiteComptePlus = boiteComptePlus;
     }
     /**
     * Modifie les champs de saisie, sauvegarde la ponte en cours.
@@ -81,9 +81,9 @@ class PageReine {
     * @method savePonte
     */
     async savePonte(listePonte) {
-        this._boiteComptePlus.ponte = listePonte;
-        this._boiteComptePlus.startPonte = moment();
-        await this._boiteComptePlus.sauvegarder().majPonte();
+        boiteComptePlus.ponte = listePonte;
+        boiteComptePlus.startPonte = moment();
+        await boiteComptePlus.sauvegarder().majPonte();
         return this;
     }
 }

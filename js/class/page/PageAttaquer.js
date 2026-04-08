@@ -18,12 +18,8 @@ class PageAttaquer extends Page {
         this.prototype.plus
     ];
 
-    constructor(boiteComptePlus) {
+    constructor() {
         super();
-        /**
-        * Accés à la boite compte+
-        */
-        this._boiteComptePlus = boiteComptePlus;
         /**
         * 
         */
@@ -307,9 +303,9 @@ class PageAttaquer extends Page {
         dataEvo.startAttaque = moment();
         localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
         if (!Utils.comptePlus && $("#boiteComptePlus").length) {
-            this._boiteComptePlus.attaque = dataEvo.attaque;
-            this._boiteComptePlus.startAttaque = dataEvo.startAttaque;
-            this._boiteComptePlus.majAttaque();
+            boiteComptePlus.attaque = dataEvo.attaque;
+            boiteComptePlus.startAttaque = dataEvo.startAttaque;
+            boiteComptePlus.majAttaque();
         }
     }
 }

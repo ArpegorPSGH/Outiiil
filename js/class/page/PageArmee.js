@@ -23,12 +23,8 @@ class PageArmee extends Page {
         this.prototype.afficherStatistique
     ];
 
-    constructor(boiteComptePlus) {
+    constructor() {
         super();
-        /**
-        * Accés à la boite compte+
-        */
-        this._boiteComptePlus = boiteComptePlus;
         /**
         * Armée sur le terrain.
         *
@@ -373,10 +369,10 @@ class PageArmee extends Page {
     * @method saveAttaque
     */
     saveAttaque(listeAttaque) {
-        if (!this._boiteComptePlus.hasOwnProperty("attaque") || this._boiteComptePlus.attaque.length != listeAttaque.length || this._boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(this._boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length) {
-            this._boiteComptePlus.attaque = listeAttaque;
-            this._boiteComptePlus.startAttaque = moment();
-            this._boiteComptePlus.sauvegarder().majAttaque();
+        if (!boiteComptePlus.hasOwnProperty("attaque") || boiteComptePlus.attaque.length != listeAttaque.length || boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length) {
+            boiteComptePlus.attaque = listeAttaque;
+            boiteComptePlus.startAttaque = moment();
+            boiteComptePlus.sauvegarder().majAttaque();
         }
         return this;
     }

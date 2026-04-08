@@ -13,15 +13,11 @@ class PageProfil {
     /**
     *
     */
-    constructor(boiteRadar) {
+    constructor() {
         /**
         * Creation du modele profil
         */
         this._profil = null;
-        /**
-        * Acces à la boite radar
-        */
-        this._boiteRadar = boiteRadar;
     }
     /**
     *
@@ -44,22 +40,22 @@ class PageProfil {
         }
 
         // Ajout des options pour ajouter au radar et utiliser l'historique
-        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
+        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
 
         $("#o_historique").click((e) => {
             $(e.currentTarget).off().css("color", "#555555");
             this.historique();
         });
         $("#o_surveiller").click(async (e) => {
-            if (!this._boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo'))) {
+            if (!boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo'))) {
                 $(e.currentTarget).text("Supprimer la surveillance");
-                await this._boiteRadar.ajouteJoueur(this._profil);
+                await boiteRadar.ajouteJoueur(this._profil);
             } else {
                 $(e.currentTarget).text("Surveiller ce joueur");
-                await this._boiteRadar.supprimeJoueur(this._profil);
+                await boiteRadar.supprimeJoueur(this._profil);
             }
-            await this._boiteRadar.sauvegarder();
-            this._boiteRadar.actualiser();
+            await boiteRadar.sauvegarder();
+            boiteRadar.actualiser();
         });
         return this;
     }

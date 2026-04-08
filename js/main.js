@@ -61,23 +61,23 @@
             // Routing
             switch (true) {
                 case (uri == "/Reine.php"):
-                    page = new PageReine(boiteComptePlus);
+                    page = new PageReine();
                     if (!Utils.comptePlus) await page.plus();
                     break;
                 case (uri == "/construction.php"):
-                    page = new PageConstruction(boiteComptePlus);
+                    page = new PageConstruction();
                     page.init();
                     break;
                 case (uri == "/laboratoire.php"):
-                    page = new PageLaboratoire(boiteComptePlus);
-                    await page.executer();
+                    page = new PageLaboratoire();
+                    page.init();
                     break;
                 case (uri == "/Ressources.php"):
-                    page = new PageRessource(boiteComptePlus);
+                    page = new PageRessource();
                     await page.executer();
                     break;
                 case (uri == "/Armee.php"):
-                    page = new PageArmee(boiteComptePlus);
+                    page = new PageArmee();
                     page.init();
                     break;
                 case (uri == "/commerce.php"):
@@ -103,11 +103,11 @@
                     break;
                 case (location.href.indexOf("/Membre.php?Pseudo") > 0):
                 case (uri == "/Membre.php"):
-                    page = new PageProfil(boiteRadar);
+                    page = new PageProfil();
                     page.executer();
                     break;
                 case (uri == "/classementAlliance.php" && Utils.extractUrlParams()["alliance"] != "" && Utils.extractUrlParams()["alliance"] != undefined):
-                    page = new PageDescription(boiteRadar);
+                    page = new PageDescription();
                     page.init();
                     break;
                 case (uri == "/colonies.php"):
@@ -116,7 +116,7 @@
                     break;
                 case (location.href.indexOf("/ennemie.php?Attaquer") > 0):
                 case (location.href.indexOf("/ennemie.php?annuler") > 0):
-                    page = new PageAttaquer(boiteComptePlus);
+                    page = new PageAttaquer();
                     page.init();
                     break;
                 case (uri == "/ennemie.php" && location.search == ""):
