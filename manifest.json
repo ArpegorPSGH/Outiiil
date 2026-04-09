@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "Outiiil",
-	"version": "3.11.0",
+	"version": "3.12.0",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
 		"48": "images/icons/gear_48.png",
@@ -170,7 +170,7 @@
 				"js/class/page/PageLaboratoire.js",
 				"js/class/page/PageMessagerie.js",
 				"js/class/page/PageProfil.js",
-				"js/class/page/Reine.js",
+				"js/class/page/PageReine.js",
 				"js/class/page/Ressource.js",
 				"js/class/page/TestPage.js",
 				"js/main.js"

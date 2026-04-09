@@ -62,7 +62,7 @@
             switch (true) {
                 case (uri == "/Reine.php"):
                     page = new PageReine();
-                    if (!Utils.comptePlus) await page.plus();
+                    page.init();
                     break;
                 case (uri == "/construction.php"):
                     page = new PageConstruction();
