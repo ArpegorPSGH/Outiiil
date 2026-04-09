@@ -74,7 +74,7 @@
                     break;
                 case (uri == "/Ressources.php"):
                     page = new PageRessource();
-                    await page.executer();
+                    page.init();
                     break;
                 case (uri == "/Armee.php"):
                     page = new PageArmee();

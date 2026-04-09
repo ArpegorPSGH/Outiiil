@@ -10,12 +10,15 @@
 * @extends Page
 */
 class PageRessource extends Page {
-    constructor(boiteComptePlus) {
+
+    static FONCTIONNALITES = [
+        this.prototype.initData,
+        this.prototype.lanceur,
+        this.prototype.plus,
+    ];
+
+    constructor() {
         super();
-        /**
-        * Accés à la boite compte+
-        */
-        boiteComptePlus = boiteComptePlus;
         /**
         * Nombre de chasse restante
         */
@@ -23,21 +26,15 @@ class PageRessource extends Page {
         /**
         * Armée du joueur pour envoyer des chasses
         */
-        this._armee = new Armee();
+        this._armee = null;
     }
     /**
     *
     */
-    async executer() {
+    async initData() {
         const recherches = await monProfilJoueur.lire('Niveau Recherche');
         this._nbChasse = recherches[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
-        let data = await this._armee.getArmee();
-        this._armee.chargeData(data);
-        // Ajout du lanceur de chasse
-        await this.lanceur();
-        // Sauvegarde les chasses en cours et ajoute les boutons max recolte
-        if (!Utils.comptePlus) this.plus();
-        return this;
+        this._armee = await monProfilJoueur.lire('Armée');
     }
     /**
     * Formulaire de lancement pour les chasses.
@@ -221,6 +218,7 @@ class PageRessource extends Page {
     * @method plus
     */
     plus() {
+        if (Utils.comptePlus) return;
         // Ajout des boutons pour l'affectation max
         $("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
         $("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
