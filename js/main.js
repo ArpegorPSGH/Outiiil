@@ -104,7 +104,7 @@
                 case (location.href.indexOf("/Membre.php?Pseudo") > 0):
                 case (uri == "/Membre.php"):
                     page = new PageProfil();
-                    page.executer();
+                    page.init();
                     break;
                 case (uri == "/classementAlliance.php" && Utils.extractUrlParams()["alliance"] != "" && Utils.extractUrlParams()["alliance"] != undefined):
                     page = new PageDescription();

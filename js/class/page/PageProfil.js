@@ -9,11 +9,18 @@
 * @class PageProfil
 * @constructor
 */
-class PageProfil {
+class PageProfil extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.chargerData,
+        this.prototype.afficherTrajet,
+        this.prototype.ajouterOptions,
+    ];
     /**
     *
     */
     constructor() {
+        super();
         /**
         * Creation du modele profil
         */
@@ -22,14 +29,19 @@ class PageProfil {
     /**
     *
     */
-    async executer() {
+    async chargerData() {
         this._profil = new Joueur({ pseudo: $("h2").text() });
         let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(".boite_membre").find("a[href^='carte2.php?']").text();
         await this._profil.ecrire('X', ~~(ligne.replace(regexp, "$1")));
         await this._profil.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
         await this._profil.ecrire('Activité', $(".boite_membre table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances"));
         await this._profil.ecrire('Id', $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0]);
-        await this._profil.ecrire('Terrain', numeral($(".tableau_score tr:eq(1) td:eq(1)").text()).value());
+        await this._profil.ecrire('Terrain de Chasse', numeral($(".tableau_score tr:eq(1) td:eq(1)").text()).value());
+    }
+    /**
+   *
+   */
+    async afficherTrajet() {
         // si on consulte un profil différent du sien
         if (! await this._profil.estJoueurCourant()) {
             // si on a pas de compte+ on affiche le temps de trajet
@@ -38,7 +50,11 @@ class PageProfil {
             $(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(await monProfilJoueur.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
             Utils.incrementTime(await monProfilJoueur.getTempsParcours2(this._profil), "o_tempsRetour", "o_tempsRetourRapport");
         }
-
+    }
+    /**
+   *
+   */
+    async ajouterOptions() {
         // Ajout des options pour ajouter au radar et utiliser l'historique
         $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
 
@@ -57,7 +73,6 @@ class PageProfil {
             await boiteRadar.sauvegarder();
             boiteRadar.actualiser();
         });
-        return this;
     }
     /**
     * Récupére et Affiche l'historique du joueur.
