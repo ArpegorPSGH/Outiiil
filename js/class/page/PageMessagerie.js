@@ -9,8 +9,18 @@
 * @class PageMessagerie
 * @constructor
 */
-class PageMessagerie {
+class PageMessagerie extends Page {
+
+    static FONCTIONNALITES = [
+        this.prototype.plus,
+        this.prototype.chargerJoueurs,
+        this.prototype.couleurMessageUtilitaire,
+        this.prototype.couleurMessage,
+        this.prototype.analyseMessage,
+    ];
+
     constructor() {
+        super();
         /**
         * Liste des messages analysés.
         */
@@ -19,26 +29,24 @@ class PageMessagerie {
         * Connexion à l'utilitaire.
         */
         this._utilitaire = new PageForum();
+        /**
+        * Succès du chargement des joueurs.
+        */
+        this._succesChargement = false;
     }
     /**
     *
     */
-    executer() {
-        // ajout des boutons pour les nouveaux messages
-        if (!Utils.comptePlus) this.plus(0);
+    chargerJoueurs() {
         // recupération des joueurs de l'utilitaire
         if (monProfilUtilisateur.parametre["Membres Outiiil"].valeur) {
             // recuperation des commandes sur l'utilitaire
-            this._utilitaire.consulterSection(monProfilUtilisateur.parametre["Membres Outiiil"].valeur).then((data) => {
-                if (this._utilitaire.chargerJoueur(data)) this.couleurMessageUtilitaire();
+            Utils.consulterSection(monProfilUtilisateur.parametre["Membres Outiiil"].valeur).then((data) => {
+                this._succesChargement = this._utilitaire.chargerJoueur(data);
             }, (jqXHR, textStatus, errorThrown) => {
                 $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération des membres." });
             });
-        } else
-            this.couleurMessage();
-        // Evenement lorsque de nouveaux elements sont affiches
-        this.analyseMessage();
-        return this;
+        }
     }
     /**
     *
@@ -126,7 +134,8 @@ class PageMessagerie {
     /**
     *
     */
-    plus(id) {
+    plus(id = 0) {
+        if (Utils.comptePlus) return;
         let champsReponse = id != 0 ? "champ_reponse_" + id : "message_envoi";
         $("#smileySuivant" + id).after(` <span style='cursor:pointer;position:relative;top:3px;'>
             <span style="position:relative;top:-4px"><input id="o_colorMess${champsReponse}" type="color" name="couleur" value="${monProfilUtilisateur.parametre["couleurMessagerie"].valeur}"/></span>
@@ -326,6 +335,7 @@ class PageMessagerie {
     * Ajout d'un code couleur sur les messages par defaut
     */
     couleurMessage() {
+        if (this._succesChargement) return;
         $("tr[id^='conversation_']").each((i, elt) => {
             let titre = $(elt).find("td:eq(3) .intitule_message").text();
             if (titre.includes("Colonie perdue") || titre.includes("conquis par") || titre.includes("Vol par") || titre.includes("Invasion") || titre.includes("Attaque échouée contre") || titre.includes("Rebellion échouée"))
@@ -339,6 +349,7 @@ class PageMessagerie {
     *
     */
     couleurMessageUtilitaire() {
+        if (!this._succesChargement) return;
         $("tr[id^='conversation_']").each((i, elt) => {
             let titre = $(elt).find("td:eq(3) .intitule_message").text(), color = "";
             // une colonie perdue est toujours rouge

@@ -86,7 +86,7 @@
                     break;
                 case (uri == "/messagerie.php"):
                     page = new PageMessagerie();
-                    page.executer();
+                    page.init();
                     break;
                 case (uri == "/alliance.php" && location.search == ""):
                 case (uri == "/chat.php"):
