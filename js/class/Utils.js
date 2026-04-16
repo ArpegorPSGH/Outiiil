@@ -204,11 +204,11 @@ class Utils {
             return tmp.join(" ");
     }
     /**
-    * Extrait les paramétres d'une URL.
+    * Extrait les paramètres d'une URL.
     *
     * @static
     * @method extractUrlParams
-    * @return {Array} La liste associatives des paramétres.
+    * @return {Array} La liste associatives des paramètres.
     */
     static extractUrlParams() {
         let f = new Array(), t = location.search.substring(1).split('&');
