@@ -10,7 +10,9 @@
 * @constructor
 * @extends Page
 */
-class PageReine extends Page {
+Utils.register(class PageReine extends Page {
+
+    static URIs = "/Reine.php";
 
     static FONCTIONNALITES = [
         this.prototype.afficherFinPontes,
@@ -110,4 +112,4 @@ class PageReine extends Page {
         await boiteComptePlus.sauvegarder().majPonte();
         return this;
     }
-}
+})

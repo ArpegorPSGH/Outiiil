@@ -9,7 +9,9 @@
 * @class PageDescription
 * @constructor
 */
-class PageDescription extends Page {
+Utils.register(class PageDescription extends Page {
+    static URIs = "/classementAlliance.php?alliance=";
+
 
     static FONCTIONNALITES = [
         this.prototype.constructionAlliance,
@@ -119,4 +121,4 @@ class PageDescription extends Page {
         this._alliance.getHistorique("o_chartAlliance");
         return this;
     }
-}
+})

@@ -57,74 +57,13 @@
                 traceur2.tracer();
             }
 
-            let uri = location.pathname, page = null;
-            // Routing
-            switch (true) {
-                case (uri == "/Reine.php"):
-                    page = new PageReine();
-                    page.init();
-                    break;
-                case (uri == "/construction.php"):
-                    page = new PageConstruction();
-                    page.init();
-                    break;
-                case (uri == "/laboratoire.php"):
-                    page = new PageLaboratoire();
-                    page.init();
-                    break;
-                case (uri == "/Ressources.php"):
-                    page = new PageRessource();
-                    page.init();
-                    break;
-                case (uri == "/Armee.php"):
-                    page = new PageArmee();
-                    page.init();
-                    break;
-                case (uri == "/commerce.php"):
-                    page = new PageCommerce();
-                    page.init();
-                    break;
-                case (uri == "/messagerie.php"):
-                    page = new PageMessagerie();
-                    page.init();
-                    break;
-                case (uri == "/alliance.php" && location.search == ""):
-                case (uri == "/chat.php"):
-                    page = new PageChat();
-                    page.init();
-                    break;
-                case (location.href.indexOf("/alliance.php?forum_menu") > 0):
-                    page = new PageForum();
-                    page.init();
-                    break;
-                case (location.href.indexOf("/alliance.php?Membres") > 0):
-                    page = new PageAlliance();
-                    page.init();
-                    break;
-                case (location.href.indexOf("/Membre.php?Pseudo") > 0):
-                case (uri == "/Membre.php"):
-                    page = new PageProfil();
-                    page.init();
-                    break;
-                case (uri == "/classementAlliance.php" && Utils.extractUrlParams()["alliance"] != "" && Utils.extractUrlParams()["alliance"] != undefined):
-                    page = new PageDescription();
-                    page.init();
-                    break;
-                case (uri == "/colonies.php"):
-                    page = new TestPage();
-                    await page.init();
-                    break;
-                case (location.href.indexOf("/ennemie.php?Attaquer") > 0):
-                case (location.href.indexOf("/ennemie.php?annuler") > 0):
-                    page = new PageAttaquer();
-                    page.init();
-                    break;
-                case (uri == "/ennemie.php" && location.search == ""):
-                    page = new PageEnnemie();
-                    page.init();
-                    break;
-                default:
-                    break;
+            // Routing automatique via la fabrique Page
+            let page = new Page();
+            if (page) {
+                console.log(`Page détectée : ${page.constructor.name}`);
+                page.init();
+            } else {
+                console.log("Aucune classe de page correspondante trouvée pour cette URL.");
             }
         });
     }
@@ -141,7 +80,8 @@ async function initialiserFrameworkGlobal() {
     // 1a. Construire le registre global de classes
     window.registreClasses = {
         FonctionnaliteAlliance: new Map(),
-        ObjetForum: new Map()
+        ObjetForum: new Map(),
+        Page: new Map()
     };
 
     const manifestURL = chrome.runtime.getURL('manifest.json');
@@ -157,8 +97,8 @@ async function initialiserFrameworkGlobal() {
         classFolders.some(folder => path.startsWith(folder))
     );
 
-    // Regex pour trouver les déclarations de classes héritant de ObjetForum ou FonctionnaliteAlliance
-    const classRegex = /class\s+([a-zA-Z0-9_]+)\s+extends\s+(ObjetForum|FonctionnaliteAlliance)/g;
+    // Regex pour trouver les déclarations de classes héritant de ObjetForum, FonctionnaliteAlliance ou Page
+    const classRegex = /class\s+([a-zA-Z0-9_]+)\s+extends\s+(ObjetForum|FonctionnaliteAlliance|Page)/g;
 
     for (const filePath of classFiles) {
         try {
@@ -174,12 +114,15 @@ async function initialiserFrameworkGlobal() {
 
                 if (typeof ClassConstructor === 'function') {
                     console.log(`  Found class ${className} extending ${parentName}`);
-                    if (parentName === 'ObjetForum') {
+                    if (parentName === ObjetForum.name) {
                         registreClasses.ObjetForum.set(className, ClassConstructor);
                         console.log(`      Added ${className} to ObjetForum registry.`);
-                    } else if (parentName === 'FonctionnaliteAlliance') {
+                    } else if (parentName === FonctionnaliteAlliance.name) {
                         registreClasses.FonctionnaliteAlliance.set(className, ClassConstructor);
                         console.log(`      Added ${className} to FonctionnaliteAlliance registry.`);
+                    } else if (parentName === Page.name) {
+                        registreClasses.Page.set(className, ClassConstructor);
+                        console.log(`      Added ${className} to Page registry.`);
                     }
                 } else {
                     console.warn(`  Found class declaration for ${className} but constructor is not on window object.`);

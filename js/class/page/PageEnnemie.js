@@ -9,7 +9,9 @@
 * @class PageEnnemie
 * @constructor
 */
-class PageEnnemie extends Page {
+Utils.register(class PageEnnemie extends Page {
+    static URIs = { href: "/ennemie.php", search: "" };
+
 
     static FONCTIONNALITES = [
         this.prototype.ajouterTemps
@@ -28,4 +30,4 @@ class PageEnnemie extends Page {
             $(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, recherches[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
         });
     }
-}
+})

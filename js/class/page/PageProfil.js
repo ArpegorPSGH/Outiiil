@@ -9,7 +9,9 @@
 * @class PageProfil
 * @constructor
 */
-class PageProfil extends Page {
+Utils.register(class PageProfil extends Page {
+    static URIs = "/Membre.php";
+
 
     static FONCTIONNALITES = [
         this.prototype.chargerData,
@@ -95,4 +97,4 @@ class PageProfil extends Page {
         $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
         return this;
     }
-}
+})

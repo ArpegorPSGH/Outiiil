@@ -9,7 +9,10 @@
 * @class PageChat
 * @constructor
 */
-class PageChat extends Page {
+Utils.register(class PageChat extends Page {
+
+    static URIs = ["/chat.php", { href: "/alliance.php", search: "" }];
+
 
     static FONCTIONNALITES = [
         this.prototype.plus,
@@ -231,6 +234,6 @@ class PageChat extends Page {
             div.is(':last-child') ? $("#tousLesSmiley0 div:first").show() : div.next().show();
         });
     }
-}
+})
 
 

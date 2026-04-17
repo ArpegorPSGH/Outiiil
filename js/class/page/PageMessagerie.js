@@ -9,7 +9,9 @@
 * @class PageMessagerie
 * @constructor
 */
-class PageMessagerie extends Page {
+Utils.register(class PageMessagerie extends Page {
+    static URIs = "/messagerie.php";
+
 
     static FONCTIONNALITES = [
         this.prototype.plus,
@@ -409,4 +411,4 @@ class PageMessagerie extends Page {
         });
         return html;
     }
-}
+})

@@ -9,7 +9,9 @@
 * @class PageAttaquer
 * @constructor
 */
-class PageAttaquer extends Page {
+Utils.register(class PageAttaquer extends Page {
+    static URIs = ["/ennemie.php?Attaquer", "/ennemie.php?annuler"];
+
 
     static FONCTIONNALITES = [
         this.prototype.chargerDonnees,
@@ -308,4 +310,4 @@ class PageAttaquer extends Page {
             boiteComptePlus.majAttaque();
         }
     }
-}
+})

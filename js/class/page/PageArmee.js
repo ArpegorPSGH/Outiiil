@@ -9,7 +9,9 @@
 * @class PageArmee
 * @constructor
 */
-class PageArmee extends Page {
+Utils.register(class PageArmee extends Page {
+    static URIs = "/Armee.php";
+
 
     static FONCTIONNALITES = [
         this.prototype.recupereArmeeTdc,
@@ -376,5 +378,5 @@ class PageArmee extends Page {
         }
         return this;
     }
-}
+})
 

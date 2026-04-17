@@ -9,7 +9,9 @@
 * @class PageLaboratoire
 * @constructor
 */
-class PageLaboratoire extends Page {
+Utils.register(class PageLaboratoire extends Page {
+    static URIs = "/laboratoire.php";
+
 
     static FONCTIONNALITES = [
         this.prototype.chargerRecherche,
@@ -135,4 +137,4 @@ class PageLaboratoire extends Page {
         }
         return this;
     }
-}
+})

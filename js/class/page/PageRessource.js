@@ -9,7 +9,9 @@
 * @class PageRessource
 * @extends Page
 */
-class PageRessource extends Page {
+Utils.register(class PageRessource extends Page {
+    static URIs = "/Ressources.php";
+
 
     static FONCTIONNALITES = [
         this.prototype.initData,
@@ -284,4 +286,4 @@ class PageRessource extends Page {
         boiteComptePlus.sauvegarder().majChasse();
         return this;
     }
-}
+})

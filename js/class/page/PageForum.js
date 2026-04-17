@@ -9,7 +9,9 @@
  * @class PageForum
  * @extends {Page}
  */
-class PageForum extends Page {
+Utils.register(class PageForum extends Page {
+    static URIs = "/alliance.php?forum_menu";
+
     /**
      * Liste unifiée des fonctionnalités à exécuter sur la page Forum.
      * @type {Array<Function|typeof FonctionnaliteAlliance>}
@@ -139,4 +141,4 @@ class PageForum extends Page {
             return true;
         }
     }
-};
+});

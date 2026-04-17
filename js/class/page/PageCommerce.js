@@ -2,7 +2,9 @@
  * PageCommerce.js
  * Classe de page pour /commerce.php, utilisant le nouveau framework.
  */
-class PageCommerce extends Page {
+Utils.register(class PageCommerce extends Page {
+    static URIs = "/commerce.php";
+
     /**
      * Liste des fonctionnalités à exécuter sur cette page.
      * L'ordre dicte l'ordre d'exécution.
@@ -114,4 +116,4 @@ class PageCommerce extends Page {
             boiteComptePlus.sauvegarder().majConvoi();
         }
     }
-}
+})

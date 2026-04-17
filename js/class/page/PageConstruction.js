@@ -9,7 +9,9 @@
 * @class PageConstruction
 * @constructor
 */
-class PageConstruction extends Page {
+Utils.register(class PageConstruction extends Page {
+    static URIs = "/construction.php";
+
 
     static FONCTIONNALITES = [
         this.prototype.recuperationConstruction,
@@ -97,4 +99,4 @@ class PageConstruction extends Page {
         }
         return this;
     }
-}
+})

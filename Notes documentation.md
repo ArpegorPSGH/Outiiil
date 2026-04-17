@@ -22,22 +22,28 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
 - **Objet :** Créez une classe héritant de `ObjetForum`.
     - Définissez sa version logique via `ObjetForum.VERSION_LOGIQUE`.
     - Spécifiez l'historique de ses lieux de stockage via `ObjetForum.LOCATION_HISTORY`.
-    - Déclarez les attributs de l'instance et leurs valeurs par défaut via `ObjetForum.ATTRIBUTS_OBJET`. Pour les objets complexes (comme `new Array()` ou une autre classe), utilisez une fonction factory (ex: `monAttribut: () => new MaClasse()`).
+    - Déclarez les classes d'attributs qu'il utilise via `ObjetForum.ATTRIBUTS_OBJET`.
     - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.CLASSES_PARAMETRES`.
     - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
-- **Paramètre :** Créez une classe héritant de `ParametreObjetForum`.
-    - Définissez sa version logique via `ParametreObjetForum.VERSION_LOGIQUE`.
-    - Définissez son historique de formats via `ParametreObjetForum.FORMAT_HISTORY`. Chaque élément est un objet de la forme `{ nom: 'NomDuParam', format: 'un string contenant '(nom)' et '(valeur)'' }`.
-    - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
-    - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). La valeur peut être un type primitif (nombre, chaîne, booléen), une liste ou un dictionnaire, avec un nombre de niveaux d'imbrication (nesting) quelconque.
+- **Paramètre / Attribut :** Créez une classe héritant de `ParametreObjetForum` ou `AttributObjet`.
+    - **Pour un paramètre :**
+        - Définissez sa version logique via `ParametreObjetForum.VERSION_LOGIQUE`.
+        - Définissez son historique de formats via `ParametreObjetForum.FORMAT_HISTORY`. Chaque élément est un objet de la forme `{ nom: 'NomDuParam', format: 'un string contenant "(nom)" et "(valeur)"' }`.
+        - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
+        - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). La valeur peut être un type primitif (nombre, chaîne, booléen), une liste ou un dictionnaire, avec un nombre de niveaux d'imbrication (nesting) quelconque.
+    - **Pour un attribut :**
+        - Définissez son nom d'affichage via `AttributObjet.NOM_AFFICHAGE` (une liste de chaînes).
+        - (Optionnel) Définissez ses alias d'appel via `AttributObjet.NOM_APPEL`.
+        - Pour un attribut calculé, surchargez la méthode `calculerValeur(peutVoirDonneesRestreintes)`.
+        - La valeur par défaut d'un attribut statique doit être initialisée dans `valeur`.
 
 ### 1.3 Ajout d'une Nouvelle Classe de Page
 
 Pour créer une nouvelle classe de page :
 - Créez une classe héritant de `Page`.
-- Définissez les fonctionnalités d'alliance spécifiques à cette page en ajoutant les classes `FonctionnaliteAlliance` à la liste statique `Page.FONCTIONNALITES_ALLIANCE`.
+- Définissez les fonctionnalités d'alliance et locales spécifiques à cette page en ajoutant les classes `FonctionnaliteAlliance` et les méthodes à la liste statique `Page.FONCTIONNALITES`.
 - Implémentez les fonctionnalités locales dans la classe.
-- Définissez les fonctionnalités locales spécifiques à cette page en ajoutant les méthodes à la liste statique `Page.FONCTIONNALITES_LOCALES`.
+- Définissez l'adresse de la page via `Page.URIs`.
 - Enregistrez la nouvelle classe de page dans l'objet `window` avec `Utils.register()`.
 
 ---
@@ -184,39 +190,43 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
     *   **Objectif :** Ajouter une logique spécifique à la fin du processus de rafraîchissement d'un objet.
     *   **Utilisation :** Cette méthode est appelée par `ObjetForum.rafraichir()` après que le titre du sujet et les objets contenus aient été chargés. Elle est utile pour charger des attributs supplémentaires de la classe fille qui ne sont pas des `ParametreObjetForum` ou des `ObjetForum` contenus.
 
-*   **`completerAffichage(donnees)`**
-    *   **Objectif :** Modifier ou ajouter des données avant l'affichage HTML.
-    *   **Utilisation :** Cette méthode est appelée par `ObjetForum.afficher()` juste avant la génération du HTML. Elle reçoit un dictionnaire des données des `ParametreObjetForum` et permet d'ajouter des attributs calculés ou de modifier les valeurs existantes avant qu'elles ne soient rendues.
+### 5.5 Définition d'un `AttributObjet`
 
-### 5.5 Définition d'Attributs Calculés
+Les attributs permettent d'ajouter des données à un `ObjetForum` qui ne sont pas persistées directement comme paramètres sur le forum. Ils peuvent être statiques (pour stocker une information temporaire) ou calculés (dérivés d'autres paramètres).
 
-Pour définir des attributs dont la valeur est dérivée d'autres paramètres et qui doivent respecter les restrictions de droits, utilisez la méthode protégée `_invoquerCalculSecurise()`.
+*   **Création :** Créez une classe héritant de `AttributObjet` dans le dossier `js/class/attribut/`.
+*   **`NOM_AFFICHAGE` :** Liste (tableau) des noms utilisés pour l'en-tête des tableaux. Le dernier élément est le nom actuel.
+*   **`NOM_APPEL` :** (Optionnel) Liste des noms permettant d'appeler l'attribut via `objet.lire('Nom')`.
+*   **`calculerValeur(peutVoirDonneesRestreintes)` :**
+    *   **Objectif :** Définir la logique de calcul pour un attribut dérivé.
+    *   **Fonctionnement :** Cette méthode est appelée automatiquement par `lire()`. Elle reçoit `peutVoirDonneesRestreintes` pour gérer la sécurité.
+    *   **Bonne Pratique :** Utilisez `this.objetParent.lire()` pour accéder aux dépendances. Le framework gère automatiquement les `ErreurRestriction` levées par les dépendances restreintes si l'utilisateur n'a pas les droits.
 
-*   **`_invoquerCalculSecurise(methodeCalcul)`**
-    *   **Objectif :** Invoquer de manière sécurisée une méthode de calcul d'un attribut dérivé. Gère automatiquement les droits d'accès et les erreurs de calcul (notamment dues à des données restreintes).
-    *   **Utilisation :**
-        1.  Définissez une méthode privée dans votre classe fille qui contient la logique de calcul de l'attribut. Cette méthode doit prendre un argument `peutVoirDonneesRestreintes` (un booléen) qui indique si l'utilisateur a les droits suffisants pour voir les données normales.
-        2.  Dans cette méthode de calcul, utilisez `this.lire()` pour accéder aux valeurs des paramètres nécessaires au calcul. Si `peutVoirDonneesRestreintes` est `false`, `this.lire()` lèvera une `ErreurRestriction` si le paramètre est restreint.
-        3.  Appelez `_invoquerCalculSecurise()` en lui passant votre méthode de calcul liée à l'instance de l'objet (`votreMethodeDeCalcul.bind(this)`).
-    *   **Exemple :**
-        ```javascript
-        class MonObjetForum extends ObjetForum {
-            // ... autres attributs et méthodes ...
+*   **Exemple d'Attribut Calculé :**
+    ```javascript
+    class AttributJoueurCoordonnees extends AttributObjet {
+        static NOM_AFFICHAGE = ['Coordonnées'];
 
-            async completerAffichage(donnees) {
-                donnees['new'] = await this._invoquerCalculSecurise(this._calculerMonAttribut.bind(this));
-                return donnees
-            }
-
-            async _calculerMonAttribut(peutVoirDonneesRestreintes) {
-                return await this.lire('Quantité', peutVoirDonneesRestreintes) * await this.lire('PrixUnitaire', peutVoirDonneesRestreintes);
-            }
+        async calculerValeur(peutVoirDonneesRestreintes) {
+            // Accès sécurisé aux paramètres de l'objet parent
+            const { x, y } = await this.objetParent.lire(['x', 'y'], peutVoirDonneesRestreintes);
+            return `(${x}, ${y})`;
         }
-        ```
-    *   **Gestion des retours :** `_invoquerCalculSecurise()` retournera :
-        *   La valeur calculée si tout est en ordre.
-        *   La chaîne `'<i>Restreint</i>'` si une `ErreurRestriction` est levée (indiquant que des données sous-jacentes sont restreintes).
-        *   La chaîne `'<i>Incalculable</i>'` si le calcul aboutit à `NaN`, `null` ou `undefined` sans lever d'erreur.
+    }
+    ```
+
+*   **Enregistrement dans l'Objet :**
+    ```javascript
+    class MonObjet extends ObjetForum {
+        static ATTRIBUTS_OBJET = [AttributJoueurCoordonnees];
+        // ...
+    }
+    ```
+
+*   **Gestion des Retours :** Le framework (via `_invoquerCalculSecurise` interne à `AttributObjet`) retourne :
+    *   La valeur calculée si tout est en ordre.
+    *   La chaîne `'Restreint'` (ou la valeur de `STRING_RESTRICTION`) si une donnée dépendante est restreinte.
+    *   La chaîne `'<i>Incalculable</i>'` si le calcul produit `NaN`, `null` ou `undefined` sans lever d'erreur.
 
 ### 5.6 Affichage de Données en Colonnes Multiples
 
