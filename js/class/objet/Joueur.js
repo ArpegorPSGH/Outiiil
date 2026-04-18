@@ -14,7 +14,7 @@
 Utils.register(class Joueur extends ObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre' }];
-    static CLASSES_PARAMETRES = [
+    static PARAMETRES_OBJET = [
         [
             ParametreJoueurPseudo,
             ParametreJoueurGrade,
@@ -46,167 +46,167 @@ Utils.register(class Joueur extends ObjetForum {
     ];
 
 
-    constructor(param1, options = {}) {
-        // Gestion de la compatibilité ascendante du constructeur
-        if (param1 && param1.constructor && (typeof param1.constructor.ABREVIATIONS_HISTORY !== 'undefined' || typeof param1.constructor.FONCTIONNALITES !== 'undefined')) {
-            // Nouveau constructeur du framework
-            super(param1, options);
-        } else {
-            // Ancien constructeur
-            super(null, {});
-            this._constructeurLegacy(param1 || {});
-        }
-    }
+    // constructor(param1, options = {}) {
+    //     // Gestion de la compatibilité ascendante du constructeur
+    //     if (param1 && param1.constructor && (typeof param1.constructor.ABREVIATIONS_HISTORY !== 'undefined' || typeof param1.constructor.FONCTIONNALITES !== 'undefined')) {
+    //         // Nouveau constructeur du framework
+    //         super(param1, options);
+    //     } else {
+    //         // Ancien constructeur
+    //         super(null, {});
+    //         this._constructeurLegacy(param1 || {});
+    //     }
+    // }
 
-    /**
-     * Logique de l'ancien constructeur pour la compatibilité.
-     * @param {object} parametres - L'ancien objet de paramètres.
-     * @private
-     */
-    _constructeurLegacy(parametres) {
-        console.log("[Joueur] Appel du constructeur legacy.");
-        /**
-        * id du joueur
-        */
-        this.ecrire('Id', parametres["id"] || -1);
-        /**
-        * pseudo du joueur
-        */
-        this.ecrire('Pseudo', parametres["pseudo"]);
-        /**
-        * rang du joueur
-        */
-        this.ecrire('Rang', parametres["rang"] || "");
-        /**
-        * abscisse du joueur
-        */
-        this.ecrire('X', parametres["x"] || -1);
-        /**
-        * ordonnée du joueur
-        */
-        this.ecrire('Y', parametres["y"] || -1);
-        /**
-        *
-        */
-        this.ecrire('Terrain de Chasse', parametres["terrain"] || -1);
-        /**
-        *
-        */
-        this.ecrire('Niveau Recherche', parametres["niveauRecherche"] || new Array(10).fill(-1));
-        /**
-        *
-        */
-        this.ecrire('Technologie', parametres["technologie"] || -1);
-        /**
-        *
-        */
-        this.ecrire('Niveau Construction', parametres["niveauConstruction"] || new Array(13).fill(-1));
-        /**
-        *
-        */
-        this.ecrire('Fourmilière', parametres["fourmiliere"] || -1);
-        /**
-        *
-        */
-        this.ecrire('Activité', (parametres["mv"] || false) ? 'vacances' : 'actif');
-        /**
-        *
-        */
-        this.ecrire('Ordre Radar', parametres["ordreRadar"] || -1);
-        /**
-        *
-        */
-        this.idSujet = parametres["sujetForum"] || 0;
-        /**
-        *
-        */
-        this.ecrire('Grade', parametres["grade"] || "");
-        /**
-        *
-        */
-        this.ecrire('Ordre Grade', parametres["ordreGrade"] || 0);
-        /**
-        * Tag de l'alliance du joueur (utile pour les joueurs extérieurs).
-        */
-        this.ecrire('Tag Alliance', parametres["allianceTag"] || "");
-        const estExterieur = parametres["estExterieur"] || false;
-        this.ecrire('Alliance Rattachement', estExterieur ? '' : parametres["allianceTag"] || "");
-        /**
-        * Indique si le joueur est colonisé.
-        */
-        this.ecrire('Colonisé', parametres["colonise"] || false);
-    }
+    // /**
+    //  * Logique de l'ancien constructeur pour la compatibilité.
+    //  * @param {object} parametres - L'ancien objet de paramètres.
+    //  * @private
+    //  */
+    // _constructeurLegacy(parametres) {
+    //     console.log("[Joueur] Appel du constructeur legacy.");
+    //     /**
+    //     * id du joueur
+    //     */
+    //     this.ecrire('Id', parametres['Id'] || -1);
+    //     /**
+    //     * pseudo du joueur
+    //     */
+    //     this.ecrire('Pseudo', parametres["Pseudo"]);
+    //     /**
+    //     * rang du joueur
+    //     */
+    //     this.ecrire('Rang', parametres["Rang"] || "");
+    //     /**
+    //     * abscisse du joueur
+    //     */
+    //     this.ecrire('X', parametres["X"] || -1);
+    //     /**
+    //     * ordonnée du joueur
+    //     */
+    //     this.ecrire('Y', parametres["Y"] || -1);
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Terrain de Chasse', parametres["Terrain de Chasse"] || -1);
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Niveau Recherche', parametres["Niveau Recherche"] || new Array(10).fill(-1));
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Technologie', parametres["Technologie"] || -1);
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Niveau Construction', parametres["Niveau Construction"] || new Array(13).fill(-1));
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Fourmilière', parametres["Fourmiliere"] || -1);
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Activité', (parametres["mv"] || false) ? 'vacances' : 'actif');
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Ordre Radar', parametres["Ordre Radar"] || -1);
+    //     /**
+    //     *
+    //     */
+    //     this.idSujet = parametres["sujetForum"] || 0;
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Grade', parametres["Grade"] || "");
+    //     /**
+    //     *
+    //     */
+    //     this.ecrire('Ordre Grade', parametres["Ordre Grade"] || 0);
+    //     /**
+    //     * Tag de l'alliance du joueur (utile pour les joueurs extérieurs).
+    //     */
+    //     this.ecrire('Tag Alliance', parametres["Tag Alliance"] || "");
+    //     const estExterieur = parametres["estExterieur"] || false;
+    //     this.ecrire('Alliance Rattachement', estExterieur ? '' : parametres["Tag Alliance"] || "");
+    //     /**
+    //     * Indique si le joueur est colonisé.
+    //     */
+    //     this.ecrire('Colonisé', parametres["Colonisé"] || false);
+    // }
 
 
     // =============================================================================================
     // SECTION: NOUVEAUX GETTERS & SETTERS (FRAMEWORK)
     // =============================================================================================
 
-    get id() { return this.lire('Id'); }
-    set id(newId) { this.ecrire('Id', newId); }
+    // get id() { return this.lire('Id'); }
+    // set id(newId) { this.ecrire('Id', newId); }
 
-    get pseudo() { return this.lire('Pseudo'); }
-    set pseudo(newPseudo) { this.ecrire('Pseudo', newPseudo); }
+    // get pseudo() { return this.lire('Pseudo'); }
+    // set pseudo(newPseudo) { this.ecrire('Pseudo', newPseudo); }
 
-    get rang() { return this.lire('Rang'); }
-    set rang(newRang) { this.ecrire('Rang', newRang); }
+    // get rang() { return this.lire('Rang'); }
+    // set rang(newRang) { this.ecrire('Rang', newRang); }
 
-    get ordreRadar() { return this.lire('Ordre Radar'); }
-    set ordreRadar(newOrdre) { this.ecrire('Ordre Radar', newOrdre); }
+    // get ordreRadar() { return this.lire('Ordre Radar'); }
+    // set ordreRadar(newOrdre) { this.ecrire('Ordre Radar', newOrdre); }
 
-    get grade() { return this.lire('Grade'); }
-    set grade(newGrade) { this.ecrire('Grade', newGrade); }
+    // get grade() { return this.lire('Grade'); }
+    // set grade(newGrade) { this.ecrire('Grade', newGrade); }
 
-    get ordreGrade() { return this.lire('Ordre Grade'); }
-    set ordreGrade(newOrdre) { this.ecrire('Ordre Grade', newOrdre); }
+    // get ordreGrade() { return this.lire('Ordre Grade'); }
+    // set ordreGrade(newOrdre) { this.ecrire('Ordre Grade', newOrdre); }
 
-    get allianceRattachement() { return this.lire('Alliance Rattachement'); }
-    set allianceRattachement(newAlliance) { this.ecrire('Alliance Rattachement', newAlliance); }
+    // get allianceRattachement() { return this.lire('Alliance Rattachement'); }
+    // set allianceRattachement(newAlliance) { this.ecrire('Alliance Rattachement', newAlliance); }
 
-    get colonise() { return this.lire('Colonisé'); }
-    set colonise(newColonise) { this.ecrire('Colonisé', newColonise); }
+    // get colonise() { return this.lire('Colonisé'); }
+    // set colonise(newColonise) { this.ecrire('Colonisé', newColonise); }
 
-    get allianceTag() { return this.lire('Tag Alliance'); }
-    set allianceTag(newTag) { this.ecrire('Tag Alliance', newTag); }
+    // get allianceTag() { return this.lire('Tag Alliance'); }
+    // set allianceTag(newTag) { this.ecrire('Tag Alliance', newTag); }
 
-    get x() { return this.lire('X'); }
-    set x(newX) { this.ecrire('X', newX); }
+    // get x() { return this.lire('X'); }
+    // set x(newX) { this.ecrire('X', newX); }
 
-    get y() { return this.lire('Y'); }
-    set y(newY) { this.ecrire('Y', newY); }
+    // get y() { return this.lire('Y'); }
+    // set y(newY) { this.ecrire('Y', newY); }
 
-    get terrain() { return this.lire('Terrain de Chasse'); }
-    set terrain(newTerrain) { this.ecrire('Terrain de Chasse', newTerrain); }
+    // get terrain() { return this.lire('Terrain de Chasse'); }
+    // set terrain(newTerrain) { this.ecrire('Terrain de Chasse', newTerrain); }
 
-    get niveauRecherche() { return this.lire('Niveau Recherche'); }
-    set niveauRecherche(newNiveau) { this.ecrire('Niveau Recherche', newNiveau); }
+    // get niveauRecherche() { return this.lire('Niveau Recherche'); }
+    // set niveauRecherche(newNiveau) { this.ecrire('Niveau Recherche', newNiveau); }
 
-    get technologie() { return this.lire('Technologie'); }
-    set technologie(newTechnologie) { this.ecrire('Technologie', newTechnologie); }
+    // get technologie() { return this.lire('Technologie'); }
+    // set technologie(newTechnologie) { this.ecrire('Technologie', newTechnologie); }
 
-    get niveauConstruction() { return this.lire('Niveau Construction'); }
-    set niveauConstruction(newNiveau) { this.ecrire('Niveau Construction', newNiveau); }
+    // get niveauConstruction() { return this.lire('Niveau Construction'); }
+    // set niveauConstruction(newNiveau) { this.ecrire('Niveau Construction', newNiveau); }
 
-    get fourmiliere() { return this.lire('Fourmilière'); }
-    set fourmiliere(newFourmiliere) { this.ecrire('Fourmilière', newFourmiliere); }
+    // get fourmiliere() { return this.lire('Fourmilière'); }
+    // set fourmiliere(newFourmiliere) { this.ecrire('Fourmilière', newFourmiliere); }
 
-    /** Activité : délègue à AttributJoueurActivite qui gère la conversion image→string. */
-    get activite() { return this.lire('Activité'); }
-    set activite(newActivite) { this.ecrire('Activité', newActivite); }
+    // /** Activité : délègue à AttributJoueurActivite qui gère la conversion image→string. */
+    // get activite() { return this.lire('Activité'); }
+    // set activite(newActivite) { this.ecrire('Activité', newActivite); }
 
-    get nourriture() { return this.lire('Nourriture'); }
-    set nourriture(newVal) { this.ecrire('Nourriture', newVal); }
+    // get nourriture() { return this.lire('Nourriture'); }
+    // set nourriture(newVal) { this.ecrire('Nourriture', newVal); }
 
-    get materiaux() { return this.lire('Matériaux'); }
-    set materiaux(newVal) { this.ecrire('Matériaux', newVal); }
+    // get materiaux() { return this.lire('Matériaux'); }
+    // set materiaux(newVal) { this.ecrire('Matériaux', newVal); }
 
-    get armee() { return this.lire('Armée'); }
-    set armee(newVal) { this.ecrire('Armée', newVal); }
+    // get armee() { return this.lire('Armée'); }
+    // set armee(newVal) { this.ecrire('Armée', newVal); }
 
-    get coordonnees() { return this.lire('Coordonnées'); }
+    // get coordonnees() { return this.lire('Coordonnées'); }
 
-    get sujetForum() { return this.idSujet; }
-    set sujetForum(newSujet) { this.idSujet = newSujet; }
+    // get sujetForum() { return this.idSujet; }
+    // set sujetForum(newSujet) { this.idSujet = newSujet; }
 
     // =============================================================================================
     // SECTION: NOUVELLE LOGIQUE DE CHARGEMENT (FRAMEWORK)
@@ -250,8 +250,8 @@ Utils.register(class Joueur extends ObjetForum {
         await this.ecrire('Id', parseInt($(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10));
         await this.ecrire('X', ~~(ligne.replace(regexp, "$1")));
         await this.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
-        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.activite);
-        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.activite);
+        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.lire('Activité'));
+        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.lire('Activité'));
         await this.ecrire('Terrain de Chasse', numeral($(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value());
         await this.ecrire('Fourmilière', numeral($(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value());
         await this.ecrire('Technologie', numeral($(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value());
@@ -488,9 +488,9 @@ Utils.register(class Joueur extends ObjetForum {
     // SECTION: MÉTHODES CONSERVÉES POUR COMPATIBILITÉ
     // =============================================================================================
 
-    async toUtilitaire() {
-        return `${await this.lire('Pseudo')} / ${await this.lire('id')} / ${await this.lire('x')} / ${await this.lire('y')}` + (await this.lire('Grade') ? ` / ${await this.lire('Grade')} / ${await this.lire('Ordre Grade')}` : "");
-    }
+    // async toUtilitaire() {
+    //     return `${await this.lire('Pseudo')} / ${await this.lire('Id')} / ${await this.lire('X')} / ${await this.lire('Y')}` + (await this.lire('Grade') ? ` / ${await this.lire('Grade')} / ${await this.lire('Ordre Grade')}` : "");
+    // }
 
     async estJoueurCourant() {
         const estCourant = await this.lire('Pseudo') == await monProfilJoueur.lire('Pseudo');
@@ -557,11 +557,11 @@ Utils.register(class Joueur extends ObjetForum {
         return 60 - (moment().add(time, 's').seconds() % 60);
     }
 
-    async getProfil() {
-        const p = await this.lire('Pseudo');
-        console.log(`[Joueur] (Legacy) Récupération du profil pour: ${p}`);
-        return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + p });
-    }
+    // async getProfil() {
+    //     const p = await this.lire('Pseudo');
+    //     console.log(`[Joueur] (Legacy) Récupération du profil pour: ${p}`);
+    //     return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + p });
+    // }
 
     // async getProfilCourant() {
     //     // si on est le joueur courant on a peut etre les infos dans le storage
@@ -569,7 +569,7 @@ Utils.register(class Joueur extends ObjetForum {
     //         // si on est le joueur courant on regarde dans le localstorage
     //         let data = JSON.parse(localStorage.getItem("outiiil_joueur")) || {};
     //         // Si des données sont deja presente et à jour on les charges
-    //         if (data.hasOwnProperty("id") && data.hasOwnProperty("x") && data.hasOwnProperty("y")) {
+    //         if (data.hasOwnProperty('Id') && data.hasOwnProperty("X") && data.hasOwnProperty("Y")) {
     //             this.ecrire('Id', data.id);
     //             this.ecrire('X', data.x);
     //             this.ecrire('Y', data.y);
@@ -581,18 +581,18 @@ Utils.register(class Joueur extends ObjetForum {
     //     return null;
     // }
 
-    async chargerProfil(html) {
-        const success = await this._chargerDonneesMembreDepuisPage(html);
-        if (success) {
-            console.log(`[Joueur.chargerProfil] Profil chargé avec succès pour ${await this.lire('Pseudo')}. Coordonnées: (${this._x}, ${this._y}), ID: ${this._id}`);
-            if (await monProfilJoueur.lire('Pseudo') == await this.lire('Pseudo')) {
-                await this.enregistrerLocalStorage();
-            }
-        } else {
-            console.warn(`[Joueur.chargerProfil] Échec du chargement du profil pour ${await this.lire('Pseudo')}.`);
-        }
-        return success;
-    }
+    // async chargerProfil(html) {
+    //     const success = await this._chargerDonneesMembreDepuisPage(html);
+    //     if (success) {
+    //         console.log(`[Joueur.chargerProfil] Profil chargé avec succès pour ${await this.lire('Pseudo')}. Coordonnées: (${this._x}, ${this._y}), ID: ${this._id}`);
+    //         if (await monProfilJoueur.lire('Pseudo') == await this.lire('Pseudo')) {
+    //             await this.enregistrerLocalStorage();
+    //         }
+    //     } else {
+    //         console.warn(`[Joueur.chargerProfil] Échec du chargement du profil pour ${await this.lire('Pseudo')}.`);
+    //     }
+    //     return success;
+    // }
 
     /**
      * Tente de récupérer les niveaux de construction depuis le cache localStorage.
@@ -785,14 +785,13 @@ Utils.register(class Joueur extends ObjetForum {
             console.log(`[Joueur.getLigneRadar] Clic sur le bouton de rafraîchissement pour joueur: ${pseudo}, ID: ${await this.lire('Id')}`);
             e.preventDefault(); // Empêche le rechargement de la page
             console.log(`[Joueur.getLigneRadar] e.preventDefault() appelé pour joueur: ${pseudo}, ID: ${await this.lire('Id')}`);
-            let oldTerrain = numeral($("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
-            $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
+            try {
+                let oldTerrain = numeral($("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
+                $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
 
-            console.log(`[Joueur.getLigneRadar] Avant getProfil pour ${pseudo}. Pseudo actuel: ${pseudo}`);
-            await this.getProfil().then(async (data) => {
-                console.log(`[Joueur.getLigneRadar] getProfil terminé pour ${pseudo}. Données reçues:`, data);
-                if (await this.chargerProfil(data)) {
-                    console.log(`[Joueur.getLigneRadar] chargerProfil réussi pour ${pseudo}. Nouveau terrain: ${await this.lire('Terrain de Chasse')}, Nouvel état: ${await this.lire('Activité')}`);
+                console.log(`[Joueur.getLigneRadar] Avant chargerDonneesMembre pour ${pseudo}. Pseudo actuel: ${pseudo}`);
+                if (await this.chargerDonneesMembre()) {
+                    console.log(`[Joueur.getLigneRadar] chargerDonneesMembre réussi pour ${pseudo}. Nouveau terrain: ${await this.lire('Terrain de Chasse')}, Nouvel état: ${await this.lire('Activité')}`);
                     // si il y une différence de terrain
                     let diff = await this.lire('Terrain de Chasse') - oldTerrain;
                     let enVacances = await this.lire('Activité') === 'vacances';
@@ -828,10 +827,10 @@ Utils.register(class Joueur extends ObjetForum {
                     $.toast({ ...TOAST_WARNING, text: `Le joueur ${pseudo} n'existe plus.` });
                     await radar.supprimeJoueur(this).sauvegarder().actualiser();
                 }
-            }).catch(error => {
+            } catch (error) {
                 console.error(`[Joueur.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${pseudo}:`, error);
                 $.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement du joueur ${pseudo}.` });
-            });
+            }
             console.log(`[Joueur.getLigneRadar] Fin du clic sur le bouton de rafraîchissement pour joueur: ${pseudo}.`);
             return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
         });

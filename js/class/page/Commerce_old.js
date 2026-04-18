@@ -25,7 +25,7 @@ class PageCommerce {
     */
     async executer() {
         // ajout d'information
-        $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${monProfilJoueur.niveauConstruction[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (monProfilJoueur.niveauConstruction[11] / 2))}</strong> ressources.</td></tr>`);
+        $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${monProfilJoueur.lire('Niveau Construction')[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2))}</strong> ressources.</td></tr>`);
         // ajout des boutons pour arrondir les quantités
         $("#bouton_nourriture_max").html(`Nourriture donnée <span id="o_arrondirNou" class="gras small">arrondir...</span>`);
         $("#o_arrondirNou").click((e) => {
@@ -34,8 +34,8 @@ class PageCommerce {
             $("#input_nbNourriture").val(numeral(newValue).format());
             $("#nbNourriture").val(newValue);
             // mise à jour des ouvrieres
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / (10 + (monProfilJoueur.niveauConstruction[11] / 2)))).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbMat) / (10 + (monProfilJoueur.niveauConstruction[11] / 2))));
+            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / (10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2)))).format());
+            $("#nbOuvriere").val(Math.floor((newValue + nbMat) / (10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2))));
             return false;
         });
         // materiaux
@@ -46,8 +46,8 @@ class PageCommerce {
             $("#input_nbMateriaux").val(numeral(newValue).format());
             $("#nbMateriaux").val(newValue);
             // mise à jour des ouvrieres
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / (10 + (monProfilJoueur.niveauConstruction[11] / 2)))).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbNou) / (10 + (monProfilJoueur.niveauConstruction[11] / 2))));
+            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / (10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2)))).format());
+            $("#nbOuvriere").val(Math.floor((newValue + nbNou) / (10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2))));
             return false;
         });
         // option c+
@@ -439,7 +439,7 @@ class PageCommerce {
                 const commandeId = $(e.currentTarget).attr('id').replace('o_commande', '');
                 const commande = this._utilitaire.commande[commandeId];
 
-                let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.niveauConstruction[11] / 2)));
+                let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2)));
                 let materialsToPrefill = Math.min(commande.materiaux, transportCapacity);
                 let nourishmentToPrefill = Math.min(commande.nourriture, transportCapacity - materialsToPrefill);
 

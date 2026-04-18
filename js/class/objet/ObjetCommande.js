@@ -3,7 +3,7 @@ Utils.register(class Commande extends ObjetForum {
 
     static COLONNES_DEFAUT = ['Demandeur', 'Date Commande', 'Évolution', 'Nourriture Demandée', 'Matériaux Demandés', 'Nourriture Restante', 'Matériaux Restants', 'Date Souhaitée', 'Statut', 'État', 'Temps de trajet', 'Livrer', 'Options'];
 
-    static CLASSES_PARAMETRES = [[
+    static PARAMETRES_OBJET = [[
         ParametreCommandeEtat,
         ParametreCommandeDemandeur,
         ParametreCommandeEvolution,
@@ -28,168 +28,168 @@ Utils.register(class Commande extends ObjetForum {
         AttributCommandeBoutonLivrer,
         AttributCommandeOptions
     ];
-    /**
-   *
-   */
-    get id() {
-        return this.idSujet;
-    }
-    /**
-    *
-    */
-    get dateCommande() {
-        return this.lire('Date Commande');
-    }
-    /**
-    *
-    */
-    set dateCommande(newDate) {
-        this.ecrire('Date Commande', newDate);
-    }
-    /**
-    *
-    */
-    get dateSouhaite() {
-        return this.lire('Date Souhaitée');
-    }
-    /**
-    *
-    */
-    set dateSouhaite(newDate) {
-        this.ecrire('Date Souhaitée', newDate);
-    }
-    /**
-    *
-    */
-    get dateApres() {
-        return this.lire('Date Après');
-    }
-    /**
-    *
-    */
-    set dateApres(newDate) {
-        this.ecrire('Date Après', newDate);
-    }
-    /**
-    *
-    */
-    get demandeur() {
-        return this.lire('Demandeur');
-    }
-    /**
-    *
-    */
-    set demandeur(newJoueur) {
-        this.ecrire('Demandeur', newJoueur);
-    }
-    /**
-    *
-    */
-    get evolution() {
-        return this.lire('Évolution');
-    }
-    /**
-    *
-    */
-    set evolution(newEvo) {
-        this.ecrire('Évolution', newEvo);
-    }
-    /**
-     * Quantité totale de nourriture demandée
-     */
-    get nourritureDemandee() {
-        return this.lire('Nourriture Demandée');
-    }
-    /**
-     *
-     */
-    set nourritureDemandee(newTotal) {
-        this.ecrire('Nourriture Demandée', newTotal);
-    }
-    /**
-     * Quantité totale de materiaux demandés
-     */
-    get materiauxDemandes() {
-        return this.lire('Matériaux Demandés');
-    }
-    /**
-     *
-     */
-    set materiauxDemandes(newTotal) {
-        this.ecrire('Matériaux Demandés', newTotal);
-    }
-    /**
-     * Quantité de nourriture déjà livrée
-     */
-    get nourritureLivree() {
-        return this.lire('Nourriture Livrée');
-    }
-    /**
-     *
-     */
-    set nourritureLivree(newLivree) {
-        this.ecrire('Nourriture Livrée', newLivree);
-    }
-    /**
-     * Quantité de materiaux déjà livrée
-     */
-    get materiauxLivres() {
-        return this.lire('Matériaux Livrés');
-    }
-    /**
-     *
-     */
-    set materiauxLivres(newLivres) {
-        this.ecrire('Matériaux Livrés', newLivres);
-    }
-    /**
-     *
-     */
-    get nourritureRestante() {
-        return this.lire('Nourriture Restante');
-    }
-    /**
-     *
-     */
-    set nourritureRestante(newRestante) {
-        this.ecrire('Nourriture Restante', newRestante);
-    }
-    /**
-     *
-     */
-    get materiauxRestants() {
-        return this.lire('Matériaux Restants');
-    }
-    /**
-     *
-     */
-    set materiauxRestants(newRestants) {
-        this.ecrire('Matériaux Restants', newRestants);
-    }
-    /**
-     *
-     */
-    get etat() {
-        return this.lire('État');
-    }
-    /**
-    *
-    */
-    set etat(newEtat) {
-        this.ecrire('État', newEtat);
-    }
-    /**
-    *
-    */
-    get dernierMiseAJour() {
-        return this._dernierMiseAJour;
-    }
-    /**
-    *
-    */
-    set dernierMiseAJour(newDernier) {
-        this._dernierMiseAJour = newDernier;
-    }
+    //     /**
+    //    *
+    //    */
+    //     get id() {
+    //         return this.idSujet;
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     get dateCommande() {
+    //         return this.lire('Date Commande');
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set dateCommande(newDate) {
+    //         this.ecrire('Date Commande', newDate);
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     get dateSouhaite() {
+    //         return this.lire('Date Souhaitée');
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set dateSouhaite(newDate) {
+    //         this.ecrire('Date Souhaitée', newDate);
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     get dateApres() {
+    //         return this.lire('Date Après');
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set dateApres(newDate) {
+    //         this.ecrire('Date Après', newDate);
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     get demandeur() {
+    //         return this.lire('Demandeur');
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set demandeur(newJoueur) {
+    //         this.ecrire('Demandeur', newJoueur);
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     get evolution() {
+    //         return this.lire('Évolution');
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set evolution(newEvo) {
+    //         this.ecrire('Évolution', newEvo);
+    //     }
+    //     /**
+    //      * Quantité totale de nourriture demandée
+    //      */
+    //     get nourritureDemandee() {
+    //         return this.lire('Nourriture Demandée');
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     set nourritureDemandee(newTotal) {
+    //         this.ecrire('Nourriture Demandée', newTotal);
+    //     }
+    //     /**
+    //      * Quantité totale de materiaux demandés
+    //      */
+    //     get materiauxDemandes() {
+    //         return this.lire('Matériaux Demandés');
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     set materiauxDemandes(newTotal) {
+    //         this.ecrire('Matériaux Demandés', newTotal);
+    //     }
+    //     /**
+    //      * Quantité de nourriture déjà livrée
+    //      */
+    //     get nourritureLivree() {
+    //         return this.lire('Nourriture Livrée');
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     set nourritureLivree(newLivree) {
+    //         this.ecrire('Nourriture Livrée', newLivree);
+    //     }
+    //     /**
+    //      * Quantité de materiaux déjà livrée
+    //      */
+    //     get materiauxLivres() {
+    //         return this.lire('Matériaux Livrés');
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     set materiauxLivres(newLivres) {
+    //         this.ecrire('Matériaux Livrés', newLivres);
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     get nourritureRestante() {
+    //         return this.lire('Nourriture Restante');
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     set nourritureRestante(newRestante) {
+    //         this.ecrire('Nourriture Restante', newRestante);
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     get materiauxRestants() {
+    //         return this.lire('Matériaux Restants');
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     set materiauxRestants(newRestants) {
+    //         this.ecrire('Matériaux Restants', newRestants);
+    //     }
+    //     /**
+    //      *
+    //      */
+    //     get etat() {
+    //         return this.lire('État');
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set etat(newEtat) {
+    //         this.ecrire('État', newEtat);
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     get dernierMiseAJour() {
+    //         return this._dernierMiseAJour;
+    //     }
+    //     /**
+    //     *
+    //     */
+    //     set dernierMiseAJour(newDernier) {
+    //         this._dernierMiseAJour = newDernier;
+    //     }
 
     /**
      *
@@ -248,7 +248,7 @@ Utils.register(class Commande extends ObjetForum {
     /**
     *
     */
-    async ajouteConvoi(convoi) {
+    async ajouterConvoi(convoi) {
         const params = await this.lire(['Nourriture Livrée', 'Nourriture Demandée', 'Matériaux Livrés', 'Matériaux Demandés', 'État']);
         const convoiParams = await convoi.lire(['Nourriture', 'Matériaux']);
         console.log(`[Commande][ajouteConvoi] Début de l'ajout du convoi à la commande ${this.idSujet}.`);
@@ -354,7 +354,7 @@ Utils.register(class Commande extends ObjetForum {
         });
 
         // Ajouter le convoi négatif à la commande
-        await this.ajouteConvoi(convoiNegatif);
+        await this.ajouterConvoi(convoiNegatif);
 
         // Vérifier si l'état doit être modifié
         const params = await this.lire(['État', 'Nourriture Livrée', 'Matériaux Livrés', 'Nourriture Demandée', 'Matériaux Demandés']);

@@ -10,7 +10,7 @@
  * @extends {Page}
  */
 Utils.register(class PageForum extends Page {
-    static URIs = "/alliance.php?forum_menu";
+    static URIs = { href: "/alliance.php?forum_menu" };
 
     /**
      * Liste unifiée des fonctionnalités à exécuter sur la page Forum.
@@ -38,13 +38,13 @@ Utils.register(class PageForum extends Page {
         this._monAlliance = newAlliance;
     }
 
-    // /**
-    //  * Surcharge la méthode pour détecter les droits d'admin sur la base de l'outil de fourmizzz
-    //  * @returns {boolean}
-    //  */
-    // estAdminFourmizzz() {
-    //     return $("img[src='images/icone/outil.gif']").length > 0;
-    // }
+    /**
+     * Surcharge la méthode pour détecter les droits d'admin sur la base de l'outil de fourmizzz
+     * @returns {boolean}
+     */
+    estAdminFourmizzz() {
+        return $("img[src='images/icone/outil.gif']").length > 0;
+    }
 
     /**
      * Initialisation spécifique au forum :
@@ -75,6 +75,7 @@ Utils.register(class PageForum extends Page {
      * Fonction locale pour vérifier et mettre à jour les IDs des sections requises en local
      */
     async majIdsSections() {
+        console.log("[PageForum] majIdsSections()");
         // Vérification et mise à jour des IDs des sections Outiiil
         let idsUpdated = false;
         let element = window.document.getElementById('alliance'); // Fallback
@@ -100,45 +101,6 @@ Utils.register(class PageForum extends Page {
         // Afficher une notification si des IDs ont été mis à jour
         if (idsUpdated) {
             $.toast({ ...TOAST_SUCCESS, text: "IDs des sections forum Outiiil mis à jour." });
-        }
-    }
-
-    /**
-    *
-    */
-    chargerJoueur(data) {
-        let response = $(data).find("cmd:eq(1)").text();
-        if (response.includes("Vous n'avez pas accès à ce forum.")) {
-            $.toast({ ...TOAST_ERROR, text: "L'identifiant du sujet pour les membres est érroné." });
-            return false;
-        } else {
-            let joueurs = {};
-            $("<div/>").append(response).find("#form_cat tr:gt(0)").each((i, elt) => {
-                let titreSujet = $(elt).find("td:eq(1)").text().trim(), id = $(elt).find("input[name='topic[]']").val();
-                // les lignes des commandes ont 3 td et du contenu
-                if (titreSujet) {
-                    // Regex pour extraire pseudo, id, x, y, et optionnellement grade, ordreGrade
-                    const match = titreSujet.match(/^(.+?)\s*\/\s*(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)(?:\s*\/\s*(.+?)\s*\/\s*(\d+))?$/);
-                    if (match) {
-                        const pseudo = match[1];
-                        const joueurId = match[2];
-                        const x = match[3];
-                        const y = match[4];
-                        const grade = match[5] || null;
-                        const ordreGrade = match[6] || null;
-
-                        joueurs[pseudo] = { id: joueurId, pseudo: pseudo, x: x, y: y, sujetForum: id };
-                        if (grade !== null) {
-                            joueurs[pseudo].ecrire('Grade', grade);
-                            joueurs[pseudo].ecrire('Ordre Grade', ordreGrade);
-                        }
-                    } else {
-                        console.warn(`[PageForum] chargerJoueur() - Format de titre de sujet inattendu pour le joueur: ${titreSujet}`);
-                    }
-                }
-            });
-            this._monAlliance = new Alliance({ tag: Utils.alliance, joueurs: joueurs });
-            return true;
         }
     }
 });

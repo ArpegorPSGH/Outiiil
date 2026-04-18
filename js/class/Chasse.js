@@ -154,7 +154,7 @@ class Chasse {
 	*
 	*/
 	async toHTMLMessagerie() {
-		let recherches = await monProfilJoueur.niveauRecherche;
+		let recherches = await monProfilJoueur.lire('Niveau Recherche');
 		let tdp = await monProfilJoueur.getTDP(),
 			sommeUnite = this._armeePe.getSommeUnite() - this._armeeAv.getSommeUnite(),
 			baseAtt = this._armeeAp.getBaseAtt() - this._armeeAv.getBaseAtt(),

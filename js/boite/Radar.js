@@ -78,7 +78,7 @@ class BoiteRadar {
     async getOrdreMax() {
         let max = 0;
         for (let j in this._joueurs) {
-            let ordre = await this._joueurs[j].ordreRadar;
+            let ordre = await this._joueurs[j].lire('Ordre Radar');
             if (ordre > max)
                 max = ordre;
         }
@@ -117,7 +117,7 @@ class BoiteRadar {
         if (data.hasOwnProperty("joueurs")) {
             for (let item in data.joueurs) {
                 console.log(`[BoiteRadar.getData] Création Joueur pour item: ${item}, avec données:`, data.joueurs[item]);
-                this._joueurs[item] = new Joueur(data.joueurs[item]);
+                this._joueurs[item] = new Joueur(null, { donneesInitiales: data.joueurs[item] });
                 console.log(`[BoiteRadar.getData] Joueur créé:`, this._joueurs[item]);
             }
             console.log("[BoiteRadar.getData] Boucle joueurs terminée.");
@@ -141,12 +141,12 @@ class BoiteRadar {
             const joueur = this._joueurs[j];
             joueurs[j] = {
                 pseudo: await joueur.lire("Pseudo"),
-                id: await joueur.id,
-                x: await joueur.x,
-                y: await joueur.y,
-                activite: await joueur.activite,
-                terrain: await joueur.terrain,
-                ordreRadar: await joueur.ordreRadar
+                id: await joueur.lire('Id'),
+                x: await joueur.lire('X'),
+                y: await joueur.lire('Y'),
+                activite: await joueur.lire('Activité'),
+                terrain: await joueur.lire('Terrain de Chasse'),
+                ordreRadar: await joueur.lire('Ordre Radar')
             };
         }
         for (let a in this._alliances) alliances[a] = JSON.parse(JSON.stringify(this._alliances[a], ["tag", "terrain", "ordreRadar"]));
@@ -214,7 +214,7 @@ class BoiteRadar {
         let j = 1;
         console.log("[BoiteRadar.actualiser] Début de l'actualisation. Joueurs:", this._joueurs, "Alliances:", this._alliances);
         let elements = [];
-        for (let joueur in this._joueurs) elements.push({ nom: joueur, obj: this._joueurs[joueur], ordreRadar: await this._joueurs[joueur].ordreRadar });
+        for (let joueur in this._joueurs) elements.push({ nom: joueur, obj: this._joueurs[joueur], ordreRadar: await this._joueurs[joueur].lire('Ordre Radar') });
         for (let alliance in this._alliances) elements.push({ nom: alliance, obj: this._alliances[alliance], ordreRadar: this._alliances[alliance].ordreRadar });
 
         elements.sort((a, b) => (a.ordreRadar || 0) - (b.ordreRadar || 0));

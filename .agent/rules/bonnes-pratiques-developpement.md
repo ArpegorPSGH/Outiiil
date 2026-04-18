@@ -8,7 +8,7 @@ trigger: always_on
 - **Héritage :** Héritez directement des classes mères. Modifiez les formats globaux uniquement dans `ParametreObjetForum`.
 - **Création :** Instanciez `ObjetForum` dans `FonctionnaliteAlliance`, un autre `ObjetForum` ou `initialiserFrameworkGlobal()`.
 - **Gestionnaires :** Créez-les dans l'initialisation, héritant d'`ObjetForum` avec section dans `LOCATION_HISTORY`.
-- **Historiques :** Le premier élément de `FORMAT_HISTORY`, `LOCATION_HISTORY` et `CLASSES_PARAMETRES` sert d'ancre unique. Ajoutez-y un nouvel élément pour chaque changement majeur (nom/format, lieu, paramètres).
+- **Historiques :** Le premier élément de `FORMAT_HISTORY`, `LOCATION_HISTORY` et `PARAMETRES_OBJET` sert d'ancre unique. Ajoutez-y un nouvel élément pour chaque changement majeur (nom/format, lieu, paramètres).
 - **Optimisation :** Chargez les sous-objets (`objetsForumContenus`) uniquement si nécessaire.
 - **Paramètres :** Ne réutilisez pas un paramètre si sa signification change.
 - **Initialisation :** Surchargez `FONCTIONNALITES_ALLIANCE` et appelez `Page.init()`. `run()` ne doit contenir que le séquentiel critique ; le reste en `async` non attendu.

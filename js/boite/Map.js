@@ -89,8 +89,8 @@ class BoiteMap extends Boite {
                 minorGridLineColor: "#333333",
                 minorTickInterval: 4,
                 labels: { style: { color: monProfilUtilisateur.parametre["couleurTexte"].valeur } },
-                min: Math.max(0, await monProfilJoueur.y - 10),
-                max: await monProfilJoueur.y + 10 + (await monProfilJoueur.y - 10 < 10 ? Math.abs(await monProfilJoueur.y - 10) : 0),
+                min: Math.max(0, await monProfilJoueur.lire('Y') - 10),
+                max: await monProfilJoueur.lire('Y') + 10 + (await monProfilJoueur.lire('Y') - 10 < 10 ? Math.abs(await monProfilJoueur.lire('Y') - 10) : 0),
                 scrollbar: {
                     enabled: true
                 }

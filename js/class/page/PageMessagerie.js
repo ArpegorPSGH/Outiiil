@@ -15,10 +15,9 @@ Utils.register(class PageMessagerie extends Page {
 
     static FONCTIONNALITES = [
         this.prototype.plus,
-        this.prototype.chargerJoueurs,
-        this.prototype.couleurMessageUtilitaire,
         this.prototype.couleurMessage,
         this.prototype.analyseMessage,
+        FonctionnaliteColorationMessage
     ];
 
     constructor() {
@@ -27,28 +26,6 @@ Utils.register(class PageMessagerie extends Page {
         * Liste des messages analysés.
         */
         this._messagesOuvert = {};
-        /**
-        * Connexion à l'utilitaire.
-        */
-        this._utilitaire = new PageForum();
-        /**
-        * Succès du chargement des joueurs.
-        */
-        this._succesChargement = false;
-    }
-    /**
-    *
-    */
-    chargerJoueurs() {
-        // recupération des joueurs de l'utilitaire
-        if (monProfilUtilisateur.parametre["Membres Outiiil"].valeur) {
-            // recuperation des commandes sur l'utilitaire
-            Utils.consulterSection(monProfilUtilisateur.parametre["Membres Outiiil"].valeur).then((data) => {
-                this._succesChargement = this._utilitaire.chargerJoueur(data);
-            }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération des membres." });
-            });
-        }
     }
     /**
     *
@@ -213,8 +190,8 @@ Utils.register(class PageMessagerie extends Page {
             for (let i = 0; i < 14; i++)
                 $("input[name='o_unite2_" + (i + 1) + "']").spinner("value", combat.armee2Ap.unite[i]);
             // si je suis en defense dans le rc j'autocomplete les donnes de l'attaquant sinon l'inverse
-            let recherchesAttaquant = await combat.attaquant.niveauRecherche;
-            let recherchesDefenseur = await combat.defenseur.niveauRecherche;
+            let recherchesAttaquant = await combat.attaquant.lire('Niveau Recherche');
+            let recherchesDefenseur = await combat.defenseur.lire('Niveau Recherche');
             if (combat.position == 1) {
                 $("#o_armes2").spinner("value", recherchesAttaquant[2]);
                 $("#o_bouclier2").spinner("value", recherchesAttaquant[1] != -1 ? recherchesAttaquant[1] : 0);
@@ -337,37 +314,12 @@ Utils.register(class PageMessagerie extends Page {
     * Ajout d'un code couleur sur les messages par defaut
     */
     couleurMessage() {
-        if (this._succesChargement) return;
         $("tr[id^='conversation_']").each((i, elt) => {
             let titre = $(elt).find("td:eq(3) .intitule_message").text();
             if (titre.includes("Colonie perdue") || titre.includes("conquis par") || titre.includes("Vol par") || titre.includes("Invasion") || titre.includes("Attaque échouée contre") || titre.includes("Rebellion échouée"))
                 $(elt).find("td:eq(3)").children().addClass("red");
             if (titre.includes("Colonie conquise") || titre.includes("Butin chez") || titre.includes("Attaque réussie contre") || titre.includes("Rebellion réussie"))
                 $(elt).find("td:eq(3)").children().addClass("green");
-        });
-        return this;
-    }
-    /**
-    *
-    */
-    couleurMessageUtilitaire() {
-        if (!this._succesChargement) return;
-        $("tr[id^='conversation_']").each((i, elt) => {
-            let titre = $(elt).find("td:eq(3) .intitule_message").text(), color = "";
-            // une colonie perdue est toujours rouge
-            // Attaque échouée contre xXx : votre armée...
-            if (titre.includes("Colonie perdue") || titre.includes("conquis par") || titre.includes("Attaque échouée contre") || titre.includes("Rebellion échouée"))
-                color = "red";
-            // Colonie conquise est toujours verte
-            // Butin chez Verratti : ...
-            // Attaque réussie contre xXx : votre armée...
-            else if (titre.includes("Colonie conquise") || titre.includes("Butin chez") || titre.includes("Attaque réussie contre") || titre.includes("Rebellion réussie"))
-                color = "green";
-            // Vol par XxX : .
-            // Invasion de xXx: votre armée
-            else if (titre.includes("Vol par") || titre.includes("Invasion"))
-                color = this._utilitaire.alliance.joueurs.hasOwnProperty(titre.split(" ")[2]) ? "green" : "red";
-            if (color) $(elt).find("td:eq(3)").children().addClass(color);
         });
         return this;
     }

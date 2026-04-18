@@ -47,7 +47,7 @@ class Page {
                 return location.href.includes(criterion);
             } else if (typeof criterion === 'object' && criterion !== null) {
                 const hrefMatch = criterion.href ? location.href.includes(criterion.href) : true;
-                const searchMatch = criterion.search ? location.search === criterion.search : true;
+                const searchMatch = criterion.search !== undefined ? location.search === criterion.search : true;
                 return hrefMatch && searchMatch;
             }
             return false;

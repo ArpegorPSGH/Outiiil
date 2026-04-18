@@ -99,7 +99,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
 
         console.log('ParametresDroitClasses', parametresDroitClasses)
         // Étape 3 : Finalisation de la classe ObjetForumDroits
-        ObjetForumDroits.CLASSES_PARAMETRES = [parametresDroitClasses];
+        ObjetForumDroits.PARAMETRES_OBJET = [parametresDroitClasses];
         this.constructor.classeObjetsForumContenus = ObjetForumDroits;
         window.ObjetForumDroits = ObjetForumDroits;
     }
@@ -234,7 +234,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         // Détecter les droits obsolètes et les mettre en file pour ré-enregistrement
         for (const droit of droitsActuels) {
             const versionChargée = droit._determinerVersionChargee();
-            const derniereVersionIndex = droit.constructor.CLASSES_PARAMETRES.length - 1;
+            const derniereVersionIndex = droit.constructor.PARAMETRES_OBJET.length - 1;
 
             if (versionChargée < derniereVersionIndex) {
                 console.log(`[GestionnaireDroits.rafraichir] Droit obsolète détecté pour le sujet ID ${droit.idSujet} (Version: ${versionChargée}, Attendu: ${derniereVersionIndex}). Ré-enregistrement planifié.`);

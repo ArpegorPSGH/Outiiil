@@ -477,7 +477,7 @@ class Armee {
 	* @return {Float} ratio de la chasse
 	*/
 	async calculRatio(tdcDep, nbChasse, terrainChasse) {
-		let recherches = await monProfilJoueur.niveauRecherche;
+		let recherches = await monProfilJoueur.lire('Niveau Recherche');
 		return this.getTotalAtt(recherches[2]) / this.calculDifficulte(tdcDep, nbChasse, terrainChasse);
 	}
 	/**
@@ -537,7 +537,7 @@ class Armee {
 	* @return {Object} les pertes MIN, MAX et AVG
 	*/
 	async calculPerte(ratioIndex, diff) {
-		let recherches = await monProfilJoueur.niveauRecherche;
+		let recherches = await monProfilJoueur.lire('Niveau Recherche');
 		return { "MIN": (PERTE_MIN_CHASSE[ratioIndex]) * diff / (10 + recherches[1]) * 10, "MAX": (PERTE_MAX_CHASSE[ratioIndex]) * diff / (10 + recherches[1]) * 10, "AVG": (PERTE_MOY_CHASSE[ratioIndex]) * diff / (10 + recherches[1]) * 10 };
 	}
 	/**
@@ -569,7 +569,7 @@ class Armee {
 			// compute YD number. If Xp : Max * factor, Else dispatch
 			// between lasting hunts according to difficulty.
 			if (bXp) {
-				let recherches = await monProfilJoueur.niveauRecherche;
+				let recherches = await monProfilJoueur.lire('Niveau Recherche');
 				this._repartition[iHuntNum][1] = Math.round(refMaxLoss * tabDiff[iHuntNum] / (10 + recherches[1]) * 10 * securityFactor);
 			} else {
 				let iDiffLet = tabDiff[iHuntNum];

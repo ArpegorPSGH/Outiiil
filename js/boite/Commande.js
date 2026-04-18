@@ -12,7 +12,7 @@
 */
 class BoiteCommande extends Boite {
     constructor(commande, page) {
-        super("o_boiteCommande" + commande.id, "Commander des ressources");
+        super("o_boiteCommande" + commande.idSujet, "Commander des ressources");
         /**
         * @type {Commande} Instance de la commande (ObjetForum)
         */
@@ -58,26 +58,26 @@ class BoiteCommande extends Boite {
 
         // Autocomplete des champs en fonction de l'évolution (uniquement pour les nouvelles commandes)
         if (this._estNouvelle) {
-            $("#o_form" + await this._commande.id + " select[name='o_evolution']").change(async (e) => {
+            $("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").change(async (e) => {
                 let qte = await Utils.calculQuantite(parseInt(e.currentTarget.value));
-                $("#o_form" + await this._commande.id + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
-                $("#o_form" + await this._commande.id + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
+                $("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
+                $("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
             });
         }
 
-        $("#o_form" + await this._commande.id + " input[name^='o_quantite']").on("input", (e) => {
+        $("#o_form" + await this._commande.idSujet + " input[name^='o_quantite']").on("input", (e) => {
             return $(e.currentTarget).val(numeral($(e.currentTarget).val()).format());
         });
 
-        $("#o_commander" + await this._commande.id).click(async (e) => {
+        $("#o_commander" + await this._commande.idSujet).click(async (e) => {
             e.preventDefault();
 
             // Récupérer les valeurs du formulaire
-            const evolution = parseInt($("#o_form" + await this._commande.id + " select[name='o_evolution']").val());
-            const nourritureDemandee = numeral($("#o_form" + await this._commande.id + " input[name='o_quantiteNou']").val()).value();
-            const materiauxDemandes = numeral($("#o_form" + await this._commande.id + " input[name='o_quantiteMat']").val()).value();
-            const dateSouhaiteeStr = $("#o_form" + await this._commande.id + " input[name='o_dateCommande']").val();
-            const dateApresStr = $("#o_form" + await this._commande.id + " input[name='o_dateApres']").val();
+            const evolution = parseInt($("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").val());
+            const nourritureDemandee = numeral($("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val()).value();
+            const materiauxDemandes = numeral($("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val()).value();
+            const dateSouhaiteeStr = $("#o_form" + await this._commande.idSujet + " input[name='o_dateCommande']").val();
+            const dateApresStr = $("#o_form" + await this._commande.idSujet + " input[name='o_dateApres']").val();
 
             // Mettre à jour les paramètres de la commande
             await this._commande.ecrire({
@@ -159,13 +159,13 @@ class BoiteCommande extends Boite {
             select += `<option value="${i}" ${i == evolution ? "selected" : ""}>${EVOLUTION[i]}</option>`;
         }
 
-        $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.id}">
+        $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.idSujet}">
             <div class="group"><select name="o_evolution" class="o_input" required>${select}</select><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Evolution</label></div>
             <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${nourritureDemandee}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
             <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${materiauxDemandes}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
             <div class="group"><input name="o_dateCommande" class="o_input" type="text" value="${dateSouhaite}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Pour le*</label></div>
             <div class="group"><input name="o_dateApres" class="o_input" type="text" value="${dateApres}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>&Agrave; Partir du</label></div>
-            <br/><button id="o_commander${await this._commande.id}" name="o_btnCommande" class="o_button f_success">Commander</button>
+            <br/><button id="o_commander${await this._commande.idSujet}" name="o_btnCommande" class="o_button f_success">Commander</button>
             </form></div>`);
         return this;
     }

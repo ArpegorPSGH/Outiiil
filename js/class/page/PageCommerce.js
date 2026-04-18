@@ -21,7 +21,7 @@ Utils.register(class PageCommerce extends Page {
      * Ajoute les informations sur l'étable.
      */
     async ajouterInfosEtable() {
-        let constructions = await monProfilJoueur.niveauConstruction;
+        let constructions = await monProfilJoueur.lire('Niveau Construction');
         $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${constructions[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (constructions[11] / 2))}</strong> ressources.</td></tr>`);
     }
 
@@ -30,7 +30,7 @@ Utils.register(class PageCommerce extends Page {
      */
     async ajouterBoutonsArrondi() {
         // Chargement unique de niveauConstruction avant l'attachement des handlers
-        const constructions = await monProfilJoueur.niveauConstruction;
+        const constructions = await monProfilJoueur.lire('Niveau Construction');
         const transportCapacity = 10 + (constructions[11] / 2);
 
         // Bouton arrondir nourriture

@@ -252,7 +252,7 @@ class BoiteComptePlus {
         if (this._construction && moment(this._expConstruction).diff(moment()) < 0) {
             // on met à jour le niveau de la construction
             let index = CONSTRUCTION.findIndex((elt) => { return this._construction.toLowerCase().includes(elt.toLowerCase()); });
-            let constructions = await monProfilJoueur.niveauConstruction;
+            let constructions = await monProfilJoueur.lire('Niveau Construction');
             constructions[index]++;
             await monProfilJoueur.ecrire("Niveau Construction", constructions);
             // si la construction est une evolution de ponte, on met a jour les pontes
@@ -266,7 +266,7 @@ class BoiteComptePlus {
         if (this._recherche && moment(this._expRecherche).diff(moment()) < 0) {
             // on met à jour le niveau de la recherche
             let index = RECHERCHE.findIndex((elt) => { return this._recherche.toLowerCase().includes(elt.toLowerCase()); });
-            let recherches = await monProfilJoueur.niveauRecherche;
+            let recherches = await monProfilJoueur.lire('Niveau Recherche');
             recherches[index]++;
             await monProfilJoueur.ecrire("Niveau Recherche", recherches);
             // si la recherche est une evolution de ponte, on met a jour les pontes

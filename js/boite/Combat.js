@@ -96,8 +96,8 @@ class BoiteCombat extends Boite {
     *
     */
     async simuler() {
-        let recherches = await monProfilJoueur.niveauRecherche;
-        let constructions = await monProfilJoueur.niveauConstruction;
+        let recherches = await monProfilJoueur.lire('Niveau Recherche');
+        let constructions = await monProfilJoueur.lire('Niveau Construction');
         let html = `<table id="o_simulateur">
             <tr><td valign="top">
                 <table id="o_simulateurArmee">
@@ -205,8 +205,8 @@ class BoiteCombat extends Boite {
         $("#o_copierDef").click((e) => { this.copierCollerArmee("DEF"); });
         // event sur les bonus joueurs
         $("#o_bonusAtt").click(async (e) => {
-            let recherches = await monProfilJoueur.niveauRecherche;
-            let constructions = await monProfilJoueur.niveauConstruction;
+            let recherches = await monProfilJoueur.lire('Niveau Recherche');
+            let constructions = await monProfilJoueur.lire('Niveau Construction');
             $("#o_armes1").spinner("value", $("#o_armes1").spinner("value") == recherches[2] ? 0 : recherches[2]);
             $("#o_bouclier1").spinner("value", $("#o_bouclier1").spinner("value") == recherches[1] ? 0 : recherches[1]);
             $("#o_etable1").spinner("value", $("#o_etable1").spinner("value") == constructions[12] ? 0 : constructions[12]);
@@ -214,8 +214,8 @@ class BoiteCombat extends Boite {
             return false;
         });
         $("#o_bonusDef").click(async (e) => {
-            let recherches = await monProfilJoueur.niveauRecherche;
-            let constructions = await monProfilJoueur.niveauConstruction;
+            let recherches = await monProfilJoueur.lire('Niveau Recherche');
+            let constructions = await monProfilJoueur.lire('Niveau Construction');
             $("#o_armes2").spinner("value", $("#o_armes2").spinner("value") == recherches[2] ? 0 : recherches[2]);
             $("#o_bouclier2").spinner("value", $("#o_bouclier2").spinner("value") == recherches[1] ? 0 : recherches[1]);
             $("#o_etable2").spinner("value", $("#o_etable2").spinner("value") == constructions[12] ? 0 : constructions[12]);
@@ -229,7 +229,7 @@ class BoiteCombat extends Boite {
         // event bonus lieu
         $("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.actualiserStatistique(); });
         $("#o_bonusLieu").click(async (e) => {
-            let constructions = await monProfilJoueur.niveauConstruction;
+            let constructions = await monProfilJoueur.lire('Niveau Construction');
             $("#o_domeNiveau").spinner("value", $("#o_domeNiveau").spinner("value") == constructions[9] ? 0 : constructions[9]);
             $("#o_logeNiveau").spinner("value", $("#o_logeNiveau").spinner("value") == constructions[10] ? 0 : constructions[10]);
             this.actualiserStatistique();
@@ -255,15 +255,15 @@ class BoiteCombat extends Boite {
         // preparation du combat
         let combat = new Combat({ id: moment().valueOf(), lieu: $("input[name='o_lieu']:checked").val(), attaquant: new Armee({ unite: uniteATT }), defenseur: new Armee({ unite: uniteDef }), pointDeVue: $("#o_positionJoueur").slider("value") });
         // modification des niveaux des joueurs
-        let recherchesAttaquant = await combat.attaquant.niveauRecherche;
-        let recherchesDefenseur = await combat.defenseur.niveauRecherche;
+        let recherchesAttaquant = await combat.attaquant.lire('Niveau Recherche');
+        let recherchesDefenseur = await combat.defenseur.lire('Niveau Recherche');
         recherchesAttaquant[1] = $("#o_bouclier1").spinner("value");
         recherchesAttaquant[2] = $("#o_armes1").spinner("value");
         recherchesDefenseur[1] = $("#o_bouclier2").spinner("value");
         recherchesDefenseur[2] = $("#o_armes2").spinner("value");
         await combat.attaquant.ecrire("Niveau Recherche", recherchesAttaquant);
         await combat.defenseur.ecrire("Niveau Recherche", recherchesDefenseur);
-        let constructionsDefenseur = await combat.defenseur.niveauConstruction;
+        let constructionsDefenseur = await combat.defenseur.lire('Niveau Construction');
         constructionsDefenseur[9] = $("#o_domeNiveau").spinner("value");
         constructionsDefenseur[10] = $("#o_logeNiveau").spinner("value");
         await combat.defenseur.ecrire("Niveau Construction", constructionsDefenseur);
@@ -457,7 +457,7 @@ class BoiteCombat extends Boite {
                 $("#o_vaTemps").val(0);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(0));
             } else {
-                let recherches = await monProfilJoueur.niveauRecherche;
+                let recherches = await monProfilJoueur.lire('Niveau Recherche');
                 $("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
                 $("#o_vaTemps").val(recherches[6]);
                 $("#o_indicationTemps").text(this.calculerLimiteTemps(recherches[6]));
@@ -506,8 +506,8 @@ class BoiteCombat extends Boite {
         });
         $("#o_vaTemps").on("input", (e) => { $("#o_indicationTemps").text(this.calculerLimiteTemps($(e.currentTarget).val())); });
         $("#o_calculerTemps").click(async () => {
-            let ref = new Joueur({ pseudo: $("#o_pseudoTemps").val() });
-            let recherches = await ref.niveauRecherche;
+            let ref = new Joueur(null, { donneesInitiales: { Pseudo: $("#o_pseudoTemps").val() } });
+            let recherches = await ref.lire('Niveau Recherche');
             recherches[6] = $("#o_vaTemps").val();
             await ref.ecrire("Niveau Recherche", recherches);
             // si pas de referentiel on ne peut rien calculer
@@ -519,7 +519,7 @@ class BoiteCombat extends Boite {
             let joueurs = new Array(), alliances = new Array();
             for (let i = 0, tmp = $("#o_cibleJoueurTemps").val().split(", "); i < tmp.length; i++)
                 if (tmp[i])
-                    joueurs.push(new Joueur({ pseudo: tmp[i] }));
+                    joueurs.push(new Joueur(null, { donneesInitiales: { Pseudo: tmp[i] } }));
             // preparation des alliances
             for (let i = 0, tmp = $("#o_cibleTagTemps").val().split(", "); i < tmp.length; i++)
                 if (tmp[i])
@@ -551,9 +551,9 @@ class BoiteCombat extends Boite {
             // promise pour recup les coordonnées
             if (!Object.keys(this._coordonnees).length) promise.push($.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map"));
             // promise qui recup le profil du ref
-            if (! await ref.estJoueurCourant()) promise.push(ref.getProfil());
+            if (! await ref.estJoueurCourant()) promise.push(ref.chargerDonneesMembre());
             // promise pour recup les joueurs et les descriptions d'alliance
-            for (let joueur of joueurs) promise.push(joueur.getProfil());
+            for (let joueur of joueurs) promise.push(joueur.chargerDonneesMembre());
             for (let alliance of alliances) promise.push(alliance.getDescription());
             // Execution des requetes
             let values = await Promise.all(promise);
@@ -569,14 +569,12 @@ class BoiteCombat extends Boite {
             }
             // charge les donnes du ref
             if (! await ref.estJoueurCourant()) {
-                await ref.chargerProfil(values[ind]);
                 ind++;
             }
             // on calcule les temps de trajet vers les joueurs
             for (let i = 0; i < joueurs.length; i++) {
-                await joueurs[i].chargerProfil(values[i + ind]);
                 let tempsP = await ref.getTempsParcours2(joueurs[i]);
-                rows.push($(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].terrain).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
+                rows.push($(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].lire('Terrain de Chasse')).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
             }
             // on recup les pseudos des alliances
             for (let i = 0; i < alliances.length; i++) {

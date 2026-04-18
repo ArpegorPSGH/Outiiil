@@ -23,7 +23,7 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
     - Définissez sa version logique via `ObjetForum.VERSION_LOGIQUE`.
     - Spécifiez l'historique de ses lieux de stockage via `ObjetForum.LOCATION_HISTORY`.
     - Déclarez les classes d'attributs qu'il utilise via `ObjetForum.ATTRIBUTS_OBJET`.
-    - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.CLASSES_PARAMETRES`.
+    - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.PARAMETRES_OBJET`.
     - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
 - **Paramètre / Attribut :** Créez une classe héritant de `ParametreObjetForum` ou `AttributObjet`.
     - **Pour un paramètre :**
@@ -90,11 +90,11 @@ Pour garantir la robustesse des fonctionnalités :
 - **Initialisation des gestionnaires :** Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation et hériter d'`ObjetForum`, et spécifier sa section dans `ObjetForum.LOCATION_HISTORY`.
 - **Unicité des historiques :**
     - Le premier format de `ParametreObjetForum.FORMAT_HISTORY` sert d'ancre unique pour un paramètre. Deux classes de paramètres ne doivent jamais partager la même ancre.
-    - Le premier lieu de `ObjetForum.LOCATION_HISTORY` et le premier set de `ObjetForum.CLASSES_PARAMETRES` servent d'ancres uniques pour un objet. Deux classes d'objets ne doivent jamais partager les mêmes ancres.
+    - Le premier lieu de `ObjetForum.LOCATION_HISTORY` et le premier set de `ObjetForum.PARAMETRES_OBJET` servent d'ancres uniques pour un objet. Deux classes d'objets ne doivent jamais partager les mêmes ancres.
 - **Modification des historiques :**
     - Lors d'une modification de nom ou de format de paramètre, ajoutez un nouvel objet format `{ nom: '...', format: '...' }` à sa liste statique `ParametreObjetForum.FORMAT_HISTORY`.
     - Lors d'une modification de lieu d'enregistrement d'un objet, ajoutez le nouveau lieu à sa liste statique `ObjetForum.LOCATION_HISTORY`.
-    - Lors d'une modification des paramètres d'un objet, ajoutez le nouveau set de paramètres à sa liste statique `ObjetForum.CLASSES_PARAMETRES`.
+    - Lors d'une modification des paramètres d'un objet, ajoutez le nouveau set de paramètres à sa liste statique `ObjetForum.PARAMETRES_OBJET`.
 - **Chargement des sous-objets :** Ne chargez les sous-objets (`ObjetForum.objetsForumContenus`) que lorsque cela est nécessaire pour réduire la latence.
 - **Réutilisation des paramètres :** Ne réutilisez pas un `ParametreObjetForum` existant si sa signification change ; créez-en un nouveau.
 - **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
@@ -117,7 +117,7 @@ Le framework offre des propriétés statiques pour contrôler la manière dont l
     *   **Utilisation :** Permet de contrôler la mise en page des paramètres dans le titre du sujet ou le message.
     *   **Exemple :** `static SEPARATEUR_PARAMETRES = '\n';` (chaque paramètre sur une nouvelle ligne)
 
-### 5.4 Compléments de Chargement et d'Affichage
+### 5.4 Complément de Chargement
 
 Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être surchargées dans les classes filles pour injecter une logique spécifique à différentes étapes du cycle de vie de l'objet, sans modifier le comportement de base du framework.
 
@@ -128,7 +128,7 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
     ```javascript
     completerChargementPourVersionsAnterieures() {
         let versionActuelle = this._determinerVersionChargee();
-        const versionCible = this.constructor.CLASSES_PARAMETRES.length - 1;
+        const versionCible = this.constructor.PARAMETRES_OBJET.length - 1;
 
         // Boucle tant que nous n'avons pas atteint la dernière version
         while (versionActuelle < versionCible && versionActuelle !== -1) {
@@ -209,7 +209,7 @@ Les attributs permettent d'ajouter des données à un `ObjetForum` qui ne sont p
 
         async calculerValeur(peutVoirDonneesRestreintes) {
             // Accès sécurisé aux paramètres de l'objet parent
-            const { x, y } = await this.objetParent.lire(['x', 'y'], peutVoirDonneesRestreintes);
+            const { x, y } = await this.objetParent.lire(['X', 'Y'], peutVoirDonneesRestreintes);
             return `(${x}, ${y})`;
         }
     }

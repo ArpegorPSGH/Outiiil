@@ -33,9 +33,9 @@ class BoiteGrade extends Boite {
         const ordreGrade = await this._joueur.lire('Ordre Grade');
         const pseudo = await this._joueur.lire('Pseudo');
 
-        this._content = `<form id="o_form${await this._joueur.id}" class="o_rangForm">
-            <div class="group"><input id="o_libGrade${await this._joueur.id}" name="o_rang" type="text" class="o_input" value="${grade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Grade de ${pseudo}</label></div>
-            <div class="group"><input id="o_ordGrade${await this._joueur.id}" name="o_ordre" class="o_input" type="text" value="${ordreGrade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Prioritè du grade</label></div><br/>
+        this._content = `<form id="o_form${await this._joueur.lire('Id')}" class="o_rangForm">
+            <div class="group"><input id="o_libGrade${await this._joueur.lire('Id')}" name="o_rang" type="text" class="o_input" value="${grade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Grade de ${pseudo}</label></div>
+            <div class="group"><input id="o_ordGrade${await this._joueur.lire('Id')}" name="o_ordre" class="o_input" type="text" value="${ordreGrade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Prioritè du grade</label></div><br/>
             <button name="o_btnGrade" class="o_button f_success">Valider</button>
             </form>`;
 
@@ -61,12 +61,12 @@ class BoiteGrade extends Boite {
     */
     async event() {
         super.event();
-        $("#o_form" + await this._joueur.id + " button[name='o_btnGrade']").click(async (e) => {
+        $("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").click(async (e) => {
             e.preventDefault();
             try {
                 // on sauvegarde le grade du joueur
-                await this._joueur.ecrire('Grade', $("#o_libGrade" + await this._joueur.id).val());
-                await this._joueur.ecrire('Ordre Grade', $("#o_ordGrade" + await this._joueur.id).val());
+                await this._joueur.ecrire('Grade', $("#o_libGrade" + await this._joueur.lire('Id')).val());
+                await this._joueur.ecrire('Ordre Grade', $("#o_ordGrade" + await this._joueur.lire('Id')).val());
                 console.log('step 1 ');
                 // mise a jour de forum
                 await this._joueur.enregistrerSurForum();

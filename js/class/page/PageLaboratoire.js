@@ -25,7 +25,7 @@ Utils.register(class PageLaboratoire extends Page {
     async chargerRecherche() {
         // verification des niveaux
         let niveau = new Array(10);
-        let recherches = await monProfilJoueur.niveauRecherche;
+        let recherches = await monProfilJoueur.lire('Niveau Recherche');
         $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         if (niveau.join(",") != recherches.join(",")) {
             recherches = niveau;
@@ -40,7 +40,7 @@ Utils.register(class PageLaboratoire extends Page {
     * @method titleBouclier
     */
     async titleBouclier() {
-        let recherches = await monProfilJoueur.niveauRecherche;
+        let recherches = await monProfilJoueur.lire('Niveau Recherche');
         let armee = await monProfilJoueur.lire('Armée');
         let vieAB = armee.getBaseVie() + armee.getBonusVie(recherches[1]);
         let tOuv = numeral($(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
@@ -65,7 +65,7 @@ Utils.register(class PageLaboratoire extends Page {
     * @method titleArmes
     */
     async titleArmes() {
-        let recherches = await monProfilJoueur.niveauRecherche;
+        let recherches = await monProfilJoueur.lire('Niveau Recherche');
         let armee = await monProfilJoueur.lire('Armée');
         let attAB = armee.getTotalAtt(recherches[2]);
         let tOuv = numeral($(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));

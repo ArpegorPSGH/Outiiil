@@ -1,11 +1,11 @@
 Utils.register(class TestObjetForumCommandeV2 extends ObjetForum {
     static VERSION_LOGIQUE = '2.0';
-    static CLASSES_PARAMETRES = [[TestParametreQuantite, TestParametreCoordonnees], [TestParametreQuantite, TestParametreCoordonnees, TestParametreStatut]];
-    static LOCATION_HISTORY = [{section: 'Données Test SDC', lieu: 'titre'}, {section: 'Données Test SDC V2', lieu: 'titre'}];
+    static PARAMETRES_OBJET = [[TestParametreQuantite, TestParametreCoordonnees], [TestParametreQuantite, TestParametreCoordonnees, TestParametreStatut]];
+    static LOCATION_HISTORY = [{ section: 'Données Test SDC', lieu: 'titre' }, { section: 'Données Test SDC V2', lieu: 'titre' }];
 
     async completerChargementPourVersionsAnterieures() {
         let versionActuelle = this._determinerVersionChargee();
-        const versionCible = this.constructor.CLASSES_PARAMETRES.length - 1;
+        const versionCible = this.constructor.PARAMETRES_OBJET.length - 1;
 
         // Boucle tant que nous n'avons pas atteint la dernière version
         while (versionActuelle < versionCible && versionActuelle !== -1) {
@@ -21,9 +21,9 @@ Utils.register(class TestObjetForumCommandeV2 extends ObjetForum {
                     await this.ecrireParametre('Statut', 'Nouveau');
                     break;
             }
-            
+
             // Incrémenter la version pour la prochaine itération de la boucle
-            versionActuelle++; 
+            versionActuelle++;
         }
     }
 })

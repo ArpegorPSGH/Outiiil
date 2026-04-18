@@ -1,20 +1,5 @@
 class ObjetForum {
     /**
-     * Normalise un nom de paramètre en le convertissant en minuscules, en supprimant les accents et en le nettoyant.
-     * @param {string} nom - Le nom du paramètre à normaliser.
-     * @returns {string} Le nom du paramètre normalisé.
-     * @private
-     */
-    static _normaliserNomParametre(nom) {
-        if (typeof nom !== 'string') {
-            return '';
-        }
-        let normalized = nom.toLowerCase().trim();
-        normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        return normalized;
-    }
-
-    /**
      * Configuration déclarative. Version de la logique de fonctionnement de l'objet.
      * @type {String|null}
      */
@@ -31,7 +16,7 @@ class ObjetForum {
      * Chaque liste interne représente les paramètres d'une version.
      * @type {Array<Array<typeof ParametreObjetForum>>}
      */
-    static CLASSES_PARAMETRES = [];
+    static PARAMETRES_OBJET = [];
 
     /**
      * Configuration déclarative. Historique des lieux de stockage de l'objet.
@@ -122,7 +107,7 @@ class ObjetForum {
      * @type {Boolean}
      */
     get estModifie() {
-        const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+        const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1];
         return this.parametres.some(p => classesDerniereVersion.includes(p.constructor) && p.estModifie);
     }
 
@@ -133,7 +118,7 @@ class ObjetForum {
      */
     set estModifie(value) {
         if (value === false) {
-            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+            const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1];
             this.parametres.forEach(p => {
                 if (classesDerniereVersion.includes(p.constructor)) {
                     p.estModifie = false;
@@ -200,14 +185,14 @@ class ObjetForum {
      * @param {Number} [options.idSujet] - L'ID du sujet sur le forum.
      * @param {Number} [options.idMessage] - L'id du message dans le sujet.
      */
-    constructor(fonctionnaliteCreatrice, options = {}) {
+    constructor(fonctionnaliteCreatrice = null, options = {}) {
         this.fonctionnaliteCreatrice = fonctionnaliteCreatrice;
         this.objetParent = options.objetParent || null;
         this.idSujet = options.idSujet || null;
         this.idMessage = options.idMessage || null;
 
         // 1. & 2. Aplatir et dédoublonner les classes de paramètres
-        const classesParametresUniques = [...new Set(this.constructor.CLASSES_PARAMETRES.flat())];
+        const classesParametresUniques = [...new Set(this.constructor.PARAMETRES_OBJET.flat())];
 
         // 3. Instancier et lier chaque paramètre
         classesParametresUniques.forEach(ClasseDeParametre => {
@@ -353,7 +338,7 @@ class ObjetForum {
             }
 
             // 3. Validation de l'ObjetForum lui-même
-            const estVersionne = this.constructor.VERSION_LOGIQUE && this.constructor.LOCATION_HISTORY.length > 0 && this.constructor.CLASSES_PARAMETRES.length > 0;
+            const estVersionne = this.constructor.VERSION_LOGIQUE && this.constructor.LOCATION_HISTORY.length > 0 && this.constructor.PARAMETRES_OBJET.length > 0;
             if (estVersionne) {
                 if (!(await gestionnaireVersions.verifierCompatibiliteObjetForum(this))) {
                     console.error(`ObjetForum incompatible: ${this.constructor.name}`);
@@ -564,7 +549,7 @@ class ObjetForum {
         if (!nom) return null;
 
         // Chercher parmi les paramètres
-        for (const C of this.CLASSES_PARAMETRES[this.CLASSES_PARAMETRES.length - 1]) {
+        for (const C of this.PARAMETRES_OBJET[this.PARAMETRES_OBJET.length - 1]) {
             if (C.NOM_AFFICHAGE && C.NOM_AFFICHAGE.includes(nom)) return C;
             if (C.NOM_APPEL && C.NOM_APPEL.includes(nom)) return C;
             if (C.FORMAT_HISTORY && C.FORMAT_HISTORY.some(h => h.nom === nom)) return C;
@@ -592,7 +577,7 @@ class ObjetForum {
             ordreAffichage = liste;
         } else {
             // Ordre par défaut : paramètres de la dernière version + attributs
-            const classesDerniereVersion = this.CLASSES_PARAMETRES[this.CLASSES_PARAMETRES.length - 1] || [];
+            const classesDerniereVersion = this.PARAMETRES_OBJET[this.PARAMETRES_OBJET.length - 1] || [];
             const classesAttributs = this.ATTRIBUTS_OBJET || [];
 
             ordreAffichage = [];
@@ -673,7 +658,7 @@ class ObjetForum {
             ordreAffichage = liste;
         } else {
             // Ordre par défaut : paramètres + attributs
-            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1] || [];
+            const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1] || [];
             const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
 
             ordreAffichage = classesDerniereVersion.map(classe => {
@@ -748,7 +733,7 @@ class ObjetForum {
         if (liste) {
             ordreAffichage = liste;
         } else {
-            const classesDerniereVersion = this.CLASSES_PARAMETRES[this.CLASSES_PARAMETRES.length - 1] || [];
+            const classesDerniereVersion = this.PARAMETRES_OBJET[this.PARAMETRES_OBJET.length - 1] || [];
 
             ordreAffichage = classesDerniereVersion.map(classe => {
                 return classe.getDernierNom();
@@ -836,7 +821,7 @@ class ObjetForum {
                 .filter(e => e.donnee !== null);
         } else {
             // null : paramètres de la dernière version + tous les attributs
-            const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1] || [];
+            const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1] || [];
             const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
             entrees = classesDerniereVersion
                 .map(classe => mapClasseInstance.get(classe))
@@ -961,7 +946,7 @@ class ObjetForum {
      * @returns {Promise<String>} La chaîne de paramètres.
      */
     async genererStringParametres() {
-        const classesDerniereVersion = new Set(this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1]);
+        const classesDerniereVersion = new Set(this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1]);
         const parametresAEnregistrer = this.parametres.filter(p => classesDerniereVersion.has(p.constructor));
 
         let contenuFinal = [];
@@ -983,7 +968,7 @@ class ObjetForum {
 
         // Paramètres de la dernière version
         const classesDerniereVersion = new Set(
-            this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1] || []
+            this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1] || []
         );
         for (const parametre of this.parametres) {
             if (classesDerniereVersion.has(parametre.constructor)) {
@@ -1057,8 +1042,8 @@ class ObjetForum {
                 .map(p => p.constructor)
         );
 
-        for (let i = 0; i < this.constructor.CLASSES_PARAMETRES.length; i++) {
-            const classesDeVersion = new Set(this.constructor.CLASSES_PARAMETRES[i]);
+        for (let i = 0; i < this.constructor.PARAMETRES_OBJET.length; i++) {
+            const classesDeVersion = new Set(this.constructor.PARAMETRES_OBJET[i]);
 
             const estCorrespondanceExacte = (classesChargees.size === classesDeVersion.size) &&
                 [...classesChargees].every(classe => classesDeVersion.has(classe));

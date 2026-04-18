@@ -60,12 +60,12 @@ class ParametreNouveauObjetForum extends ParametreObjetForum {
 }
 
 class ObjetForumAncien extends ObjetForum {
-    static CLASSES_PARAMETRES = [[ParametreAncienObjetForum]];
+    static PARAMETRES_OBJET = [[ParametreAncienObjetForum]];
     static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre' }];
 }
 
 class ObjetForumNouveau extends ObjetForum {
-    static CLASSES_PARAMETRES = [[ParametreNouveauObjetForum]];
+    static PARAMETRES_OBJET = [[ParametreNouveauObjetForum]];
     static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre' }];
 
     async completerChargementPourVersionsAnterieures() {

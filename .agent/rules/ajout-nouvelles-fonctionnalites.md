@@ -17,7 +17,7 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
     - Définissez sa version logique via `ObjetForum.VERSION_LOGIQUE`.
     - Spécifiez l'historique de ses lieux de stockage via `ObjetForum.LOCATION_HISTORY`.
     - Déclarez les attributs de l'instance via `ObjetForum.ATTRIBUTS_OBJET`. Ces attributs (héritant de `AttributObjet`) permettent de gérer des données calculées ou non persistées directement comme paramètres sur le forum. Pour les objets complexes, utilisez une fonction factory.
-    - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.CLASSES_PARAMETRES`.
+    - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.PARAMETRES_OBJET`.
     - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
 - **Paramètre / Attribut :** Créez une classe héritant de `ParametreObjetForum` ou `AttributObjet`.
     - Définissez son historique de noms / formats via `FORMAT_HISTORY` (pour les paramètres) ou `NOM_AFFICHAGE` (pour les attributs). Chaque élément est un objet de la forme `{ nom: 'NomDuParam', format: 'un string contenant '(nom)' et '(valeur)'' }` pour les paramètres, ou simplement une chaîne pour les attributs.

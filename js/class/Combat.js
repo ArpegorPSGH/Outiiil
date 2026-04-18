@@ -37,7 +37,7 @@ class Combat {
         /**
         * attaquant dans le combat
         */
-        this._attaquant = new Joueur({ pseudo: "Attaquant" });
+        this._attaquant = new Joueur(null, { donneesInitiales: { Pseudo: "Attaquant" } });
         /*
         * pour l'analyse on peut calculer plusieurs solutions de bonus
         */
@@ -57,7 +57,7 @@ class Combat {
         /**
         * defenseur dans le combat
         */
-        this._defenseur = new Joueur({ pseudo: "Défenseur" });
+        this._defenseur = new Joueur(null, { donneesInitiales: { Pseudo: "Défenseur" } });
         /*
         * pour l'analyse on peut calculer plusieurs solutions de bonus
         */
@@ -306,8 +306,8 @@ class Combat {
                     await this._defenseur.ecrire('Pseudo', this._rc.split("contre ")[1].split("\nTroupes")[0]);
                 }
             }
-            let recherchesAttaquant = await this._attaquant.niveauRecherche;
-            let recherchesDefenseur = await this._defenseur.niveauRecherche;
+            let recherchesAttaquant = await this._attaquant.lire('Niveau Recherche');
+            let recherchesDefenseur = await this._defenseur.lire('Niveau Recherche');
             // On calcule l'armée du joueur 1 en sortie
             this._armeePe = this.retirerPerte(this._armeeAv, "et en tue");
             this._armeeAp = this.ajouterXP(this._armeePe);
@@ -404,8 +404,8 @@ class Combat {
     */
     async toHTMLMessagerie() {
         let bonusEnnemie = "";
-        let recherchesAttaquant = await this._attaquant.niveauRecherche;
-        let recherchesDefenseur = await this._defenseur.niveauRecherche;
+        let recherchesAttaquant = await this._attaquant.lire('Niveau Recherche');
+        let recherchesDefenseur = await this._defenseur.lire('Niveau Recherche');
         if (this._pointDeVue == 1)
             bonusEnnemie = `${this._attaquantBonusLieu.length ? "Bouclier (/ " + LIBELLE_LIEU[this._lieu] + ") : " + this._attaquantBonusLieu.join(" - ") + " | " : (recherchesAttaquant[1] != -1 ? "Bouclier : " + recherchesAttaquant[1] + " | " : "")}Armes : ${recherchesAttaquant[2]}`;
         else
@@ -425,7 +425,7 @@ class Combat {
             }
             html += `</table><br/>`;
         }
-        let recherches = await monProfilJoueur.niveauRecherche;
+        let recherches = await monProfilJoueur.lire('Niveau Recherche');
         // Affichage des infos sur l'armée restante de l'ennemie
         if (this._armeeEnnemieAp.getSommeUnite()) {
             html += `<span style='text-decoration:underline;' class='gras'>Armee (après combat, sans XP)</span><br/><table class='o_tabAnalyse' cellspacing='0'>
@@ -464,8 +464,8 @@ class Combat {
     */
     async toHTMLBoite() {
         let bonusAtt = "", bonusDef = "";
-        let recherchesAttaquant = await this._attaquant.niveauRecherche;
-        let recherchesDefenseur = await this._defenseur.niveauRecherche;
+        let recherchesAttaquant = await this._attaquant.lire('Niveau Recherche');
+        let recherchesDefenseur = await this._defenseur.lire('Niveau Recherche');
         if (this._pointDeVue == 0) {
             bonusAtt = `${(this._attaquantBonusLieu.length ? this._attaquantBonusLieu.join(" - ") : (recherchesAttaquant[1] != -1 ? recherchesAttaquant[1] : "N/A"))}`;
             bonusDef = `${(this._defenseurBonusLieu.length ? this._defenseurBonusLieu.join(" - ") : (recherchesDefenseur[1] != -1 ? recherchesDefenseur[1] : "N/A"))}`;
@@ -505,9 +505,9 @@ class Combat {
     * @method simuler
     */
     async simuler() {
-        let recherchesAttaquant = await this._attaquant.niveauRecherche;
-        let recherchesDefenseur = await this._defenseur.niveauRecherche;
-        let constructionsDefenseur = await this._defenseur.niveauConstruction;
+        let recherchesAttaquant = await this._attaquant.lire('Niveau Recherche');
+        let recherchesDefenseur = await this._defenseur.lire('Niveau Recherche');
+        let constructionsDefenseur = await this._defenseur.lire('Niveau Construction');
         let baseDegatAtt = 0, bonusDegatAtt = 0, baseDegatDef = 0, bonusDegatDef = 0, retourVieTmp = null, armeeAttTmp = null, armeeDefTmp = null;
         // initialisation des armées pour le combat
         this._armeeAp = new Armee();

@@ -10,7 +10,7 @@
 * @constructor
 */
 Utils.register(class PageDescription extends Page {
-    static URIs = "/classementAlliance.php?alliance=";
+    static URIs = { href: "/classementAlliance.php?alliance=" };
 
 
     static FONCTIONNALITES = [
@@ -33,11 +33,13 @@ Utils.register(class PageDescription extends Page {
         let tmpJoueurs = {};
         await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
             let pseudo = $(elt).find("td:eq(2)").text(), terrain = numeral($(elt).find("td:eq(4)").text()).value();
-            tmpJoueurs[pseudo] = new Joueur({
-                pseudo: pseudo,
-                terrain: terrain,
-                fourmiliere: ~~($(elt).find("td:eq(7)").text()),
-                technologie: ~~($(elt).find("td:eq(6)").text())
+            tmpJoueurs[pseudo] = new Joueur(null, {
+                donneesInitiales: {
+                    'Pseudo': pseudo,
+                    'Terrain de Chasse': terrain,
+                    'Fourmilière': ~~($(elt).find("td:eq(7)").text()),
+                    'Technologie': ~~($(elt).find("td:eq(6)").text())
+                }
             });
             if (!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()) {
                 if (await tmpJoueurs[pseudo].estAttaquable())

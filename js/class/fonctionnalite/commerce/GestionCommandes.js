@@ -105,10 +105,10 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
             const commande = this.commandes.find(c => c.idSujet == commandeId);
             if (!commande) return false;
 
-            const constructions = await monProfilJoueur.niveauConstruction;
+            const constructions = await monProfilJoueur.lire('Niveau Construction');
             const transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (constructions[11] / 2)));
-            const materiauxRestants = await commande.materiauxRestants;
-            const nourritureRestante = await commande.nourritureRestante;
+            const materiauxRestants = await commande.lire('Matériaux Restants');
+            const nourritureRestante = await commande.lire('Nourriture Restante');
 
             let materialsToPrefill = Math.min(materiauxRestants, transportCapacity);
             let nourishmentToPrefill = Math.min(nourritureRestante, transportCapacity - materialsToPrefill);
@@ -165,7 +165,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
             console.log("corps_html", corps_html);
             tableRows.push(corps_html);
 
-            const materiauxRestants = await commande.materiauxRestants;
+            const materiauxRestants = await commande.lire('Matériaux Restants');
             total += materiauxRestants;
             if (await commande.estEnRetard()) totalRouge += materiauxRestants;
         }
@@ -345,7 +345,7 @@ Utils.register(class GestionCommandes extends FonctionnaliteAlliance {
                     const commande = this.commandes.find(c => c.idSujet == idCommande);
                     if (commande) {
                         await convoiDataObj.ecrire('Id Annulation', nouvelId);
-                        await commande.ajouteConvoi(convoiDataObj);
+                        await commande.ajouterConvoi(convoiDataObj);
                         console.log('commande', commande)
                         await commande.enregistrerSurForum();
                         $.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour sur le forum." });

@@ -326,7 +326,7 @@ class Commande {
     */
     ajouterEvent(page, utilitaire) {
         $("#o_commande" + this._id).click(async (e) => {
-            let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.niveauConstruction[11] / 2)));
+            let transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (monProfilJoueur.lire('Niveau Construction')[11] / 2)));
             let materialsToPrefill = Math.min(this.materiaux, transportCapacity);
             let nourishmentToPrefill = Math.min(this.nourriture, transportCapacity - materialsToPrefill);
 

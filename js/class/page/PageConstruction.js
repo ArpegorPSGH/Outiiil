@@ -25,7 +25,7 @@ Utils.register(class PageConstruction extends Page {
         // verification des niveaux
         let niveau = new Array(13);
         $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
-        let constructions = await monProfilJoueur.niveauConstruction;
+        let constructions = await monProfilJoueur.lire('Niveau Construction');
         if (niveau.join(",") != constructions.join(",")) {
             constructions = niveau;
             await monProfilJoueur.ecrire("Niveau Construction", constructions);
@@ -40,8 +40,8 @@ Utils.register(class PageConstruction extends Page {
     */
     async titleEtable() {
         if ($(".desciption_amelioration:eq(11) table").find(".verificationOK").length) return;
-        let recherche = await monProfilJoueur.niveauRecherche;
-        let constructions = await monProfilJoueur.niveauConstruction;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
+        let constructions = await monProfilJoueur.lire('Niveau Construction');
         let ouvDispo = Utils.ouvrieres - Utils.terrain, perte = 80 * Math.pow(2, recherche[4]);
         let title = `<table>
             <tr><td>Ouvrières</td><td class='right'>${numeral(Utils.ouvrieres).format()}</td></tr>

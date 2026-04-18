@@ -10,7 +10,7 @@
  * @extends {Page}
  */
 Utils.register(class PageAlliance extends Page {
-    static URIs = "/alliance.php?Membres";
+    static URIs = { href: "/alliance.php?Membres" };
 
     /**
      * Liste unifiée des fonctionnalités à exécuter sur la page Alliance.

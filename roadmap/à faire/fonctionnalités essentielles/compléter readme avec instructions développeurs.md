@@ -23,6 +23,7 @@ Ajouter une section implémentation au readme contenant des instructions destin�
 - Supprimer tâches obsolètes
 - Nettoyer clinerules
 - Appliquer aux tâches déjà terminées
+- Vérifier bonnes pratiques bien appliquées
 
 ## Plan d'Implémentation
 

@@ -10,7 +10,7 @@
 * @constructor
 */
 Utils.register(class PageProfil extends Page {
-    static URIs = "/Membre.php";
+    static URIs = ["/Membre.php", { href: "/Membre.php?Pseudo" }];
 
 
     static FONCTIONNALITES = [
@@ -32,7 +32,7 @@ Utils.register(class PageProfil extends Page {
     *
     */
     async chargerData() {
-        this._profil = new Joueur({ pseudo: $("h2").text() });
+        this._profil = new Joueur(null, { donneesInitiales: { Pseudo: $("h2").text() } });
         let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(".boite_membre").find("a[href^='carte2.php?']").text();
         await this._profil.ecrire('X', ~~(ligne.replace(regexp, "$1")));
         await this._profil.ecrire('Y', ~~(ligne.replace(regexp, "$2")));

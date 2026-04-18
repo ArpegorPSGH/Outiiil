@@ -36,15 +36,11 @@ class Alliance {
         this._joueurs = {};
         if (parametres.hasOwnProperty("joueurs"))
             for (let pseudo in parametres["joueurs"])
-                this._joueurs[pseudo] = new Joueur(parametres["joueurs"][pseudo]);
+                this._joueurs[pseudo] = new Joueur(null, { donneesInitiales: parametres["joueurs"][pseudo] });
         /**
         *
         */
         this._ordreRadar = parametres["ordreRadar"] || 0;
-        /**
-        *
-        */
-        this._sujetForum = parametres["sujetForum"] || -1;
     }
     /**
     *
@@ -109,20 +105,8 @@ class Alliance {
     /**
     *
     */
-    get sujetForum() {
-        return this._sujetForum;
-    }
-    /**
-    *
-    */
-    set sujetForum(newSujet) {
-        this._sujetForum = newSujet;
-    }
-    /**
-    *
-    */
     async calculTerrain() {
-        const terrains = await Promise.all(Object.values(this._joueurs).map(joueur => joueur.terrain));
+        const terrains = await Promise.all(Object.values(this._joueurs).map(joueur => joueur.lire('Terrain de Chasse')));
         this._terrain = terrains.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
         return this._terrain;
     }
@@ -130,7 +114,7 @@ class Alliance {
     *
     */
     async calculTechnologie() {
-        const technologies = await Promise.all(Object.values(this._joueurs).map(joueur => joueur.technologie));
+        const technologies = await Promise.all(Object.values(this._joueurs).map(joueur => joueur.lire('Technologie')));
         this._technologie = technologies.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
         return this._technologie;
     }
@@ -138,7 +122,7 @@ class Alliance {
     *
     */
     async calculFourmiliere() {
-        const fourmilieres = await Promise.all(Object.values(this._joueurs).map(joueur => joueur.fourmiliere));
+        const fourmilieres = await Promise.all(Object.values(this._joueurs).map(joueur => joueur.lire('Fourmilière')));
         this._fourmiliere = fourmilieres.reduce((acc, val) => acc + (typeof val === 'number' ? val : 0), 0);
         return this._fourmiliere;
     }
@@ -158,8 +142,8 @@ class Alliance {
         };
         for (const pseudo in this._joueurs) {
             const joueur = this._joueurs[pseudo];
-            const activite = await joueur.activite;
-            const colonise = await joueur.colonise; // Récupérer l'état colonisé
+            const activite = await joueur.lire('Activité');
+            const colonise = await joueur.lire('Colonisé'); // Récupérer l'état colonisé
             console.log('pseudo :', pseudo)
             console.log('joueur :', joueur)
             console.log('activite :', activite)
@@ -176,7 +160,7 @@ class Alliance {
     *
     */
     toJSON() {
-        return { tag: this._tag, joueurs: this._joueurs, terrain: this._terrain, technologie: this._technologie, fourmiliere: this._fourmiliere, ordreRadar: this._ordreRadar, sujetForum: this._sujetForum };
+        return { tag: this._tag, joueurs: this._joueurs, terrain: this._terrain, technologie: this._technologie, fourmiliere: this._fourmiliere, ordreRadar: this._ordreRadar };
     }
     /**
     * Récupére la description d'une alliance.

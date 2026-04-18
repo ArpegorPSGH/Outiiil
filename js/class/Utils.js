@@ -79,7 +79,7 @@ class Utils {
     * Calcul des quantités de ressources commandées - fdthierry
     */
     static async calculQuantite(evo_commande) {
-        let constructions = await monProfilJoueur.niveauConstruction;
+        let constructions = await monProfilJoueur.lire('Niveau Construction');
         switch (true) {
             // cas Champi
             case evo_commande == 0:
@@ -89,7 +89,7 @@ class Utils {
                 return [0, COUT_CONSTUCTION[evo_commande] * Math.pow(2, constructions[evo_commande])];
             // cas recherche
             case evo_commande >= 13 && evo_commande < 23:
-                let recherches = await monProfilJoueur.niveauRecherche;
+                let recherches = await monProfilJoueur.lire('Niveau Recherche');
                 return [COUT_RECHERCHE_POM[evo_commande - 13] * Math.pow(2, recherches[evo_commande - 13]), COUT_RECHERCHE_BOI[evo_commande - 13] * Math.pow(2, recherches[evo_commande - 13])];
             default:
                 return [0, 0];

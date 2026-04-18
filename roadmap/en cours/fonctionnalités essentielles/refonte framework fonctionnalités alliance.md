@@ -57,7 +57,7 @@ classDiagram
         +int idSujet
         +ParametreObjetForum[] parametres
         +String SEPARATEUR_PARAMETRES
-        +Object[] CLASSES_PARAMETRES
+        +Object[] PARAMETRES_OBJET
         +ObjetForum[] objetsForumContenus
         +String classeObjetsForumContenus
         +Boolean estNouveau
@@ -364,7 +364,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 | :--- | :--- | :--- | :--- | :--- |
 | `VERSION_LOGIQUE` | `String` | `static` | **Configuration déclarative.** Version de la logique de fonctionnement de l'objet. Ex: `'1.0'`. Doit être surchargée dans chaque classe fille si l'objet est versionné. | `null` |
 | `SEPARATEUR_PARAMETRES` | `String` | `static` | **Configuration déclarative.** Séparateur à utiliser entre les chaînes de paramètres lors de l'enregistrement. | `''` |
-| `CLASSES_PARAMETRES` | `Array<Array<Class>>` | `static` | **Configuration déclarative.** Liste de listes des classes de `ParametreObjetForum`. Chaque liste interne représente les paramètres utilisés par une version spécifique de l'objet, de la plus ancienne à la plus récente. Doit être surchargée dans chaque classe fille. | `[]` (tableau vide). |
+| `PARAMETRES_OBJET` | `Array<Array<Class>>` | `static` | **Configuration déclarative.** Liste de listes des classes de `ParametreObjetForum`. Chaque liste interne représente les paramètres utilisés par une version spécifique de l'objet, de la plus ancienne à la plus récente. Doit être surchargée dans chaque classe fille. | `[]` (tableau vide). |
 | `LOCATION_HISTORY` | `Array<Object>` | `static` | **Configuration déclarative.** Historique des lieux de stockage de l'objet. Chaque élément est un dictionnaire : `{section: 'nom_section', lieu: 'titre' ou 'message'}`. Doit être surchargé dans chaque classe fille. | `[]` |
 | `parametres` | `Array<ParametreObjetForum>` | `instance` | Conteneur des instances de `ParametreObjetForum`, peuplé par le constructeur. | `[]` (tableau vide). |
 | `idsSection` | `Array<Number>` | `instance` | Liste des IDs de section où les données de cet objet peuvent être trouvées. | `[]` (tableau vide). |
@@ -390,10 +390,10 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 *   **Objectif :** Initialiser l'objet, stocker ses références et optionnellement, peupler ses paramètres avec des valeurs fournies via un objet d'options.
 *   **Logique Détaillée :**
     1.  **Stockage des Références :** Le constructeur stocke la référence `this.fonctionnaliteCreatrice = fonctionnaliteCreatrice;`. Les autres références sont extraites de l'objet `options` : `this.objetParent = options.objetParent || null;`, `this.idSujet = options.idSujet || null;`, `this.idMessage = options.idMessage || null;`.
-    2.  **Vérification de la Configuration :** Le constructeur accède à la propriété statique `CLASSES_PARAMETRES` de la classe fille. Il s'attend à ce que ce soit une liste de listes.
+    2.  **Vérification de la Configuration :** Le constructeur accède à la propriété statique `PARAMETRES_OBJET` de la classe fille. Il s'attend à ce que ce soit une liste de listes.
 
     2.  **Création de la liste unique de paramètres :**
-        a.  Il aplatit la liste de listes (`CLASSES_PARAMETRES`) en un seul tableau contenant toutes les classes de paramètres de toutes les versions.
+        a.  Il aplatit la liste de listes (`PARAMETRES_OBJET`) en un seul tableau contenant toutes les classes de paramètres de toutes les versions.
         b.  Il supprime les doublons de ce tableau pour obtenir une liste unique de toutes les classes de `ParametreObjetForum` que l'objet peut potentiellement utiliser, quelle que soit la version.
 
     3.  **Instanciation et Liaison des Paramètres :** Le constructeur parcourt cette **liste unique**. Pour chaque `ClasseDeParametreObjetForum`, il effectue la séquence suivante pour assurer une liaison correcte :
@@ -436,7 +436,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         c.  Si un seul de ces appels retourne `false`, la méthode retourne immédiatement `false`.
 
     4.  **Validation de l'ObjetForum lui-même (Exécutée après les paramètres) :**
-        a.  La méthode vérifie si l'objet est un objet versionné (`this.constructor.VERSION_LOGIQUE`, `this.constructor.LOCATION_HISTORY` et `this.constructor.CLASSES_PARAMETRES` sont définis).
+        a.  La méthode vérifie si l'objet est un objet versionné (`this.constructor.VERSION_LOGIQUE`, `this.constructor.LOCATION_HISTORY` et `this.constructor.PARAMETRES_OBJET` sont définis).
         b.  **Si c'est le cas**, elle appelle `window.gestionnaireVersions.verifierCompatibiliteObjetForum(this)`. Si cet appel retourne `false`, la méthode retourne `false`.
         c.  **Sinon**, cette étape est sautée.
 
@@ -539,7 +539,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         c.  Sinon (ordre par défaut) :
                 i.  `ordreAffichage` est construit en récupérant les noms d'affichage les plus récents des paramètres de la **dernière version** de l'objet.
                 ```javascript
-                const classesDerniereVersion = this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1];
+                const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1];
                 const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
                 ordreAffichage = classesDerniereVersion.map(classe => {
                     const p = mapClasseInstance.get(classe);
@@ -618,7 +618,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 
         b.  **Enregistrement de l'objet principal :**
             i.  **Génération de la chaîne de contenu :**
-                -   Récupère la liste des classes de paramètres de la **dernière version** depuis la configuration statique : `const classesDerniereVersion = new Set(this.constructor.CLASSES_PARAMETRES[this.constructor.CLASSES_PARAMETRES.length - 1]);`.
+                -   Récupère la liste des classes de paramètres de la **dernière version** depuis la configuration statique : `const classesDerniereVersion = new Set(this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1]);`.
                 -   Filtre les paramètres de l'instance pour ne garder que ceux qui appartiennent à la dernière version : `const parametresAEnregistrer = this.parametres.filter(p => classesDerniereVersion.has(p.constructor));`.
                 -   Génère la chaîne `contenuFinal` en appelant `genererStringPourEnregistrement()` sur chaque paramètre dans `parametresAEnregistrer` et en joignant les résultats avec `this.constructor.SEPARATEUR_PARAMETRES`.
             ii. Récupère le `{section, lieu}` le plus récent depuis `LOCATION_HISTORY`.
@@ -670,7 +670,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         );
         ```
     2.  **Vérification de Correspondance Exacte :**
-        a.  La méthode parcourt la liste des versions `this.constructor.CLASSES_PARAMETRES` (de la plus ancienne à la plus récente).
+        a.  La méthode parcourt la liste des versions `this.constructor.PARAMETRES_OBJET` (de la plus ancienne à la plus récente).
         b.  Pour chaque `listeParamsVersion` à l'index `i` :
             i.  Elle crée un ensemble des paramètres attendus pour cette version : `const classesDeVersion = new Set(listeParamsVersion);`
             ii. **Elle vérifie l'égalité stricte des deux ensembles :**
@@ -731,7 +731,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     ```javascript
     completerChargementPourVersionsAnterieures() {
         let versionActuelle = this._determinerVersionChargee();
-        const versionCible = this.constructor.CLASSES_PARAMETRES.length - 1;
+        const versionCible = this.constructor.PARAMETRES_OBJET.length - 1;
 
         // Boucle tant que nous n'avons pas atteint la dernière version
         while (versionActuelle < versionCible && versionActuelle !== -1) {
@@ -993,7 +993,7 @@ Hérite de la classe `ObjetForum`.
             iv. Ajoute la classe `ParametreDroit` à `parametresDroitClasses`.
 
     3.  **Étape 3 : Finalisation de la classe `ObjetForumDroits`**
-        a.  Assigne la liste `parametresDroitClasses` à `ObjetForumDroits.CLASSES_PARAMETRES`.
+        a.  Assigne la liste `parametresDroitClasses` à `ObjetForumDroits.PARAMETRES_OBJET`.
         b.  Assigne la classe `ObjetForumDroits` à `this.constructor.classeObjetsForumContenus` pour que le gestionnaire puisse l'utiliser comme un conteneur standard.
 
 ##### **2. `verifierDroit(niveauRequis)`**
@@ -1073,7 +1073,7 @@ Hérite de la classe `ObjetForum`.
         a.  Récupère le nom du paramètre pseudo (`nomParametrePseudo`) depuis `FORMAT_HISTORY`.
         b.  La méthode met à jour sa `mapDroits` interne avec les `droitsActuels` fraîchement chargés.
         c.  Initialise une nouvelle liste `droitsSynchronises`, une liste de promesses `promessesEnregistrement`, et un `Set` `membresTraites`.
-        d.  **Détecte les droits obsolètes :** Parcourt les `droitsActuels`. Pour chaque `droit`, vérifie si sa version chargée (`_determinerVersionChargee()`) est inférieure à la dernière version définie dans `CLASSES_PARAMETRES`. Si c'est le cas, ajoute la promesse `droit.enregistrerSurForum()` à `promessesEnregistrement` pour forcer sa mise à jour.
+        d.  **Détecte les droits obsolètes :** Parcourt les `droitsActuels`. Pour chaque `droit`, vérifie si sa version chargée (`_determinerVersionChargee()`) est inférieure à la dernière version définie dans `PARAMETRES_OBJET`. Si c'est le cas, ajoute la promesse `droit.enregistrerSurForum()` à `promessesEnregistrement` pour forcer sa mise à jour.
         e.  Parcourt les `membresOfficiels`. Pour chaque `membre` :
             i.  Récupère le pseudo du membre.
             ii. Si le pseudo a déjà été traité, passe au membre suivant.
@@ -1194,7 +1194,7 @@ Hérite de la classe `ObjetForum`.
                 -   Récupère la `versionLogique` locale : `versionLogiqueLocale = objet.constructor.VERSION_LOGIQUE`.
                 -   **Construit `classesParametresLocales` :**
                     -   Crée une `Map` temporaire `mapClasseParametreVersIdSujet` à partir du cache `this.versionsParamsForum`. La clé est une ancre JSON du premier élément du `FORMAT_HISTORY` du paramètre, la valeur est son `idSujet`.
-                    -   Parcourt `objet.constructor.CLASSES_PARAMETRES` et traduit chaque classe de paramètre en son `idSujet` correspondant via la map.
+                    -   Parcourt `objet.constructor.PARAMETRES_OBJET` et traduit chaque classe de paramètre en son `idSujet` correspondant via la map.
                 -   Récupère les `formatsLieux` locaux : `formatsLieuxLocaux = objet.constructor.LOCATION_HISTORY`.
             ii. **Trouver l'Empreinte Forum :**
                 -   Parcourt `this.versionsObjetsForum` pour trouver la `versionForum` correspondante.
@@ -1219,19 +1219,19 @@ Hérite de la classe `ObjetForum`.
                 - **Détection :** La version logique locale est inférieure, OU l'historique des lieux local est plus court, OU `estExtensionEnRetard` est vrai ET il n'y a pas d'informations contradictoires (à la fois avance et retard).
                 - **Action :**
                     - Affiche un avertissement.
-                    - **Tronque l'historique local :** `objet.constructor.CLASSES_PARAMETRES` est remplacé par une version tronquée de l'historique du forum, s'arrêtant à la dernière version connue par l'extension (`indexDansForum`).
+                    - **Tronque l'historique local :** `objet.constructor.PARAMETRES_OBJET` est remplacé par une version tronquée de l'historique du forum, s'arrêtant à la dernière version connue par l'extension (`indexDansForum`).
                     - Tente de déclencher une mise à jour de l'extension.
                     - Retourne `false` si elle échoue.
             *   **Scénario 2 (Forum obsolète) :**
                 - **Détection :** La version logique locale est supérieure, OU l'historique des lieux local est plus long, OU `estForumEnRetard` est vrai ET il n'y a pas d'informations contradictoires (à la fois avance et retard).
                 - **Action :**
-                    - **Met à jour l'historique local :** Construit le nouvel historique complet en ajoutant la dernière version locale à l'historique du forum. `objet.constructor.CLASSES_PARAMETRES` est mis à jour avec cette nouvelle liste.
+                    - **Met à jour l'historique local :** Construit le nouvel historique complet en ajoutant la dernière version locale à l'historique du forum. `objet.constructor.PARAMETRES_OBJET` est mis à jour avec cette nouvelle liste.
                     - Met à jour le sujet et les messages sur le forum avec les nouvelles versions (`versionLogiqueLocale`, `nouvelHistoriqueComplet`, `formatsLieuxLocaux`).
                     - Met à jour le cache en mémoire.
                     - Retourne `true`.
             *   **Scénario 3 (Concordance parfaite) :**
                 - **Détection :** Les versions logiques sont identiques, les longueurs des historiques de lieux correspondent et `estAJour` est vrai.
-                - **Action :** **Synchronise l'historique local :** `objet.constructor.CLASSES_PARAMETRES` est mis à jour avec l'historique complet du forum pour garantir la cohérence. Retourne `true`.
+                - **Action :** **Synchronise l'historique local :** `objet.constructor.PARAMETRES_OBJET` est mis à jour avec l'historique complet du forum pour garantir la cohérence. Retourne `true`.
             *   **Cas Anormal :**
                 - **Détection :** Toute autre combinaison.
                 - **Action :** Log une erreur et lève une exception.
@@ -1357,7 +1357,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
 1.  **Préparation (Code)** :
     *   Dans `TestParametreObjetForumQuantite.js`, définir `NAME_HISTORY = ['Quantité']`.
     *   Dans `TestParametreObjetForumCoordonnees.js`, définir `NAME_HISTORY = ['Coordonnées']` et `stringRestriction = 'Confidentiel'`.
-    *   Dans `TestObjetForumCommande.js`, définir `CLASSES_PARAMETRES = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees]]` et `LOCATION_HISTORY` pour pointer vers la section `Données Test SDC`.
+    *   Dans `TestObjetForumCommande.js`, définir `PARAMETRES_OBJET = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees]]` et `LOCATION_HISTORY` pour pointer vers la section `Données Test SDC`.
     *   Dans `TestFonctionnaliteSDC.js`, s'assurer que la découverte automatique de dépendances identifiera `TestObjetForumCommande`.
     *   Dans `TestPage.js`, déclarer `fonctionnalitesAlliance = [TestFonctionnaliteSDC]`.
 2.  **Phase 1 : Création**
@@ -1504,12 +1504,12 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
         *   **Ne PAS définir `FORMATS` ici.**
     e.  Créer `TestObjetForumCommandeV1.js` (héritant d'`ObjetForum`) avec :
         *   `VERSION_LOGIQUE = '1.0'`
-        *   `CLASSES_PARAMETRES = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees]]`
+        *   `PARAMETRES_OBJET = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees]]`
         *   `LOCATION_HISTORY = [{section: 'Données Test SDC', lieu: 'titre'}]`
         *   `completerChargementPourVersionsAnterieures()` vide.
     f.  Créer `TestObjetForumCommandeV2.js` (héritant d'`ObjetForum`) avec :
         *   `VERSION_LOGIQUE = '2.0'`
-        *   `CLASSES_PARAMETRES = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees], [TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees, TestParametreObjetForumStatut]]`
+        *   `PARAMETRES_OBJET = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees], [TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees, TestParametreObjetForumStatut]]`
         *   `LOCATION_HISTORY = [{section: 'Données Test SDC', lieu: 'titre'}, {section: 'Données Test SDC V2', lieu: 'titre'}]`
         *   Implémenter `completerChargementPourVersionsAnterieures()` pour que si la v1 est chargée (`this._determinerVersionChargee() === 0`) :
             *   La valeur de `TestParametreObjetForumQuantite` (nom 'Quantité') soit utilisée pour calculer et peupler `TestParametreObjetForumQuantite` (nom 'NouvelleQuantite') (ex: `this.ecrireParametreObjetForum('NouvelleQuantite', this.lireParametreObjetForum('Quantité') * 2)`).

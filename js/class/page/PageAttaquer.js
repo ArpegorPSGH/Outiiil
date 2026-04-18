@@ -10,7 +10,7 @@
 * @constructor
 */
 Utils.register(class PageAttaquer extends Page {
-    static URIs = ["/ennemie.php?Attaquer", "/ennemie.php?annuler"];
+    static URIs = [{ href: "/ennemie.php?Attaquer" }, { href: "/ennemie.php?annuler" }];
 
 
     static FONCTIONNALITES = [
@@ -29,7 +29,7 @@ Utils.register(class PageAttaquer extends Page {
         /**
         *
         */
-        this._cible = new Joueur({ pseudo: $("input[name=pseudoCible]").val() });
+        this._cible = new Joueur(null, { donneesInitiales: { Pseudo: $("input[name=pseudoCible]").val() } });
         /**
         * Armee.
         */
@@ -48,9 +48,7 @@ Utils.register(class PageAttaquer extends Page {
             this._nbAttaque = niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
 
             // on recupére le profil du joueur pour les coordonnées
-            await this._cible.getProfil().then(async (data) => {
-                await this._cible.chargerProfil(data);
-            });
+            await this._cible.chargerDonneesMembre();
         }
     }
     /**
@@ -68,7 +66,7 @@ Utils.register(class PageAttaquer extends Page {
     * @method majStatistique
     */
     async majStatistique(armee = null) {
-        let recherche = await monProfilJoueur.niveauRecherche;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
         let tmp = armee ? armee : new Armee({ unite: this.extraitArmee() }), html = `<table id="o_tableStatArmee" cellspacing=0>
             <tr class="gras centre"><td></td><td>HB</td><td>AB</td></tr>
             <tr><td>${IMG_VIE}</td><td>${numeral(tmp.getBaseVie()).format()}</td><td>${numeral(tmp.getTotalVie(recherche[1])).format()}</td></tr>
@@ -136,8 +134,8 @@ Utils.register(class PageAttaquer extends Page {
         $(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
             <table id='o_simulationFlood' class='o_maxWidth' cellspacing=0>
 			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${await this._cible.lire('Pseudo')} (${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
-			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${await this._cible.terrain}' size='12' id='o_floodTDCB'/></td></tr>
-			<tr><td>Antisonde (<span id="o_pourcentAttaque0">0</span>%)</td><td><input value='0' size='12' id='o_floodAntiSonde'/></td><td></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.terrain).format()}</td></tr>
+			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${await this._cible.lire('Terrain de Chasse')}' size='12' id='o_floodTDCB'/></td></tr>
+			<tr><td>Antisonde (<span id="o_pourcentAttaque0">0</span>%)</td><td><input value='0' size='12' id='o_floodAntiSonde'/></td><td></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.lire('Terrain de Chasse')).format()}</td></tr>
             <tr class="gras reduce"><td colspan="3"></td><td><span id="o_supprimeAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Supprimer une attaque</span></td><td><span id="o_ajouteAttaque" class="souligne cursor" ${methode == 1 ? "style=display:none;" : ""}>Ajouter une attaque</span></td></tr>
             </table>
             <button id='o_lanceFlood' class='o_marginT15 o_button f_success'>Flooder</button>
@@ -172,7 +170,7 @@ Utils.register(class PageAttaquer extends Page {
             $(e.currentTarget).spinner("value", nombre);
             await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
         });
-        $("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.id, 0, $("#t:last").attr("name") + "=" + $("#t:last").attr("value")); });
+        $("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.lire('Id'), 0, $("#t:last").attr("name") + "=" + $("#t:last").attr("value")); });
         $("#o_ajouteAttaque").click(async (e) => { await this.ajouterAttaque(); });
         $("#o_supprimeAttaque").click((e) => { this.supprimerAttaque(); });
     }
@@ -240,7 +238,7 @@ Utils.register(class PageAttaquer extends Page {
         if (nbAttaque >= this._nbAttaque)
             $.toast({ ...TOAST_WARNING, text: "Votre vitesse d'attaque ne vous permet d'envoyer plus d'attaques" });
         else {
-            $("#o_simulationFlood tr:last").before(`<tr class='ligne_paire'><td>Attaque ${nbAttaque} (<span id="o_pourcentAttaque${nbAttaque}">0</span>%)</td><td><input value='0' size='12' id='o_attaque${nbAttaque}'/></td><td><input type="checkbox" id="o_suppAttaque${nbAttaque}" name="o_suppAttaque"/></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.terrain).format()}</td></tr>`);
+            $("#o_simulationFlood tr:last").before(`<tr class='ligne_paire'><td>Attaque ${nbAttaque} (<span id="o_pourcentAttaque${nbAttaque}">0</span>%)</td><td><input value='0' size='12' id='o_attaque${nbAttaque}'/></td><td><input type="checkbox" id="o_suppAttaque${nbAttaque}" name="o_suppAttaque"/></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.lire('Terrain de Chasse')).format()}</td></tr>`);
             $("#o_attaque" + nbAttaque).spinner({ min: 0, numberFormat: "i" });
             $("#o_simulationFlood tr").removeClass("ligne_paire");
             $("#o_simulationFlood tr:even").addClass("ligne_paire");

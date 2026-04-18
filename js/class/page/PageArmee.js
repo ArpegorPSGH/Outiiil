@@ -62,7 +62,7 @@ Utils.register(class PageArmee extends Page {
     }
 
     async afficherAttaquesRestantes() {
-        let recherche = await monProfilJoueur.niveauRecherche;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
         // Affichage du nombre d'attaque restante
         $("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(recherche[6] + 1 - this._nbAttaque)}.</p>`);
     }
@@ -266,7 +266,7 @@ Utils.register(class PageArmee extends Page {
     * @method afficherLigneVie
     */
     async afficherLigneVie() {
-        let recherche = await monProfilJoueur.niveauRecherche;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
         let bouclier = recherche[1];
         let line = `<tr align='center' class='vie cursor'>
 			 <td>Vie (AB)</td>
@@ -290,7 +290,7 @@ Utils.register(class PageArmee extends Page {
     * @method afficherLigneAttaque
     */
     async afficherLigneAttaque() {
-        let recherche = await monProfilJoueur.niveauRecherche;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
         let armes = recherche[2];
         let line = `<tr align="center" class="att ligne_paire cursor">
 			 <td>Dégâts en Attaque (AB)</td>
@@ -314,7 +314,7 @@ Utils.register(class PageArmee extends Page {
     * @method afficherLigneDefense
     */
     async afficherLigneDefense() {
-        let recherche = await monProfilJoueur.niveauRecherche;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
         let armes = recherche[2];
         let line = `<tr align="center" class="def cursor">
 			 <td>Dégâts en Défense (AB)</td>
@@ -350,7 +350,7 @@ Utils.register(class PageArmee extends Page {
     *
     */
     async afficherStatistique() {
-        let recherche = await monProfilJoueur.niveauRecherche;
+        let recherche = await monProfilJoueur.lire('Niveau Recherche');
         let bouclier = recherche[1], armes = recherche[2];
         $(".simulateur:first").after(`<br/><div id="o_statArmee" class="simulateur">
             <h3>Statistiques</h3>

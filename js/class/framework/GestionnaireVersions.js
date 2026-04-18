@@ -329,7 +329,7 @@ class GestionnaireVersions {
 
             if (objet instanceof ObjetForumDroits) {
                 const mapIdSujetVersClasse = new Map();
-                objet.constructor.CLASSES_PARAMETRES.forEach(versionParams =>
+                objet.constructor.PARAMETRES_OBJET.forEach(versionParams =>
                     versionParams.forEach(classeParam => {
                         if (classeParam.FORMAT_HISTORY && classeParam.FORMAT_HISTORY.length > 0) {
                             const localParamAnchor = JSON.stringify(classeParam.FORMAT_HISTORY[0]);
@@ -348,7 +348,7 @@ class GestionnaireVersions {
                 };
             }
 
-            const classesParametresLocales = objet.constructor.CLASSES_PARAMETRES.map(versionParams =>
+            const classesParametresLocales = objet.constructor.PARAMETRES_OBJET.map(versionParams =>
                 versionParams.map(classeParam => {
                     // Construire l'ancre locale pour le paramètre actuel en utilisant son FORMAT_HISTORY.
                     if (classeParam.FORMAT_HISTORY && classeParam.FORMAT_HISTORY.length > 0) {
@@ -433,8 +433,8 @@ class GestionnaireVersions {
                 console.warn(`L'extension est obsolète. L'objet ${objet.constructor.name} nécessite une mise à jour.`);
                 if (objet instanceof ObjetForumDroits) {
                     const historiqueTronque = versionForum.classesParametres.slice(0, indexDansForum + 1);
-                    objet.constructor.CLASSES_PARAMETRES = convertirIdsEnClasses(historiqueTronque);
-                    console.log('Historique de classe de paramètres réécrit:', objet.constructor.CLASSES_PARAMETRES);
+                    objet.constructor.PARAMETRES_OBJET = convertirIdsEnClasses(historiqueTronque);
+                    console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
                 $.toast({
                     heading: 'Mise à jour requise',
@@ -470,8 +470,8 @@ class GestionnaireVersions {
                 if (objet instanceof ObjetForumDroits) {
                     const derniereVersionLocale = classesParametresLocales[classesParametresLocales.length - 1];
                     nouvelHistoriqueComplet = [...versionForum.classesParametres, derniereVersionLocale];
-                    objet.constructor.CLASSES_PARAMETRES = convertirIdsEnClasses(nouvelHistoriqueComplet);
-                    console.log('Historique de classe de paramètres réécrit:', objet.constructor.CLASSES_PARAMETRES);
+                    objet.constructor.PARAMETRES_OBJET = convertirIdsEnClasses(nouvelHistoriqueComplet);
+                    console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Forum obsolète pour ${nomClasseLocale}. Mise à jour de la version sur le forum.`);
                 await Utils.modifierSujet(`objet: ${nomClasseLocale}`, ' ', versionForum.idSujet);
@@ -490,8 +490,8 @@ class GestionnaireVersions {
             else if (compVersion === 0 && compFormats === 0 && estAJour) {
                 console.log('Concordance parfaite')
                 if (objet instanceof ObjetForumDroits) {
-                    objet.constructor.CLASSES_PARAMETRES = convertirIdsEnClasses(versionForum.classesParametres);
-                    console.log('Historique de classe de paramètres réécrit:', objet.constructor.CLASSES_PARAMETRES);
+                    objet.constructor.PARAMETRES_OBJET = convertirIdsEnClasses(versionForum.classesParametres);
+                    console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
                 return true;
             }

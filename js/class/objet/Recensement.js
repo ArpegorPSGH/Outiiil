@@ -7,9 +7,9 @@
  */
 Utils.register(class Recensement extends ObjetForum {
     static VERSION_LOGIQUE = '1.0';
-    static LOCATION_HISTORY = [{ section : 'Membres Outiiil', lieu: 'message' }]; // Un recensement est toujours un message
+    static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'message' }]; // Un recensement est toujours un message
     static SEPARATEUR_PARAMETRES = '\n'; // Chaque paramètre sur une nouvelle ligne
-    static CLASSES_PARAMETRES = [
+    static PARAMETRES_OBJET = [
         [
             ParametreRecensementRessources,
             ParametreRecensementConstructions,
