@@ -46,7 +46,7 @@ Pour chaque fonction modifiée, les tests devraient couvrir les scénarios suiva
         *   **Attendu :** La fonction ne doit pas crasher et doit retourner une liste vide, un booléen par défaut (`false`), ou des objets avec des valeurs par défaut claires. Les données malformées doivent être ignorées ou traitées avec des valeurs par défaut sans provoquer de crash.
 
 3.  **Tests de régression :**
-    *   Après les modifications, s'assurer que toutes les fonctionnalités existantes qui dépendent de `PageForum` continuent de fonctionner correctement avec des données valides.
+    *   Après les modifications, s'assurer que toutes les fonctionnalités existantes qui dépendent de `Forum` continuent de fonctionner correctement avec des données valides.
 
 ## Avancement
 - **`chargerCommande(data)`** : Le parsing des titres de sujets a été rendu plus robuste en utilisant des expressions régulières pour extraire l'état et les informations, remplaçant les opérations `split` fragiles.

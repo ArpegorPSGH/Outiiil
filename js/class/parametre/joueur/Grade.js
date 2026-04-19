@@ -1,4 +1,4 @@
-class ParametreJoueurGrade extends ParametreObjetForum {
+class Grade extends ParametreObjetForum {
     static VISIBLE_PAR_DEFAUT = true;
     static SORTABLE_PAR_DEFAUT = false;
     static VERSION_LOGIQUE = '1.0';

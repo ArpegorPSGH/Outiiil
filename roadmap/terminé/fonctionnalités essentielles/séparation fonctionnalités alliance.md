@@ -39,7 +39,7 @@ Ce plan d'implémentation est basé sur une approche séquentielle unifiée pour
 
 ### Architecture : Le Pipeline Séquentiel Unifié
 
-Le cœur de l'architecture reposera sur une unique liste statique `FONCTIONNALITES` dans `PageAlliance`. Cette liste contiendra un mélange de références de méthodes (pour les fonctionnalités locales) et de classes (pour les `FonctionnaliteAlliance`). La méthode `Page.init()` parcourra cette liste et exécutera chaque élément séquentiellement, en détectant son type pour savoir comment le traiter.
+Le cœur de l'architecture reposera sur une unique liste statique `FONCTIONNALITES` dans `Membres`. Cette liste contiendra un mélange de références de méthodes (pour les fonctionnalités locales) et de classes (pour les `FonctionnaliteAlliance`). La méthode `Page.init()` parcourra cette liste et exécutera chaque élément séquentiellement, en détectant son type pour savoir comment le traiter.
 
 **Gestion de l'état du tableau :**
 Une méthode utilitaire, `synchroniserJoueursDepuisDOM`, sera responsable de lire l'état actuel du tableau DOM. Elle sera appelée par toute fonctionnalité nécessitant une vue d'ensemble à jour des joueurs affichés, garantissant que les données sont toujours fraîches.
@@ -79,7 +79,7 @@ Une méthode utilitaire, `synchroniserJoueursDepuisDOM`, sera responsable de lir
     *   **`Joueur.js` :** Remplacer l'attribut `mv` par un attribut `etat` plus descriptif ('actif', 'vacances', 'banni', etc.).
     *   **`Alliance.js` :** Ajouter une méthode `compterJoueursParEtat()` qui parcourt sa liste de joueurs et retourne les comptes.
 
-4.  **Définir la structure de `PageAlliance.js` :**
+4.  **Définir la structure de `Membres.js` :**
     *   La méthode `init` attendra le chargement du tableau avant d'appeler `super.init()`.
     *   Ajouter la méthode utilitaire `async synchroniserJoueursDepuisDOM()`.
     *   Déclarer une seule liste statique `FONCTIONNALITES` qui définira l'ordre d'exécution.
@@ -88,7 +88,7 @@ Une méthode utilitaire, `synchroniserJoueursDepuisDOM`, sera responsable de lir
 
 ### Phase 2 : Implémentation de la Chaîne de Fonctionnalités (Ordre Optimisé)
 
-L'ordre dans la liste `FONCTIONNALITES` de `PageAlliance.js` est crucial et dictera toute la logique d'exécution.
+L'ordre dans la liste `FONCTIONNALITES` de `Membres.js` est crucial et dictera toute la logique d'exécution.
 
 ```javascript
 // Ordre final dans js/class/page/Alliance.js
@@ -97,20 +97,20 @@ static FONCTIONNALITES = [
     this.prototype.ajouterBoutonsDataTable,
 
     // Étape 2: Ajout de toutes les lignes de joueurs
-    FonctionnaliteJoueursExterieurs,
+    JoueursExterieurs,
 
     // Étape 3: Mise en forme et enrichissement du tableau complet
     this.prototype.afficherColonnesPubliques,
     this.prototype.afficherIndicateursAttaqueDefense,
-    FonctionnaliteDonneesPrivees,
-    FonctionnaliteModificationGrade,
+    DonneesPrivees,
+    ModifierGrade,
 
     // Étape 4: Calculs finaux sur le tableau complet
     this.prototype.afficherStatsEtCompteurs,
 
     // Étape 5: Ajout des boutons d'action
-    FonctionnaliteRecensement,
-    FonctionnaliteActualisation
+    Recenser,
+    Actualiser
 ];
 ```
 
@@ -118,23 +118,23 @@ static FONCTIONNALITES = [
 
 1.  **`ajouterBoutonsDataTable` (Méthode locale) :** Prépare la structure de base du tableau en ajoutant les en-têtes et en initialisant `DataTable`. Doit être exécutée en premier.
 
-2.  **`FonctionnaliteJoueursExterieurs` (Classe) :**
+2.  **`JoueursExterieurs` (Classe) :**
     *   **Rôle :** S'assure que toutes les lignes de joueurs (internes et externes) sont présentes dans le DOM.
     *   **Logique :** Appelle `synchroniserJoueursDepuisDOM` pour lister les joueurs déjà présents. Charge les joueurs depuis le forum, compare les listes, et ajoute les `<tr>` manquantes au `<tbody>`. Son unique rôle est de compléter les lignes.
 
-3.  **`afficherColonnesPubliques` (Méthode locale) :** S'exécute après `FonctionnaliteJoueursExterieurs`. Elle parcourt **toutes** les lignes du tableau (initiales + extérieures) et ajoute les colonnes `TdT` et `Retour`.
+3.  **`afficherColonnesPubliques` (Méthode locale) :** S'exécute après `JoueursExterieurs`. Elle parcourt **toutes** les lignes du tableau (initiales + extérieures) et ajoute les colonnes `TdT` et `Retour`.
 
 4.  **`afficherIndicateursAttaqueDefense` (Méthode locale) :** Parcourt **toutes** les lignes et ajoute les icônes d'attaque/défense.
 
-5.  **`FonctionnaliteDonneesPrivees` (Classe) :** Charge ses données, puis parcourt **toutes** les lignes pour ajouter la colonne `Grade`.
+5.  **`DonneesPrivees` (Classe) :** Charge ses données, puis parcourt **toutes** les lignes pour ajouter la colonne `Grade`.
 
-6.  **`FonctionnaliteModificationGrade` (Classe) :** Charge ses données, puis parcourt **toutes** les lignes pour ajouter les icônes de modification de grade.
+6.  **`ModifierGrade` (Classe) :** Charge ses données, puis parcourt **toutes** les lignes pour ajouter les icônes de modification de grade.
 
 7.  **`afficherStatsEtCompteurs` (Méthode locale) :**
     *   **Rôle :** Affiche les statistiques finales. Doit s'exécuter après que toutes les modifications de lignes soient terminées.
     *   **Logique :** Appelle `synchroniserJoueursDepuisDOM` pour obtenir l'état final et complet du tableau, puis calcule et affiche les statistiques à l'aide de la classe `Alliance`.
 
-8.  **`FonctionnaliteRecensement` et `FonctionnaliteActualisation` (Classes) :** Ajoutent leurs boutons d'action respectifs à l'interface.
+8.  **`Recenser` et `Actualiser` (Classes) :** Ajoutent leurs boutons d'action respectifs à l'interface.
 
 ---
 
@@ -166,9 +166,9 @@ Les tests seront menés avec les profils suivants, configurés dans la section "
 ### 1. Tests Unitaires des Fonctionnalités d'Alliance
 
 **Configuration de base pour tous les tests unitaires :**
-La liste `FONCTIONNALITES` de `PageAlliance.js` contiendra toujours **toutes les fonctionnalités locales**, plus **une seule** fonctionnalité d'alliance à la fois, à sa position d'utilisation.
+La liste `FONCTIONNALITES` de `Membres.js` contiendra toujours **toutes les fonctionnalités locales**, plus **une seule** fonctionnalité d'alliance à la fois, à sa position d'utilisation.
 
-#### **1.1 `FonctionnaliteDonneesPrivees` / `FonctionnaliteJoueursExterieurs`**
+#### **1.1 `DonneesPrivees` / `JoueursExterieurs`**
 *   **Logique des droits :** Ces fonctionnalités nécessitent un droit 'R' (Restreint) ou plus.
 *   **Test à la limite :**
     *   **Profil Limite (Succès) : `JoueurRestreint`**
@@ -176,7 +176,7 @@ La liste `FONCTIONNALITES` de `PageAlliance.js` contiendra toujours **toutes les
     *   **Profil Limite (Échec) : `JoueurBloque`**
         *   **Vérification :** Les colonnes privées et les joueurs externes ne sont **pas** ajoutés. Aucune erreur n'apparaît en console.
 
-#### **1.2 `FonctionnaliteModificationGrade`**
+#### **1.2 `ModifierGrade`**
 *   **Logique des droits :** Accessible avec le droit 'A' (Admin Outiiil) **OU** les droits d'administration Fourmizzz.
 *   **Test à la limite :**
     *   **Profil Limite (Succès) : `JoueurAdmin`**
@@ -186,7 +186,7 @@ La liste `FONCTIONNALITES` de `PageAlliance.js` contiendra toujours **toutes les
     *   **Profil Limite (Échec) : `JoueurNormal` (simulation sans droits FZ)**
         *   **Vérification :** L'icône de modification de grade n'est **pas** visible.
 
-#### **1.3 `FonctionnaliteRecensement`**
+#### **1.3 `Recenser`**
 *   **Logique des droits :** Accessible à tous sauf 'B' (Bloqué).
 *   **Test à la limite :**
     *   **Profil Limite (Succès) : `JoueurRestreint`**
@@ -199,7 +199,7 @@ La liste `FONCTIONNALITES` de `PageAlliance.js` contiendra toujours **toutes les
     *   **Action :** La fonctionnalité de test tente de lire les données du recensement posté par `JoueurRestreint`.
     *   **Vérification :** La console confirme que les données sont lues correctement.
 
-#### **1.4 `FonctionnaliteActualisation`**
+#### **1.4 `Actualisation`**
 *   **Logique des droits :** Accessible avec le droit 'A' (Admin Outiiil) **OU** les droits d'administration Fourmizzz.
 *   **Test à la limite :**
     *   **Profil Limite (Succès) : `JoueurAdmin`**
@@ -237,27 +237,27 @@ La liste `FONCTIONNALITES` de `PageAlliance.js` contiendra toujours **toutes les
 3.  **Refactoriser `Joueur.js` et `Alliance.js` :**
     *   **`Joueur.js` :** L'attribut `mv` a été remplacé par `etat` et toutes les références associées ont été mises à jour.
     *   **`Alliance.js` :** La méthode `compterJoueursParEtat()` a été ajoutée et mise à jour pour compter les joueurs colonisés en plus de leur état principal.
-4.  **Définir la structure de `PageAlliance.js` :**
+4.  **Définir la structure de `Membres.js` :**
     *   Le fichier `js/class/page/Alliance.js` a été renommé en `js/class/page/Alliance_old.js`.
     *   Un nouveau fichier `js/class/page/Alliance.js` a été créé avec la structure de base, incluant la méthode `init` qui attend le chargement du tableau, la méthode utilitaire `synchroniserJoueursDepuisDOM`, et les méthodes locales `ajouterBoutonsDataTable`, `afficherColonnesPubliques`, `afficherIndicateursAttaqueDefense`, et `afficherStatsEtCompteurs`.
     *   Les corrections suite au feedback utilisateur ont été appliquées :
         *   `ajouterBoutonsDataTable` ajoute uniquement les boutons.
         *   `afficherColonnesPubliques` n'ajoute plus la colonne de grade.
         *   `colspanValue` utilise le nombre de colonnes actuel du tableau.
-        *   `Utils.register` a été ajouté à la classe `PageAlliance`.
+        *   `Utils.register` a été ajouté à la classe `Membres`.
 
 ### Phase 2 : Implémentation de la Chaîne de Fonctionnalités - Terminé
 
-1.  **`ajouterBoutonsDataTable` (Méthode locale) :** Implémentée dans `PageAlliance.js`.
-2.  **`FonctionnaliteJoueursExterieurs` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/FonctionnaliteJoueursExterieurs.js`.
-3.  **`afficherColonnesPubliques` (Méthode locale) :** Implémentée dans `PageAlliance.js`.
-4.  **`afficherIndicateursAttaqueDefense` (Méthode locale) :** Implémentée dans `PageAlliance.js`.
-5.  **`FonctionnaliteDonneesPrivees` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/FonctionnaliteDonneesPrivees.js`.
-6.  **`FonctionnaliteModificationGrade` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/FonctionnaliteModificationGrade.js`.
-7.  **`afficherStatsEtCompteurs` (Méthode locale) :** Implémentée dans `PageAlliance.js`.
-8.  **`FonctionnaliteRecensement` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/FonctionnaliteRecensement.js`.
-9.  **`FonctionnaliteActualisation` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/FonctionnaliteActualisation.js`.
-10. **Intégration :** La liste `FONCTIONNALITES` de `PageAlliance.js` a été mise à jour pour inclure toutes les fonctionnalités dans le bon ordre.
+1.  **`ajouterBoutonsDataTable` (Méthode locale) :** Implémentée dans `Membres.js`.
+2.  **`JoueursExterieurs` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/JoueursExterieurs.js`.
+3.  **`afficherColonnesPubliques` (Méthode locale) :** Implémentée dans `Membres.js`.
+4.  **`afficherIndicateursAttaqueDefense` (Méthode locale) :** Implémentée dans `Membres.js`.
+5.  **`DonneesPrivees` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/DonneesPrivees.js`.
+6.  **`ModifierGrade` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/ModifierGrade.js`.
+7.  **`afficherStatsEtCompteurs` (Méthode locale) :** Implémentée dans `Membres.js`.
+8.  **`Recenser` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/Recenser.js`.
+9.  **`Actualiser` (Classe) :** Implémentée dans `js/class/fonctionnalite/alliance/Actualiser.js`.
+10. **Intégration :** La liste `FONCTIONNALITES` de `Membres.js` a été mise à jour pour inclure toutes les fonctionnalités dans le bon ordre.
 
 ### Tests
 
@@ -265,10 +265,10 @@ La liste `FONCTIONNALITES` de `PageAlliance.js` contiendra toujours **toutes les
 2.  **`afficherIndicateursAttaqueDefense` (Méthode locale)** validé
 3.  **`afficherStatsEtCompteurs` (Méthode locale)** validé
 4.  **`ajouterBoutonsDataTable` (Méthode locale)** validé
-5.  **`FonctionnaliteJoueursExterieurs` (Classe)** validé
-6.  **`FonctionnaliteDonneesPrivees` (Classe)** validé
-7.  **`FonctionnaliteModificationGrade` (Classe)** validé
-8.  **`FonctionnaliteRecensement` (Classe)** validé
-9.  **`FonctionnaliteActualisation` (Classe)** validé
+5.  **`JoueursExterieurs` (Classe)** validé
+6.  **`DonneesPrivees` (Classe)** validé
+7.  **`ModifierGrade` (Classe)** validé
+8.  **`Recenser` (Classe)** validé
+9.  **`Actualiser` (Classe)** validé
 9.  Test d'intégration validé
 

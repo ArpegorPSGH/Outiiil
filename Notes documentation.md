@@ -30,12 +30,12 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
         - Définissez sa version logique via `ParametreObjetForum.VERSION_LOGIQUE`.
         - Définissez son historique de formats via `ParametreObjetForum.FORMAT_HISTORY`. Chaque élément est un objet de la forme `{ nom: 'NomDuParam', format: 'un string contenant "(nom)" et "(valeur)"' }`.
         - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
-        - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). La valeur peut être un type primitif (nombre, chaîne, booléen), une liste ou un dictionnaire, avec un nombre de niveaux d'imbrication (nesting) quelconque.
+        - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). Un paramètre ne peut contenir que des listes, des dictionnaires, ou des types primitifs (nombre, chaîne, booléen), peu importe le niveau de nesting.
     - **Pour un attribut :**
         - Définissez son nom d'affichage via `AttributObjet.NOM_AFFICHAGE` (une liste de chaînes).
         - (Optionnel) Définissez ses alias d'appel via `AttributObjet.NOM_APPEL`.
         - Pour un attribut calculé, surchargez la méthode `calculerValeur(peutVoirDonneesRestreintes)`.
-        - La valeur par défaut d'un attribut statique doit être initialisée dans `valeur`.
+        - La valeur par défaut d'un attribut statique doit être initialisée dans `valeur`. Un attribut d'objet peut contenir n'importe quel type de données (y compris des instances de classes ou objets complexes).
 
 ### 1.3 Ajout d'une Nouvelle Classe de Page
 
@@ -77,11 +77,14 @@ Pour garantir la robustesse des fonctionnalités :
 ## 5. Bonnes Pratiques de Développement
 
 - **Organisation des fichiers :** L'arborescence des classes sous `js/class` doit suivre la structure suivante :
-    - `framework/` : Contient les classes mères du framework (`Page`, `FonctionnaliteAlliance`, `ObjetForum`, `ParametreObjetForum`, etc.) ainsi que les gestionnaires.
+    - `framework/` : Contient les classes mères du framework (`Page`, `FonctionnaliteAlliance`, `ObjetForum`, `ParametreObjetForum`, `AttributObjet`, `Boite`, etc.) ainsi que les gestionnaires.
     - `page/` : Contient les classes qui héritent de `Page`.
     - `fonctionnalite/` : Contient les classes qui héritent de `FonctionnaliteAlliance`, regroupées dans des sous-dossiers nommés d'après la page à laquelle elles s'appliquent.
     - `objet/` : Contient les classes qui héritent de `ObjetForum`.
     - `parametre/` : Contient les classes qui héritent de `ParametreObjetForum`, regroupées dans des sous-dossiers nommés d'après l'objet auquel elles appartiennent.
+    - `attribut/` : Contient les classes qui héritent de `AttributObjet`, regroupées dans des sous-dossiers nommés d'après l'objet auquel elles appartiennent.
+    - `boite/` : Contient les classes qui héritent de `Boite`.
+    - `autre/` : Contient les classes qui héritent de classes non définies dans les autres catégories.
 - **Héritage et Formats :**
     - Les classes de paramètres, objets, fonctionnalités et pages doivent directement hériter de leurs classes mères respectives.
     - Les modifications de formats des paramètres (comme les formats de template string) ne doivent être effectuées que dans la classe mère des paramètres (`ParametreObjetForum`), et non dans les classes de paramètres filles.
@@ -204,7 +207,7 @@ Les attributs permettent d'ajouter des données à un `ObjetForum` qui ne sont p
 
 *   **Exemple d'Attribut Calculé :**
     ```javascript
-    class AttributJoueurCoordonnees extends AttributObjet {
+    class Coordonnees extends AttributObjet {
         static NOM_AFFICHAGE = ['Coordonnées'];
 
         async calculerValeur(peutVoirDonneesRestreintes) {
@@ -218,7 +221,7 @@ Les attributs permettent d'ajouter des données à un `ObjetForum` qui ne sont p
 *   **Enregistrement dans l'Objet :**
     ```javascript
     class MonObjet extends ObjetForum {
-        static ATTRIBUTS_OBJET = [AttributJoueurCoordonnees];
+        static ATTRIBUTS_OBJET = [Coordonnees];
         // ...
     }
     ```

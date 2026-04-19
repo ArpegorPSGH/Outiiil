@@ -16,33 +16,33 @@ Utils.register(class Joueur extends ObjetForum {
     static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre' }];
     static PARAMETRES_OBJET = [
         [
-            ParametreJoueurPseudo,
-            ParametreJoueurGrade,
-            ParametreJoueurOrdreGrade,
-            ParametreJoueurAllianceRattachement
+            Pseudo,
+            Grade,
+            OrdreGrade,
+            AllianceRattachement
         ]
     ];
     static classeObjetsForumContenus = Recensement; // Un joueur peut contenir des objets Recensement
 
     static ATTRIBUTS_OBJET = [
-        AttributJoueurId,
-        AttributJoueurX,
-        AttributJoueurY,
-        AttributJoueurTerrain,
-        AttributJoueurFourmiliere,
-        AttributJoueurTechnologie,
-        AttributJoueurActivite,
-        AttributJoueurColonise,
-        AttributJoueurAllianceTag,
-        AttributJoueurRang,
-        AttributJoueurOrdreRadar,
-        AttributJoueurNiveauRecherche,
-        AttributJoueurNiveauConstruction,
-        AttributJoueurNourriture,
-        AttributJoueurMateriaux,
-        AttributJoueurArmee,
-        AttributJoueurCoordonnees,
-        AttributJoueurEtat
+        Id,
+        X,
+        Y,
+        TerrainDeChasse,
+        Fourmiliere,
+        Technologie,
+        Activite,
+        Colonise,
+        TagAlliance,
+        Rang,
+        OrdreRadar,
+        NiveauxRecherches,
+        NiveauxConstructions,
+        Nourriture,
+        Materiaux,
+        ArmeeJoueur,
+        Coordonnees,
+        EtatJoueur
     ];
 
 
@@ -92,7 +92,7 @@ Utils.register(class Joueur extends ObjetForum {
     //     /**
     //     *
     //     */
-    //     this.ecrire('Niveau Recherche', parametres["Niveau Recherche"] || new Array(10).fill(-1));
+    //     this.ecrire('Niveaux Recherches', parametres["Niveaux Recherches"] || new Array(10).fill(-1));
     //     /**
     //     *
     //     */
@@ -100,7 +100,7 @@ Utils.register(class Joueur extends ObjetForum {
     //     /**
     //     *
     //     */
-    //     this.ecrire('Niveau Construction', parametres["Niveau Construction"] || new Array(13).fill(-1));
+    //     this.ecrire('Niveaux Constructions', parametres["Niveaux Constructions"] || new Array(13).fill(-1));
     //     /**
     //     *
     //     */
@@ -178,19 +178,19 @@ Utils.register(class Joueur extends ObjetForum {
     // get terrain() { return this.lire('Terrain de Chasse'); }
     // set terrain(newTerrain) { this.ecrire('Terrain de Chasse', newTerrain); }
 
-    // get niveauRecherche() { return this.lire('Niveau Recherche'); }
-    // set niveauRecherche(newNiveau) { this.ecrire('Niveau Recherche', newNiveau); }
+    // get niveauRecherche() { return this.lire('Niveaux Recherches'); }
+    // set niveauRecherche(newNiveau) { this.ecrire('Niveaux Recherches', newNiveau); }
 
     // get technologie() { return this.lire('Technologie'); }
     // set technologie(newTechnologie) { this.ecrire('Technologie', newTechnologie); }
 
-    // get niveauConstruction() { return this.lire('Niveau Construction'); }
-    // set niveauConstruction(newNiveau) { this.ecrire('Niveau Construction', newNiveau); }
+    // get niveauxConstructions() { return this.lire('Niveaux Constructions'); }
+    // set niveauxConstructions(newNiveau) { this.ecrire('Niveaux Constructions', newNiveau); }
 
     // get fourmiliere() { return this.lire('Fourmilière'); }
     // set fourmiliere(newFourmiliere) { this.ecrire('Fourmilière', newFourmiliere); }
 
-    // /** Activité : délègue à AttributJoueurActivite qui gère la conversion image→string. */
+    // /** Activité : délègue à Activite qui gère la conversion image→string. */
     // get activite() { return this.lire('Activité'); }
     // set activite(newActivite) { this.ecrire('Activité', newActivite); }
 
@@ -288,18 +288,11 @@ Utils.register(class Joueur extends ObjetForum {
         if (await this.estJoueurCourant()) {
             // Pour le joueur courant, on charge les données "fraîches"
             // Constructions
-            const constructionPromise = this.getConstruction();
-            if (constructionPromise) {
-                const htmlConstruction = await constructionPromise;
-                await this.chargerConstruction(htmlConstruction);
-            }
+            await this.chargerConstruction();
             console.log('completerRafraichissement 2')
+
             // Recherches
-            const recherchePromise = this.getLaboratoire();
-            if (recherchePromise) {
-                const htmlRecherche = await recherchePromise;
-                await this.chargerRecherche(htmlRecherche);
-            }
+            await this.chargerRecherche();
             console.log('completerRafraichissement 3')
 
 
@@ -340,7 +333,7 @@ Utils.register(class Joueur extends ObjetForum {
                     // Lecture des niveaux de construction
                     const constructionsDict = await dernierRecensement.lire('Constructions');
                     if (constructionsDict) {
-                        let currentConstruction = await this.lire('Niveau Construction');
+                        let currentConstruction = await this.lire('Niveaux Constructions');
                         let modifie = false;
                         CONSTRUCTION.forEach((nom, index) => {
                             const niveau = constructionsDict[nom];
@@ -349,13 +342,13 @@ Utils.register(class Joueur extends ObjetForum {
                                 modifie = true;
                             }
                         });
-                        if (modifie) await this.ecrire('Niveau Construction', currentConstruction);
+                        if (modifie) await this.ecrire('Niveaux Constructions', currentConstruction);
                     }
 
                     // Lecture des niveaux de recherche
                     const recherchesDict = await dernierRecensement.lire('Recherches');
                     if (recherchesDict) {
-                        let currentRecherche = await this.lire('Niveau Recherche');
+                        let currentRecherche = await this.lire('Niveaux Recherches');
                         let modifie = false;
                         RECHERCHE.forEach((nom, index) => {
                             const niveau = recherchesDict[nom];
@@ -364,7 +357,7 @@ Utils.register(class Joueur extends ObjetForum {
                                 modifie = true;
                             }
                         });
-                        if (modifie) await this.ecrire('Niveau Recherche', currentRecherche);
+                        if (modifie) await this.ecrire('Niveaux Recherches', currentRecherche);
                     }
 
                     // Lecture de l'armée (NOM_UNITES est en pluriel)
@@ -437,7 +430,7 @@ Utils.register(class Joueur extends ObjetForum {
 
             // Constructions
             const constructions = {};
-            const levelsC = await this.lire('Niveau Construction');
+            const levelsC = await this.lire('Niveaux Constructions');
             CONSTRUCTION.forEach((nom, index) => {
                 constructions[nom] = levelsC[index];
             });
@@ -445,7 +438,7 @@ Utils.register(class Joueur extends ObjetForum {
 
             // Recherches
             const recherches = {};
-            const levelsR = await this.lire('Niveau Recherche');
+            const levelsR = await this.lire('Niveaux Recherches');
             RECHERCHE.forEach((nom, index) => {
                 recherches[nom] = levelsR[index];
             });
@@ -509,8 +502,8 @@ Utils.register(class Joueur extends ObjetForum {
     }
 
     async getTDP() {
-        const constr = await this.lire('Niveau Construction');
-        const rech = await this.lire('Niveau Recherche');
+        const constr = await this.lire('Niveaux Constructions');
+        const rech = await this.lire('Niveaux Recherches');
         return constr[3] + constr[4] + rech[0];
     }
 
@@ -527,7 +520,7 @@ Utils.register(class Joueur extends ObjetForum {
             return Infinity;
         }
 
-        const nivRech = await this.lire('Niveau Recherche');
+        const nivRech = await this.lire('Niveaux Recherches');
         return Math.ceil(Math.pow(0.9, nivRech[6]) * 637200 * (1 - Math.exp(-(Math.sqrt(Math.pow(targetX - selfX, 2) + Math.pow(targetY - selfY, 2)) / 350))));
     }
 
@@ -543,7 +536,7 @@ Utils.register(class Joueur extends ObjetForum {
             return Infinity;
         }
 
-        const nivRech = await this.lire('Niveau Recherche');
+        const nivRech = await this.lire('Niveaux Recherches');
         return Math.ceil(Math.pow(0.9, nivRech[6]) * 637200 * (1 - Math.exp(-(Math.sqrt(Math.pow(targetX - selfX, 2) + Math.pow(targetY - selfY, 2)) / 350))));
     }
 
@@ -595,24 +588,34 @@ Utils.register(class Joueur extends ObjetForum {
     // }
 
     /**
-     * Tente de récupérer les niveaux de construction depuis le cache localStorage.
-     * Si le cache est absent ou vide (tous à -1), lance la requête AJAX vers construction.php.
-     * @returns {Promise<jqXHR|null>} La promesse AJAX si un rechargement est nécessaire, null sinon.
+     * Charge les niveaux de construction.
+     * Si l'argument html est fourni, il est utilisé pour le parsing.
+     * Sinon, tente de charger depuis le localStorage ou via une requête AJAX si nécessaire.
+     * @param {string} [html=null] - Contenu HTML de la page construction.php.
+     * @returns {Promise<boolean>} Vrai si le chargement a réussi ou n'était pas nécessaire.
      */
-    async getConstruction() {
-        await this.chargerDepuisLocalStorage("outiiil_joueur");
-        const levels = await this.lire('Niveau Construction');
-        if (levels.every((elt) => elt == -1))
-            return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
-        return null;
-    }
+    async chargerConstruction(html = null) {
+        if (!html) {
+            await this.chargerDepuisLocalStorage("outiiil_joueur");
+            const levels = await this.lire('Niveaux Constructions');
+            if (levels.every((elt) => elt == -1)) {
+                try {
+                    html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
+                } catch (error) {
+                    console.error(`[Joueur] Erreur AJAX lors de la récupération des constructions.`, error);
+                    return false;
+                }
+            } else {
+                return true;
+            }
+        }
 
-    async chargerConstruction(html) {
         let parsed = $("<div/>").append(html);
-        const levels = await this.lire('Niveau Construction');
+        const levels = await this.lire('Niveaux Constructions');
         parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
-        await this.ecrire('Niveau Construction', levels);
+        await this.ecrire('Niveaux Constructions', levels);
         console.log(`[Joueur.chargerConstruction] Niveaux de construction chargés pour ${await this.lire('Pseudo')}:`, levels);
+
         let ligne = parsed.find("#centre strong").text(),
             construction = ligne.substring(2, ligne.indexOf("se termine") - 1),
             time = parseInt(ligne.split(',')[0].split('(')[1]);
@@ -630,33 +633,44 @@ Utils.register(class Joueur extends ObjetForum {
                 localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
             }
         }
-        console.log(`[Joueur.chargerConstruction] Enregistrement`);
         await this.enregistrerLocalStorage();
-        console.log(`[Joueur.chargerConstruction] Enregistré`);
-        return this;
+        return true;
     }
 
     /**
-     * Tente de récupérer les niveaux de recherche depuis le cache localStorage.
-     * Si le cache est absent ou vide (tous à -1), lance la requête AJAX vers laboratoire.php.
-     * @returns {Promise<jqXHR|null>} La promesse AJAX si un rechargement est nécessaire, null sinon.
+     * Charge les niveaux de recherche.
+     * Si l'argument html est fourni, il est utilisé pour le parsing.
+     * Sinon, tente de charger depuis le localStorage ou via une requête AJAX si nécessaire.
+     * @param {string} [html=null] - Contenu HTML de la page laboratoire.php.
+     * @returns {Promise<boolean>} Vrai si le chargement a réussi ou n'était pas nécessaire.
      */
-    async getLaboratoire() {
-        await this.chargerDepuisLocalStorage("outiiil_joueur");
-        const levels = await this.lire('Niveau Recherche');
-        if (levels.every((elt) => elt == -1))
-            return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
-        return null;
-    }
+    async chargerRecherche(html = null) {
+        if (!html) {
+            await this.chargerDepuisLocalStorage("outiiil_joueur");
+            const levels = await this.lire('Niveaux Recherches');
+            if (levels.every((elt) => elt == -1)) {
+                try {
+                    html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
+                } catch (error) {
+                    console.error(`[Joueur] Erreur AJAX lors de la récupération des recherches.`, error);
+                    return false;
+                }
+            } else {
+                return true;
+            }
+        }
 
-    async chargerRecherche(html) {
         let parsed = $("<div/>").append(html);
-        const levels = await this.lire('Niveau Recherche');
+        const levels = await this.lire('Niveaux Recherches');
         parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
-        await this.ecrire('Niveau Recherche', levels);
+        await this.ecrire('Niveaux Recherches', levels);
         console.log(`[Joueur.chargerRecherche] Niveaux de recherche chargés pour ${await this.lire('Pseudo')}:`, levels);
+
         let ligne = parsed.find("#centre strong").text();
-        let recherche = ligne.substring(2, ligne.indexOf("termin") - 1), time = parseInt(ligne.split(",")[0].split("(")[1]);
+        let recherche = ligne.substring(2, ligne.indexOf("termin") - 1),
+            time = parseInt(ligne.split(",")[0].split("(")[1]);
+
+        console.log(`[Joueur.chargerRecherche] Recherche en cours: ${recherche}, temps restant: ${time}s`);
         // si il y a une recherche en cours les données expirent à la fin de cette construction
         if (recherche) {
             let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
@@ -670,7 +684,7 @@ Utils.register(class Joueur extends ObjetForum {
             }
         }
         await this.enregistrerLocalStorage();
-        return this;
+        return true;
     }
     /**
     *

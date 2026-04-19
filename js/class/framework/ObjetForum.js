@@ -196,6 +196,11 @@ class ObjetForum {
 
         // 3. Instancier et lier chaque paramètre
         classesParametresUniques.forEach(ClasseDeParametre => {
+            if (typeof ClasseDeParametre !== 'function') {
+                const errorMsg = `[ObjetForum] Erreur : L'élément '${ClasseDeParametre}' dans PARAMETRES_OBJET de la classe '${this.constructor.name}' n'est pas un constructeur de classe valide. Cela peut être dû à un problème d'ordre de chargement des scripts ou à une corruption des données de version sur le forum.`;
+                console.error(errorMsg);
+                throw new TypeError(errorMsg);
+            }
             const nouveauParametre = new ClasseDeParametre(this);
             this.parametres.push(nouveauParametre);
 

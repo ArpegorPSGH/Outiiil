@@ -343,7 +343,15 @@ class GestionnaireVersions {
 
                 convertirIdsEnClasses = (historiqueIds) => {
                     return historiqueIds.map(version =>
-                        version.map(id => mapIdSujetVersClasse.get(id) || id)
+                        version.map(id => {
+                            const classe = mapIdSujetVersClasse.get(id);
+                            if (!classe) {
+                                const errorMsg = `[GestionnaireVersions] Erreur critique : Impossible de trouver la classe locale correspondant à l'ID de paramètre forum '${id}'. Votre extension est probablement obsolète ou le registre des classes est incomplet.`;
+                                console.error(errorMsg);
+                                throw new Error(errorMsg);
+                            }
+                            return classe;
+                        })
                     );
                 };
             }

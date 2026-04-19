@@ -8,11 +8,11 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
 
 ## Plan d'Implémentation
 
-1.  **Modification de `PageAlliance.traitementMembre()` :**
+1.  **Modification de `Membres.traitementMembre()` :**
     *   Conserver la logique actuelle de récupération des joueurs du tableau HTML dans `tmpJoueurs` et l'assignation à `this._alliance.joueurs`.
     *   Après l'appel à `this._utilitaire.chargerJoueur(data)` (qui peuple `this._utilitaire.alliance.joueurs` avec les données du SDC), appeler une nouvelle méthode `_fusionnerJoueursUtilitaire()`.
 
-2.  **Création d'une nouvelle méthode `PageAlliance._fusionnerJoueursUtilitaire()` :**
+2.  **Création d'une nouvelle méthode `Membres._fusionnerJoueursUtilitaire()` :**
     *   Cette méthode sera responsable de la fusion des joueurs.
     *   Elle itérera sur `this._utilitaire.alliance.joueurs`.
     *   Pour chaque `joueurUtilitaire` dans `this._utilitaire.alliance.joueurs` :
@@ -21,7 +21,7 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
             *   Ajouter ce nouvel objet `Joueur` à `this._alliance.joueurs`.
             *   Marquer ce joueur comme `estExterieur: true` (ou une propriété similaire) pour un traitement spécifique lors de l'affichage.
 
-3.  **Modification de `PageAlliance.traitementUtilitaire()` :**
+3.  **Modification de `Membres.traitementUtilitaire()` :**
     *   Cette méthode est appelée après la fusion et est responsable de l'enrichissement du tableau HTML.
     *   Actuellement, elle met à jour les joueurs existants. Il faudra étendre sa logique.
     *   Après la boucle qui met à jour les joueurs existants (`for(let pseudo in this._utilitaire.alliance.joueurs)`), ajouter une nouvelle boucle.
@@ -30,7 +30,7 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
         *   Appeler une nouvelle méthode privée `_creerLigneJoueurExterieur(joueur)` pour générer le HTML de la ligne du tableau.
         *   Insérer cette ligne dans le tableau `$("#tabMembresAlliance")` à l'endroit approprié (par exemple, avant le `<tfoot>`).
 
-4.  **Création d'une nouvelle méthode `PageAlliance._creerLigneJoueurExterieur(joueur)` :**
+4.  **Création d'une nouvelle méthode `Membres._creerLigneJoueurExterieur(joueur)` :**
     *   Cette méthode prendra un objet `Joueur` (celui marqué `estExterieur: true`).
     *   Elle construira une chaîne HTML représentant une ligne `<tr>` complète pour ce joueur.
     *   Les cellules devront inclure :
@@ -41,14 +41,14 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
         *   Les colonnes Tdt et Retour (affichées comme N/C si `x` ou `y` sont -1).
         *   Le bouton de modification de grade (`images/crayon.gif`) si l'utilisateur a les droits d'administration et que le joueur est connu de l'utilitaire.
 
-5.  **Mise à jour de `PageAlliance.actualiserMembre()` :**
+5.  **Mise à jour de `Membres.actualiserMembre()` :**
     *   Cette méthode devra être revue pour s'assurer qu'elle gère correctement la recréation ou la mise à jour des lignes des joueurs hébergés à l'extérieur après une actualisation. La logique de `_fusionnerJoueursUtilitaire` et `_creerLigneJoueurExterieur` devra être réutilisée ou adaptée.
 
-6.  **Mise à jour de `PageAlliance.tableau()` et `PageAlliance.tableauUtilitaire()` :**
+6.  **Mise à jour de `Membres.tableau()` et `Membres.tableauUtilitaire()` :**
     *   S'assurer que l'ajout dynamique de lignes ne perturbe pas le tri et la pagination de DataTables. Il faudra peut-être appeler `DataTable().row.add()` pour chaque nouvelle ligne plutôt que d'ajouter directement le HTML, puis redessiner le tableau. Cela garantira que DataTables gère correctement les nouvelles données.
 
 7.  **Récupération du Tag d'Alliance pour les joueurs extérieurs :**
-    *   L'objet `Joueur` du SDC (`this._utilitaire.alliance.joueurs[pseudo]`) devrait contenir le tag de l'alliance du joueur. Il faudra s'assurer que cette information est bien disponible et utilisée lors de la création de la ligne HTML. Si l'objet `Joueur` ne contient pas directement le tag de l'alliance, il faudra voir comment le `PageForum` le gère ou si une propriété `allianceTag` doit être ajoutée à l'objet `Joueur` lors de son chargement depuis le SDC.
+    *   L'objet `Joueur` du SDC (`this._utilitaire.alliance.joueurs[pseudo]`) devrait contenir le tag de l'alliance du joueur. Il faudra s'assurer que cette information est bien disponible et utilisée lors de la création de la ligne HTML. Si l'objet `Joueur` ne contient pas directement le tag de l'alliance, il faudra voir comment le `Forum` le gère ou si une propriété `allianceTag` doit être ajoutée à l'objet `Joueur` lors de son chargement depuis le SDC.
 
 ## Tests à effectuer
 
@@ -86,11 +86,11 @@ Afin de pouvoir maintenir en permanence le système de répartition des ressourc
 
 ## Avancement
 - Ajout des propriétés `estExterieur` et `allianceTag` à la classe `Joueur`.
-- Modification de `PageAlliance.traitementMembre()` pour appeler `_fusionnerJoueursUtilitaire()` après le chargement des données de l'utilitaire.
+- Modification de `Membres.traitementMembre()` pour appeler `_fusionnerJoueursUtilitaire()` après le chargement des données de l'utilitaire.
 - Implémentation de la méthode `_fusionnerJoueursUtilitaire()` pour fusionner les joueurs de l'utilitaire avec les joueurs de l'alliance, en marquant les joueurs extérieurs.
-- Modification de `PageAlliance.traitementUtilitaire()` pour ajouter les lignes des joueurs extérieurs au tableau.
+- Modification de `Membres.traitementUtilitaire()` pour ajouter les lignes des joueurs extérieurs au tableau.
 - Implémentation de la méthode `_creerLigneJoueurExterieur()` pour générer le HTML des lignes des joueurs extérieurs.
-- Mise à jour de `PageAlliance.actualiserMembre()` pour détruire et reconstruire le tableau, en incluant les joueurs extérieurs.
+- Mise à jour de `Membres.actualiserMembre()` pour détruire et reconstruire le tableau, en incluant les joueurs extérieurs.
 - Correction de l'affichage du pseudo des joueurs externes dans le tableau.
 - Ajustement du nombre de colonnes générées dans `_creerLigneJoueurExterieur()` pour correspondre au tableau DataTables.
 - **Mise à jour de `js/class/Joueur.js` :**

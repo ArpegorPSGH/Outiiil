@@ -11,10 +11,10 @@ Utils.register(class Recensement extends ObjetForum {
     static SEPARATEUR_PARAMETRES = '\n'; // Chaque paramètre sur une nouvelle ligne
     static PARAMETRES_OBJET = [
         [
-            ParametreRecensementRessources,
-            ParametreRecensementConstructions,
-            ParametreRecensementRecherches,
-            ParametreRecensementUnites
+            Ressources,
+            Constructions,
+            Recherches,
+            Unites
         ]
     ];
 });

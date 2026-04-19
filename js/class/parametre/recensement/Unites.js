@@ -1,4 +1,4 @@
-class ParametreRecensementUnites extends ParametreObjetForum {
+class Unites extends ParametreObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static FORMAT_HISTORY = [
         { nom: 'Unités', format: '(nom): (valeur) |' }
