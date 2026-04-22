@@ -390,21 +390,14 @@ Utils.register(class Membres extends Page {
 
         // Initialiser DataTable
         $("#tabMembresAlliance").DataTable({
-            bInfo: false,
             bPaginate: false,
-            bAutoWidth: false,
             bDestroy: true,
             dom: "Bfrti",
             buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
             order: [[terrainIndex, "desc"]],
             stripeClasses: ["", "alt"],
-            responsive: true,
             language: {
-                zeroRecords: "Aucun joueur trouvé",
-                infoEmpty: "Aucun enregistrement",
-                infoFiltered: "(Filtré par _MAX_ enregistrements)",
-                search: "Rechercher : ",
-                buttons: { colvis: "Colonne" }
+                zeroRecords: "Aucun joueur trouvé"
             },
             columnDefs: columnDefs
         });

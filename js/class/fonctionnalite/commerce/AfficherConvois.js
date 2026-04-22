@@ -68,20 +68,13 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
 
             $("#o_tableListeConvoi").DataTable({
                 data: [],
-                bInfo: false,
                 bPaginate: false,
-                bAutoWidth: false,
                 dom: "Bfrti",
                 buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
                 order: [[indexArrivee, "asc"]],
                 stripeClasses: ["", "ligne_paire"],
-                responsive: true,
                 language: {
-                    zeroRecords: "Aucun convoi en cours",
-                    infoEmpty: "Aucun enregistrement",
-                    infoFiltered: "(Filtré par _MAX_ enregistrements)",
-                    search: "Rechercher : ",
-                    buttons: { colvis: "Colonne" }
+                    zeroRecords: "Aucun convoi en cours"
                 },
                 columnDefs: columnDefs
             });

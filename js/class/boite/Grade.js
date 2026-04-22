@@ -35,7 +35,7 @@ class BoiteGrade extends Boite {
 
         this._content = `<form id="o_form${await this._joueur.lire('Id')}" class="o_rangForm">
             <div class="group"><input id="o_libGrade${await this._joueur.lire('Id')}" name="o_rang" type="text" class="o_input" value="${grade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Grade de ${pseudo}</label></div>
-            <div class="group"><input id="o_ordGrade${await this._joueur.lire('Id')}" name="o_ordre" class="o_input" type="text" value="${ordreGrade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Prioritè du grade</label></div><br/>
+            <div class="group"><input id="o_ordGrade${await this._joueur.lire('Id')}" name="o_ordre" class="o_input" type="text" value="${ordreGrade}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Priorité du grade</label></div><br/>
             <button name="o_btnGrade" class="o_button f_success">Valider</button>
             </form>`;
 

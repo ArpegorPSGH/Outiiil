@@ -90,20 +90,12 @@ Utils.register(class Description extends Page {
     */
     tableau() {
         $("#tabMembresAlliance").DataTable({
-            bInfo: false,
             bPaginate: false,
-            bAutoWidth: false,
             dom: "Bfrti",
             order: [],
             buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
-            responsive: true,
             language: {
-                zeroRecords: "Aucun joueur trouvé",
-                info: "Page _PAGE_ de _PAGES_",
-                infoEmpty: "Aucun enregistrement",
-                infoFiltered: "(Filtré par _MAX_ enregistrements)",
-                search: "Rechercher : ",
-                buttons: { colvis: "Colonne" }
+                zeroRecords: "Aucun joueur trouvé"
             },
             columnDefs: [
                 { type: "quantite-grade", targets: 4 },

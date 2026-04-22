@@ -5,7 +5,6 @@ Ne pas avoir à chercher ni renseigner manuellement les ids des sections du foru
 
 ## Fonctionnement Détaillé
 - Lors du passage sur la page forum, si les ids renseignés dans l’extension ne correspondent pas à des sections existantes, scanner le forum pour trouver les bons ids correspondant à « Membres Outiiil » et « Commandes Outiiil » et les remplacer dans l’extension. Faire attention à ne pas briser la fonctionnalité des boutons du forum. Ajouter un popup indiquant que cette mise à jour a été effectuée.
-- Etendre la mise à jour au chargement de n’importe quelle page ayant besoin d'accéder au forum
 
 ## Plan d'Implémentation
 1.  Modifier la logique de la page Forum (`js/page/Forum.js`) pour inclure une vérification des IDs des sections "Commandes Outiiil" et "Membres Outiiil" lors du chargement de la page.

@@ -622,22 +622,12 @@ class BoiteCombat extends Boite {
     afficherTemps() {
         $("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
         $("#o_infosTemps").DataTable({
-            bInfo: false,
-            bAutoWidth: false,
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             pageLength: 15,
-            responsive: true,
             order: [[1, "desc"]],
             language: {
-                zeroRecords: "Aucune information trouvée",
-                infoEmpty: "Aucun enregistrement",
-                infoFiltered: "(Filtré par _MAX_ enregistrements)",
-                search: "Rechercher : ",
-                paginate: {
-                    previous: "Préc.",
-                    next: "Suiv."
-                }
+                zeroRecords: "Aucune information trouvée"
             },
             columnDefs: [
                 { type: "quantite-grade", targets: 1, visible: false },

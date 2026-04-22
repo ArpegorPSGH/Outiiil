@@ -29,6 +29,34 @@
         $.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix(); };
         $.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return Utils.timeToInt(d); };
 
+        // Configuration globale de DataTables (Français)
+        $.extend(true, $.fn.dataTable.defaults, {
+            bInfo: false,
+            bAutoWidth: false,
+            responsive: true,
+            language: {
+                zeroRecords: "Aucun résultat trouvé",
+                info: "Page _PAGE_ de _PAGES_",
+                infoEmpty: "Aucun enregistrement disponible",
+                infoFiltered: "(filtré de _MAX_ enregistrements au total)",
+                search: "Rechercher : ",
+                paginate: {
+                    first: "Premier",
+                    last: "Dernier",
+                    next: "Suivant",
+                    previous: "Précédent"
+                },
+                buttons: {
+                    colvis: "Colonnes",
+                    copy: "Copier",
+                    csv: "CSV",
+                    excel: "Excel",
+                    pdf: "PDF",
+                    print: "Imprimer"
+                }
+            }
+        });
+
         await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
         // Chargement du joueur courant et affichage des outils

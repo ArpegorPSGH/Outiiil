@@ -63,20 +63,13 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             const indexEcheance = Object.keys(proprietes).indexOf('Date Souhaitée');
 
             $("#o_tableListeCommande").DataTable({
-                bInfo: false,
                 bPaginate: false,
-                bAutoWidth: false,
                 dom: "Bfrti",
                 buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
                 order: [[indexEcheance, "desc"]],
                 stripeClasses: ["", "ligne_paire"],
-                responsive: true,
                 language: {
-                    zeroRecords: "Aucune commande trouvée",
-                    infoEmpty: "Aucun enregistrement",
-                    infoFiltered: "(Filtré par _MAX_ enregistrements)",
-                    search: "Rechercher : ",
-                    buttons: { colvis: "Colonne" }
+                    zeroRecords: "Aucune commande trouvée"
                 },
                 columnDefs: columnDefs
             });

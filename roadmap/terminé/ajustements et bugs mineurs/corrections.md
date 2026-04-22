@@ -29,4 +29,4 @@ Les points 1 et 2 du plan d'implémentation sont terminés et fonctionnels.
 - Le texte "Saisissez les identifiants des sujets de votre utilitaire" a été remplacé par "Saisissez les identifiants des sections de votre utilitaire".
 - L'orthographe des termes liés aux commandes et aux membres a été corrigée, notamment le renommage des colonnes "Echéance" en "Échéance", "Status" en "Statut" (page Commerce) et "Etat" en "État" (page Alliance).
 
-Les points 3, 4 et 5 restent à faire.
+Les points 3, 4 et 5 sont également effectués.
