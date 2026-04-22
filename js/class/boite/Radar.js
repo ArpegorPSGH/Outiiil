@@ -140,13 +140,13 @@ class BoiteRadar {
         for (let j in this._joueurs) {
             const joueur = this._joueurs[j];
             joueurs[j] = {
-                pseudo: await joueur.lire("Pseudo"),
-                id: await joueur.lire('Id'),
-                x: await joueur.lire('X'),
-                y: await joueur.lire('Y'),
-                activite: await joueur.lire('Activité'),
-                terrain: await joueur.lire('Terrain de Chasse'),
-                ordreRadar: await joueur.lire('Ordre Radar')
+                'Pseudo': await joueur.lire("Pseudo"),
+                'Id': await joueur.lire('Id'),
+                'X': await joueur.lire('X'),
+                'Y': await joueur.lire('Y'),
+                'Activité': await joueur.lire('Activité'),
+                'Terrain de Chasse': await joueur.lire('Terrain de Chasse'),
+                'Ordre Radar': await joueur.lire('Ordre Radar')
             };
         }
         for (let a in this._alliances) alliances[a] = JSON.parse(JSON.stringify(this._alliances[a], ["tag", "terrain", "ordreRadar"]));

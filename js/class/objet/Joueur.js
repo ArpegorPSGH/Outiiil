@@ -839,7 +839,9 @@ Utils.register(class Joueur extends ObjetForum {
                 } else {
                     console.warn(`[Joueur.getLigneRadar] chargerProfil a échoué pour ${pseudo}.`);
                     $.toast({ ...TOAST_WARNING, text: `Le joueur ${pseudo} n'existe plus.` });
-                    await radar.supprimeJoueur(this).sauvegarder().actualiser();
+                    await radar.supprimeJoueur(this);
+                    await radar.sauvegarder();
+                    await radar.actualiser();
                 }
             } catch (error) {
                 console.error(`[Joueur.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${pseudo}:`, error);
