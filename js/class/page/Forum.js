@@ -76,24 +76,57 @@ Utils.register(class Forum extends Page {
      */
     async majIdsSections() {
         console.log("[Forum] majIdsSections()");
-        // Vérification et mise à jour des IDs des sections Outiiil
         let idsUpdated = false;
         let element = window.document.getElementById('alliance'); // Fallback
 
         if (nomsSectionsRequis && element) {
+            const allForumSpans = $(element).find("span[class^='forum']");
+
             for (const nomSection of nomsSectionsRequis) {
-                const sectionElement = $(element).find("span[class^='forum']").filter(function () { return $(this).text().trim() === nomSection; });
-                if (sectionElement.length) {
-                    const pageId = sectionElement.attr("class").match(/\d+/)[0];
-                    if (monProfilUtilisateur && monProfilUtilisateur.parametre[nomSection]) {
-                        const storedId = monProfilUtilisateur.parametre[nomSection].valeur;
-                        if (storedId === undefined || storedId === null || storedId === '' || storedId != pageId) {
-                            monProfilUtilisateur.parametre[nomSection].valeur = pageId;
-                            monProfilUtilisateur.parametre[nomSection].sauvegarde();
-                            idsUpdated = true;
-                            console.log(`ID section ${nomSection} mis à jour vers ${pageId}.`);
+                if (!monProfilUtilisateur || !monProfilUtilisateur.parametre[nomSection]) continue;
+
+                const storedId = monProfilUtilisateur.parametre[nomSection].valeur;
+                let sectionActuelleValide = false;
+
+                // 1. On vérifie si l'id actuel pointe vers une section accessible dont le nom contient celui de la section cible
+                if (storedId) {
+                    const currentSectionElement = allForumSpans.filter(function () {
+                        const classMatch = $(this).attr("class").match(/\d+/);
+                        return classMatch && classMatch[0] == storedId;
+                    });
+
+                    if (currentSectionElement.length) {
+                        const currentName = currentSectionElement.text().trim();
+                        if (currentName.includes(nomSection)) {
+                            sectionActuelleValide = true;
                         }
                     }
+                }
+
+                // 2. Si l'id actuel n'est pas/plus valide, on cherche une section avec le nom exact
+                if (!sectionActuelleValide) {
+                    const exactMatchElement = allForumSpans.filter(function () {
+                        return $(this).text().trim() === nomSection;
+                    });
+
+                    if (exactMatchElement.length) {
+                        const newPageId = exactMatchElement.attr("class").match(/\d+/)[0];
+                        if (storedId != newPageId) {
+                            monProfilUtilisateur.parametre[nomSection].valeur = newPageId;
+                            monProfilUtilisateur.parametre[nomSection].sauvegarde();
+                            idsUpdated = true;
+                            console.log(`ID section ${nomSection} mis à jour vers ${newPageId} (match exact).`);
+                        }
+                        sectionActuelleValide = true;
+                    }
+                }
+
+                // 3. Si aucune section correspondante n'est trouvée (nom exact introuvable), on vide l'id si la section actuelle était invalide
+                if (!sectionActuelleValide && storedId) {
+                    monProfilUtilisateur.parametre[nomSection].valeur = '';
+                    monProfilUtilisateur.parametre[nomSection].sauvegarde();
+                    idsUpdated = true;
+                    console.log(`ID section ${nomSection} vidé car introuvable.`);
                 }
             }
         }
