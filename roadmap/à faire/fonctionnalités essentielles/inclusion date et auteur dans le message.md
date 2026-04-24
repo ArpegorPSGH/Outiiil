@@ -7,7 +7,7 @@ Transmettre la date et l'auteur via le message lui-même plutôt que les meta-da
 - Ne plus récupérer les meta-data des messages sur le forum
 - Ajouter des paramètres de date et auteur aux objets en ayant besoin
 - Tronquer les dates au format approprié
-- Ajouter aux bonnes pratiques de développement
+- Ajouter aux bonnes pratiques de développement dans les notes de documentation
 
 ## Plan d'Implémentation
 

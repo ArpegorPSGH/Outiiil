@@ -302,8 +302,10 @@ class ParametreObjetForum extends DonneeValidable {
         try {
             const checkResult = this._checkValeur(nouvelleValeur);
             if (checkResult.success) {
-                this.valeur = checkResult.value;
-                this.estModifie = true;
+                if (this.valeur !== checkResult.value) {
+                    this.valeur = checkResult.value;
+                    this.estModifie = true;
+                }
                 return true;
             }
             console.error(`[${this.constructor.name}] La nouvelle valeur fournie pour ecrire n'est pas valide.`);

@@ -375,49 +375,53 @@ class ObjetForum {
     async rafraichir(chargerContenus = true) {
         await this._acquireReadLock();
         console.log('début rafraichir')
+        let rafraichissementReussi = false;
         try {
             if (!this.idSujet || this.idSujet < 0) {
                 console.error(`[${this.constructor.name}] Impossible de rafraîchir un objet sans idSujet valide. idSujet: ${this.idSujet}.`);
-                return false;
-            }
-            console.log('rafraichir 1')
-            try {
+            } else {
+                console.log('rafraichir 1')
                 const { titre: titreLu, messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.idSujet);
                 if (titreLu === null) {
                     console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
-                    return false;
-                }
-                console.log('rafraichir 2')
-                if (!await this.chargerDepuisString(titreLu)) {
-                    console.warn(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
-                    return false;
-                }
-                console.log('rafraichir 3')
-                if (chargerContenus) {
-                    if (!await this.chargerObjetForumsContenus(messagesLu)) {
-                        console.warn(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
-                        return false;
+                } else {
+                    console.log('rafraichir 2')
+                    if (!await this.chargerDepuisString(titreLu)) {
+                        console.warn(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
+                    } else {
+                        console.log('rafraichir 3')
+                        let erreurContenu = false;
+                        if (chargerContenus) {
+                            if (!await this.chargerObjetForumsContenus(messagesLu)) {
+                                console.warn(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
+                                erreurContenu = true;
+                            }
+                        }
+                        if (!erreurContenu) {
+                            console.log('rafraichir 4')
+                            if (!await this.completerRafraichissement()) {
+                                console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
+                            } else {
+                                console.log('rafraichir 5')
+                                rafraichissementReussi = true;
+                            }
+                        }
                     }
                 }
-                console.log('rafraichir 4')
-                // Appel du complément de rafraîchissement
-                if (!await this.completerRafraichissement()) {
-                    console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
-                    return false;
-                }
-                console.log('rafraichir 5')
-
-                this.enregistrerSurForum();
-                console.log('rafraichir 6')
-                return true;
-            } catch (error) {
-                console.error(`[${this.constructor.name}] Erreur lors du rafraîchissement de l'objet (ID: ${this.idSujet}).`, error);
-                return false;
             }
+        } catch (error) {
+            console.error(`[${this.constructor.name}] Erreur lors du rafraîchissement de l'objet (ID: ${this.idSujet}).`, error);
         } finally {
             console.log('resultat chargement :', this)
             this._releaseReadLock();
         }
+
+        if (rafraichissementReussi) {
+            await this.enregistrerSurForum();
+            console.log('rafraichir 6')
+        }
+
+        return rafraichissementReussi;
     }
 
     /**

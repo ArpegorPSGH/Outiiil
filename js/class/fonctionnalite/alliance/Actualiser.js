@@ -57,6 +57,9 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
 
                 if (!joueurForum) {
                     joueurForum = new Joueur(this, { donneesInitiales: { 'Pseudo': pseudo, 'Alliance Rattachement': this.page._alliance.tag } });
+                    if (await joueurForum.estJoueurCourant()) {
+                        joueurForum.ecrire('Version Extension', VERSION);
+                    }
                     promessesProfil.push(joueurForum.enregistrerSurForum());
                     nouveauxJoueurs.push(joueurForum);
                 }

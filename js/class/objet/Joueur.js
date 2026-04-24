@@ -19,7 +19,8 @@ Utils.register(class Joueur extends ObjetForum {
             Pseudo,
             Grade,
             OrdreGrade,
-            AllianceRattachement
+            AllianceRattachement,
+            VersionExtension
         ]
     ];
     static classeObjetsForumContenus = Recensement; // Un joueur peut contenir des objets Recensement
@@ -277,6 +278,11 @@ Utils.register(class Joueur extends ObjetForum {
      * @returns {Promise<boolean>} Vrai si le chargement complémentaire a réussi.
      */
     async completerRafraichissement() {
+        // Enregistrement de la version de l'extension pour le joueur courant
+        if (await this.estJoueurCourant()) {
+            await this.ecrire('Version Extension', VERSION);
+        }
+
         // Deuxième temps : chargement des données depuis la page Membre.php
         const membreDataLoaded = await this.chargerDonneesMembre();
         if (!membreDataLoaded) {
