@@ -214,3 +214,7 @@ const DATEPICKER_OPTION = {
       changeYear: true,
       changeMonth: true
 };
+
+// Formats globaux par défaut de l'extension
+const FORMAT_DATE_DEFAUT = "D MMM [à] HH[h]mm";
+const FORMAT_DUREE_DEFAUT = "Y[A ]d[J ]h[h ]m[m ]ss[s]";

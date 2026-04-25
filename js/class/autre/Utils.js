@@ -113,7 +113,7 @@ class Utils {
     * @return {String} La chaine formatée.
     */
     static intToTime(val) {
-        return val ? moment.duration(val, 's').format("Y[A ]d[J ]h[h ]m[m ]s[s]").split(" ").filter((elt) => { return parseInt(elt); }).join(" ") : "0 sec";
+        return val ? moment.duration(val, 's').format(FORMAT_DUREE_DEFAUT).split(" ").filter((elt) => { return parseInt(elt); }).join(" ") : "0 sec";
     }
     /**
     * Convertit une chaine de caractere en entier.

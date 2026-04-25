@@ -23,10 +23,12 @@
         // Chargement du language francais
         numeral.locale("fr");
         moment.locale("fr");
+
         Highcharts.setOptions({ lang: { months: MOIS_FR, shortMonths: MOIS_RAC_FR, weekdays: JOUR_FR, decimalPoint: ',', thousandsSep: ' ' } });
         // Ajout du tri pour les nombres
         $.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return parseInt(d.replace(/\s/g, '')); };
         $.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix(); };
+        $.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix(); };
         $.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return Utils.timeToInt(d); };
 
         // Configuration globale de DataTables (Français)

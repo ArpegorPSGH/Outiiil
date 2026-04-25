@@ -48,6 +48,13 @@ class DonneeValidable {
      * @type {string|null}
      */
     static TYPE_LIEN = null;
+    
+    /**
+     * Configuration déclarative. Format d'affichage personnalisé (ex: 'D MMM YYYY').
+     * Pour les moments, si null, FORMAT_DATE_DEFAUT est utilisé.
+     * @type {string|null}
+     */
+    static FORMAT_AFFICHAGE = FORMAT_DATE_DEFAUT;
 
     /**
      * Catégorie de nom, utilisée pour l'appel du paramètre depuis ObjetForum ou ailleurs.

@@ -25,15 +25,18 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
     - Déclarez les classes d'attributs qu'il utilise via `ObjetForum.ATTRIBUTS_OBJET`.
     - Déclarez les classes de paramètres qu'il utilise pour chaque version via `ObjetForum.PARAMETRES_OBJET`.
     - Si l'objet contient d'autres `ObjetForum`, spécifiez la classe du sous-objet via `ObjetForum.classeObjetsForumContenus`.
+    - **Auteur et Date :** Chaque objet doit posséder des paramètres définissant son auteur et sa date, à moins qu'il ne soit possible de les récupérer par un autre moyen (ex: le recensement dont l'auteur est le joueur qui le contient).
 - **Paramètre / Attribut :** Créez une classe héritant de `ParametreObjetForum` ou `AttributObjet`.
     - **Pour un paramètre :**
         - Définissez sa version logique via `ParametreObjetForum.VERSION_LOGIQUE`.
         - Définissez son historique de formats via `ParametreObjetForum.FORMAT_HISTORY`. Chaque élément est un objet de la forme `{ nom: 'NomDuParam', format: 'un string contenant "(nom)" et "(valeur)"' }`.
         - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
+        - **Format d'affichage personnalisé :** Définissez `DonneeValidable.FORMAT_AFFICHAGE` (ex: `'D MMM [à] HH[h]mm'`). Pour les dates (`moment`), si cette propriété est nulle, le format global `window.FORMAT_DATE_DEFAUT` (défini dans `main.js`) est appliqué.
         - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). Un paramètre ne peut contenir que des listes, des dictionnaires, ou des types primitifs (nombre, chaîne, booléen), peu importe le niveau de nesting.
     - **Pour un attribut :**
         - Définissez son nom d'affichage via `AttributObjet.NOM_AFFICHAGE` (une liste de chaînes).
         - (Optionnel) Définissez ses alias d'appel via `AttributObjet.NOM_APPEL`.
+        - **Format d'affichage personnalisé :** Comme pour les paramètres, définissez `DonneeValidable.FORMAT_AFFICHAGE` pour surcharger le format par défaut des dates.
         - Pour un attribut calculé, surchargez la méthode `calculerValeur(peutVoirDonneesRestreintes)`.
         - La valeur par défaut d'un attribut statique doit être initialisée dans `valeur`. Un attribut d'objet peut contenir n'importe quel type de données (y compris des instances de classes ou objets complexes).
 

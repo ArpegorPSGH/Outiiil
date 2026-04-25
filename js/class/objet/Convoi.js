@@ -3,16 +3,19 @@ Utils.register(class Convoi extends ObjetForum {
 
     static COLONNES_DEFAUT = ['Expéditeur', 'Destinataire', 'Nourriture', 'Matériaux', 'Date Arrivée'];
 
-    static PARAMETRES_OBJET = [[
-        NourritureEnvoyee,
-        MateriauxEnvoyes,
-        Ouvrieres,
-        Destinataire,
-        DateArrivee,
-        Expediteur,
-        IdCommande,
-        IdAnnulation
-    ]];
+    static PARAMETRES_OBJET = [
+        [
+            NourritureEnvoyee,
+            MateriauxEnvoyes,
+            Ouvrieres,
+            Destinataire,
+            DateArrivee,
+            DateDepart,
+            Expediteur,
+            IdCommande,
+            IdAnnulation
+        ]
+    ];
 
     static LOCATION_HISTORY = [{ section: 'Commandes Outiiil', lieu: 'message' }];
 

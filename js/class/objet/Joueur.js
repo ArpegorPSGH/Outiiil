@@ -460,6 +460,7 @@ Utils.register(class Joueur extends ObjetForum {
                 }
             });
             donneesRecensement['Unités'] = unites;
+            donneesRecensement['Date'] = moment().toISOString();
 
             // 3. Créer l'objet Recensement
             let recensementInstance = new Recensement(this.fonctionnaliteCreatrice, {

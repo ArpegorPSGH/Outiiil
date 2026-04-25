@@ -251,6 +251,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                             'Matériaux': materiaux,
                             'Nourriture': nourriture,
                             'Id Commande': numeral(idCommande).value(),
+                            'Date Départ': moment().toISOString(),
                             'Date Arrivée': dateArriveeCalculee.toISOString(),
                             'Ouvrières': numeral($("#nbOuvriere").val()).value()
                         }

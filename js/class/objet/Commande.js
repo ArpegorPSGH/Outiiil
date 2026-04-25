@@ -334,6 +334,7 @@ Utils.register(class Commande extends ObjetForum {
             'Destinataire',
             'Nourriture',
             'Matériaux',
+            'Date Départ',
             'Date Arrivée',
             'Id Commande',
             'Ouvrières'
@@ -346,6 +347,7 @@ Utils.register(class Commande extends ObjetForum {
                 'Destinataire': convoiParams['Destinataire'],
                 'Nourriture': - convoiParams['Nourriture'],
                 'Matériaux': - convoiParams['Matériaux'],
+                'Date Départ': convoiParams['Date Départ'],
                 'Date Arrivée': convoiParams['Date Arrivée'],
                 'Id Commande': convoiParams['Id Commande'],
                 'Id Annulation': idAnnulation,

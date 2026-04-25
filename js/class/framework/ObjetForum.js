@@ -694,7 +694,13 @@ class ObjetForum {
 
                 const formaterValeur = (val) => {
                     if (val === null || val === undefined || val === '') return '';
-                    let affichage = Utils.formatNombre(val);
+                    let affichage;
+                    if (moment.isMoment(val)) {
+                        const format = proprietes[nomParametre].format;
+                        affichage = val.format(format);
+                    } else {
+                        affichage = Utils.formatNombre(val);
+                    }
                     if (typeLien === 'joueur') {
                         return `<a href="Membre.php?Pseudo=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
                     } else if (typeLien === 'alliance') {
@@ -762,6 +768,7 @@ class ObjetForum {
                     visible: element.VISIBLE_PAR_DEFAUT,
                     sortable: element.SORTABLE_PAR_DEFAUT,
                     type: element.TYPE_AFFICHAGE,
+                    format: element.FORMAT_AFFICHAGE,
                     typeLien: element.TYPE_LIEN
                 };
             } else {
@@ -770,6 +777,7 @@ class ObjetForum {
                     visible: true,
                     sortable: nom !== "",
                     type: null,
+                    format: FORMAT_DATE_DEFAUT,
                     typeLien: null
                 };
             }

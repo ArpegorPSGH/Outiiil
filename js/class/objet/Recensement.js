@@ -14,7 +14,8 @@ Utils.register(class Recensement extends ObjetForum {
             Ressources,
             Constructions,
             Recherches,
-            Unites
+            Unites,
+            DateRecensement
         ]
     ];
 });
