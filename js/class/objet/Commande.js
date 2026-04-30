@@ -294,24 +294,22 @@ Utils.register(class Commande extends ObjetForum {
         convoi.objetParent = this;
         this.objetsForumContenus.push(convoi);
 
+        await this.enregistrerSurForum();
+
         console.log(`[Commande][ajouteConvoi] Fin de l'ajout du convoi. Nouvel état de la commande: Nourriture livrée=${params['Nourriture Livrée']}, Matériaux livrés = ${params['Matériaux Livrés']}, État = ${params['État']}`);
         return this;
     }
 
     /**
-     * Annule un convoi en créant un convoi négatif.
-     * @param {string} idAnnulation - L'ID d'annulation du convoi à annuler
-     * @returns {Promise<{success: boolean, message: string}>} Résultat de l'opération
+     * Annule un convoi en créant un convoi négatif si possible.
+     * @param {number} idAnnulation - L'ID d'annulation du convoi à annuler
+     * @returns {Promise<{trouve: boolean, modifie: boolean}>} Résultat du traitement
      */
-    async annulerConvoi(idAnnulation) {
-        console.log(`[Commande][annulerConvoi] Recherche du convoi avec ID d'annulation: ${idAnnulation}`);
-
+    async annulerConvoi(idAnnulation, timestampClic) {
         // Rechercher le convoi avec cet ID d'annulation dans les convois de cette commande
         let convoiTrouve = null;
         for (const convoi of this.objetsForumContenus) {
             const idAnnulationConvoi = await convoi.lire('Id Annulation');
-            console.log(`[Commande][annulerConvoi] ID annulation trouvé: ${idAnnulationConvoi} ${idAnnulationConvoi === idAnnulation}`);
-            console.log('types', typeof idAnnulationConvoi, typeof idAnnulation);
             if (idAnnulationConvoi === idAnnulation) {
                 convoiTrouve = convoi;
                 break;
@@ -319,59 +317,53 @@ Utils.register(class Commande extends ObjetForum {
         }
 
         if (!convoiTrouve) {
-            console.log(`[Commande][annulerConvoi] Aucun convoi trouvé avec l'ID d'annulation ${idAnnulation}`);
-            return {
-                success: false,
-                message: "Convoi non trouvé dans cette commande."
-            };
+            return { trouve: false };
         }
 
-        console.log(`[Commande][annulerConvoi] Convoi trouvé, création du convoi négatif`);
-
-        // Récupérer les paramètres du convoi à annuler
-        const convoiParams = await convoiTrouve.lire([
-            'Expéditeur',
-            'Destinataire',
-            'Nourriture',
-            'Matériaux',
-            'Date Départ',
-            'Date Arrivée',
-            'Id Commande',
-            'Ouvrières'
-        ]);
-
-        // Créer un convoi négatif
-        const convoiNegatif = new Convoi(this.fonctionnaliteCreatrice, {
-            donneesInitiales: {
-                'Expéditeur': convoiParams['Expéditeur'],
-                'Destinataire': convoiParams['Destinataire'],
-                'Nourriture': - convoiParams['Nourriture'],
-                'Matériaux': - convoiParams['Matériaux'],
-                'Date Départ': convoiParams['Date Départ'],
-                'Date Arrivée': convoiParams['Date Arrivée'],
-                'Id Commande': convoiParams['Id Commande'],
-                'Id Annulation': idAnnulation,
-                'Ouvrières': convoiParams['Ouvrières']
-            }
-        });
-
-        // Ajouter le convoi négatif à la commande
-        await this.ajouterConvoi(convoiNegatif);
-
-        // Vérifier si l'état doit être modifié
-        const params = await this.lire(['État', 'Nourriture Livrée', 'Matériaux Livrés', 'Nourriture Demandée', 'Matériaux Demandés']);
-
-        if (params['État'] === ETAT_COMMANDE.Terminée) {
-            if (params['Nourriture Livrée'] < params['Nourriture Demandée'] || params['Matériaux Livrés'] < params['Matériaux Demandés']) {
-                console.log(`[Commande][annulerConvoi] La commande n'est plus terminée, passage à "En cours"`);
-                await this.ecrire('État', ETAT_COMMANDE["En cours"]);
-            }
+        if (await convoiTrouve.estTermine()) {
+            $.toast({ ...TOAST_INFO, text: "Convoi déjà arrivé : annulation ignorée sur le forum." });
+            return { trouve: true, modifie: false };
         }
 
-        console.log(`[Commande][annulerConvoi] Annulation du convoi terminée avec succès`);
-        return {
-            success: true,
-            message: "Convoi annulé avec succès."
+        if (!(await convoiTrouve.estAnnulable(timestampClic))) {
+            $.toast({ ...TOAST_INFO, text: "Délai d'annulation de 2 minutes dépassé : annulation ignorée sur le forum." });
+            return { trouve: true, modifie: false };
+        }
+
+        console.log(`[Commande][annulerConvoi] Convoi trouvé et annulable, suppression du message et mise à jour des totaux.`);
+
+        // Récupérer les paramètres du convoi et de la commande pour la déduction
+        const convoiParams = await convoiTrouve.lire(['Nourriture', 'Matériaux']);
+        const commandParams = await this.lire(['Nourriture Livrée', 'Matériaux Livrés', 'État']);
+
+        // Mettre à jour les totaux (déduction des ressources du convoi annulé)
+        const nouveauxParams = {
+            'Nourriture Livrée': Math.max(0, commandParams['Nourriture Livrée'] - convoiParams['Nourriture']),
+            'Matériaux Livrés': Math.max(0, commandParams['Matériaux Livrés'] - convoiParams['Matériaux'])
         };
+
+        let resurrection = false;
+        // Si la commande était terminée, elle repasse en cours puisque des ressources ont été "retirées"
+        if (commandParams['État'] === ETAT_COMMANDE.Terminée) {
+            nouveauxParams['État'] = ETAT_COMMANDE["En cours"];
+            resurrection = true;
+        }
+
+        await this.ecrire(nouveauxParams);
+
+        // Suppression physique du message sur le forum
+        await Utils.supprimerMessage(convoiTrouve.idMessage);
+
+        // Retrait de l'objet convoi de la liste locale des contenus
+        const index = this.objetsForumContenus.indexOf(convoiTrouve);
+        if (index > -1) {
+            this.objetsForumContenus.splice(index, 1);
+        }
+
+        // Sauvegarde de la commande sur le forum (mise à jour des totaux dans le titre/sujet)
+        await this.enregistrerSurForum();
+
+        $.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum (message supprimé)." });
+        return { trouve: true, modifie: true, resurrection: resurrection };
     }
 })

@@ -1,4 +1,5 @@
 class Evolution extends ParametreObjetForum {
+    static ENUM = EVOLUTION;
     static VISIBLE_PAR_DEFAUT = false;
     static VERSION_LOGIQUE = '1.0';
     static NOM_APPEL = ['Évolution'];

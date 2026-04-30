@@ -70,6 +70,13 @@ class DonneeValidable {
     static NOM_AFFICHAGE = [];
 
     /**
+     * Configuration déclarative. Mapping pour les enums (Objet ou Tableau).
+     * Si défini, formaterValeur utilisera ce mapping pour traduire les indices en labels.
+     * @type {Object|Array|null}
+     */
+    static ENUM = null;
+
+    /**
      * Référence à l'instance de l'ObjetForum qui contient cette donnée.
      * @type {ObjetForum|null}
      * @protected
@@ -89,6 +96,34 @@ class DonneeValidable {
      */
     constructor(objetParent) {
         this.objetParent = objetParent;
+    }
+
+    /**
+     * Formate la valeur pour l'affichage.
+     * @param {*} valeur - La valeur à formater.
+     * @returns {String|jQuery|Element} La valeur formatée.
+     */
+    formaterValeur(valeur) {
+        if (valeur === null || valeur === undefined || valeur === '') return '';
+        if (valeur instanceof jQuery || valeur instanceof Element) return valeur;
+
+        // Gestion des enums
+        if (this.constructor.ENUM) {
+            if (Array.isArray(this.constructor.ENUM)) {
+                return this.constructor.ENUM[valeur] || valeur;
+            } else if (typeof this.constructor.ENUM === 'object') {
+                const key = Object.keys(this.constructor.ENUM).find(k => this.constructor.ENUM[k] === valeur);
+                return key || valeur;
+            }
+        }
+
+        // Gestion des moments
+        if (moment.isMoment(valeur)) {
+            return valeur.format(this.constructor.FORMAT_AFFICHAGE);
+        }
+
+        // Par défaut, formatage numérique
+        return Utils.formatNombre(valeur);
     }
 
     /**

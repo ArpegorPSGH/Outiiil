@@ -12,11 +12,29 @@ class BoutonLivrer extends AttributObjet {
         const etat = await this.objetParent.lire('État', peutVoirDonneesRestreintes);
         const apres = !dateApres || moment().isSameOrAfter(moment(dateApres));
 
-        console.log("dateApres", dateApres, "etat", etat, "apres", apres, "en cours", ETAT_COMMANDE["En cours"]);
+        if (apres && etat == ETAT_COMMANDE["En cours"]) {
+            const $btn = $(`<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`);
+            $btn.on('click', async (e) => {
+                e.preventDefault();
+                const constructions = await monProfilJoueur.lire('Niveaux Constructions');
+                const transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (constructions[11] / 2)));
+                const materiauxRestants = await this.objetParent.lire('Matériaux Restants');
+                const nourritureRestante = await this.objetParent.lire('Nourriture Restante');
 
-        const livrerHtml = (apres && etat == ETAT_COMMANDE["En cours"])
-            ? `<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`
-            : "";
-        return livrerHtml;
+                let materialsToPrefill = Math.min(materiauxRestants, transportCapacity);
+                let nourishmentToPrefill = Math.min(nourritureRestante, transportCapacity - materialsToPrefill);
+
+                $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
+                $("#nbMateriaux").val(materialsToPrefill);
+                $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
+                $("#nbNourriture").val(nourishmentToPrefill);
+                $("#pseudo_convoi").val(await this.objetParent.lire('Demandeur'));
+                $("#o_idCommande").val(this.objetParent.idSujet);
+                $("html").animate({ scrollTop: 0 }, 600);
+                return false;
+            });
+            return $btn;
+        }
+        return "";
     }
 }

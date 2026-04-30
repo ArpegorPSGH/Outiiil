@@ -76,73 +76,22 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
             $("#o_ajouterCommande").click(async (e) => {
-                let boiteCommande = new BoiteCommande(new Commande(this), this.page);
+                // On essaie de réutiliser une commande non encore enregistrée si elle existe
+                let nouvelleCommande = this.commandes.find(c => !c.idSujet);
+                if (!nouvelleCommande) {
+                    nouvelleCommande = new Commande(this);
+                    this.commandes.push(nouvelleCommande);
+                }
+                let boiteCommande = new BoiteCommande(nouvelleCommande, this.page);
                 await boiteCommande.afficher();
             });
 
-            // Délégation d'événements pour les boutons
-            this._attacherEvenementsTableau();
         }
 
         await this.actualiserCommandes();
     }
 
-    /**
-     * Attache les événements aux boutons du tableau.
-     */
-    _attacherEvenementsTableau() {
-        // Bouton Livrer
-        $("#o_tableListeCommande").on('click', "a[id^='o_commande']", async (e) => {
-            e.preventDefault();
-            const commandeId = $(e.currentTarget).attr('id').replace('o_commande', '');
-            const commande = this.commandes.find(c => c.idSujet == commandeId);
-            if (!commande) return false;
 
-            const constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            const transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (constructions[11] / 2)));
-            const materiauxRestants = await commande.lire('Matériaux Restants');
-            const nourritureRestante = await commande.lire('Nourriture Restante');
-
-            let materialsToPrefill = Math.min(materiauxRestants, transportCapacity);
-            let nourishmentToPrefill = Math.min(nourritureRestante, transportCapacity - materialsToPrefill);
-
-            $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
-            $("#nbMateriaux").val(materialsToPrefill);
-            $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
-            $("#nbNourriture").val(nourishmentToPrefill);
-            $("#pseudo_convoi").val(await commande.lire('Demandeur'));
-            $("#o_idCommande").val(commande.idSujet);
-            $("html").animate({ scrollTop: 0 }, 600);
-            return false;
-        });
-
-        // Bouton Modifier
-        $("#o_tableListeCommande").on('click', "a[id^='o_modifierCommande']", async (e) => {
-            e.preventDefault();
-            const commandeId = $(e.currentTarget).attr('id').replace('o_modifierCommande', '');
-            const commande = this.commandes.find(c => c.idSujet == commandeId);
-            if (!commande) return false;
-            let boiteCommande = new BoiteCommande(commande, this.page);
-            await boiteCommande.afficher();
-            return false;
-        });
-
-        // Bouton Supprimer
-        $("#o_tableListeCommande").on('click', "a[id^='o_supprimerCommande']", async (e) => {
-            e.preventDefault();
-            const commandeId = $(e.currentTarget).attr('id').replace('o_supprimerCommande', '');
-            const commande = this.commandes.find(c => c.idSujet == commandeId);
-            if (!commande) return false;
-
-            if (confirm("Supprimer cette commande ?")) {
-                await commande.ecrire('État', ETAT_COMMANDE.Supprimée);
-                await commande.enregistrerSurForum();
-                $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
-                await this.actualiserCommandes();
-            }
-            return false;
-        });
-    }
 
     /**
      * Actualise le tableau des commandes.
@@ -150,9 +99,18 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     async actualiserCommandes() {
         let total = 0, totalRouge = 0;
         const tableRows = [];
+        const estRestreint = !await this.verifierDroit('N');
+        const monPseudo = await monProfilJoueur.lire('Pseudo');
+        let auMoinsUneCommandeEtrangere = false;
+
         console.log("this.commandes", this.commandes);
         for (const commande of this.commandes) {
             if (!await commande.estAFaire()) continue;
+
+            if (await commande.lire('Demandeur') !== monPseudo) {
+                auMoinsUneCommandeEtrangere = true;
+            }
+
             // Utiliser la fonction afficher de l'objet pour générer la ligne
             const corps_html = await commande.afficherCorps();
             console.log("corps_html", corps_html);
@@ -172,18 +130,22 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
             if (tableRows.length > 0) {
                 // Ajouter les nouvelles lignes via l'API pour qu'elles soient indexées et affichées
-                table.rows.add($(tableRows.join('')));
+                // On regroupe les éléments DOM dans un seul objet jQuery pour DataTables
+                table.rows.add($(tableRows.map($tr => $tr[0])));
             }
 
             // Redessiner la table avec les nouvelles données
             table.draw();
         } else {
             // Si la DataTable n'existe pas encore, juste mettre à jour le HTML
-            const tbody = tableRows.join('');
-            $("#o_tableListeCommande tbody").html(tbody);
+            $("#o_tableListeCommande tbody").empty().append(tableRows);
         }
-        console.log("tableRows", tableRows);
-        $("#o_footerCommande").html(`${tableRows.length} commande(s) : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !`);
+        let texteFooter = `${tableRows.length} commande(s)`;
+        if (!(estRestreint && auMoinsUneCommandeEtrangere)) {
+            texteFooter += ` : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !`;
+        }
+
+        $("#o_footerCommande").html(texteFooter);
         $("#o_footerCommande").parent().toggleClass("ligne_paire", tableRows.length % 2 !== 0);
     }
 
@@ -195,12 +157,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             .after(` <button id='o_resetConvoi'>Effacer</button>`)
             .click(async (e) => {
                 const idCommande = $("#o_idCommande").val();
-                const convoiAPoster = new Convoi(this);
-                const chargeOk = await convoiAPoster.chargerDepuisLocalStorage('outiiil_convoi_a_poster');
-
-                if (idCommande != -1 && chargeOk) {
-                    return true; // Second rechargement
-                }
+                if (idCommande == -1) return true;
 
                 const materiaux = numeral($("#nbMateriaux").val()).value();
                 const nourriture = numeral($("#nbNourriture").val()).value();
@@ -211,57 +168,54 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     return false;
                 }
 
-                if (idCommande != -1) {
-                    e.preventDefault();
+                // e.preventDefault();
 
-                    const commande = this.commandes.find(c => c.idSujet == idCommande);
-                    const destinataireConvoi = $("#pseudo_convoi").val();
-                    const demandeur = await commande.lire('Demandeur');
+                const commande = this.commandes.find(c => c.idSujet == idCommande);
+                const destinataireConvoi = $("#pseudo_convoi").val();
+                const demandeur = await commande.lire('Demandeur');
 
-                    if (commande && demandeur !== destinataireConvoi) {
-                        $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
-                        return false;
-                    }
-
-                    const joueurs = await this.chargerObjetsForum(Joueur, false);
-                    let joueurDemandeur = null;
-                    for (const j of joueurs) {
-                        const pseudo = await j.lire('Pseudo');
-                        if (pseudo === demandeur) {
-                            joueurDemandeur = j;
-                            break;
-                        }
-                    }
-
-                    // Calcul de la date d'arrivée prévue
-                    let dateArriveeCalculee = moment();
-                    if (joueurDemandeur) {
-                        const tempsParcours = await monProfilJoueur.getTempsParcours2(joueurDemandeur);
-                        console.warn('date actuelle', moment().format("D MMM YYYY à HH[h]mm"))
-                        console.warn('tempsParcours', tempsParcours)
-                        if (tempsParcours !== Infinity) {
-                            dateArriveeCalculee = moment().add(tempsParcours, 's');
-                        }
-                    }
-                    console.warn('dateArriveeCalculee', dateArriveeCalculee.format("D MMM YYYY à HH[h]mm"))
-                    const monConvoi = new Convoi(this, {
-                        donneesInitiales: {
-                            'Expéditeur': await monProfilJoueur.lire('Pseudo'),
-                            'Destinataire': destinataireConvoi,
-                            'Matériaux': materiaux,
-                            'Nourriture': nourriture,
-                            'Id Commande': numeral(idCommande).value(),
-                            'Date Départ': moment().toISOString(),
-                            'Date Arrivée': dateArriveeCalculee.toISOString(),
-                            'Ouvrières': numeral($("#nbOuvriere").val()).value()
-                        }
-                    });
-
-                    await monConvoi.enregistrerLocalStorage('outiiil_convoi_a_poster');
-
-                    window.location.href = "commerce.php";
+                if (commande && demandeur !== destinataireConvoi) {
+                    $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
                     return false;
                 }
+
+                const joueurs = await this.chargerObjetsForum(Joueur, false);
+                let joueurDemandeur = null;
+                for (const j of joueurs) {
+                    const pseudo = await j.lire('Pseudo');
+                    if (pseudo === demandeur) {
+                        joueurDemandeur = j;
+                        break;
+                    }
+                }
+
+                // Calcul de la date d'arrivée prévue
+                let dateArriveeCalculee = moment();
+                if (joueurDemandeur) {
+                    const tempsParcours = await monProfilJoueur.getTempsParcours2(joueurDemandeur);
+                    if (tempsParcours !== Infinity) {
+                        dateArriveeCalculee = moment().add(tempsParcours, 's');
+                    }
+                }
+
+                const monConvoi = new Convoi(this, {
+                    donneesInitiales: {
+                        'Expéditeur': await monProfilJoueur.lire('Pseudo'),
+                        'Destinataire': destinataireConvoi,
+                        'Matériaux': materiaux,
+                        'Nourriture': nourriture,
+                        'Id Commande': numeral(idCommande).value(),
+                        'Date Départ': moment().toISOString(),
+                        'Date Arrivée': dateArriveeCalculee.toISOString(),
+                        'Ouvrières': numeral($("#nbOuvriere").val()).value()
+                    }
+                });
+
+                await monConvoi.enregistrerLocalStorage('outiiil_convoi_a_poster');
+
+                // Envoi du formulaire Fourmizzz (POST)
+                $(e.currentTarget).closest("form").submit();
+                return false;
             });
 
         $("#o_resetConvoi").click((e) => {
@@ -272,32 +226,46 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     }
 
     /**
-     * Récupère les IDs d'annulation des convois affichés.
+     * Récupère les données des convois en cours affichés sur la page.
+     * @returns {Array<Object>} Liste des convois avec leurs propriétés
      */
-    getConvoiAnnulationIds() {
-        const ids = [];
-        $("a[href*='commerce.php?annuler=']").each((i, elt) => {
-            const match = $(elt).attr('href').match(/annuler=(\d+)/);
-            if (match && match[1]) ids.push(match[1]);
+    getConvoisEnCoursDePage() {
+        const convois = [];
+        $("#centre > strong").each((i, elt) => {
+            const texte = $(elt).text();
+            // Nettoyage pour extraire les nombres
+            const matches = texte.replace(/\s/g, '').split("dans")[0].match(/\d+/g);
+
+            if (matches && matches.length >= 2) {
+                const urlAnnuler = $(elt).nextAll("a[href*='commerce.php?annuler=']").first().attr('href');
+                const matchId = urlAnnuler ? urlAnnuler.match(/annuler=(\d+)/) : null;
+                const idAnnulation = matchId ? numeral(matchId[1]).value() : null;
+                const pseudo = $(elt).find("a").first().text();
+                const tempsRestantText = texte.split("dans")?.[1]?.trim();
+                const tempsRestant = Utils.timeToInt(tempsRestantText);
+
+                convois.push({
+                    idAnnulation: idAnnulation,
+                    nourriture: numeral(matches[0]).value(),
+                    materiaux: numeral(matches[1]).value(),
+                    destinataire: pseudo,
+                    tempsRestant: tempsRestant
+                });
+            }
         });
-        return ids;
+        return convois;
     }
 
     /**
      * Attache les listeners pour l'annulation de convoi.
      */
     _attacherListenersAnnulationConvoi() {
-        $("a[href*='commerce.php?annuler=']").on('click', async (e) => {
-            if (localStorage.getItem('outiiil_convoi_annulation_pending_id')) return;
-
-            e.preventDefault();
+        $("a[href*='commerce.php?annuler=']").on('click', (e) => {
             const match = $(e.currentTarget).attr('href').match(/annuler=(\d+)/);
-            if (!match) {
-                $.toast({ ...TOAST_ERROR, text: "Erreur: Impossible d'identifier le convoi à annuler." });
-                return;
+            if (match) {
+                localStorage.setItem('outiiil_convoi_annulation_pending_id', match[1]);
+                localStorage.setItem('outiiil_convoi_annulation_pending_timestamp', moment().toISOString());
             }
-            localStorage.setItem('outiiil_convoi_annulation_pending_id', match[1]);
-            window.location.href = "commerce.php";
         });
     }
 
@@ -307,58 +275,70 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     async _traiterConvoiApresEnvoiJeu() {
         const convoiDataObj = new Convoi(this);
         const convoiCharge = await convoiDataObj.chargerDepuisLocalStorage('outiiil_convoi_a_poster');
-        const idsAnnulationInitString = localStorage.getItem('outiiil_ids_annulation_apres_rechargement_initial');
+        if (!convoiCharge) return;
 
-        console.log('convoiDataObj', convoiDataObj)
-        console.log('idsAnnulationInitString', idsAnnulationInitString)
-        if (convoiCharge && !idsAnnulationInitString) {
-            const donneesConvoi = await convoiDataObj.lire();
-            console.log('donneesConvoi', donneesConvoi)
-
-            $("#pseudo_convoi").val(donneesConvoi['Destinataire']);
-            $("#input_nbNourriture").val(numeral(donneesConvoi['Nourriture']).format());
-            $("#nbNourriture").val(donneesConvoi['Nourriture']);
-            $("#input_nbMateriaux").val(numeral(donneesConvoi['Matériaux']).format());
-            $("#nbMateriaux").val(donneesConvoi['Matériaux']);
-            $("#input_nbOuvriere").val(numeral(donneesConvoi['Ouvrières']).format());
-            $("#nbOuvriere").val(donneesConvoi['Ouvrières']);
-            $("#o_idCommande").val(donneesConvoi['Id Commande']);
-
-            localStorage.setItem('outiiil_ids_annulation_apres_rechargement_initial', JSON.stringify(this.getConvoiAnnulationIds()));
-            $("input[name='convoi']").click();
+        const idCommande = await convoiDataObj.lire('Id Commande');
+        const commande = this.commandes.find(c => c.idSujet == idCommande);
+        if (!commande) {
+            localStorage.removeItem('outiiil_convoi_a_poster');
             return;
-        } else if (convoiCharge && idsAnnulationInitString) {
+        }
 
-            const idsAvant = JSON.parse(idsAnnulationInitString);
-            const idsApres = this.getConvoiAnnulationIds();
-            const nouvelId = idsApres.find(id => !idsAvant.includes(id));
+        const convoisPage = this.getConvoisEnCoursDePage();
 
-            try {
-                if (nouvelId) {
-                    const idCommande = await convoiDataObj.lire('Id Commande');
-                    const commande = this.commandes.find(c => c.idSujet == idCommande);
-                    if (commande) {
-                        await convoiDataObj.ecrire('Id Annulation', nouvelId);
-                        await commande.ajouterConvoi(convoiDataObj);
-                        console.log('commande', commande)
-                        await commande.enregistrerSurForum();
-                        $.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour sur le forum." });
-
-                        // Passer la prochaine commande en cours si nécessaire
-                        await this._activerProchaineCommandeSiBesoin();
-
-                        await this.actualiserCommandes();
-                    }
-                } else {
-                    $.toast({ ...TOAST_INFO, text: "Aucun nouvel ID d'annulation détecté." });
-                }
-            } catch (error) {
-                $.toast({ ...TOAST_ERROR, text: `Erreur: ${error.message || error}` });
-                console.error(error);
-            } finally {
-                localStorage.removeItem('outiiil_convoi_a_poster');
-                localStorage.removeItem('outiiil_ids_annulation_apres_rechargement_initial');
+        // 1. Collecter tous les IDs de convois déjà rattachés à des commandes (pour éviter les doublons)
+        const idsDejaRattaches = new Set();
+        for (const cmd of this.commandes) {
+            for (const convContenu of cmd.objetsForumContenus) {
+                const idAnnul = await convContenu.lire('Id Annulation');
+                if (idAnnul) idsDejaRattaches.add(idAnnul);
             }
+        }
+
+        // 2. Extraire les critères attendus en une seule fois
+        const convoiParams = await convoiDataObj.lire(['Nourriture', 'Matériaux', 'Destinataire', 'Date Arrivée', 'Date Départ']);
+
+        // 3. Filtrer les convois de la page qui correspondent
+        const correspondances = convoisPage.filter(cp => {
+            const estLibre = !idsDejaRattaches.has(cp.idAnnulation);
+            const ressourcesMatch = cp.nourriture === convoiParams['Nourriture'] && cp.materiaux === convoiParams['Matériaux'];
+            const destMatch = cp.destinataire === convoiParams['Destinataire'];
+
+            // On utilise la date de départ (moment du clic) comme référence au lieu du moment présent
+            // pour être plus proche de l'heure serveur au moment de la génération de la page.
+            const dateArriveePage = convoiParams['Date Départ'].clone().add(cp.tempsRestant, 's');
+            const dateMatch = Math.abs(dateArriveePage.diff(convoiParams['Date Arrivée'], 'seconds')) <= 1;
+
+            return estLibre && ressourcesMatch && destMatch && dateMatch;
+        });
+
+        // 4. Trier par proximité de date
+        correspondances.sort((a, b) => {
+            const aArrival = convoiParams['Date Départ'].clone().add(a.tempsRestant, 's');
+            const bArrival = convoiParams['Date Départ'].clone().add(b.tempsRestant, 's');
+            return Math.abs(aArrival.diff(convoiParams['Date Arrivée'])) - Math.abs(bArrival.diff(convoiParams['Date Arrivée']));
+        });
+
+        try {
+            console.log("Correspondances: ", correspondances);
+            if (correspondances.length > 0) {
+                const leBonConvoi = correspondances[0];
+                await convoiDataObj.ecrire('Id Annulation', leBonConvoi.idAnnulation);
+
+                await commande.ajouterConvoi(convoiDataObj);
+                $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
+
+                // Passer la prochaine commande en cours si nécessaire
+                await this._activerProchaineCommandeSiBesoin();
+                await this.actualiserCommandes();
+            } else {
+                $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
+            }
+        } catch (error) {
+            $.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
+            console.error(error);
+        } finally {
+            localStorage.removeItem('outiiil_convoi_a_poster');
         }
     }
 
@@ -369,43 +349,29 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         const idPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
         if (!idPending) return;
 
-        const idsActuels = this.getConvoiAnnulationIds();
+        let convoiTraite = false;
+        const idPendingNum = numeral(idPending).value();
+        const timestampClic = localStorage.getItem('outiiil_convoi_annulation_pending_timestamp');
 
-        if (idsActuels.includes(idPending)) {
-            localStorage.setItem('outiiil_convoi_annulation_forwarded_id', idPending);
-            $("a[href*='commerce.php?annuler=" + idPending + "']").get(0).click();
-            return;
-        }
-
-        const idForwarded = localStorage.getItem('outiiil_convoi_annulation_forwarded_id');
-        if (idForwarded === idPending) {
-            try {
-                // Essayer d'annuler le convoi dans chaque commande jusqu'à trouver la bonne
-                let convoiAnnule = false;
-                for (const commande of this.commandes) {
-                    const resultat = await commande.annulerConvoi(numeral(idPending).value());
-
-                    if (resultat.success) {
-                        await commande.enregistrerSurForum();
-                        $.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum." });
-                        await this.actualiserCommandes();
-                        convoiAnnule = true;
-                        break;
+        for (const commande of this.commandes) {
+            const resultat = await commande.annulerConvoi(idPendingNum, timestampClic);
+            if (resultat.trouve) {
+                convoiTraite = true;
+                if (resultat.modifie) {
+                    if (resultat.resurrection) {
+                        await this._repasserEnAttenteProchaineCommande(commande.idSujet);
                     }
+                    await this.actualiserCommandes();
                 }
-
-                if (!convoiAnnule) {
-                    $.toast({ ...TOAST_INFO, text: "Convoi non trouvé dans les commandes." });
-                }
-            } catch (error) {
-                $.toast({ ...TOAST_ERROR, text: `Erreur: ${error.message || error}` });
+                break;
             }
-        } else {
-            $.toast({ ...TOAST_INFO, text: "Le convoi a déjà été annulé ou n'est plus annulable." });
         }
 
+        if (!convoiTraite) {
+            $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
+        }
         localStorage.removeItem('outiiil_convoi_annulation_pending_id');
-        localStorage.removeItem('outiiil_convoi_annulation_forwarded_id');
+        localStorage.removeItem('outiiil_convoi_annulation_pending_timestamp');
     }
 
     /**
@@ -429,6 +395,20 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             await cmdSuivante.ecrire('État', ETAT_COMMANDE["En cours"]);
             await cmdSuivante.enregistrerSurForum();
             $.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours." });
+        }
+    }
+
+    /**
+     * Repasse les commandes indûment activées en attente si une commande précédente a été ressuscitée.
+     * @param {number} idSujetRessuscite - L'ID du sujet de la commande qui vient d'être remise en cours.
+     */
+    async _repasserEnAttenteProchaineCommande(idSujetRessuscite) {
+        for (const cmd of this.commandes) {
+            if (cmd.idSujet != idSujetRessuscite && await cmd.lire('État') === ETAT_COMMANDE["En cours"]) {
+                await cmd.ecrire('État', ETAT_COMMANDE["En attente"]);
+                await cmd.enregistrerSurForum();
+                console.log(`[GererCommandes] Commande ${cmd.idSujet} repassée en attente (résurrection de ${idSujetRessuscite}).`);
+            }
         }
     }
 })

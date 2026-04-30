@@ -20,6 +20,7 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Mettre en cache le résultat de la vérification de version d'un paramètre/objet pour éviter les échecs de mise à jour à la chaîne
 - Mettre colonne exclusion de l'alliance en non visible par défaut
 - Dans boite C+, mettre 'Aucun Convoi' au lieu de Aucune
+- Rendre les timers Fourmizzz de convois, attaques et chasses dynamiques
 
 ## Plan d'Implémentation
 

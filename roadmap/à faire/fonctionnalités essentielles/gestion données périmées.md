@@ -15,5 +15,6 @@ Trouver un moyen automatique de rafraichir, détecter et réagir à la modificat
 ## Plan d'Implémentation
 
 ## Tests à effectuer
+- Vérifier cas lancement de convoi sur deux pages parallèles sans rechargement
 
 ## Avancement

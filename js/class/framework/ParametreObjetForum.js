@@ -1,5 +1,12 @@
 class ParametreObjetForum extends DonneeValidable {
     /**
+     * Configuration déclarative. Format d'enregistrement personnalisé (ex: 'YYYY-MM-DD').
+     * Si null, pour les moments, la méthode toISOString() est utilisée.
+     * @type {string|null}
+     */
+    static FORMAT_ENREGISTREMENT = null;
+
+    /**
      * Configuration déclarative. Version de la logique de fonctionnement du paramètre.
      * Ex: '1.0'. Doit être surchargée dans chaque classe fille si le paramètre est versionné.
      * @type {String|null}
@@ -277,8 +284,10 @@ class ParametreObjetForum extends DonneeValidable {
 
             // Gérer spécifiquement les objets moment
             if (moment.isMoment(this.valeur)) {
-                // Sérialiser en ISO 8601 string
-                valeurStringifiee = this.valeur.toISOString();
+                // Sérialiser en format personnalisé ou en ISO 8601 string
+                valeurStringifiee = this.constructor.FORMAT_ENREGISTREMENT 
+                    ? this.valeur.format(this.constructor.FORMAT_ENREGISTREMENT) 
+                    : this.valeur.toISOString();
             } else if (typeof this.valeur === 'object' && this.valeur !== null) {
                 valeurStringifiee = JSON.stringify(this.valeur);
             } else {

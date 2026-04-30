@@ -71,8 +71,8 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
             });
 
             for (const membre of membresExterieurs) {
-                const corps_html = await membre.afficherCorps(headers);
-                $("#tabMembresAlliance tbody").append(corps_html);
+                const $corps = await membre.afficherCorps(headers);
+                $("#tabMembresAlliance tbody").append($corps);
                 const pseudo = await membre.lire('Pseudo');
                 console.log(`[${this.#nom}] Ligne ajoutée pour le joueur ${pseudo}.`);
             }

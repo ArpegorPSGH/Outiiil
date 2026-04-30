@@ -149,6 +149,17 @@ Utils.register(class Convoi extends ObjetForum {
     async estTermine() {
         return moment(await this.lire('Date Arrivée')).diff(moment()) < 0;
     }
+
+    /**
+     * Vérifie si le convoi est encore annulable (moins de 2 minutes depuis le départ).
+     * @param {string|Moment} momentReferent - Le moment du clic d'annulation
+     * @returns {Promise<boolean>}
+     */
+    async estAnnulable(momentReferent) {
+        const dateDepart = await this.lire('Date Départ');
+        const diffSeconds = moment(momentReferent).diff(moment(dateDepart), 'seconds');
+        return diffSeconds <= 120;
+    }
     /**
     *
     */

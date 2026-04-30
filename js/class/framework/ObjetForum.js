@@ -621,13 +621,11 @@ class ObjetForum {
     }
 
     /**
-     * Génère la chaîne HTML pour le corps d'une ligne de tableau, en respectant l'ordre des colonnes spécifié.
+     * Génère l'élément jQuery pour le corps d'une ligne de tableau, en respectant l'ordre des colonnes spécifié.
      * @param {Array<String>} [liste=null] - Liste optionnelle des noms de paramètres/attributs à afficher, définissant l'ordre des colonnes.
-     * @returns {Promise<String>} Le HTML du corps (<tr> avec les <td>).
+     * @returns {Promise<jQuery>} L'objet jQuery de la ligne (<tr> avec les <td>).
      */
     async afficherCorps(liste = this.constructor.COLONNES_DEFAUT) {
-        const idSujet = this.idSujet;
-
         // 1. Vérification des droits et lecture des données
         let peutVoirDonneesRestreintes = await this.fonctionnaliteCreatrice.verifierDroit('N');
 
@@ -684,55 +682,58 @@ class ObjetForum {
 
         const proprietes = this.constructor.recupererProprietesAffichage(ordreAffichage);
 
-        // 3. Construction du corps HTML
-        let corps_html = '<tr>';
+        // 3. Construction du corps jQuery
+        const $tr = $('<tr>');
         let totalCells = 0;
+
         ordreAffichage.forEach(nomParametre => {
             const valeur = donnees[nomParametre];
+            const typeLien = proprietes[nomParametre] ? proprietes[nomParametre].typeLien : null;
+
+            const formaterValeur = (val, nom) => {
+                if (val === null || val === undefined || val === '') return '';
+                if (val instanceof jQuery || val instanceof Element) return val;
+
+                const donnee = this._resoudreDonnee(nom);
+                const affichage = donnee ? donnee.formaterValeur(val) : Utils.formatNombre(val);
+
+                if (typeLien === 'joueur') {
+                    return `<a href="Membre.php?Pseudo=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
+                } else if (typeLien === 'alliance') {
+                    return `<a href="classementAlliance.php?alliance=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
+                }
+                return affichage;
+            };
+
+            const ajouterCellule = (val, nom) => {
+                const $td = $('<td>');
+                const contenu = formaterValeur(val, nom);
+                if (contenu instanceof jQuery || contenu instanceof Element) {
+                    $td.append(contenu);
+                } else {
+                    $td.html(contenu);
+                }
+                $tr.append($td);
+                totalCells++;
+            };
+
             if (valeur !== undefined && valeur !== null) {
-                const typeLien = proprietes[nomParametre] ? proprietes[nomParametre].typeLien : null;
-
-                const formaterValeur = (val) => {
-                    if (val === null || val === undefined || val === '') return '';
-                    let affichage;
-                    if (moment.isMoment(val)) {
-                        const format = proprietes[nomParametre].format;
-                        affichage = val.format(format);
-                    } else {
-                        affichage = Utils.formatNombre(val);
-                    }
-                    if (typeLien === 'joueur') {
-                        return `<a href="Membre.php?Pseudo=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
-                    } else if (typeLien === 'alliance') {
-                        return `<a href="classementAlliance.php?alliance=${encodeURIComponent(val)}" target="_blank">${affichage}</a>`;
-                    }
-                    return affichage;
-                };
-
                 if (Array.isArray(valeur)) {
                     if (valeur.length > 0) {
-                        valeur.forEach(item => {
-                            let itemFormate = (item !== null && item !== undefined) ? formaterValeur(item) : '';
-                            corps_html += `<td>${itemFormate}</td>`;
-                            totalCells++;
-                        });
+                        valeur.forEach(item => ajouterCellule(item, nomParametre));
                     } else {
-                        corps_html += '<td></td>'; // Tableau vide, une seule cellule vide
-                        totalCells++;
+                        ajouterCellule('', nomParametre); // Tableau vide, une seule cellule vide
                     }
                 } else {
-                    corps_html += `<td>${formaterValeur(valeur)}</td>`;
-                    totalCells++;
+                    ajouterCellule(valeur, nomParametre);
                 }
             } else {
-                corps_html += '<td></td>'; // Paramètre non trouvé, cellule vide
-                totalCells++;
+                ajouterCellule('', nomParametre); // Paramètre non trouvé, cellule vide
             }
         });
-        corps_html += '</tr>';
 
         console.log(`[ObjetForum] afficherCorps(): ${totalCells} cellules générées.`);
-        return corps_html;
+        return $tr;
     }
 
     /**

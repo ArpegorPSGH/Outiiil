@@ -252,39 +252,6 @@ class Utils {
     }
 
     /**
-     * Parse une chaîne de date du forum (format "jour mois à heurehminute")
-     * et gère l'année manquante en utilisant l'année la plus récente.
-     *
-     * @static
-     * @method parseForumDate
-     * @param {String} dateString La chaîne de date à parser.
-     * @return {Object} Un objet moment représentant la date parsée.
-     */
-    static parseForumDate(dateString) {
-        // Remplacer tous les types d'espaces (normaux et insécables) par un espace unique
-        let cleanedDateString = dateString.replace(/[\s\u00A0]+/g, ' ').trim();
-
-        // Formats possibles pour moment.js, incluant les abréviations de mois
-        const formats = [
-            "D MMM [à] HH[h]mm",  // ex: "6 juil à 18h16"
-            "D MMM. [à] HH[h]mm", // ex: "6 juil. à 18h16" (avec un point après l'abréviation)
-            "D MMMM [à] HH[h]mm" // ex: "6 juillet à 18h16"
-        ];
-
-        // Assurez-vous que la locale 'fr' est chargée.
-        let parsedDate = moment(cleanedDateString, formats, 'fr', true);
-
-        // Si la date est valide mais n'a pas d'année (moment le gère en utilisant l'année en cours par défaut)
-        // et que la date parsée est dans le futur par rapport à maintenant,
-        // cela signifie que l'année correcte est l'année précédente.
-        if (parsedDate.isValid() && parsedDate.isAfter(moment())) {
-            parsedDate.subtract(1, 'year');
-        }
-
-        return parsedDate;
-    }
-
-    /**
      * Compare deux chaînes de version (ex: "1.0.0", "1.1.0").
      *
      * @static
@@ -604,6 +571,24 @@ class Utils {
     }
 
     /**
+     * Supprime un message du forum.
+     * @static
+     * @param {number|string} idMessage L'ID du message à supprimer.
+     * @returns {Promise<any>}
+     */
+    static supprimerMessage(idMessage) {
+        return $.ajax({
+            type: "post",
+            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+            data: {
+                "xajax": "callSupprimerMessage",
+                "xajaxargs[]": idMessage,
+                "xajaxr": moment().valueOf()
+            }
+        });
+    }
+
+    /**
      * Envoie un message dans un sujet et retourne l'ID du nouveau message.
      * @async
      * @param {number|string} idSujet L'ID du sujet.
@@ -698,7 +683,7 @@ class Utils {
      * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
      * @async
      * @param {Number} idSection L'ID de la section à consulter.
-     * @returns {Promise<Array<{id: Number, derniere_activite: Date, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
+     * @returns {Promise<Array<{id: Number, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
      */
     static async recupererSujetsSection(idSection) {
         try {
@@ -718,7 +703,6 @@ class Utils {
                 const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
                 const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
                 const datePartToParse = dateMatch ? dateMatch[1] : '';
-                const dateDerniereActivite = Utils.parseForumDate(datePartToParse);
                 let id = null;
                 const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
                 if (onclickAttr) {
@@ -728,10 +712,9 @@ class Utils {
                     }
                 }
 
-                if (id && titreSujet && dateDerniereActivite.isValid()) {
+                if (id && titreSujet) {
                     sujets.push({
                         id: id,
-                        derniere_activite: dateDerniereActivite.toDate(),
                         contenu: titreSujet
                     });
                 } else {

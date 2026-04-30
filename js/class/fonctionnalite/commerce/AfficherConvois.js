@@ -17,8 +17,56 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
         // Charger les convois depuis les commandes
         await this.chargerConvois();
 
+        // Afficher les convois entrants destinés au joueur
+        await this.afficherConvoisEntrants();
+
         // Afficher le tableau des convois
         await this.afficherTableauConvois();
+    }
+
+    /**
+     * Affiche les convois entrants destinés au joueur juste sous les convois envoyés.
+     */
+    async afficherConvoisEntrants() {
+        if (Utils.comptePlus) return;
+
+        if ($("#o_convoisEntrants").length === 0) {
+            $("#o_listeCommande").before("<div id='o_convoisEntrants'></div>");
+        }
+
+        const convoisEntrants = [];
+        for (const convoi of this.convois) {
+            if (await convoi.estDestinataire()) {
+                convoisEntrants.push(convoi);
+            }
+        }
+
+        let html = "";
+        const timers = [];
+
+        if (convoisEntrants.length > 0) {
+            for (const convoi of convoisEntrants) {
+                const dateArrivee = await convoi.lire('Date Arrivée');
+                const tempsRestant = moment(dateArrivee).diff(moment(), 'seconds');
+
+                if (tempsRestant > 0) {
+                    const convoiData = await convoi.lire(['Nourriture', 'Matériaux', 'Expéditeur', 'Id Annulation']);
+
+                    html += `<strong>- Vous allez recevoir ${numeral(convoiData['Nourriture']).format()} ${IMG_POMME} et ${numeral(convoiData['Matériaux']).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${convoiData['Expéditeur']}">${convoiData['Expéditeur']}</a> dans <span id='convoi_entrant_${convoiData['Id Annulation']}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(dateArrivee).format("D MMM YYYY à HH[h]mm")}</small><br/>`;
+
+                    timers.push({
+                        temps: tempsRestant,
+                        id: "convoi_entrant_" + convoiData['Id Annulation']
+                    });
+                }
+            }
+        }
+
+        $("#o_convoisEntrants").html(html);
+
+        for (const timer of timers) {
+            Utils.decreaseTime(timer.temps, timer.id);
+        }
     }
 
     /**
@@ -103,15 +151,14 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
 
             if (tableRows.length > 0) {
                 // Ajouter les nouvelles lignes via l'API pour qu'elles soient indexées et affichées
-                table.rows.add($(tableRows.join('')));
+                table.rows.add($(tableRows.map($tr => $tr[0])));
             }
 
             // Redessiner la table avec les nouvelles données
             table.draw();
         } else {
             // Si la DataTable n'existe pas encore, juste mettre à jour le HTML
-            const tbody = tableRows.join('');
-            $("#o_tableListeConvoi tbody").html(tbody);
+            $("#o_tableListeConvoi tbody").empty().append(tableRows);
         }
     }
 })
