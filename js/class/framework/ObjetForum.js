@@ -238,6 +238,14 @@ class ObjetForum {
         this._initialiserAttributsEtParametres(options.donneesInitiales);
 
         // 6. Initialiser les IDs de section à partir de la configuration statique
+        this._actualiserIdsSection();
+    }
+
+    /**
+     * Met à jour la liste des IDs de section de l'objet à partir du profil utilisateur.
+     * @protected
+     */
+    _actualiserIdsSection() {
         if (this.constructor.LOCATION_HISTORY.length > 0) {
             const ids = new Set();
             this.constructor.LOCATION_HISTORY.forEach(format => {
@@ -255,7 +263,7 @@ class ObjetForum {
                     ids.add(null);
                 }
             });
-            this.idsSection = [...ids]; // Cette affectation utilisera le setter si une classe fille en définit un.
+            this.idsSection = [...ids];
         }
     }
 
@@ -282,13 +290,54 @@ class ObjetForum {
     }
 
     /**
-     * Orchestre la validation de l'objet et de ses dépendances (paramètres, objets contenus).
-     * @returns {Boolean} Vrai si toutes les vérifications réussissent, sinon faux.
+     * Vérifie que la version de l'objet et de ses dépendances (paramètres, objets contenus) est suffisante.
+     * Cette vérification est récursive.
+     * @returns {Promise<Boolean>} Vrai si toutes les vérifications de version réussissent, sinon faux.
      */
-    async verifierVersionSuffisanteEtPresenceSection() {
+    async verifierVersionSuffisante() {
         await this._acquireReadLock();
         try {
-            // 1. Validation de la Présence de la Section
+            // 1. Validation des Paramètres
+            for (const parametre of this.parametres) {
+                if (!(await parametre.verifierVersionSuffisante())) {
+                    console.error(`Paramètre incompatible pour ${this.constructor.name}`);
+                    return false;
+                }
+            }
+
+            // 2. Validation de l'ObjetForum lui-même
+            const estVersionne = this.constructor.VERSION_LOGIQUE && this.constructor.LOCATION_HISTORY.length > 0 && this.constructor.PARAMETRES_OBJET.length > 0;
+            if (estVersionne) {
+                if (!(await gestionnaireVersions.verifierCompatibiliteObjetForum(this))) {
+                    console.error(`ObjetForum incompatible: ${this.constructor.name}`);
+                    return false;
+                }
+            }
+
+            // 3. Validation Récursive des ObjetForums Contenus
+            if (this.constructor.classeObjetsForumContenus) {
+                const instanceContenue = new this.constructor.classeObjetsForumContenus();
+                if (!(await instanceContenue.verifierVersionSuffisante())) {
+                    console.error(`ObjetForum contenu incompatible pour ${this.constructor.name}`);
+                    return false;
+                }
+            }
+
+            // 4. Résultat Final
+            return true;
+        } finally {
+            this._releaseReadLock();
+        }
+    }
+
+    /**
+     * Vérifie la présence de la section sur le forum pour cet objet.
+     * Cette vérification n'est pas récursive.
+     * @returns {Promise<Boolean>} Vrai si la section est présente, sinon faux.
+     */
+    async verifierPresenceSection() {
+        await this._acquireReadLock();
+        try {
             if (this.idsSection.length > 0) {
                 const dernierId = this.idsSection[this.idsSection.length - 1];
 
@@ -316,10 +365,10 @@ class ObjetForum {
                                 const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
                                 const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
                                 const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
-                                if (extractedTitle === nomSection) {
+                                if (extractedTitle.includes(nomSection)) {
                                     estValide = true;
                                 } else {
-                                    console.error(`[${this.constructor.name}] Le titre de la section '${nomSection}' (ID: ${dernierId}) ne correspond pas. Titre reçu: "${extractedTitle}".`);
+                                    console.warn(`[${this.constructor.name}] Le titre de la section '${nomSection}' (ID: ${dernierId}) ne correspond pas. Titre reçu: "${extractedTitle}".`);
                                 }
                             }
                         }
@@ -334,33 +383,6 @@ class ObjetForum {
                 return false;
             }
 
-            // 2. Validation des Paramètres
-            for (const parametre of this.parametres) {
-                if (!(await parametre.verifierVersionSuffisante())) {
-                    console.error(`Paramètre incompatible pour ${this.constructor.name}`);
-                    return false;
-                }
-            }
-
-            // 3. Validation de l'ObjetForum lui-même
-            const estVersionne = this.constructor.VERSION_LOGIQUE && this.constructor.LOCATION_HISTORY.length > 0 && this.constructor.PARAMETRES_OBJET.length > 0;
-            if (estVersionne) {
-                if (!(await gestionnaireVersions.verifierCompatibiliteObjetForum(this))) {
-                    console.error(`ObjetForum incompatible: ${this.constructor.name}`);
-                    return false;
-                }
-            }
-
-            // 4. Validation Récursive des ObjetForums Contenus
-            if (this.constructor.classeObjetsForumContenus) {
-                const instanceContenue = new this.constructor.classeObjetsForumContenus();
-                if (!(await instanceContenue.verifierVersionSuffisanteEtPresenceSection())) {
-                    console.error(`ObjetForum contenu incompatible pour ${this.constructor.name}`);
-                    return false;
-                }
-            }
-
-            // 5. Résultat Final
             return true;
         } finally {
             this._releaseReadLock();
@@ -372,7 +394,7 @@ class ObjetForum {
      * @param {Boolean} [chargerContenus=true] - Faut-il aussi charger les objets contenus ?
      * @returns {Promise<Boolean>} Vrai si le rafraîchissement a réussi.
      */
-    async rafraichir(chargerContenus = true) {
+    async rafraichir(chargerContenus = true, mettreAJourCache = true) {
         await this._acquireReadLock();
         console.log('début rafraichir')
         let rafraichissementReussi = false;
@@ -417,7 +439,7 @@ class ObjetForum {
         }
 
         if (rafraichissementReussi) {
-            await this.enregistrerSurForum();
+            await this.enregistrerSurForum(mettreAJourCache);
             console.log('rafraichir 6')
         }
 
@@ -910,7 +932,7 @@ class ObjetForum {
      * Si l'objet principal n'a pas été modifié, seul l'enregistrement des objets contenus sera tenté.
      * @returns {Promise<void>}
      */
-    async enregistrerSurForum() {
+    async enregistrerSurForum(mettreAJourCache = true) {
         await this._acquireWriteLock();
         try {
             // 1. Enregistrement de l'objet principal (conditionnel)
@@ -944,6 +966,9 @@ class ObjetForum {
                     }
                 }
                 this.estModifie = false; // Utilise le setter pour réinitialiser les estModifie des paramètres
+                if (mettreAJourCache && formatLieu.lieu === 'titre') {
+                    await FonctionnaliteAlliance.mettreAJourCache(this);
+                }
             }
 
             // 2. Enregistrement des objets contenus (toujours tenté)
@@ -1162,5 +1187,39 @@ class ObjetForum {
                 nextWriter();
             }
         }
+    }
+
+    /**
+     * Génère une empreinte sérialisée de l'état actuel de l'objet, incluant ses paramètres,
+     * attributs et objets contenus (récursivement).
+     * @returns {Promise<String>} - L'empreinte de l'objet.
+     */
+    async _prendreEmpreinte() {
+        const etat = {
+            idSujet: this.idSujet,
+            parametres: {},
+            attributs: {},
+            contenus: []
+        };
+
+        // Capturer les paramètres
+        for (const p of this.parametres) {
+            etat.parametres[p.constructor.name] = await p.lire(true);
+        }
+
+        // Capturer les attributs non calculés et marqués pour l'empreinte
+        for (const a of this.attributs) {
+            if (!a._estCalcule() && a.EST_INCLUS_DANS_EMPREINTE) {
+                etat.attributs[a.constructor.name] = await a.lire(true);
+            }
+        }
+
+        // Capturer récursivement les objets contenus
+        if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
+            const empreintesContenus = await Promise.all(this.objetsForumContenus.map(sousObjet => sousObjet._prendreEmpreinte()));
+            etat.contenus = empreintesContenus.sort();
+        }
+
+        return JSON.stringify(etat);
     }
 }

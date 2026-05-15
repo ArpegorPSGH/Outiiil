@@ -15,6 +15,12 @@ class AttributObjet extends DonneeValidable {
     static STRING_RESTRICTION = 'Restreint';
 
     /**
+     * Définit si l'attribut doit être pris en compte lors de la prise d'empreinte (onActionSecurisee).
+     * @type {Boolean}
+     */
+    static EST_INCLUS_DANS_EMPREINTE = true;
+
+    /**
      * Obtient la valeur de l'attribut.
      * Si l'attribut est calculé (calculerValeur surchargé), appelle la méthode de calcul sécurisé.
      * Sinon, retourne directement la valeur stockée.

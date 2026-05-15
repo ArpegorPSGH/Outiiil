@@ -215,8 +215,8 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         console.log('Rafraichissement gstionnaire droits')
         // 1. Chargement parallèle
         const [droitsActuels, membresOfficiels] = await Promise.all([
-            fonctionnaliteAppelante.chargerObjetsForum(this.constructor.classeObjetsForumContenus),
-            fonctionnaliteAppelante.chargerObjetsForum(Joueur) // Assurez-vous que la classe Joueur est disponible
+            fonctionnaliteAppelante.chargerObjetsForum(this.constructor.classeObjetsForumContenus, false),
+            fonctionnaliteAppelante.chargerObjetsForum(Joueur, false) // Assurez-vous que la classe Joueur est disponible
         ]);
 
         // 2. Indexation et Synchronisation
@@ -274,7 +274,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         this.objetsForumContenus = droitsSynchronises;
         this.mapDroits.clear();
         console.log('droitsSynchronises', droitsSynchronises)
-        cacheObjetForums.set(this.constructor.classeObjetsForumContenus.name, droitsSynchronises)
+        cacheObjetForums.set(`${this.constructor.classeObjetsForumContenus.name}_false`, droitsSynchronises)
         for (const droit of this.objetsForumContenus) {
             const pseudo = await droit.lire(nomParametrePseudo);
             if (pseudo) this.mapDroits.set(pseudo, droit);

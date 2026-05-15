@@ -75,7 +75,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             });
 
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
-            $("#o_ajouterCommande").click(async (e) => {
+            $("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
                 // On essaie de réutiliser une commande non encore enregistrée si elle existe
                 let nouvelleCommande = this.commandes.find(c => !c.idSujet);
                 if (!nouvelleCommande) {
@@ -155,7 +155,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     formulaireConvoi() {
         $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>")
             .after(` <button id='o_resetConvoi'>Effacer</button>`)
-            .click(async (e) => {
+            .onActionSecurisee('click', this, async (e) => {
                 const idCommande = $("#o_idCommande").val();
                 if (idCommande == -1) return true;
 
@@ -168,14 +168,13 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     return false;
                 }
 
-                // e.preventDefault();
-
                 const commande = this.commandes.find(c => c.idSujet == idCommande);
                 const destinataireConvoi = $("#pseudo_convoi").val();
                 const demandeur = await commande.lire('Demandeur');
 
                 if (commande && demandeur !== destinataireConvoi) {
                     $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
+                    e.preventDefault();
                     return false;
                 }
 
@@ -213,8 +212,6 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
                 await monConvoi.enregistrerLocalStorage('outiiil_convoi_a_poster');
 
-                // Envoi du formulaire Fourmizzz (POST)
-                $(e.currentTarget).closest("form").submit();
                 return false;
             });
 
@@ -260,7 +257,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Attache les listeners pour l'annulation de convoi.
      */
     _attacherListenersAnnulationConvoi() {
-        $("a[href*='commerce.php?annuler=']").on('click', (e) => {
+        $("a[href*='commerce.php?annuler=']").onActionSecurisee('click', this, (e) => {
             const match = $(e.currentTarget).attr('href').match(/annuler=(\d+)/);
             if (match) {
                 localStorage.setItem('outiiil_convoi_annulation_pending_id', match[1]);

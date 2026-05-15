@@ -19,7 +19,7 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
         const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
             const bouton = $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
-            bouton.on('click', this.effectuerRecensement.bind(this));
+            bouton.onActionSecurisee('click', this, this.effectuerRecensement.bind(this));
             dtButtonsContainer.append(bouton);
         }
     }

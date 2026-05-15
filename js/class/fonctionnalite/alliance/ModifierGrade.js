@@ -39,8 +39,7 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
             if (data) {
                 const { joueur, id } = data;
                 const bouton = $(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
-                bouton.on('click', (e) => {
-                    e.preventDefault();
+                bouton.onActionSecurisee('click', this, (e) => {
                     const boite = new BoiteGrade(joueur, this.page, id);
                     boite.afficher();
                 });

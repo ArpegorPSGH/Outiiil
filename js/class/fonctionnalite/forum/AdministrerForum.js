@@ -29,7 +29,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
             // ajout de l'input pour la selection du tag alliance
             $("#alliance .simulateur").append(`<div id="o_formGuerre" style="display:none;"><input id="o_tagGuerre" type="text"/> <button id="o_creerSectionGuerre">Créer section</button></div>`);
             // Creation de l'utilitaire
-            $("#o_creerUtilitaire").click(async (e) => {
+            $("#o_creerUtilitaire").onActionSecurisee('click', this, async (e) => {
                 if (nomsSectionsRequis) {
                     for (const nomSection of nomsSectionsRequis) {
                         if (!$(`#cat_forum span:contains('${nomSection}')`).length) {
@@ -76,7 +76,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                 return $("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
             };
             // event sur le bouton guerre
-            $("#o_creerSectionGuerre").click((e) => {
+            $("#o_creerSectionGuerre").onActionSecurisee('click', this, (e) => {
                 let alliance = new Alliance({ tag: $("#o_tagGuerre").val() }), titreSection = "Guerre " + alliance.tag;
                 if (!$("#cat_forum span[class^='forum']").text().toUpperCase().includes(titreSection.toUpperCase())) {
                     // on créer la section "Guerre " + tag

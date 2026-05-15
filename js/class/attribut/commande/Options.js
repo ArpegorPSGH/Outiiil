@@ -15,15 +15,13 @@ class Options extends AttributObjet {
             const $modifier = $(`<a id='o_modifierCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a>`);
             const $supprimer = $(`<a id='o_supprimerCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>`);
 
-            $modifier.on('click', async (e) => {
-                e.preventDefault();
+            $modifier.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 let boiteCommande = new BoiteCommande(this.objetParent, this.objetParent.fonctionnaliteCreatrice.page);
                 await boiteCommande.afficher();
                 return false;
             });
 
-            $supprimer.on('click', async (e) => {
-                e.preventDefault();
+            $supprimer.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 if (confirm("Supprimer cette commande ?")) {
                     await this.objetParent.ecrire('État', ETAT_COMMANDE.Supprimée);
                     await this.objetParent.enregistrerSurForum();

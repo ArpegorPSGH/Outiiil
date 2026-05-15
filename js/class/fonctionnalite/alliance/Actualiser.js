@@ -29,7 +29,7 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
         const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
             const bouton = $(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
-            bouton.on('click', this.actualiserAlliance.bind(this));
+            bouton.onActionSecurisee('click', this, this.actualiserAlliance.bind(this));
             dtButtonsContainer.prepend(bouton);
         }
     }
@@ -51,7 +51,6 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
             }
 
             const promessesProfil = [];
-            const nouveauxJoueurs = [];
             for (const pseudo in this.page._alliance.joueurs) {
                 let joueurForum = membresForumMap.get(pseudo);
 
@@ -61,12 +60,10 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
                         joueurForum.ecrire('Version Extension', VERSION);
                     }
                     promessesProfil.push(joueurForum.enregistrerSurForum());
-                    nouveauxJoueurs.push(joueurForum);
                 }
 
             }
             await Promise.all(promessesProfil);
-            cacheObjetForums.get(Joueur.name).push(...nouveauxJoueurs);
 
             $.toast({ ...TOAST_SUCCESS, text: "L'alliance a été mise à jour avec succès." });
         } catch (error) {

@@ -69,7 +69,7 @@ class BoiteCommande extends Boite {
             return $(e.currentTarget).val(numeral($(e.currentTarget).val()).format());
         });
 
-        $("#o_commander" + await this._commande.idSujet).click(async (e) => {
+        $("#o_commander" + await this._commande.idSujet).onActionSecurisee('click', this._commande.fonctionnaliteCreatrice, async (e) => {
             e.preventDefault();
 
             // Récupérer les valeurs du formulaire

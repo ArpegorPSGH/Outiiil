@@ -14,8 +14,7 @@ class BoutonLivrer extends AttributObjet {
 
         if (apres && etat == ETAT_COMMANDE["En cours"]) {
             const $btn = $(`<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`);
-            $btn.on('click', async (e) => {
-                e.preventDefault();
+            $btn.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 const constructions = await monProfilJoueur.lire('Niveaux Constructions');
                 const transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (constructions[11] / 2)));
                 const materiauxRestants = await this.objetParent.lire('Matériaux Restants');
@@ -28,6 +27,11 @@ class BoutonLivrer extends AttributObjet {
                 $("#nbMateriaux").val(materialsToPrefill);
                 $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
                 $("#nbNourriture").val(nourishmentToPrefill);
+
+                const workersToPrefill = Math.ceil((materialsToPrefill + nourishmentToPrefill) / (10 + (constructions[11] / 2)));
+                $("#nbOuvriere").val(workersToPrefill);
+                $("#input_nbOuvriere").val(numeral(workersToPrefill).format());
+
                 $("#pseudo_convoi").val(await this.objetParent.lire('Demandeur'));
                 $("#o_idCommande").val(this.objetParent.idSujet);
                 $("html").animate({ scrollTop: 0 }, 600);

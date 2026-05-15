@@ -69,7 +69,7 @@ Lors des phases de test, si un format de données dans une section du forum chan
 
 Pour garantir la robustesse des fonctionnalités :
 - **Gestion du temps :** Assurez-vous que chaque fonctionnalité est robuste face à une imprécision d'une seconde sur la date d'arrivée prévue des convois, attaques et chasses.
-- **Validation des actions :** Lors de la validation par le joueur d'une action dépendant de paramètres externes au client Outiiil et susceptibles de changer, vérifiez avant de l'effectuer que les infos clés nécessaires à l'action n'ont pas changées dans les infos actualisées. Si ce n'est pas le cas, annuler l'action en le signalant par un message et prendre en compte les dernières infos dans l'affichage pour que l'utilisateur puisse recommencer.
+- **Validation des actions :** Utilisez systématiquement le plugin `onActionSecurisee` (voir section 5.7) pour les boutons déclenchant des modifications sur le forum. Il automatise la vérification de l'intégrité des données, des droits et des versions juste avant l'exécution de l'action. Pour les actions complexes ne reposant pas exclusivement sur des `ObjetForum`, assurez-vous manuellement que les informations clés n'ont pas changé.
 - **Actualisation des données :**
     - Pour un `ObjetForum`, actualisez cet objet en utilisant `ObjetForum.rafraichir()`.
     - Pour un objet classique, envoyez une (ou des) requête(s) ajax pour récupérer le contenu de la (ou des) page(s) actualisée(s), mais sans effectuer un rechargement visuellement.
@@ -91,8 +91,7 @@ Pour garantir la robustesse des fonctionnalités :
 - **Héritage et Formats :**
     - Les classes de paramètres, objets, fonctionnalités et pages doivent directement hériter de leurs classes mères respectives.
     - Les modifications de formats des paramètres (comme les formats de template string) ne doivent être effectuées que dans la classe mère des paramètres (`ParametreObjetForum`), et non dans les classes de paramètres filles.
-- **Création des objets :**
-    - Créez les instances d'`ObjetForum` à l'intérieur de la classe `FonctionnaliteAlliance` (ou sa classe mère), dans un autre `ObjetForum` (via `objetsForumContenus`), ou dans la fonction d'initialisation de l'extension `initialiserFrameworkGlobal()` pour les objets globaux.
+- **Accès au forum :** Ne jamais accéder au forum avec un `ObjetForum` créé à l'extérieur d'une `FonctionnaliteAlliance`. Ces instances doivent être créées à l'intérieur de la fonctionnalité (ou sa classe mère), dans un autre `ObjetForum` (via `objetsForumContenus`), ou dans `initialiserFrameworkGlobal()` pour les objets globaux.
 - **Initialisation des gestionnaires :** Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation et hériter d'`ObjetForum`, et spécifier sa section dans `ObjetForum.LOCATION_HISTORY`.
 - **Unicité des historiques :**
     - Le premier format de `ParametreObjetForum.FORMAT_HISTORY` sert d'ancre unique pour un paramètre. Deux classes de paramètres ne doivent jamais partager la même ancre.
@@ -111,7 +110,6 @@ Pour garantir la robustesse des fonctionnalités :
 - **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.
 - **Mise à jour de la documentation :** Après chaque fonctionnalité implémentée, assurez-vous de mettre à jour la documentation (si nécessaire) pour refléter les changements et les nouvelles pratiques.
 - **Gestion des droits d'administration Fourmizzz :** Il n'est pas nécessaire de surcharger la méthode `verifierDroits()` dans les classes héritant de `FonctionnaliteAlliance` pour gérer les droits d'administration Fourmizzz. La vérification est déjà incluse et délègue à la méthode `estAdminFourmizzz()` de la classe `Page` qui lance la fonctionnalité. Il suffit donc d'implémenter correctement la vérification dans la classe fille de `Page` concernée.
-- **Accès au forum :** Ne jamais accéder au forum ailleurs qu'en aval de la chaîne d'appel d'une fonctionnalité alliance.
 
 ### 5.3 Configuration des Formats d'Enregistrement
 
@@ -242,6 +240,32 @@ La méthode `ObjetForum.afficher()` gère l'affichage de données en colonnes mu
     1.  Si la valeur d'un `ParametreObjetForum` est un tableau, `afficher()` génère une cellule d'en-tête (`<th>`) avec un `colspan` égal à la taille du tableau (ou `1` si vide).
     2.  Chaque élément du tableau est affiché dans une cellule `<td>` distincte. Si le tableau est vide, une seule cellule `<td></td>` est générée.
     3.  Les paramètres manquants ou les valeurs `null`/`undefined` sont affichés comme des cellules vides.
+
+### 5.7 Sécurisation des Actions (onActionSecurisee)
+
+Pour prévenir les conflits de modification et l'utilisation de données périmées lors d'une action utilisateur (ex: clic sur un bouton d'enregistrement), le framework propose un plugin jQuery dédié.
+
+*   **Plugin :** `$.fn.onActionSecurisee(evenement, fonctionnalite, callback)`
+*   **Objectif :** Garantir que l'état local des données (`ObjetForum`) et les pré-requis (droits, versions, appartenance à l'alliance) sont identiques à ceux présents sur le forum au moment exact de l'action.
+*   **Fonctionnement :**
+    1. Intercepte et bloque l'événement initial (ex: clic).
+    2. Identifie automatiquement tous les types d'objets forum et les signatures de chargement utilisés par la fonctionnalité (via une analyse AST des appels à `chargerObjetsForum`).
+    3. Effectue un rafraîchissement forcé des conditions initiales via `verifierConditionsInitiales(true)` (rechargement des gestionnaires de droits/versions et de la liste des membres).
+    4. Compare l'empreinte (fingerprint) de l'état actuel des objets en cache avec une version fraîchement rechargée depuis le forum.
+    5. Si une divergence est détectée (donnée modifiée par un tiers, droits révoqués ou version obsolète), l'action est annulée, un toast d'avertissement est affiché, et la page est rechargée.
+    6. Si tout est conforme, l'événement original est redéclenché avec un flag de sécurité (`isSecured: true`) pour permettre l'exécution du callback.
+*   **Mode d'utilisation :**
+    Remplacez les écouteurs d'événements classiques sur les éléments déclenchant des écritures sur le forum :
+    ```javascript
+    // Ancienne méthode (non sécurisée face aux données périmées)
+    $('#monBouton').on('click', () => this.maMethodeDAction());
+
+    // Nouvelle méthode sécurisée
+    $('#monBouton').onActionSecurisee('click', this, (e) => this.maMethodeDAction(e));
+    ```
+*   **Points de vigilance :**
+    - L'analyse AST détecte les dépendances dans la classe actuelle et sa classe parente.
+    - Seuls les objets chargés via `chargerObjetsForum` sont inclus dans l'empreinte automatique.
 
 ---
 

@@ -7,6 +7,7 @@ Ajouter des fonctions d'administration pour les commandes.
 - Permettre de modifier l'état't d'une commande depuis la page commande
 - Ne pas autoriser l'annulation par l'administration (sur forum aussi)?
 - Permettre de modifier toutes les commandes depuis la page commande
+- Rendre les commandes nouvelles visibles par l'administration
 
 ## Plan d'Implémentation
 

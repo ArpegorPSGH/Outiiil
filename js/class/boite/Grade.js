@@ -61,7 +61,7 @@ class BoiteGrade extends Boite {
     */
     async event() {
         super.event();
-        $("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").click(async (e) => {
+        $("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").onActionSecurisee('click', this._joueur.fonctionnaliteCreatrice, async (e) => {
             e.preventDefault();
             try {
                 // on sauvegarde le grade du joueur

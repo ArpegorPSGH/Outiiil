@@ -46,18 +46,7 @@ class FonctionnaliteAlliance {
     async init() {
         console.log(`[${this.constructor.name}] Début de l'initialisation.`);
         try {
-            if (!await this.verifierVersionSuffisanteEtPresenceSections()) {
-                console.warn(`[${this.constructor.name}] Conditions de version ou de section non remplies.`);
-                return false;
-            }
-            console.log('verifierPresenceSujetMembre')
-            if (this.constructor.VERIFICATION_MEMBRE_REQUIS && !await this.verifierPresenceSujetMembre()) {
-                console.warn(`[${this.constructor.name}] Le joueur n'est pas membre.`);
-                return false;
-            }
-            console.log('verifierDroits')
-            if (!await this.verifierDroits()) {
-                console.warn(`[${this.constructor.name}] Droits d'initialisation insuffisants.`);
+            if (!await this.verifierConditionsInitiales()) {
                 return false;
             }
 
@@ -70,6 +59,31 @@ class FonctionnaliteAlliance {
             console.error(`Erreur lors de l'initialisation de la fonctionnalité ${this.constructor.name}:`, error);
             return false;
         }
+    }
+
+    /**
+     * Regroupe les vérifications critiques (version, appartenance, droits) nécessaires
+     * à l'exécution ou à la sécurisation d'une action.
+     * @param {Boolean} [forcerRafraichissement=false] - Si true, rafraîchit les gestionnaires et données clés.
+     * @returns {Promise<Boolean>} - True si toutes les conditions sont remplies.
+     */
+    async verifierConditionsInitiales(forcerRafraichissement = false) {
+        if (!await this.verifierVersionSuffisanteEtPresenceSections(forcerRafraichissement)) {
+            console.warn(`[${this.constructor.name}] Conditions de version ou de section non remplies.`);
+            return false;
+        }
+
+        if (this.constructor.VERIFICATION_MEMBRE_REQUIS && !await this.verifierPresenceSujetMembre(forcerRafraichissement)) {
+            console.warn(`[${this.constructor.name}] Le joueur n'est pas membre.`);
+            return false;
+        }
+
+        if (!await this.verifierDroits(forcerRafraichissement)) {
+            console.warn(`[${this.constructor.name}] Droits d'initialisation insuffisants.`);
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -159,17 +173,167 @@ class FonctionnaliteAlliance {
     }
 
     /**
+     * Analyse statiquement le code de la fonctionnalité pour identifier tous les appels à chargerObjetsForum.
+     * @private
+     * @returns {Array<Array<Object>>} - Liste des signatures d'appels (tableau d'arguments décrits).
+     */
+    _determinerAppelsChargement() {
+        const nomClasse = this.constructor.name;
+        if (appelsChargementCache.has(nomClasse)) {
+            return appelsChargementCache.get(nomClasse);
+        }
+
+        // Concatène le code source de la classe actuelle
+        const codeSource = this.constructor.toString() + '\n' + Object.getPrototypeOf(this.constructor).toString();
+        const clesUniques = new Set();
+        const appels = [];
+
+        try {
+            const ast = acorn.parse(codeSource, { ecmaVersion: 2022, sourceType: 'script' });
+
+            const traverse = (node) => {
+                if (!node) return;
+
+                if (node.type === 'CallExpression') {
+                    const callee = node.callee;
+                    const isMethodCall = callee.type === 'MemberExpression' &&
+                        callee.object.type === 'ThisExpression' &&
+                        callee.property.name === 'chargerObjetsForum';
+                    const isDirectCall = callee.type === 'Identifier' && callee.name === 'chargerObjetsForum';
+
+                    if (isMethodCall || isDirectCall) {
+                        const args = node.arguments;
+                        if (args.length > 0) {
+                            const signature = args.map(arg => {
+                                if (arg.type === 'Identifier') return { type: 'Identifier', value: arg.name };
+                                if (arg.type === 'Literal') return { type: 'Literal', value: arg.value };
+                                return { type: 'Other', raw: codeSource.substring(arg.start, arg.end) };
+                            });
+
+                            const key = JSON.stringify(signature);
+                            if (!clesUniques.has(key)) {
+                                clesUniques.add(key);
+                                appels.push(signature);
+                            }
+                        }
+                    }
+                }
+
+                for (const key in node) {
+                    if (Object.prototype.hasOwnProperty.call(node, key)) {
+                        const child = node[key];
+                        if (typeof child === 'object' && child !== null) {
+                            if (Array.isArray(child)) {
+                                child.forEach(traverse);
+                            } else {
+                                traverse(child);
+                            }
+                        }
+                    }
+                }
+            };
+
+            traverse(ast);
+        } catch (e) {
+            console.error(`Erreur lors de l'analyse AST des appels de chargement pour ${nomClasse}:`, e);
+        }
+
+        appelsChargementCache.set(nomClasse, appels);
+        return appels;
+    }
+
+    /**
+     * Rafraîchit l'intégralité des données forum utilisées par la fonctionnalité,
+     * en vidant les caches appropriés et en rejouant les chargements détectés.
+     * @returns {Promise<void>}
+     */
+    async rafraichirDonneesFonctionnalite() {
+        const signatures = this._determinerAppelsChargement();
+
+        // Identifier les classes impliquées pour vider leur cache
+        const classesUniques = new Set();
+        signatures.forEach(sig => {
+            if (sig.length > 0 && sig[0].type === 'Identifier') {
+                classesUniques.add(sig[0].value);
+            }
+        });
+
+        for (const nomClasse of classesUniques) {
+            console.log(`[${this.constructor.name}] Vidage du cache pour la classe ${nomClasse}.`);
+            FonctionnaliteAlliance.viderCacheClasse(nomClasse);
+        }
+    }
+
+    /**
+     * Vide toutes les entrées du cache (signatures) pour une classe donnée.
+     * @param {typeof ObjetForum|String} Classe - La classe ou son nom.
+     * @static
+     */
+    static viderCacheClasse(Classe) {
+        const nomClasse = typeof Classe === 'string' ? Classe : Classe.name;
+        for (const key of cacheObjetForums.keys()) {
+            if (key.startsWith(`${nomClasse}_`)) {
+                cacheObjetForums.delete(key);
+            }
+        }
+    }
+
+    /**
+     * Capture l'état actuel de tous les objets forum chargés pour cette fonctionnalité.
+     * @param {Set<String>} classesIdentifiees - Les noms des classes à inclure dans l'empreinte.
+     * @returns {Promise<String>} - L'empreinte globale sérialisée.
+     */
+    async _prendreEmpreinteGlobale(signaturesAppels) {
+        const empreinteTotale = {};
+
+        for (const sig of signaturesAppels) {
+            // Résolution des arguments pour l'appel à chargerObjetsForum
+            const resolvedArgs = sig.map(arg => {
+                if (arg.type === 'Identifier') {
+                    if (arg.value === 'true') return true;
+                    if (arg.value === 'false') return false;
+                    return window[arg.value] || registreClasses.ObjetForum.get(arg.value);
+                }
+                if (arg.type === 'Literal') return arg.value;
+                return undefined;
+            });
+
+            if (resolvedArgs[0]) {
+                const nomClasse = resolvedArgs[0].name;
+                const keySig = JSON.stringify(sig); // Utiliser la signature comme clé pour différencier les chargements
+
+                console.log(`[${this.constructor.name}] Prise d'empreinte pour la signature : chargerObjetsForum(${sig.map(a => a.value || a.raw).join(', ')})`);
+                const objets = await this.chargerObjetsForum(...resolvedArgs);
+                const empreintes = await Promise.all(objets.map(obj => obj._prendreEmpreinte()));
+                empreinteTotale[nomClasse + "_" + keySig] = empreintes.sort();
+            }
+        }
+
+        return JSON.stringify(empreinteTotale);
+    }
+
+    /**
      * Vérifie que tous les objets dépendants ont une version compatible et que leurs sections existent.
+     * @param {Boolean} [forcerRafraichissement=false] - Si true, rafraîchit le gestionnaire de versions.
      * @private
      * @returns {Boolean} - True si tout est valide, sinon false.
      */
-    async verifierVersionSuffisanteEtPresenceSections() {
+    async verifierVersionSuffisanteEtPresenceSections(forcerRafraichissement = false) {
         this._decouvrirObjetForumsDependants();
 
+        if (forcerRafraichissement) {
+            sectionsEnCache.clear();
+            await gestionnaireVersions.rafraichir();
+            this.objetsDependants.forEach(obj => obj._actualiserIdsSection());
+        }
+
         for (const objet of this.objetsDependants) {
-            const verificationResult = await objet.verifierVersionSuffisanteEtPresenceSection();
-            if (!verificationResult) {
-                console.error(`Échec de la vérification de version/section pour l'objet ${objet.constructor.name}`);
+            if (!(await objet.verifierVersionSuffisante())) {
+                console.error(`Échec de la vérification de version pour l'objet ${objet.constructor.name}`);
+                return false;
+            }
+            if (!(await objet.verifierPresenceSection())) {
+                console.error(`Échec de la vérification de section pour l'objet ${objet.constructor.name}`);
                 return false;
             }
         }
@@ -178,12 +342,16 @@ class FonctionnaliteAlliance {
 
     /**
      * Vérifie si le joueur actuel est bien membre de l'alliance en se basant sur la liste des joueurs.
+     * @param {Boolean} [forcerRafraichissement=false] - Si true, force le rechargement de la liste des joueurs en ignorant le cache.
      * @private
      * @returns {Promise<Boolean>} - True si le joueur est membre, sinon false.
      */
-    async verifierPresenceSujetMembre() {
+    async verifierPresenceSujetMembre(forcerRafraichissement = false) {
         console.log('Inside verifierPresenceSujetMembre')
-        const joueurs = await this.chargerObjetsForum(Joueur);
+        if (forcerRafraichissement) {
+            FonctionnaliteAlliance.viderCacheClasse(Joueur);
+        }
+        const joueurs = await this.chargerObjetsForum(Joueur, false);
         console.log('joueurs chargés', joueurs)
         const pseudoJoueurActuel = await monProfilJoueur.lire('Pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
         console.log('pseudoJoueurActuel', pseudoJoueurActuel)
@@ -195,6 +363,7 @@ class FonctionnaliteAlliance {
         const estMembre = await Promise.all(joueurs.map(async joueur => {
             const joueurPseudo = await joueur.lire('Pseudo');
             // 'Pseudo' est le nom du paramètre dans la classe Joueur.
+            console.log('joueurPseudo', joueurPseudo)
             return joueurPseudo === pseudoJoueurActuel;
         })).then(results => results.some(result => result));
 
@@ -235,10 +404,16 @@ class FonctionnaliteAlliance {
     /**
      * Vérifie que le joueur a les droits suffisants pour l'initialisation de la fonctionnalité,
      * en se basant sur l'attribut `NIVEAU_DROIT_REQUIS`.
+     * @param {Boolean} [forcerRafraichissement=false] - Si true, rafraîchit le gestionnaire de droits.
      * @private
      * @returns {Promise<Boolean>} - True si le joueur a le droit requis, sinon false.
      */
-    async verifierDroits() {
+    async verifierDroits(forcerRafraichissement = false) {
+        if (forcerRafraichissement) {
+            console.log(`[${this.constructor.name}] Rafraîchissement forcé des droits : vidage du cache.`);
+            const classeDroits = gestionnaireDroits.constructor.classeObjetsForumContenus;
+            FonctionnaliteAlliance.viderCacheClasse(classeDroits);
+        }
         await this.rafraichirDroits();
         const aDroitOutiiil = await this.verifierDroit(this.constructor.NIVEAU_DROIT_REQUIS);
         const estAdminFZ = this.page.estAdminFourmizzz();
@@ -255,18 +430,27 @@ class FonctionnaliteAlliance {
     async chargerObjetsForum(ClasseObjetForum, chargerContenus = true) {
         console.log('Inside chargerObjetsForum')
         const nomClasse = ClasseObjetForum.name;
-        if (cacheObjetForums.has(nomClasse)) {
-            const objetsEnCache = cacheObjetForums.get(nomClasse);
-            if (chargerContenus && ClasseObjetForum.classeObjetsForumContenus) {
-                for (const objet of objetsEnCache) {
-                    if (!objet.contenusCharges) {
-                        console.log(`[${this.constructor.name}] Chargement des contenus manquants pour l'objet en cache ${nomClasse} (ID: ${objet.idSujet}).`);
-                        await objet.rafraichir(true);
-                    }
+        const cleDemande = `${nomClasse}_${chargerContenus}`;
+        const cleOpposee = `${nomClasse}_${!chargerContenus}`;
+
+        if (cacheObjetForums.has(cleDemande)) {
+            return cacheObjetForums.get(cleDemande);
+        }
+
+        if (cacheObjetForums.has(cleOpposee)) {
+            console.log(`[${this.constructor.name}] Utilisation du cache existant (${cleOpposee}) pour charger ${cleDemande} via rafraîchissement.`);
+            const objetsEnCacheOppose = cacheObjetForums.get(cleOpposee);
+            const nouveauxObjets = [];
+            for (const obj of objetsEnCacheOppose) {
+                const instance = new ClasseObjetForum(this, { idSujet: obj.idSujet });
+                if (await instance.rafraichir(chargerContenus, false)) {
+                    nouveauxObjets.push(instance);
                 }
             }
-            return objetsEnCache;
+            cacheObjetForums.set(cleDemande, nouveauxObjets);
+            return nouveauxObjets;
         }
+
         console.log('nomClasse', nomClasse)
         const instanceTemporaire = new ClasseObjetForum();
         if (!instanceTemporaire.idsSection || instanceTemporaire.idsSection.length === 0) {
@@ -292,7 +476,7 @@ class FonctionnaliteAlliance {
             console.log('sujet: ', sujet)
             const instance = new ClasseObjetForum(this, { idSujet: parseInt(sujet.id, 10) });
             console.log('instanceClasse: ', instance)
-            const chargementReussi = await instance.rafraichir(chargerContenus);
+            const chargementReussi = await instance.rafraichir(chargerContenus, false);
             console.log('chargementReussi: ', chargementReussi)
             if (chargementReussi) {
                 // Transfert du sujet si nécessaire :
@@ -310,7 +494,52 @@ class FonctionnaliteAlliance {
             }
         }
         console.log('objetsCharges: ', objetsCharges)
-        cacheObjetForums.set(nomClasse, objetsCharges);
+        cacheObjetForums.set(cleDemande, objetsCharges);
         return objetsCharges;
+    }
+
+    /**
+     * Met à jour le cache global des objets forum avec une instance donnée.
+     * Si l'objet existe déjà (même idSujet), il est remplacé. Sinon, il est ajouté en début de liste.
+     * @param {ObjetForum} objet - L'instance de l'objet à mettre en cache.
+     * @static
+     */
+    static async mettreAJourCache(objet) {
+        console.log('mise à jour cache pour: ', objet)
+        const nomClasse = objet.constructor.name;
+        const clesAMettreAJour = Array.from(cacheObjetForums.keys()).filter(key => key.startsWith(`${nomClasse}_`));
+        const aDesContenus = objet.objetsForumContenus.length > 0;
+
+        for (const key of clesAMettreAJour) {
+            const liste = cacheObjetForums.get(key);
+            const index = liste.findIndex(o => o.idSujet === objet.idSujet);
+            const keyFlag = key.split('_')[1] === 'true';
+
+            if (index !== -1) {
+                const objetEnCache = liste[index];
+                if (keyFlag === aDesContenus) {
+                    console.log(`[FonctionnaliteAlliance] Mise à jour complète de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
+                    liste[index] = objet;
+                } else {
+                    console.log(`[FonctionnaliteAlliance] Mise à jour partielle (données) de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
+                    // Transfert des paramètres et attributs de l'objet modifié vers l'objet en cache (qui garde ses flag/contenus propres)
+                    const donnees = await objet.lire();
+                    await objetEnCache.ecrire(donnees);
+                }
+            } else {
+                // Ajout au cache existant
+                if (!aDesContenus || keyFlag && aDesContenus) {
+                    console.log(`[FonctionnaliteAlliance] Ajout de l'objet ${nomClasse} (ID: ${objet.idSujet}) au début du cache ${key}.`);
+                    liste.unshift(objet);
+                } else {
+                    // Liste sans contenants mais objet avec contenus -> ajout d'une version légère
+                    console.log(`[FonctionnaliteAlliance] Ajout d'une version légère de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
+                    const instanceLegere = new objet.constructor(objet.fonctionnaliteCreatrice, { idSujet: objet.idSujet });
+                    const donnees = await objet.lire();
+                    await instanceLegere.ecrire(donnees);
+                    liste.unshift(instanceLegere);
+                }
+            }
+        }
     }
 }
