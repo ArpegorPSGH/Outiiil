@@ -14,6 +14,7 @@ Empêcher les collisions de plusieurs clients sur un même sujet. A n'ajouter qu
 - Résoudre problème mélange des marqueurs au moment de la réquisition causant état inconsistant
 - Résoudre problème attente indéfinie si un joueur ne termine jamais son opération
 - Ce système devrait être plus robuste et pouvoir remplacer celui avec les verrous?
+- Ce système remplacera l'anticollision au niveau des transactions
 
 ## Plan d'Implémentation
 

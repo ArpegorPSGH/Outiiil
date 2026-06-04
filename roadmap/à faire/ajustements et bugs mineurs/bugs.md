@@ -16,6 +16,7 @@ Corriger divers bugs mineurs pour des raisons esthétiques ou d'ergonomie.
 - Corriger colonne pour exclure de l'alliance sortable alors qu'elle ne devrait pas
 - Lorsqu'un élément de la boîte radar est déplacé en cliqué-glissé, l'extension reste bloquée
 - Par défaut, les champs de commande doivent être vides, et non comprter un objet
+- Lors d'un deuxième ajout de commande sans rechargement, le changement d'évolution n'a pas d'impact sur les ressources, et les valeurs des champs semblent ne pas être reconnues pour l'enregistrement.
 
 ## Plan d'Implémentation
 

@@ -33,6 +33,7 @@ Calculer et mettre à jour en continu les droits à ressources attribués à cha
     - Si nécessaire, afficher un message pour demander au joueur de ne pas fermer la page/fourmizzz/le navigateur
     - Lorsque le coefficient ou la liberté d’ajustement sont changés pour un joueur, mettre à jour les parts des joueurs ajustées
     - Différence script de fond de l'extension et script lancé en fond par le main de l'extension?
+    - Gérer et tester le cas de transaction bloquée par une autre en cours
 - Si un joueur dont le coefficient est non nul n'a aucun recensement dans son sujet membres, ne pas mettre à jour les droits accumulés pour tous les joueurs de l'alliance et afficher une notification toast informant que la mise à jour est bloquée à cause de certains joueurs n'ayant pas effectué de recensement et indiquer leurs pseudos
 - Créer une procédure de mise en place et la noter dans les instructions d'utilisation
 

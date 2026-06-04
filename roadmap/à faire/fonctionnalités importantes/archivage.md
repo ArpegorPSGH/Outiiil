@@ -8,6 +8,7 @@ Mettre en place un système d'archivage du contenu des sections de l'utilitaire.
 - Veiller à mettre à jour le SdC avant l'archivage automatique
 - En cas d'archivage depuis le forum partagé, décrypter les sujets
 - Adapter la vérification automatique des données périmées
+- Adapter la vérification de présence de la section
 
 ## Plan d'Implémentation
 

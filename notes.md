@@ -1,0 +1,1 @@
+- Voir à mettre en place anti-collision forum en se basant sur les transactions

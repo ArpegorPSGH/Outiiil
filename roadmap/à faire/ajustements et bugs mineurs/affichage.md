@@ -22,6 +22,7 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Dans boite C+, mettre 'Aucun Convoi' au lieu de Aucune
 - Rendre les timers Fourmizzz de convois, attaques et chasses dynamiques
 - Mettre le message de copie tableau en français
+- Message du popup de blocage de changement de page en cours de transaction incorrect
 
 ## Plan d'Implémentation
 
