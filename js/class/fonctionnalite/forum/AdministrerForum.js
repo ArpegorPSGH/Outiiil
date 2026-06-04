@@ -41,7 +41,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                                         monProfilUtilisateur.parametre[nomSection].sauvegarde();
                                     }
 
-                                    Utils.modifierSection(nomSection, idCat, "cache").then((data) => {
+                                    Utils.modifierSection(idCat, nomSection).then((data) => {
                                         $.toast({ ...TOAST_SUCCESS, text: `La section ${nomSection} a été correctement créée et son ID sauvegardé.` });
                                     }, (jqXHR, textStatus, errorThrown) => {
                                         console.error(`[AdministrerForum][o_creerUtilitaire] Erreur lors de la modification de la section ${nomSection} (ID: ${idCat}):`, textStatus, errorThrown);
@@ -89,7 +89,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                             let promiseJoueur = new Array();
                             $(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => {
                                 let pseudo = $(elt).find("td:eq(2)").text();
-                                promiseJoueur.push(Utils.creerSujet(pseudo, `[player]${pseudo}[/player]`, idCat));
+                                promiseJoueur.push(Utils.creerSujet(idCat, pseudo, `[player]${pseudo}[/player]`));
                             });
                             // on creer les sujets
                             Promise.all(promiseJoueur).then((values) => { location.reload(); });

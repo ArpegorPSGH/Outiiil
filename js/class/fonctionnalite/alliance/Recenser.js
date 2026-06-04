@@ -36,7 +36,10 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
 
         try {
             console.log('monProfilJoueur recensement: ', monProfilJoueur)
-            const recensementReussi = await monProfilJoueur.effectuerRecensement();
+            let recensementReussi;
+            await FonctionnaliteAlliance.executerTransaction(async () => {
+                recensementReussi = await monProfilJoueur.effectuerRecensement();
+            });
             if (recensementReussi) {
                 $.toast({ ...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum." });
             } else {

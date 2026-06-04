@@ -20,8 +20,11 @@ Utils.register(class ColorerMessage extends FonctionnaliteAlliance {
     async run() {
         console.log("[FonctionnaliteMessagerieJoueurs] run()");
 
-        // Récupération des joueurs de l'utilitaire via la nouvelle logique du framework
-        const joueurs = await this.chargerObjetsForum(Joueur, false);
+        let joueurs = [];
+        await FonctionnaliteAlliance.executerTransaction(async () => {
+            // Récupération des joueurs de l'utilitaire via la nouvelle logique du framework
+            joueurs = await this.chargerObjetsForum(Joueur, false);
+        })
 
         // On convertit la liste en map pour compatibilité avec le reste de la page
         const mapJoueurs = {};

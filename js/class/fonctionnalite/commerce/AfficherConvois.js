@@ -73,7 +73,10 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
      * Charge tous les convois en cours depuis les commandes.
      */
     async chargerConvois() {
-        const commandes = await this.chargerObjetsForum(Commande, true);
+        let commandes;
+        await FonctionnaliteAlliance.executerTransaction(async () => {
+            commandes = await this.chargerObjetsForum(Commande, true);
+        });
         this.convois = [];
 
         for (const commande of commandes) {

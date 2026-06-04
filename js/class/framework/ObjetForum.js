@@ -79,11 +79,24 @@ class ObjetForum {
     idMessage = null;
 
     /**
+     * L'id de la section dans laquelle se trouve l'objet.
+     * @type {Number|null}
+     * @protected
+     */
+    idSection = null;
+
+    /**
      * Liste d'autres instances d'ObjetForum imbriquées.
      * @type {Array<ObjetForum>}
      * @protected
      */
     objetsForumContenus = [];
+
+    /**
+     * L'état original (chaîne de paramètres) de l'objet pour la transaction en cours.
+     * @type {String|null}
+     */
+    stringInitial = null;
 
     /**
      * Cache unifié des instances de DonneeValidable (paramètres et attributs), indexées par leurs noms normalisés.
@@ -112,19 +125,17 @@ class ObjetForum {
     }
 
     /**
-     * Remet à false les estModifie des paramètres de la dernière version de l'objet.
+     * Définit l'état modifié des paramètres de la dernière version de l'objet.
      * @private
-     * @param {Boolean} value - La valeur à laquelle définir estModifie (sera toujours false pour cette implémentation).
+     * @param {Boolean} value - La valeur à laquelle définir estModifie.
      */
     set estModifie(value) {
-        if (value === false) {
-            const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1];
-            this.parametres.forEach(p => {
-                if (classesDerniereVersion.includes(p.constructor)) {
-                    p.estModifie = false;
-                }
-            });
-        }
+        const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1];
+        this.parametres.forEach(p => {
+            if (classesDerniereVersion.includes(p.constructor)) {
+                p.estModifie = value;
+            }
+        });
     }
 
     /**
@@ -374,6 +385,7 @@ class ObjetForum {
                         }
                     } catch (error) {
                         console.error(`[${this.constructor.name}] Erreur lors de la vérification de la section ${dernierId} pour ${this.constructor.name}.`, error);
+                        throw error;
                     }
 
                     sectionsEnCache.set(dernierId, estValide);
@@ -433,12 +445,21 @@ class ObjetForum {
             }
         } catch (error) {
             console.error(`[${this.constructor.name}] Erreur lors du rafraîchissement de l'objet (ID: ${this.idSujet}).`, error);
+            throw error;
         } finally {
             console.log('resultat chargement :', this)
             this._releaseReadLock();
         }
 
+
+
         if (rafraichissementReussi) {
+            this.stringInitial = await this.genererStringParametres();
+            if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
+                for (const sousObjet of this.objetsForumContenus) {
+                    sousObjet.stringInitial = await sousObjet.genererStringParametres();
+                }
+            }
             await this.enregistrerSurForum(mettreAJourCache);
             console.log('rafraichir 6')
         }
@@ -510,7 +531,7 @@ class ObjetForum {
 
             } catch (error) {
                 console.error(`[${this.constructor.name}] Erreur lors du chargement des objets contenus pour l'objet parent (ID: ${this.idSujet})`, error);
-                return false;
+                throw error;
             }
         } finally {
             this._releaseReadLock();
@@ -554,7 +575,7 @@ class ObjetForum {
             return true;
         } catch (error) {
             console.error(`[${this.constructor.name}] Erreur lors de chargerDepuisString() pour l'objet ID: ${this.idSujet}.`, error);
-            return false;
+            throw error;
         } finally {
             this._releaseReadLock();
         }
@@ -928,6 +949,66 @@ class ObjetForum {
     }
 
     /**
+     * Supprime cet objet du forum et nettoie ses identifiants.
+     * @returns {Promise<void>}
+     */
+    async supprimerSurForum() {
+        const formatLieu = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1];
+        if (formatLieu.lieu === 'titre') {
+            if (this.idSujet !== null) {
+                await Utils.supprimerSujet(this.idSujet, this.idSection);
+                this.idSujet = null;
+                this.estModifie = true;
+                transaction.enregistrerSuppression(this);
+            }
+            if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
+                this.objetsForumContenus.forEach(m => {
+                    m.idMessage = null;
+                    m.estModifie = true;
+                });
+            }
+        } else if (formatLieu.lieu === 'message') {
+            if (this.idMessage !== null) {
+                console.warn(`Suppression message: ${this.idMessage}`);
+                await Utils.supprimerMessage(this.idMessage);
+                this.idMessage = null;
+                this.estModifie = true;
+                transaction.enregistrerSuppression(this);
+            }
+        }
+        await FonctionnaliteAlliance.mettreAJourCache(this, true);
+    }
+
+    /**
+     * Supprime cet objet du forum et se retire de son parent.
+     * @returns {Promise<void>}
+     */
+    async supprimer() {
+        await this.supprimerSurForum();
+        if (this.objetParent) {
+            const index = this.objetParent.objetsForumContenus.indexOf(this);
+            if (index !== -1) {
+                this.objetParent.objetsForumContenus.splice(index, 1);
+            }
+        }
+    }
+
+    /**
+     * Transfère cet objet vers une autre section.
+     * @param {number} idSection - L'ID de la section de destination.
+     */
+    async transferer(idSectionCible) {
+        if (this.idSujet === null || this.idSection === null) {
+            console.error(`Erreur lors du transfert: L'objet n'a pas de sujet forum ou de section.`);
+            return;
+        }
+        await Utils.transfererSujet(this.idSujet, idSectionCible, this.idSection);
+        transaction.enregistrerTransfert(this);
+        this.idSection = idSectionCible;
+        console.log(`[${this.constructor.name}] Transfert: ${this.idSujet} -> ${idSectionCible}. Nouvelle section: ${this.idSection}`);
+    }
+
+    /**
      * Point d'entrée unique pour écrire l'état de l'objet sur le forum.
      * Si l'objet principal n'a pas été modifié, seul l'enregistrement des objets contenus sera tenté.
      * @returns {Promise<void>}
@@ -935,38 +1016,55 @@ class ObjetForum {
     async enregistrerSurForum(mettreAJourCache = true) {
         await this._acquireWriteLock();
         try {
+            console.log(`[${this.constructor.name}] estModifie:`, this.estModifie);
             // 1. Enregistrement de l'objet principal (conditionnel)
             if (this.estModifie) {
                 const contenuFinal = await this.genererStringParametres();
+                console.log(`[${this.constructor.name}] contenuFinal: ${contenuFinal}`);
 
                 const formatLieu = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1];
-                const idSection = this.idsSection[this.idsSection.length - 1];
+                const idSection = this.idSection ? this.idSection : this.idsSection[this.idsSection.length - 1];
 
                 if (formatLieu.lieu === 'titre') {
+                    if (contenuFinal.length > 240) {
+                        throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un titre de sujet (${contenuFinal.length} > 240 caractères).`);
+                    }
                     if (this.idSujet === null) {
-                        this.idSujet = await Utils.creerSujetEtRetournerId(contenuFinal, ' ', idSection);
-                        if (!this.idSujet) {
+                        const newId = await Utils.creerSujetEtRetournerId(idSection, contenuFinal);
+                        if (!newId) {
                             console.error(`[${this.constructor.name}] Échec de la création du sujet.`);
+                        } else {
+                            this.idSujet = newId;
+                            this.idSection = idSection;
+                            transaction.enregistrerCreation(this);
                         }
                     } else {
-                        await Utils.modifierSujet(contenuFinal, ' ', this.idSujet);
+                        await Utils.modifierSujet(this.idSujet, contenuFinal);
+                        transaction.enregistrerModification(this);
                     }
                 } else if (formatLieu.lieu === 'message') {
                     if (!this.objetParent || !this.objetParent.idSujet) {
                         console.error(`[${this.constructor.name}] Erreur: Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.`);
                         throw new Error("Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.");
                     }
+                    if (contenuFinal.length > 61495) {
+                        throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un message (${contenuFinal.length} > 61495 caractères).`);
+                    }
                     if (this.idMessage === null) {
-                        this.idMessage = await Utils.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
-                        if (this.idMessage === null) {
+                        const newId = await Utils.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
+                        if (newId === null) {
                             console.error(`[${this.constructor.name}] Échec de l'envoi du message.`);
+                        } else {
+                            this.idMessage = newId;
+                            transaction.enregistrerCreation(this);
                         }
                     } else {
                         await Utils.modifierMessage(this.idMessage, contenuFinal);
+                        transaction.enregistrerModification(this);
                     }
                 }
                 this.estModifie = false; // Utilise le setter pour réinitialiser les estModifie des paramètres
-                if (mettreAJourCache && formatLieu.lieu === 'titre') {
+                if (mettreAJourCache) {
                     await FonctionnaliteAlliance.mettreAJourCache(this);
                 }
             }
@@ -979,6 +1077,14 @@ class ObjetForum {
                     await Utils.sleep(10);
                 }
             }
+
+            this.stringInitial = await this.genererStringParametres();
+            if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
+                for (const sousObjet of this.objetsForumContenus) {
+                    sousObjet.stringInitial = await sousObjet.genererStringParametres();
+                }
+            }
+
         } finally {
             this._releaseWriteLock();
         }
@@ -1197,6 +1303,7 @@ class ObjetForum {
     async _prendreEmpreinte() {
         const etat = {
             idSujet: this.idSujet,
+            idMessage: this.idMessage,
             parametres: {},
             attributs: {},
             contenus: []

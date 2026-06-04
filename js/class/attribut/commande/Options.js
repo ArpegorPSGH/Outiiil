@@ -23,12 +23,14 @@ class Options extends AttributObjet {
 
             $supprimer.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 if (confirm("Supprimer cette commande ?")) {
-                    await this.objetParent.ecrire('État', ETAT_COMMANDE.Supprimée);
-                    await this.objetParent.enregistrerSurForum();
-                    $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
-                    if (this.objetParent.fonctionnaliteCreatrice && typeof this.objetParent.fonctionnaliteCreatrice.actualiserCommandes === 'function') {
-                        await this.objetParent.fonctionnaliteCreatrice.actualiserCommandes();
-                    }
+                    await FonctionnaliteAlliance.executerTransaction(async () => {
+                        await this.objetParent.ecrire('État', ETAT_COMMANDE.Supprimée);
+                        await this.objetParent.enregistrerSurForum();
+                        $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
+                        if (this.objetParent.fonctionnaliteCreatrice && typeof this.objetParent.fonctionnaliteCreatrice.actualiserCommandes === 'function') {
+                            await this.objetParent.fonctionnaliteCreatrice.actualiserCommandes();
+                        }
+                    });
                 }
                 return false;
             });

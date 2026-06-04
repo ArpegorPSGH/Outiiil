@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "Outiiil",
-	"version": "3.17.0",
+	"version": "3.18.0",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
 		"48": "images/icons/gear_48.png",
@@ -52,7 +52,6 @@
 				"js/lib/moment-locale-fr.js",
 				"js/lib/moment-duration-format.js",
 				"js/constants.js",
-				"js/class/autre/Utils.js",
 				"js/class/autre/Alliance.js",
 				"js/class/autre/Armee.js",
 				"js/class/autre/Chasse.js",
@@ -62,6 +61,8 @@
 				"js/class/autre/Traceur.js",
 				"js/class/autre/TraceurJoueur.js",
 				"js/class/autre/TraceurAlliance.js",
+				"js/class/framework/Utils.js",
+				"js/class/framework/ActionSecurisee.js",
 				"js/class/framework/Boite.js",
 				"js/class/framework/ErreurRestriction.js",
 				"js/class/framework/DonneeValidable.js",
@@ -71,6 +72,7 @@
 				"js/class/framework/GestionnaireVersions.js",
 				"js/class/framework/GestionnaireDroits.js",
 				"js/class/framework/FonctionnaliteAlliance.js",
+				"js/class/framework/Transaction.js",
 				"js/class/framework/Page.js",
 				"js/class/boite/ComptePlus.js",
 				"js/class/boite/Radar.js",

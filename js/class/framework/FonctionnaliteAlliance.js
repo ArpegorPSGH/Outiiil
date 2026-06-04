@@ -40,6 +40,90 @@ class FonctionnaliteAlliance {
     }
 
     /**
+     * Exécute une série d'opérations dans le contexte d'une transaction.
+     * @param {Function} callback - La fonction asynchrone contenant les opérations à exécuter.
+     * @returns {Promise<any>} Le résultat du callback.
+     */
+    static async executerTransaction(callback) {
+        console.log("[GererCommandes] Transaction : ", transaction);
+        if (transaction !== null) {
+            $.toast({
+                ...TOAST_WARNING,
+                text: "Une opération est déjà en cours, veuillez patienter."
+            });
+            return; // Ne pas lancer d'exception, juste arrêter l'opération.
+        }
+
+        // Bloque les clics sur les liens menant à une autre page dans le même onglet
+        const intercepterClicsDestructeurs = (e) => {
+            const lien = e.target.closest('a');
+            if (lien) {
+                const href = lien.getAttribute('href');
+                const target = lien.getAttribute('target');
+
+                // On ne bloque que si le lien navigue réellement dans l'onglet courant
+                const estLienInterneVide = !href || href.startsWith('#') || href.startsWith('javascript:');
+                const ouvreDansNouvelOnglet = target === '_blank';
+
+                if (!estLienInterneVide && !ouvreDansNouvelOnglet) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    $.toast({
+                        ...TOAST_WARNING,
+                        text: "Navigation bloquée : une transaction est en cours."
+                    });
+                }
+            }
+        };
+
+        // Bloque la soumission de formulaires standards (qui rechargeraient la page)
+        const intercepterSoumissionsFormulaire = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            $.toast({
+                ...TOAST_WARNING,
+                text: "Action bloquée : attendez la fin de la transaction pour soumettre des formulaires."
+            });
+        };
+
+        // Bloque le rafraîchissement (F5 / bouton actualiser), la fermeture d'onglet, et la navigation externe
+        const bloquerFermetureEtRafraichissement = (e) => {
+            e.preventDefault();
+            e.returnValue = "Une transaction est en cours. Vos modifications risquent d'être perdues.";
+            return e.returnValue;
+        };
+
+        window.addEventListener('beforeunload', bloquerFermetureEtRafraichissement);
+        document.addEventListener('click', intercepterClicsDestructeurs, true); // Utilisation de la phase de capture
+        document.addEventListener('submit', intercepterSoumissionsFormulaire, true);
+
+        transaction = new Transaction();
+        try {
+            const resultat = await callback();
+            console.log("[GererCommandes] Transaction : OK ")
+            return resultat;
+        } catch (error) {
+            console.error(`[${this.constructor.name}][executerTransaction] Erreur lors de l'exécution de la transaction. Lancement du rollback.`, error);
+            try {
+                await transaction.annuler(this);
+            } catch (rollbackError) {
+                console.error(`[${this.constructor.name}][executerTransaction] Échec critique lors du rollback de la transaction:`, rollbackError);
+            }
+            $.toast({
+                ...TOAST_ERROR,
+                text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée."
+            });
+            // setTimeout(() => window.location.href = window.location.href, 3000);
+            throw error;
+        } finally {
+            window.removeEventListener('beforeunload', bloquerFermetureEtRafraichissement);
+            document.removeEventListener('click', intercepterClicsDestructeurs, true);
+            document.removeEventListener('submit', intercepterSoumissionsFormulaire, true);
+            transaction = null;
+        }
+    }
+
+    /**
      * Gère la séquence d'initialisation asynchrone de la fonctionnalité.
      * @returns {Promise<Boolean>}
      */
@@ -130,7 +214,7 @@ class FonctionnaliteAlliance {
 
         } catch (e) {
             console.error(`Erreur lors du parsing AST pour ${nomClasse}:`, e);
-            return;
+            throw e;
         }
 
         const dependancesTrouvees = new Set();
@@ -236,6 +320,7 @@ class FonctionnaliteAlliance {
             traverse(ast);
         } catch (e) {
             console.error(`Erreur lors de l'analyse AST des appels de chargement pour ${nomClasse}:`, e);
+            throw e;
         }
 
         appelsChargementCache.set(nomClasse, appels);
@@ -351,7 +436,10 @@ class FonctionnaliteAlliance {
         if (forcerRafraichissement) {
             FonctionnaliteAlliance.viderCacheClasse(Joueur);
         }
-        const joueurs = await this.chargerObjetsForum(Joueur, false);
+        let joueurs;
+        await FonctionnaliteAlliance.executerTransaction(async () => {
+            joueurs = await this.chargerObjetsForum(Joueur, false);
+        });
         console.log('joueurs chargés', joueurs)
         const pseudoJoueurActuel = await monProfilJoueur.lire('Pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
         console.log('pseudoJoueurActuel', pseudoJoueurActuel)
@@ -382,7 +470,9 @@ class FonctionnaliteAlliance {
     async rafraichirDroits() {
         // On passe 'this' pour que le gestionnaire puisse utiliser les méthodes de la fonctionnalité,
         // comme chargerObjetsForum, pour charger les données nécessaires.
-        await gestionnaireDroits.rafraichir(this);
+        await FonctionnaliteAlliance.executerTransaction(async () => {
+            await gestionnaireDroits.rafraichir(this);
+        });
     }
 
     /**
@@ -437,12 +527,14 @@ class FonctionnaliteAlliance {
             return cacheObjetForums.get(cleDemande);
         }
 
+        const objetsCharges = [];
+
         if (cacheObjetForums.has(cleOpposee)) {
             console.log(`[${this.constructor.name}] Utilisation du cache existant (${cleOpposee}) pour charger ${cleDemande} via rafraîchissement.`);
             const objetsEnCacheOppose = cacheObjetForums.get(cleOpposee);
             const nouveauxObjets = [];
             for (const obj of objetsEnCacheOppose) {
-                const instance = new ClasseObjetForum(this, { idSujet: obj.idSujet });
+                const instance = new ClasseObjetForum(this, { idSujet: obj.idSujet, idSection: obj.idSection });
                 if (await instance.rafraichir(chargerContenus, false)) {
                     nouveauxObjets.push(instance);
                 }
@@ -468,13 +560,14 @@ class FonctionnaliteAlliance {
                 });
             } catch (error) {
                 console.error(`Impossible de charger les sujets pour la section ${idSection}.`, error);
+                throw error;
             }
         }
         console.log('tousLesSujets: ', tousLesSujets)
-        const objetsCharges = [];
+
         for (const sujet of tousLesSujets) {
             console.log('sujet: ', sujet)
-            const instance = new ClasseObjetForum(this, { idSujet: parseInt(sujet.id, 10) });
+            const instance = new ClasseObjetForum(this, { idSujet: parseInt(sujet.id, 10), idSection: sujet.idSectionSource });
             console.log('instanceClasse: ', instance)
             const chargementReussi = await instance.rafraichir(chargerContenus, false);
             console.log('chargementReussi: ', chargementReussi)
@@ -484,7 +577,7 @@ class FonctionnaliteAlliance {
                 console.log('idDerniereSection', idDerniereSection)
                 if (sujet.idSectionSource !== idDerniereSection) {
                     console.log(`[${this.constructor.name}] Transfert du sujet ID ${instance.idSujet} de la section ${sujet.idSectionSource} vers la section ${idDerniereSection}.`);
-                    await Utils.transfererSujet(instance.idSujet, idDerniereSection);
+                    await instance.transferer(idDerniereSection);
                 }
                 console.log('instance pushing', instance);
                 objetsCharges.push(instance);
@@ -493,6 +586,7 @@ class FonctionnaliteAlliance {
                 console.warn(`Échec du chargement de l'objet depuis le sujet: "${sujet.titre}" (ID: ${sujet.id})`);
             }
         }
+
         console.log('objetsCharges: ', objetsCharges)
         cacheObjetForums.set(cleDemande, objetsCharges);
         return objetsCharges;
@@ -500,12 +594,18 @@ class FonctionnaliteAlliance {
 
     /**
      * Met à jour le cache global des objets forum avec une instance donnée.
-     * Si l'objet existe déjà (même idSujet), il est remplacé. Sinon, il est ajouté en début de liste.
+     * Si l'objet existe déjà (même idSujet), il est remplacé ou supprimé. Sinon, il est ajouté en début de liste.
      * @param {ObjetForum} objet - L'instance de l'objet à mettre en cache.
+     * @param {Boolean} [supprimer=false] - Si true, retire l'objet du cache.
      * @static
      */
-    static async mettreAJourCache(objet) {
-        console.log('mise à jour cache pour: ', objet)
+    static async mettreAJourCache(objet, supprimer = false) {
+        console.log('mise à jour cache pour: ', objet, 'supprimer:', supprimer)
+
+        if (objet.constructor.LOCATION_HISTORY[objet.constructor.LOCATION_HISTORY.length - 1].lieu !== 'titre') {
+            return;
+        }
+
         const nomClasse = objet.constructor.name;
         const clesAMettreAJour = Array.from(cacheObjetForums.keys()).filter(key => key.startsWith(`${nomClasse}_`));
         const aDesContenus = objet.objetsForumContenus.length > 0;
@@ -516,17 +616,22 @@ class FonctionnaliteAlliance {
             const keyFlag = key.split('_')[1] === 'true';
 
             if (index !== -1) {
-                const objetEnCache = liste[index];
-                if (keyFlag === aDesContenus) {
-                    console.log(`[FonctionnaliteAlliance] Mise à jour complète de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
-                    liste[index] = objet;
+                if (supprimer) {
+                    console.log(`[FonctionnaliteAlliance] Suppression de l'objet ${nomClasse} (ID: ${objet.idSujet}) du cache ${key}.`);
+                    liste.splice(index, 1);
                 } else {
-                    console.log(`[FonctionnaliteAlliance] Mise à jour partielle (données) de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
-                    // Transfert des paramètres et attributs de l'objet modifié vers l'objet en cache (qui garde ses flag/contenus propres)
-                    const donnees = await objet.lire();
-                    await objetEnCache.ecrire(donnees);
+                    const objetEnCache = liste[index];
+                    if (keyFlag === aDesContenus) {
+                        console.log(`[FonctionnaliteAlliance] Mise à jour complète de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
+                        liste[index] = objet;
+                    } else {
+                        console.log(`[FonctionnaliteAlliance] Mise à jour partielle (données) de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
+                        // Transfert des paramètres et attributs de l'objet modifié vers l'objet en cache (qui garde ses flag/contenus propres)
+                        const donnees = await objet.lire();
+                        await objetEnCache.ecrire(donnees);
+                    }
                 }
-            } else {
+            } else if (!supprimer) {
                 // Ajout au cache existant
                 if (!aDesContenus || keyFlag && aDesContenus) {
                     console.log(`[FonctionnaliteAlliance] Ajout de l'objet ${nomClasse} (ID: ${objet.idSujet}) au début du cache ${key}.`);
@@ -534,7 +639,7 @@ class FonctionnaliteAlliance {
                 } else {
                     // Liste sans contenants mais objet avec contenus -> ajout d'une version légère
                     console.log(`[FonctionnaliteAlliance] Ajout d'une version légère de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
-                    const instanceLegere = new objet.constructor(objet.fonctionnaliteCreatrice, { idSujet: objet.idSujet });
+                    const instanceLegere = new objet.constructor(objet.fonctionnaliteCreatrice, { idSujet: objet.idSujet, idSection: objet.idSection });
                     const donnees = await objet.lire();
                     await instanceLegere.ecrire(donnees);
                     liste.unshift(instanceLegere);

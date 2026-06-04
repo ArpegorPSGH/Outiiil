@@ -325,6 +325,7 @@ class Utils {
 
     /**
     * Crée une section forum.
+    * @private
     */
     static creerSection(nomSection) {
         return $.ajax({
@@ -366,7 +367,7 @@ class Utils {
     /**
     * Modifie une section forum.
     */
-    static modifierSection(nomSection, id, categorie) {
+    static modifierSection(id, nomSection, categorie = "cache") {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -375,6 +376,9 @@ class Utils {
                 "xajaxargs[]": `<xjxquery><q>nom=${nomSection}&type=${categorie}&ID_cat=${id}&del=Supprimer</q></xjxquery>`,
                 "xajaxr": moment().valueOf()
             }
+        }).catch(error => {
+            console.error(`[Utils] Erreur lors de la modification de la section "${nomSection}" (ID: ${id}):`, error);
+            throw error;
         });
     }
 
@@ -409,10 +413,61 @@ class Utils {
         });
     }
 
+     /**
+     * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
+     * @async
+     * @param {Number} idSection L'ID de la section à consulter.
+     * @returns {Promise<Array<{id: Number, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
+     */
+    static async recupererSujetsSection(idSection) {
+        try {
+            const dataSection = await Utils.consulterSection(idSection);
+            const responseSection = $(dataSection).find("cmd:eq(1)").text();
+
+            if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
+                console.warn(`[Utils][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
+                return [];
+            }
+
+            const sujetElements = $("<div/>").append(responseSection).find("#form_cat tr:gt(0)");
+            const sujets = [];
+
+            sujetElements.each((i, elt) => {
+                const titreSujet = $(elt).find("td:eq(1)").text();
+                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
+                const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
+                const datePartToParse = dateMatch ? dateMatch[1] : '';
+                let id = null;
+                const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                if (onclickAttr) {
+                    const match = onclickAttr.match(/\d+/);
+                    if (match) {
+                        id = parseInt(match[0], 10);
+                    }
+                }
+
+                if (id && titreSujet) {
+                    sujets.push({
+                        id: id,
+                        contenu: titreSujet
+                    });
+                } else {
+                    console.warn(`[Utils][recupererSujetsSection] Sujet ignoré en raison de données manquantes ou invalides. ID: ${id}, Titre: "${titreSujet}".`);
+                }
+            });
+            return sujets;
+
+        } catch (error) {
+            console.error(`[Utils][recupererSujetsSection] Erreur lors de la récupération des sujets de la section ${idSection}:`, error);
+            throw error;
+        }
+    }
+
     /**
     * Crée un sujet.
+    * @private
     */
-    static creerSujet(nomSujet, contenu, id, type = "normal") {
+    static creerSujet(id, nomSujet, contenu = " ", type = "normal") {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -421,24 +476,21 @@ class Utils {
                 "xajaxargs[]": `<xjxquery><q>cat=${id}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&type=${type}&modifiable=envoyer&send=Envoyer&question=&reponse[]=&reponse[]=&reponse[]=</q></xjxquery>`,
                 "xajaxr": moment().valueOf()
             }
-        }).catch(error => {
-            console.error(`[Utils] Erreur lors de la création du sujet "${nomSujet}" (ID: ${id}):`, error);
-            throw error;
         });
     }
 
     /**
      * Crée un sujet et retourne son ID.
      * @async
-     * @param {string} nomSujet Le nom du sujet.
-     * @param {string} contenu Le contenu du premier message.
-     * @param {number|string} id L'ID de la section.
+     * @param {string} nomSujet - Nom du sujet.
+     * @param {string} contenu - Contenu du premier message.
+     * @param {number|string} id - L'ID de la section.
      * @param {string} [type="normal"] Le type de sujet.
      * @returns {Promise<number|null>} Une promesse qui résout avec l'ID du sujet créé (null si non trouvé).
      */
-    static async creerSujetEtRetournerId(nomSujet, contenu, id, type = "normal") {
+    static async creerSujetEtRetournerId(id, nomSujet, contenu = " ", type = "normal") {
         try {
-            const data = await Utils.creerSujet(nomSujet, contenu, id, type);
+            const data = await Utils.creerSujet(id, nomSujet, contenu, type);
             const response = $(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
@@ -476,25 +528,29 @@ class Utils {
     }
 
     /**
-    * Modifie un sujet.
-    */
-    static modifierSujet(nomSujet, contenu, id) {
+     * Modifie un sujet.
+     * @param {string} nomSujet - Nom du sujet.
+     * @param {string} contenu - Contenu.
+     * @param {number} idSujet - ID du sujet.
+     */
+    static async modifierSujet(idSujet, nomSujet, contenu = " ") {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
                 "xajax": "envoiEditTopic",
-                "xajaxargs[]": `<xjxquery><q>IDTopic=${id}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&modifiable=envoyer&send=Envoyer</q></xjxquery>`,
+                "xajaxargs[]": `<xjxquery><q>IDTopic=${idSujet}&sujet=${nomSujet}&message=${encodeURIComponent(contenu)}&modifiable=envoyer&send=Envoyer</q></xjxquery>`,
                 "xajaxr": moment().valueOf()
             }
         }).catch(error => {
-            console.error(`[Utils] Erreur lors de la modification du sujet "${nomSujet}" (ID: ${id}):`, error);
+            console.error(`[Utils] Erreur lors de la modification du sujet "${nomSujet}" (ID: ${idSujet}):`, error);
             throw error;
         });
     }
 
     /**
      * Consulte un sujet et retourne le contenu HTML brut.
+     * @private
      * @param {Number} id L'ID du sujet.
      * @returns {Promise<String>} Une promesse qui résout avec le contenu HTML brut du sujet.
      */
@@ -556,33 +612,70 @@ class Utils {
     }
 
     /**
+     * Transfère un sujet existant vers une nouvelle section du forum.
+     * @async
+     * @param {Number} idSujet - ID du sujet.
+     * @param {Number} idSectionDestination - ID de la section de destination.
+     * @param {Number} idSectionSource - ID de la section de source.
+     * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
+     */
+    static async transfererSujet(idSujet, idSectionDestination, idSectionSource) {
+        try {
+            await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+                data: {
+                    "xajax": "deplacer",
+                    "xajaxargs[]": [
+                        `<xjxquery><q>topic[]=${idSujet}&cat_cible=${idSectionDestination}</q></xjxquery>`,
+                        idSectionSource
+                    ],
+                    "xajaxr": moment().valueOf()
+                }
+            });
+            return true;
+        } catch (error) {
+            console.error(`[Utils] Erreur lors du transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Supprime un sujet du forum.
+     * @static
+     * @param {number} idSujet - L'ID du sujet à supprimer.
+     * @param {number} idSection - L'ID de la section.
+     * @returns {Promise<any>}
+     */
+    static async supprimerSujet(idSujet, idSection) {
+        return $.ajax({
+            type: "post",
+            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+            data: {
+                "xajax": "callSupprimer",
+                "xajaxargs[]": [
+                    `<xjxquery><q>topic[]=${idSujet}</q></xjxquery>`,
+                    idSection
+                ],
+                "xajaxr": moment().valueOf()
+            }
+        }).catch(error => {
+            console.error(`[Utils] Erreur lors de la suppression du sujet : ${idSujet}):`, error);
+            throw error;
+        });
+    }
+
+    /**
+    @private
     * Envoie un message.
     */
-    static envoyerMessage(id, message) {
+    static envoyerMessage(idSujet, message) {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
                 "xajax": "envoiNouveauMessage",
-                "xajaxargs[]": `<xjxquery><q>topic=${id}&message=${message}&send=Envoyer</q></xjxquery>`,
-                "xajaxr": moment().valueOf()
-            }
-        });
-    }
-
-    /**
-     * Supprime un message du forum.
-     * @static
-     * @param {number|string} idMessage L'ID du message à supprimer.
-     * @returns {Promise<any>}
-     */
-    static supprimerMessage(idMessage) {
-        return $.ajax({
-            type: "post",
-            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
-            data: {
-                "xajax": "callSupprimerMessage",
-                "xajaxargs[]": idMessage,
+                "xajaxargs[]": `<xjxquery><q>topic=${idSujet}&message=${message}&send=Envoyer</q></xjxquery>`,
                 "xajaxr": moment().valueOf()
             }
         });
@@ -591,8 +684,8 @@ class Utils {
     /**
      * Envoie un message dans un sujet et retourne l'ID du nouveau message.
      * @async
-     * @param {number|string} idSujet L'ID du sujet.
-     * @param {string} message Le message à envoyer.
+     * @param {number} idSujet - ID du sujet.
+     * @param {string} message - Le message à envoyer.
      * @returns {Promise<number|null>} Une promesse qui résout avec l'ID du message envoyé (null si non trouvé).
      */
     static async envoyerMessageEtRetournerId(idSujet, message) {
@@ -606,6 +699,7 @@ class Utils {
             }
 
             const messageElements = $("<div/>").append(response).find(".messageForum");
+            let idMessage = null;
 
             if (messageElements.length > 0) {
                 const lastMessageElement = messageElements.last();
@@ -614,11 +708,12 @@ class Utils {
                     const onclickAttr = editLink.attr('onclick');
                     const match = onclickAttr.match(/xajax_editMessage\((\d+)\)/);
                     if (match && match[1]) {
-                        return parseInt(match[1], 10);
+                        idMessage = parseInt(match[1], 10);
                     }
                 }
             }
-            return null;
+
+            return idMessage;
         } catch (error) {
             console.error(`[Utils][envoyerMessageEtRetournerId] Erreur lors de l'envoi pour le sujet ${idSujet}:`, error);
             throw error;
@@ -626,42 +721,15 @@ class Utils {
     }
 
     /**
-     * Transfère un sujet existant vers une nouvelle section du forum.
-     * @async
-     * @param {Number} idSujet L'ID du sujet à transférer.
-     * @param {Number} idSectionDestination L'ID de la section de destination.
-     * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
-     */
-    static async transfererSujet(idSujet, idSectionDestination) {
-        try {
-            const data = await $.ajax({
-                type: "post",
-                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
-                data: {
-                    "xajax": "deplacer",
-                    "xajaxargs[]": `<xjxquery><q>topic[]=${idSujet}&cat_cible=${idSectionDestination}</q></xjxquery>`,
-                    "xajaxr": moment().valueOf()
-                }
-            });
-
-            return true;
-
-        } catch (error) {
-            console.error(`[Utils] Erreur lors du transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}:`, error);
-            return false;
-        }
-    }
-
-    /**
      * Modifie le contenu d'un message existant dans un sujet de forum.
      * @async
-     * @param {Number} idMessage L'ID du message à modifier.
-     * @param {String} nouveauContenu Le nouveau contenu du message.
+     * @param {Number} idMessage - ID du message.
+     * @param {String} nouveauContenu - Le nouveau contenu du message.
      * @returns {Promise<Boolean>} Une promesse qui résout avec true en cas de succès, false en cas d'échec.
      */
     static async modifierMessage(idMessage, nouveauContenu) {
         try {
-            const data = await $.ajax({
+            await $.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -670,142 +738,31 @@ class Utils {
                     "xajaxr": moment().valueOf()
                 }
             });
-
             return true;
-
         } catch (error) {
             console.error(`[Utils] Erreur lors de la modification du message ID: ${idMessage}:`, error);
-            return false;
+            throw error;
         }
     }
 
-    /**
-     * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
-     * @async
-     * @param {Number} idSection L'ID de la section à consulter.
-     * @returns {Promise<Array<{id: Number, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
+        /**
+     * Supprime un message du forum.
+     * @static
+     * @param {number} idMessage - L'ID du message à supprimer.
+     * @returns {Promise<any>}
      */
-    static async recupererSujetsSection(idSection) {
-        try {
-            const dataSection = await Utils.consulterSection(idSection);
-            const responseSection = $(dataSection).find("cmd:eq(1)").text();
-
-            if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
-                console.warn(`[Utils][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
-                return [];
+    static async supprimerMessage(idMessage) {
+        return $.ajax({
+            type: "post",
+            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+            data: {
+                "xajax": "callSupprimerMessage",
+                "xajaxargs[]": idMessage,
+                "xajaxr": moment().valueOf()
             }
-
-            const sujetElements = $("<div/>").append(responseSection).find("#form_cat tr:gt(0)");
-            const sujets = [];
-
-            sujetElements.each((i, elt) => {
-                const titreSujet = $(elt).find("td:eq(1)").text();
-                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
-                const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
-                const datePartToParse = dateMatch ? dateMatch[1] : '';
-                let id = null;
-                const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
-                if (onclickAttr) {
-                    const match = onclickAttr.match(/\d+/);
-                    if (match) {
-                        id = parseInt(match[0], 10);
-                    }
-                }
-
-                if (id && titreSujet) {
-                    sujets.push({
-                        id: id,
-                        contenu: titreSujet
-                    });
-                } else {
-                    console.warn(`[Utils][recupererSujetsSection] Sujet ignoré en raison de données manquantes ou invalides. ID: ${id}, Titre: "${titreSujet}".`);
-                }
-            });
-            return sujets;
-
-        } catch (error) {
-            console.error(`[Utils][recupererSujetsSection] Erreur lors de la récupération des sujets de la section ${idSection}:`, error);
-            return [];
-        }
+        }).catch(error => {
+            console.error(`[Utils] Erreur lors de la suppression du message : ${idMessage}):`, error);
+            throw error;
+        });
     }
 }
-
-/**
- * Plugin jQuery pour sécuriser une action utilisateur (clic).
- * Vérifie que les données ne sont pas périmées avant d'exécuter l'action.
- * @param {String} evenement - Le nom de l'événement (ex: 'click').
- * @param {FonctionnaliteAlliance} fonctionnalite - L'instance de la fonctionnalité parente.
- * @param {Function} callback - La fonction à exécuter si les données sont à jour.
- */
-$.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
-    return this.on(evenement, async function (e, data) {
-        // 1. Validation du flag de sécurité
-        if (data && data.isSecured) {
-            return await callback.call(this, e);
-        }
-
-        // 2. Blocage de l'événement original
-        e.preventDefault();
-        e.stopImmediatePropagation();
-
-        try {
-            // 3. Identification des signatures d'appels de chargement
-            const signatures = fonctionnalite._determinerAppelsChargement();
-
-            // 4. Prise de l'empreinte globale initiale (sur les objets en cache)
-            const empreinteInitiale = await fonctionnalite._prendreEmpreinteGlobale(signatures);
-
-            // 5. Vérifications initiales (Droits, Versions, Membre) avec rafraîchissement forcé
-            const conditionsOk = await fonctionnalite.verifierConditionsInitiales(true);
-            if (!conditionsOk) {
-                $.toast({
-                    ...TOAST_INFO,
-                    heading: "Action bloquée",
-                    text: "Vos droits, votre appartenance à l'alliance ou la configuration du forum ont été modifiés. La page va être rechargée.",
-                    hideAfter: 5000
-                });
-                setTimeout(() => location.reload(), 5000);
-                return;
-            }
-
-            // 6. Rafraîchissement global (vide le cache)
-            await fonctionnalite.rafraichirDonneesFonctionnalite();
-
-            // 7. Prise de la nouvelle empreinte (provoque le rechargement effectif)
-            const empreinteFinale = await fonctionnalite._prendreEmpreinteGlobale(signatures);
-            console.warn("[Utils][onActionSecurisee] Empreinte initiale: " + empreinteInitiale + ", Empreinte finale: " + empreinteFinale);
-            if (empreinteInitiale !== empreinteFinale) {
-                $.toast({
-                    ...TOAST_INFO,
-                    heading: "Données obsolètes",
-                    text: "Les données ont été modifiées par un autre utilisateur. L'affichage va être actualisé.",
-                    hideAfter: 3000
-                });
-                setTimeout(() => location.reload(), 3000);
-                return;
-            }
-
-            // 8. Tout est OK, on redéclenche l'événement avec le flag isSecured
-            $(this).trigger(evenement, [{ isSecured: true }]);
-
-            // Cas particulier des liens <a> : trigger('click') ne déclenche pas la navigation native
-            if (evenement === 'click' && $(this).is('a')) {
-                const href = $(this).attr('href');
-                if (href && href !== '#' && !href.startsWith('javascript:')) {
-                    window.location.href = href;
-                }
-            }
-
-        } catch (error) {
-            console.error("[onActionSecurisee] Erreur lors de la sécurisation de l'action:", error);
-            $.toast({
-                ...TOAST_ERROR,
-                heading: "Erreur de synchronisation",
-                text: "Une erreur est survenue lors de la vérification des données. La page va être rechargée par sécurité.",
-                hideAfter: 3000
-            });
-            setTimeout(() => location.reload(), 3000);
-        }
-    });
-};
-

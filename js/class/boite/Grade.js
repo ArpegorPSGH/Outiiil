@@ -68,8 +68,10 @@ class BoiteGrade extends Boite {
                 await this._joueur.ecrire('Grade', $("#o_libGrade" + await this._joueur.lire('Id')).val());
                 await this._joueur.ecrire('Ordre Grade', $("#o_ordGrade" + await this._joueur.lire('Id')).val());
                 console.log('step 1 ');
-                // mise a jour de forum
-                await this._joueur.enregistrerSurForum();
+                await FonctionnaliteAlliance.executerTransaction(async () => {
+                    // mise a jour du forum
+                    await this._joueur.enregistrerSurForum();
+                })
                 console.log('step 2');
                 const fonctionnaliteDonneesPrivees = new DonneesPrivees(this._page);
                 console.log('step 3');

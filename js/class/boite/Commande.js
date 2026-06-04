@@ -100,13 +100,15 @@ class BoiteCommande extends Boite {
             let message = await this._commande.estValide();
             if (!message) {
                 try {
-                    // Enregistrer sur le forum via le framework
-                    await this._commande.enregistrerSurForum();
+                    await FonctionnaliteAlliance.executerTransaction(async () => {
+                        // Enregistrer sur le forum via le framework
+                        await this._commande.enregistrerSurForum();
+                    });
 
                     if (this._estNouvelle) {
                         $.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
                     } else {
-                        $.toast({ ...TOAST_INFO, text: "Commande mise à jour avec succès." });
+                        $.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour avec succès." });
                     }
 
                     // Actualiser l'affichage via GererCommandes
@@ -122,11 +124,13 @@ class BoiteCommande extends Boite {
                         ...TOAST_ERROR,
                         text: `Une erreur est survenue lors de ${this._estNouvelle ? "l'ajout" : "la mise à jour"} de la commande.`
                     });
+                    throw error;
                 }
             } else {
                 $.toast({ ...TOAST_ERROR, text: message });
             }
             return false;
+
         });
         return this;
     }

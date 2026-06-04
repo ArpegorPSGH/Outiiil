@@ -14,11 +14,13 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     async run() {
         // Charger toutes les commandes via le framework
         console.log('Chargement des commandes')
-        this.commandes = await this.chargerObjetsForum(Commande, true);
-        console.log('commandes', this.commandes)
+        await FonctionnaliteAlliance.executerTransaction(async () => {
+            this.commandes = await this.chargerObjetsForum(Commande, true);
+            console.log('commandes', this.commandes)
 
-        // Activer la prochaine commande si besoin
-        await this._activerProchaineCommandeSiBesoin();
+            // Activer la prochaine commande si besoin
+            await this._activerProchaineCommandeSiBesoin();
+        })
 
         // Afficher le tableau des commandes
         await this.afficherTableauCommandes();
@@ -76,6 +78,31 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
             $("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
+                // let commandeTest = new Commande(this);
+                // let convoiTest = new Convoi(this);
+                // await FonctionnaliteAlliance.executerTransaction(async () => {
+                //     await commandeTest.enregistrerSurForum();
+                //     commandeTest.objetsForumContenus = [convoiTest];
+                //     convoiTest.objetParent = commandeTest;
+                //     await commandeTest.enregistrerSurForum();
+                //     await commandeTest.ecrire('Matériaux Demandés', 1000);
+                //     await commandeTest.enregistrerSurForum();
+                //     await commandeTest.transferer(50769);
+                //     await convoiTest.ecrire('Matériaux', 100);
+                //     await commandeTest.enregistrerSurForum();
+                //     await commandeTest.ecrire('Matériaux Demandés', 1000000);
+                //     await commandeTest.enregistrerSurForum();
+                //     await commandeTest.transferer(50908);
+                //     await convoiTest.ecrire('Matériaux', 10000);
+                //     await commandeTest.enregistrerSurForum();
+                //     await convoiTest.supprimer();
+                // });
+                // await FonctionnaliteAlliance.executerTransaction(async () => {
+                //     await commandeTest.supprimer();
+                //     await Utils.sleep(10000);
+                //     throw new Error('Erreur de test');
+                // });
+
                 // On essaie de réutiliser une commande non encore enregistrée si elle existe
                 let nouvelleCommande = this.commandes.find(c => !c.idSujet);
                 if (!nouvelleCommande) {
@@ -322,11 +349,12 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 const leBonConvoi = correspondances[0];
                 await convoiDataObj.ecrire('Id Annulation', leBonConvoi.idAnnulation);
 
-                await commande.ajouterConvoi(convoiDataObj);
-                $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
-
-                // Passer la prochaine commande en cours si nécessaire
-                await this._activerProchaineCommandeSiBesoin();
+                await FonctionnaliteAlliance.executerTransaction(async () => {
+                    await commande.ajouterConvoi(convoiDataObj);
+                    $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
+                    // Passer la prochaine commande en cours si nécessaire
+                    await this._activerProchaineCommandeSiBesoin();
+                });
                 await this.actualiserCommandes();
             } else {
                 $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
@@ -334,6 +362,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         } catch (error) {
             $.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
             console.error(error);
+            throw error;
         } finally {
             localStorage.removeItem('outiiil_convoi_a_poster');
         }
@@ -343,32 +372,37 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Traite l'annulation de convoi après rechargement.
      */
     async _traiterAnnulationConvoiApresRechargement() {
-        const idPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
-        if (!idPending) return;
+        try {
+            const idPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
+            if (!idPending) return;
 
-        let convoiTraite = false;
-        const idPendingNum = numeral(idPending).value();
-        const timestampClic = localStorage.getItem('outiiil_convoi_annulation_pending_timestamp');
+            let convoiTraite = false;
+            const idPendingNum = numeral(idPending).value();
+            const timestampClic = localStorage.getItem('outiiil_convoi_annulation_pending_timestamp');
 
-        for (const commande of this.commandes) {
-            const resultat = await commande.annulerConvoi(idPendingNum, timestampClic);
-            if (resultat.trouve) {
-                convoiTraite = true;
-                if (resultat.modifie) {
-                    if (resultat.resurrection) {
-                        await this._repasserEnAttenteProchaineCommande(commande.idSujet);
+            await FonctionnaliteAlliance.executerTransaction(async () => {
+                for (const commande of this.commandes) {
+                    const resultat = await commande.annulerConvoi(idPendingNum, timestampClic);
+                    if (resultat.trouve) {
+                        convoiTraite = true;
+                        if (resultat.modifie) {
+                            if (resultat.resurrection) {
+                                await this._repasserEnAttenteProchaineCommande(commande.idSujet);
+                            }
+                            await this.actualiserCommandes();
+                        }
+                        break;
                     }
-                    await this.actualiserCommandes();
                 }
-                break;
-            }
-        }
+            });
 
-        if (!convoiTraite) {
-            $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
+            if (!convoiTraite) {
+                $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
+            }
+        } finally {
+            localStorage.removeItem('outiiil_convoi_annulation_pending_id');
+            localStorage.removeItem('outiiil_convoi_annulation_pending_timestamp');
         }
-        localStorage.removeItem('outiiil_convoi_annulation_pending_id');
-        localStorage.removeItem('outiiil_convoi_annulation_pending_timestamp');
     }
 
     /**

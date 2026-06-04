@@ -21,7 +21,10 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
      */
     async run() {
         console.log(`[${this.#nom}] Exécution`);
-        const membresForum = await this.chargerObjetsForum(Joueur, false);
+        let membresForum;
+        await FonctionnaliteAlliance.executerTransaction(async () => {
+            membresForum = await this.chargerObjetsForum(Joueur, false);
+        });
         const membresForumMap = new Map();
         for (const j of membresForum) {
             const pseudo = await j.lire('Pseudo');

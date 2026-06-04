@@ -92,6 +92,7 @@ Pour garantir la robustesse des fonctionnalités :
     - Les classes de paramètres, objets, fonctionnalités et pages doivent directement hériter de leurs classes mères respectives.
     - Les modifications de formats des paramètres (comme les formats de template string) ne doivent être effectuées que dans la classe mère des paramètres (`ParametreObjetForum`), et non dans les classes de paramètres filles.
 - **Accès au forum :** Ne jamais accéder au forum avec un `ObjetForum` créé à l'extérieur d'une `FonctionnaliteAlliance`. Ces instances doivent être créées à l'intérieur de la fonctionnalité (ou sa classe mère), dans un autre `ObjetForum` (via `objetsForumContenus`), ou dans `initialiserFrameworkGlobal()` pour les objets globaux.
+- **Manipulation des sujets/messages :** Ne jamais créer, modifier ou supprimer un sujet ou un message sur le forum sans passer par les fonctions dédiées de l'objet (`ObjetForum`).
 - **Initialisation des gestionnaires :** Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation et hériter d'`ObjetForum`, et spécifier sa section dans `ObjetForum.LOCATION_HISTORY`.
 - **Unicité des historiques :**
     - Le premier format de `ParametreObjetForum.FORMAT_HISTORY` sert d'ancre unique pour un paramètre. Deux classes de paramètres ne doivent jamais partager la même ancre.
@@ -120,6 +121,12 @@ Le framework offre des propriétés statiques pour contrôler la manière dont l
     *   **Objectif :** Définir la chaîne de caractères utilisée pour séparer les différents paramètres d'un `ObjetForum` lors de leur concaténation pour l'enregistrement. Ceci est purement cosmétique.
     *   **Utilisation :** Permet de contrôler la mise en page des paramètres dans le titre du sujet ou le message.
     *   **Exemple :** `static SEPARATEUR_PARAMETRES = '\n';` (chaque paramètre sur une nouvelle ligne)
+
+#### 5.3.1 Limites de Caractères à l'Enregistrement
+
+Lors de l'enregistrement des objets sur le forum (via la méthode `enregistrerSurForum`), le framework valide la longueur de la chaîne d'enregistrement générée :
+*   **Titre de sujet (`lieu === 'titre'`) :** La longueur de la chaîne d'enregistrement ne doit pas dépasser **240** caractères, sous peine de lever une erreur.
+*   **Message (`lieu === 'message'`) :** La longueur de la chaîne d'enregistrement ne doit pas dépasser **61495** caractères, sous peine de lever une erreur.
 
 ### 5.4 Complément de Chargement
 
@@ -331,7 +338,49 @@ Grâce à ces mécanismes, les risques de corruption de données dus à des acc�
 *   **Scénario :** Une opération métier complexe nécessite de modifier un `ObjetForum` et tous ses `objetsForumContenus` en une seule fois (par exemple, via la méthode `enregistrerSurForum`).
 *   **Fonctionnement :** Le framework traite l'enregistrement d'un objet et de ses enfants comme une transaction unique. Il effectue toutes les écritures nécessaires sur le forum de manière séquentielle.
 *   **Limites :**
-    *   Cette atomicité est applicative, pas garantie par le système de stockage (le forum). Si une écriture intermédiaire échoue (erreur réseau, déconnexion), le système peut se retrouver dans un **état incohérent** (par exemple, l'objet parent est mis à jour mais pas ses enfants). Il n'y a pas de mécanisme de "rollback" (annulation).
-    *   La transaction ne s'applique qu'à **un seul `ObjetForum` parent et ses descendants directs**. Les opérations qui nécessitent de modifier plusieurs `ObjetForum` indépendants ne sont pas couvertes par ce mécanisme transactionnel.
+    *   Cette atomicité est applicative, pas garantie par le système de stockage (le forum). Si une écriture intermédiaire échoue (erreur réseau, déconnexion), le système peut se retrouver dans un **état incohérent** (par exemple, l'objet parent est mis à jour mais pas ses enfants).
+    *   La transaction ne s'applique nativement qu'à **un seul `ObjetForum` parent et ses descendants directs**.
 *   **Mesure :**
     *   La logique de chargement (`ObjetForum.chargerDepuisString()`, `ObjetForum.chargerObjetForumsContenus()`) doit être conçue pour être robuste face à des données partiellement écrites.
+
+#### 7.2.3 Système de Transactions Globales et Rollback (`Transaction.js`)
+
+Pour des cas d'écriture complexes impliquant plusieurs objets ou des actions variées, le framework introduit un mécanisme de transactions globales et sécurisées à l'échelle de l'extension.
+
+*   **Classe `Transaction` :**
+    *   **Rôle :** Enregistre l'ensemble des opérations effectuées au cours d'un processus pour pouvoir les annuler en bloc si une erreur survient (Rollback).
+    *   **Propriété globale `window.transaction` :** Stocke la transaction globale unique actuellement active sur l'extension.
+    *   **Enregistrements supportés :**
+        *   `enregistrerCreation(objet)` : Conserve les objets créés.
+        *   `enregistrerModification(objet)` : Conserve l'objet et son `stringInitial` d'origine pour pouvoir le restaurer.
+        *   `enregistrerTransfert(objet)` : Conserve l'objet transféré pour le replacer dans sa section originale.
+        *   `enregistrerSuppression(objet)` : Conserve l'objet supprimé pour le recréer si nécessaire.
+    *   **Méthode `annuler()` (Rollback) :** Exécute les opérations inverses dans l'ordre approprié pour remettre le forum dans son état initial en cas d'échec.
+
+*   **Utilisation dans `FonctionnaliteAlliance` :**
+    *   **Méthode `executerTransaction(callback)` :**
+        *   Vérifie qu'aucune transaction n'est déjà en cours via l'existence de la transaction global `window.transaction` (si elle est active, bloque et affiche un message Toast d'attente).
+        *   Instancie une transaction globale unique dans `window.transaction` (référencée directement partout dans le code par les `ObjetForum` et autres classes pour y enregistrer leurs opérations).
+        *   Exécute la fonction asynchrone `callback` fournie.
+        *   **En cas d'erreur :** Catch l'exception, déclenche automatiquement le rollback via `window.transaction.annuler()`, affiche une notification d'erreur Toast à l'utilisateur, déclenche un rechargement de la page après 3 secondes, réinitialise `window.transaction = null` et propage l'erreur.
+    *   **Bonne Pratique pour le développeur :**
+        *   **Périmètre :** Restreindre la portée des transactions au plus près autour des écritures sur le forum (et non englober de longs calculs ou requêtes préalables) afin de limiter la durée de verrouillage et de réduire le risque de collisions entre transactions concurrentes.
+        *   **Lieu de déclaration :** Les transactions sont à déclarer exclusivement au niveau des fonctionnalités (classes héritant de `FonctionnaliteAlliance`) et des boîtes (classes héritant de `Boite`) appelées par ces fonctionnalités.
+        *   **Pas d'action utilisateur dans la transaction :** Le callback exécuté au sein d'une transaction ne doit pas inclure la moindre action ou interaction de l'utilisateur (comme attendre la saisie d'un formulaire, une confirmation ou un clic). Toute interaction doit être gérée en amont.
+        *   **Pas d'imbrication (nesting) :** Veiller à ne pas nester (imbriquer) des appels à `executerTransaction`. Si une fonction exécutant déjà une transaction en appelle une autre, s'assurer que cette dernière n'initie pas elle-même une nouvelle transaction imbriquée (ce qui lèverait une exception de transaction déjà en cours).
+    *   **Exemple d'utilisation :**
+        ```javascript
+        await this.executerTransaction(async () => {
+            // 1. Création, modification ou suppression d'objets forum
+            const nouvelObjet = new MonObjet(this);
+            await nouvelObjet.enregistrerSurForum(); // L'écriture s'enregistre dans la transaction
+
+            // 2. Autre opération pouvant échouer
+            await unAutreObjet.ecrire({ Parametre: 'Nouvelle valeur' });
+            await unAutreObjet.enregistrerSurForum();
+        });
+        ```
+
+#### 7.2.4 Recommandations à l'attention de l'utilisateur
+
+*   **Enchaînement des actions :** L'utilisateur doit impérativement attendre le toast de confirmation d'une action avant d'en démarrer une autre ou de changer de page (ce qui est normalement déjà bloqué par le système de transactions). Cela permet de s'assurer que les opérations asynchrones et l'écriture des données sur le forum se terminent correctement sans interruption ni corruption.

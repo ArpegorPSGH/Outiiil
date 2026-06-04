@@ -477,7 +477,7 @@ Utils.register(class Joueur extends ObjetForum {
 
         } catch (error) {
             console.error(`[Joueur] Erreur lors de l'exécution du recensement pour ${await this.lire('Pseudo')}:`, error);
-            return false;
+            throw error;
         } finally {
             this._releaseReadLock(); // Libérer le verrou
             console.log(`[Joueur] Fin de l'opération de recensement.`);

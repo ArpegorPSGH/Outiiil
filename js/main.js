@@ -240,5 +240,8 @@ async function initialiserFrameworkGlobal() {
     window.gestionnaireVersions = new GestionnaireVersions();
     await gestionnaireVersions.rafraichir(); // Assurez-vous que les versions sont chargées avant utilisation
 
+    // Création de la variable globale des transactions
+    window.transaction = null;
+
     console.log("Framework global initialisé.");
 }

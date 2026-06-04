@@ -246,10 +246,12 @@ class ParametreObjetForum extends DonneeValidable {
 
             const checkResult = this._checkValeur(valeurMigree);
             if (checkResult.success) {
+                this.estCharge = true;
+                if (this.valeur !== checkResult.value) {
+                    this.estModifie = true;
+                }
                 this.valeur = checkResult.value;
                 console.log('valeur enregistrée: ', checkResult.value)
-                this.estCharge = true;
-                this.estModifie = aEteMigre;
                 return true;
             } else {
                 // Check failed, but format matched. Do not update value and return false.
@@ -285,8 +287,8 @@ class ParametreObjetForum extends DonneeValidable {
             // Gérer spécifiquement les objets moment
             if (moment.isMoment(this.valeur)) {
                 // Sérialiser en format personnalisé ou en ISO 8601 string
-                valeurStringifiee = this.constructor.FORMAT_ENREGISTREMENT 
-                    ? this.valeur.format(this.constructor.FORMAT_ENREGISTREMENT) 
+                valeurStringifiee = this.constructor.FORMAT_ENREGISTREMENT
+                    ? this.valeur.format(this.constructor.FORMAT_ENREGISTREMENT)
                     : this.valeur.toISOString();
             } else if (typeof this.valeur === 'object' && this.valeur !== null) {
                 valeurStringifiee = JSON.stringify(this.valeur);

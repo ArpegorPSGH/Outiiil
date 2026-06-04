@@ -114,6 +114,7 @@ class GestionnaireVersions {
                 } catch (error) {
                     console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Erreur lors de la vérification de la section '${nomSection}' (ID: ${idSection}).`, error);
                     estValide = false;
+                    throw error;
                 }
 
                 sectionsEnCache.set(idSection, estValide);
@@ -219,10 +220,12 @@ class GestionnaireVersions {
                     } catch (e) {
                         console.error(`[GestionnaireVersions.rafraichir] Erreur lors du parsing du sujet de version ${sujet.contenu} (ID: ${sujet.id}):`, e);
                         // Ignorer les sujets qui ne sont pas du format attendu
+                        throw e;
                     }
                 }
             } catch (error) {
                 console.error("[GestionnaireVersions.rafraichir] Erreur lors du rafraîchissement du GestionnaireVersions:", error);
+                throw error;
             }
         } finally {
             this._releaseLock();
@@ -398,7 +401,7 @@ class GestionnaireVersions {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Nouvel objet ${nomClasseLocale} détecté. Création de la version sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `objet: ${nomClasseLocale}`;
-                const newId = await Utils.creerSujetEtRetournerId(titreSujet, ' ', idSection);
+                const newId = await Utils.creerSujetEtRetournerId(idSection, titreSujet);
                 if (newId) {
                     // Le message 0 est créé automatiquement avec le sujet. Les messages suivants commencent à l'index 1.
                     // On envoie les données dans les messages suivants et on récupère leurs IDs.
@@ -482,7 +485,7 @@ class GestionnaireVersions {
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Forum obsolète pour ${nomClasseLocale}. Mise à jour de la version sur le forum.`);
-                await Utils.modifierSujet(`objet: ${nomClasseLocale}`, ' ', versionForum.idSujet);
+                await Utils.modifierSujet(versionForum.idSujet, `objet: ${nomClasseLocale}`);
                 // Les messages sont modifiés en utilisant leurs IDs.
                 await Utils.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale); // Message pour versionLogique
                 await Utils.modifierMessage(versionForum.idMessageClassesParametres, JSON.stringify(nouvelHistoriqueComplet)); // Message pour classesParametres
@@ -539,7 +542,7 @@ class GestionnaireVersions {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 4: Nouveau paramètre. Création du sujet sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `parametre: ${nomClasseLocale}`;
-                const newId = await Utils.creerSujetEtRetournerId(titreSujet, ' ', idSection);
+                const newId = await Utils.creerSujetEtRetournerId(idSection, titreSujet);
                 if (newId) {
                     const idMessageVersionLogique = await Utils.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
                     await Utils.sleep(10)
@@ -596,7 +599,7 @@ class GestionnaireVersions {
             // Scénario 2 (Forum obsolète)
             else if (compVersion > 0 || compFormatHistory > 0) {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 2: Forum obsolète. Mise à jour du sujet et des messages pour le paramètre ${nomClasseLocale}.`);
-                await Utils.modifierSujet(`parametre: ${nomClasseLocale}`, ' ', versionForum.idSujet);
+                await Utils.modifierSujet(versionForum.idSujet, `parametre: ${nomClasseLocale}`);
                 await Utils.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale);
                 await Utils.modifierMessage(versionForum.idMessageFormatHistory, JSON.stringify(formatHistoryLocal));
                 versionForum.versionLogique = versionLogiqueLocale; // Mise à jour du cache

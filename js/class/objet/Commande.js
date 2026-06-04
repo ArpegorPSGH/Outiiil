@@ -351,14 +351,7 @@ Utils.register(class Commande extends ObjetForum {
 
         await this.ecrire(nouveauxParams);
 
-        // Suppression physique du message sur le forum
-        await Utils.supprimerMessage(convoiTrouve.idMessage);
-
-        // Retrait de l'objet convoi de la liste locale des contenus
-        const index = this.objetsForumContenus.indexOf(convoiTrouve);
-        if (index > -1) {
-            this.objetsForumContenus.splice(index, 1);
-        }
+        await convoiTrouve.supprimer();
 
         // Sauvegarde de la commande sur le forum (mise à jour des totaux dans le titre/sujet)
         await this.enregistrerSurForum();
