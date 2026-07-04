@@ -4,6 +4,7 @@
 Ajouter un script pour modifier sur système Windows/Mac/Linux les autorisations de mise à jour sur l'hôte
 
 ## Fonctionnement Détaillé
+- Si la tentative de MaJ périodique de chrome ne marche pas, transférer le mécanisme de tentative de MaJ à chaque chargement de page, et simplement bloquer la fonctionnalité si la version n'est pas compatible
 - Voir comment traiter Android et iPhone
 - Créer une pipeline CI/CD pour effectuer une release
 - Mettre sur doc développement comment effectuer une release

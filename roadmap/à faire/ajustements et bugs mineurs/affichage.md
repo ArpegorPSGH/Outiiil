@@ -23,6 +23,7 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Rendre les timers Fourmizzz de convois, attaques et chasses dynamiques
 - Mettre le message de copie tableau en français
 - Message du popup de blocage de changement de page en cours de transaction incorrect
+- Les fonctionnalités de la page alliance ne s'affichent plus après un changement de rang de joueur
 
 ## Plan d'Implémentation
 
