@@ -1,11 +1,182 @@
 class Transaction {
+    /**
+     * Listes d'objets créés durant la transaction.
+     * @type {Array<ObjetForum>}
+     * @private
+     */
+    creations = [];
+    /**
+     * Listes d'objets modifiés durant la transaction.
+     * @type {Array<ObjetForum>}
+     * @private
+     */
+    modifications = [];
+    /**
+     * Listes d'objets transférés durant la transaction.
+     * @type {Array<ObjetForum>}
+     * @private
+     */
+    transferts = [];
+    /**
+     * Listes d'objets supprimés durant la transaction.
+     * @type {Array<ObjetForum>}
+     * @private
+     */
+    suppressions = [];
+    /**
+     * Indique si la transaction est en cours d'annulation.
+     * @type {Boolean}
+     * @private
+     */
+    rollbacking = false;
+
+    /**
+     * Indique si le blocage des clics est actif.
+     * @type {Boolean}
+     * @public
+     */
+    blocageClicActif = true;
+    /**
+     * Indique si le blocage des soumissions de formulaires est actif.
+     * @type {Boolean}
+     * @public
+     */
+    blocageFormulaireActif = true;
+    /**
+     * Indique si la destruction de la page ou son rafraichissement est actif.
+     * @type {Boolean}
+     * @public
+     */
+    blocageDestructionActif = true;
 
     constructor() {
-        this.creations = [];
-        this.modifications = [];
-        this.transferts = [];
-        this.suppressions = [];
-        this.rollbacking = false;
+        this.bloquerFermetureEtRafraichissement = this.bloquerFermetureEtRafraichissement.bind(this);
+        this.intercepterClicsDestructeurs = this.intercepterClicsDestructeurs.bind(this);
+        this.intercepterSoumissionsFormulaire = this.intercepterSoumissionsFormulaire.bind(this);
+    }
+
+    // Bloque les clics sur les liens menant à une autre page dans le même onglet
+    intercepterClicsDestructeurs(e) {
+        if (!this.blocageClicActif) return;
+        const lien = e.target.closest('a');
+        if (lien) {
+            const href = lien.getAttribute('href');
+            const target = lien.getAttribute('target');
+
+            // On ne bloque que si le lien navigue réellement dans l'onglet courant
+            const estLienInterneVide = !href || href.startsWith('#') || href.startsWith('javascript:');
+            const ouvreDansNouvelOnglet = target === '_blank';
+
+            if (!estLienInterneVide && !ouvreDansNouvelOnglet) {
+                e.preventDefault();
+                e.stopPropagation();
+                $.toast({
+                    ...TOAST_WARNING,
+                    text: "Navigation bloquée : une transaction est en cours."
+                });
+            }
+        }
+    }
+
+    // Bloque la soumission de formulaires standards (qui rechargeraient la page)
+    intercepterSoumissionsFormulaire(e) {
+        console.log('tentative de transmission de formulaire');
+        if (!this.blocageFormulaireActif) return;
+        e.preventDefault();
+        e.stopPropagation();
+        $.toast({
+            ...TOAST_WARNING,
+            text: "Action bloquée : attendez la fin de la transaction pour soumettre des formulaires."
+        });
+    };
+
+    // Bloque le rafraîchissement (F5 / bouton actualiser), la fermeture d'onglet, et la navigation externe
+    bloquerFermetureEtRafraichissement(e) {
+        if (!this.blocageDestructionActif) return;
+        e.preventDefault();
+        e.returnValue = "Une transaction est en cours. Vos modifications risquent d'être perdues.";
+        return e.returnValue;
+    };
+
+    /**
+     * Exécute la transaction.
+     * @param {Function} callback - Fonction asynchrone contenant les opérations à effectuer.
+     * @returns {Promise<any>} Résultat de la transaction.
+     */
+    async run(callback) {
+        try {
+            // Active les bloqueurs pour cette transaction
+            window.addEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
+            document.addEventListener('click', this.intercepterClicsDestructeurs, true);
+            document.addEventListener('submit', this.intercepterSoumissionsFormulaire, true);
+
+            const resultat = await callback();
+            console.warn("Transaction : Callback terminé ")
+
+            if (this.contientDesOperationsActives()) {
+                await Utils.sleep(TRANSACTION_COLLISION_WAIT_MS);
+                // if (!transaction3) {
+                //     transaction = transaction2;
+                // }
+                const etatCollision = await this.verifierEtatForum();
+                if (etatCollision === 'COLLISION_TOTAL') {
+                    $.toast({
+                        ...TOAST_ERROR,
+                        heading: "Collision totale détectée",
+                        text: "Les modifications forum ont été entièrement altérées ou supprimées par un tiers, invalidant l'opération. La page va être rechargée.",
+                        hideAfter: 5000
+                    });
+                    setTimeout(() => location.href = location.href, 5000);
+                    return;
+                } else if (etatCollision === 'COLLISION_INCOHERENT') {
+                    $.toast({
+                        ...TOAST_ERROR,
+                        heading: "Collision partielle détectée",
+                        text: "Une collision partielle a été détectée, invalidant l'opération. Annulation des opérations effectuées et rechargement de la page.",
+                        hideAfter: 5000
+                    });
+                    const debutAnnulation = moment();
+                    try {
+                        await this.annuler();
+                    } catch (rollbackError) {
+                        console.error("[executerTransaction] Échec du rollback après collision incohérente:", rollbackError);
+                    }
+                    const dureeAnnulation = moment().diff(debutAnnulation);
+                    const tempsRestant = Math.max(0, 5000 - dureeAnnulation);
+                    setTimeout(() => location.href = location.href, tempsRestant);
+                    return;
+                }
+            }
+
+            return resultat;
+        } catch (error) {
+            console.error(`[${this.constructor.name}][executerTransaction] Erreur lors de l'exécution de la transaction. Lancement du rollback.`, error);
+            try {
+                await this.annuler();
+            } catch (rollbackError) {
+                console.error(`[${this.constructor.name}][executerTransaction] Échec critique lors du rollback de la transaction:`, rollbackError);
+            }
+            $.toast({
+                ...TOAST_ERROR,
+                text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée."
+            });
+            setTimeout(() => location.href = location.href, 3000);
+            throw error;
+        } finally {
+            window.removeEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
+            document.removeEventListener('click', this.intercepterClicsDestructeurs, true);
+            document.removeEventListener('submit', this.intercepterSoumissionsFormulaire, true);
+        }
+    }
+
+    /**
+     * Retourne true s'il y a au moins une opération enregistrée dans la transaction.
+     * @returns {Boolean}
+     */
+    contientDesOperationsActives() {
+        return this.creations.length > 0 ||
+            this.modifications.length > 0 ||
+            this.transferts.length > 0;
     }
 
     /**
@@ -80,9 +251,26 @@ class Transaction {
             return;
         }
 
-        const existe = this.suppressions.some(o => o === objetForum);
+        const existe = this.suppressions.some(s => s.objet === objetForum);
         if (!existe) {
-            this.suppressions.push(objetForum);
+            const formatLieu = objetForum.getLastLocation();
+            let entry = null;
+            if (formatLieu.lieu === 'titre') {
+                entry = {
+                    objet: objetForum,
+                    idSujet: objetForum.idSujet,
+                    idMessage: null
+                };
+            } else if (formatLieu.lieu === 'message') {
+                entry = {
+                    objet: objetForum,
+                    idSujet: objetForum.objetParent.idSujet,
+                    idMessage: objetForum.idMessage
+                };
+            }
+            if (entry) {
+                this.suppressions.push(entry);
+            }
         }
     }
 
@@ -92,16 +280,17 @@ class Transaction {
     async annuler() {
         this.rollbacking = true;
 
-        console.warn('modifications:', this.modifications);
-        console.warn('suppressions:', this.suppressions);
-        console.warn('transferts:', this.transferts);
-        console.warn('creations:', this.creations);
+        console.log('modifications:', this.modifications);
+        console.log('suppressions:', this.suppressions);
+        console.log('transferts:', this.transferts);
+        console.log('creations:', this.creations);
 
         // 1. Suppressions (Recréations) dans l'ordre inverse
         const suppressionsInverse = [...this.suppressions].reverse();
-        for (const objet of suppressionsInverse) {
+        for (const entry of suppressionsInverse) {
             try {
-                const formatLieu = objet.constructor.LOCATION_HISTORY[objet.constructor.LOCATION_HISTORY.length - 1];
+                const objet = entry.objet;
+                const formatLieu = objet.getLastLocation();
                 if (formatLieu.lieu === 'titre') {
                     await objet.enregistrerSurForum();
                 } else if (formatLieu.lieu === 'message') {
@@ -149,5 +338,138 @@ class Transaction {
             }
         }
 
+    }
+
+    /**
+     * Vérifie l'état actuel sur le forum après une transaction pour détecter des collisions.
+     * @returns {Promise<String>} Le statut global: 'OK', 'COLLISION_TOTAL', ou 'COLLISION_INCOHERENT'.
+     */
+    async verifierEtatForum() {
+        console.log(`[verifierEtatForum] modifications: ${this.modifications.length}`);
+        console.log(`[verifierEtatForum] suppressions: ${this.suppressions.legth}`);
+        console.log(`[verifierEtatForum] transferts: ${this.transferts.length}`);
+        console.log(`[verifierEtatForum] creations: ${this.creations.length}`);;
+
+        const resultatsUnitaires = []; // Tableau de booleans (true = Succès unitaire, false = Échec unitaire)
+
+        // Déterminer la liste unique des objets actifs (creations, modifications, transferts non présents dans suppressions et sans parent supprimé)
+        const idSuppressions = new Set(this.suppressions.map(s => s.objet));
+        const estExclu = (o) => idSuppressions.has(o) || (o.objetParent && idSuppressions.has(o.objetParent));
+        const actifs = new Set();
+        this.creations.forEach(o => { if (!estExclu(o)) actifs.add(o); });
+        this.modifications.forEach(m => { if (!estExclu(m.objetForum)) actifs.add(m.objetForum); });
+        this.transferts.forEach(t => { if (!estExclu(t.objetForum)) actifs.add(t.objetForum); });
+
+        // Pour chaque objet actif
+        for (const objet of actifs) {
+            const formatLieu = objet.getLastLocation();
+            const estSujet = (formatLieu.lieu === 'titre');
+
+            const inCreations = this.creations.includes(objet);
+            const inModifications = this.modifications.some(m => m.objetForum === objet);
+            const inTransferts = this.transferts.some(t => t.objetForum === objet);
+
+            const tests = new Set();
+            if (inCreations) {
+                if (estSujet) {
+                    tests.add('section');
+                }
+                tests.add('valeur');
+            }
+            if (inModifications) {
+                tests.add('valeur');
+            }
+            if (inTransferts) {
+                tests.add('section');
+            }
+
+            console.log(`objet.idSection avant rafraichissement: ${objet.idSection}`);
+
+            const stringForumInitial = await objet.genererStringParametres();
+
+            let rafraichissementOk;
+            try {
+                rafraichissementOk = await objet.rafraichir(false, false);
+            } catch (err) {
+                rafraichissementOk = false;
+            }
+
+            let resValeur = true;
+            let resSection = true;
+
+            if (!rafraichissementOk) {
+                if (tests.has('valeur')) {
+                    resValeur = false;
+                    resultatsUnitaires.push(false);
+                }
+                if (tests.has('section')) {
+                    resSection = false;
+                    resultatsUnitaires.push(false);
+                }
+            } else {
+                const executerTest = async (nomTest) => {
+                    if (nomTest === 'valeur') {
+                        return await objet.genererStringParametres() === stringForumInitial;
+                    }
+                    if (nomTest === 'section') {
+                        try {
+                            console.log(`objet.idSection après rafraichissement: ${objet.idSection}`);
+                            const sujetsSection = await Utils.recupererSujetsSection(objet.idSection);
+                            return sujetsSection.some(s => s.id === objet.idSujet);
+                        } catch (err) {
+                            return false;
+                        }
+                    }
+                    return false;
+                };
+
+                console.log('tests', tests);
+                console.log('test valeur:', objet.estModifie === false, objet.estModifie)
+
+                for (const test of tests) {
+                    const res = await executerTest(test);
+                    if (test === 'valeur') {
+                        resValeur = res;
+                    } else if (test === 'section') {
+                        resSection = res;
+                    }
+                    resultatsUnitaires.push(res);
+                }
+            }
+
+            if (!resValeur) {
+                if (inCreations) {
+                    this.creations = this.creations.filter(o => o !== objet);
+                }
+                if (inModifications) {
+                    this.modifications = this.modifications.filter(m => m.objetForum !== objet);
+                }
+            }
+            if (!resSection) {
+                if (inCreations) {
+                    this.creations = this.creations.filter(o => o !== objet);
+                }
+                if (inTransferts) {
+                    this.transferts = this.transferts.filter(t => t.objetForum !== objet);
+                }
+            }
+        }
+
+        console.log('resultatsUnitaires:', resultatsUnitaires);
+
+        if (resultatsUnitaires.length === 0) {
+            return 'OK';
+        }
+
+        const nbSucces = resultatsUnitaires.filter(x => x === true).length;
+        const nbEchecs = resultatsUnitaires.filter(x => x === false).length;
+
+        if (nbEchecs === 0) {
+            return 'OK';
+        } else if (nbSucces === 0) {
+            return 'COLLISION_TOTAL';
+        } else {
+            return 'COLLISION_INCOHERENT';
+        }
     }
 }

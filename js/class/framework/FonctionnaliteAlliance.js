@@ -47,78 +47,40 @@ class FonctionnaliteAlliance {
     static async executerTransaction(callback) {
         console.log("[GererCommandes] Transaction : ", transaction);
         if (transaction !== null) {
+            // Pour s'assurer qu'il s'agit d'un véritable appel imbriqué (nesting)
+            // et non d'une tâche de fond concurrente, on inspecte la pile d'appels.
+            const stack = new Error().stack || "";
+            const isNested = stack.includes("Transaction.run") || (stack.match(/executerTransaction/g) || []).length >= 2;
+            if (isNested) {
+                console.log("[FonctionnaliteAlliance] Transaction déjà en cours, exécution du callback dans le contexte de la transaction active (nesting).");
+                return await callback();
+            }
+
             $.toast({
                 ...TOAST_WARNING,
                 text: "Une opération est déjà en cours, veuillez patienter."
             });
-            return; // Ne pas lancer d'exception, juste arrêter l'opération.
+            return; // Bloque l'exécution concurrente hors nesting (ex: tâche de fond autonome)
         }
 
-        // Bloque les clics sur les liens menant à une autre page dans le même onglet
-        const intercepterClicsDestructeurs = (e) => {
-            const lien = e.target.closest('a');
-            if (lien) {
-                const href = lien.getAttribute('href');
-                const target = lien.getAttribute('target');
-
-                // On ne bloque que si le lien navigue réellement dans l'onglet courant
-                const estLienInterneVide = !href || href.startsWith('#') || href.startsWith('javascript:');
-                const ouvreDansNouvelOnglet = target === '_blank';
-
-                if (!estLienInterneVide && !ouvreDansNouvelOnglet) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    $.toast({
-                        ...TOAST_WARNING,
-                        text: "Navigation bloquée : une transaction est en cours."
-                    });
-                }
-            }
-        };
-
-        // Bloque la soumission de formulaires standards (qui rechargeraient la page)
-        const intercepterSoumissionsFormulaire = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            $.toast({
-                ...TOAST_WARNING,
-                text: "Action bloquée : attendez la fin de la transaction pour soumettre des formulaires."
-            });
-        };
-
-        // Bloque le rafraîchissement (F5 / bouton actualiser), la fermeture d'onglet, et la navigation externe
-        const bloquerFermetureEtRafraichissement = (e) => {
-            e.preventDefault();
-            e.returnValue = "Une transaction est en cours. Vos modifications risquent d'être perdues.";
-            return e.returnValue;
-        };
-
-        window.addEventListener('beforeunload', bloquerFermetureEtRafraichissement);
-        document.addEventListener('click', intercepterClicsDestructeurs, true); // Utilisation de la phase de capture
-        document.addEventListener('submit', intercepterSoumissionsFormulaire, true);
-
+        // if (transaction2 != null) {
+        //     transaction3 = new Transaction();
+        //     transaction = transaction3;
+        // } else {
+        //     transaction2 = new Transaction();
+        //     transaction = transaction2;
+        // }
         transaction = new Transaction();
+
         try {
-            const resultat = await callback();
-            console.log("[GererCommandes] Transaction : OK ")
+            const resultat = await transaction.run(callback);
             return resultat;
-        } catch (error) {
-            console.error(`[${this.constructor.name}][executerTransaction] Erreur lors de l'exécution de la transaction. Lancement du rollback.`, error);
-            try {
-                await transaction.annuler(this);
-            } catch (rollbackError) {
-                console.error(`[${this.constructor.name}][executerTransaction] Échec critique lors du rollback de la transaction:`, rollbackError);
-            }
-            $.toast({
-                ...TOAST_ERROR,
-                text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée."
-            });
-            // setTimeout(() => window.location.href = window.location.href, 3000);
-            throw error;
         } finally {
-            window.removeEventListener('beforeunload', bloquerFermetureEtRafraichissement);
-            document.removeEventListener('click', intercepterClicsDestructeurs, true);
-            document.removeEventListener('submit', intercepterSoumissionsFormulaire, true);
+            // if (transaction === transaction2) {
+            //     transaction2 = null;
+            // } else if (transaction === transaction3) {
+            //     transaction3 = null;
+            // }
             transaction = null;
         }
     }
@@ -388,7 +350,10 @@ class FonctionnaliteAlliance {
                 const keySig = JSON.stringify(sig); // Utiliser la signature comme clé pour différencier les chargements
 
                 console.log(`[${this.constructor.name}] Prise d'empreinte pour la signature : chargerObjetsForum(${sig.map(a => a.value || a.raw).join(', ')})`);
-                const objets = await this.chargerObjetsForum(...resolvedArgs);
+                let objets;
+                await FonctionnaliteAlliance.executerTransaction(async () => {
+                    objets = await this.chargerObjetsForum(...resolvedArgs);
+                });
                 const empreintes = await Promise.all(objets.map(obj => obj._prendreEmpreinte()));
                 empreinteTotale[nomClasse + "_" + keySig] = empreintes.sort();
             }
@@ -439,8 +404,9 @@ class FonctionnaliteAlliance {
         let joueurs;
         await FonctionnaliteAlliance.executerTransaction(async () => {
             joueurs = await this.chargerObjetsForum(Joueur, false);
+            console.log('joueurs chargés inside', joueurs)
         });
-        console.log('joueurs chargés', joueurs)
+        console.log('joueurs chargés outside', joueurs)
         const pseudoJoueurActuel = await monProfilJoueur.lire('Pseudo'); // En supposant que `pseudo` contient le pseudo du joueur connecté.
         console.log('pseudoJoueurActuel', pseudoJoueurActuel)
         if (!pseudoJoueurActuel) {
@@ -566,10 +532,11 @@ class FonctionnaliteAlliance {
         console.log('tousLesSujets: ', tousLesSujets)
 
         for (const sujet of tousLesSujets) {
-            console.log('sujet: ', sujet)
+            console.log(`id Section sujet: ${sujet.idSectionSource}`)
             const instance = new ClasseObjetForum(this, { idSujet: parseInt(sujet.id, 10), idSection: sujet.idSectionSource });
-            console.log('instanceClasse: ', instance)
+            console.log(`instance section id avant rafraichissement: ${instance.idSection}`);
             const chargementReussi = await instance.rafraichir(chargerContenus, false);
+            console.log(`instance section id après rafraichissement: ${instance.idSection}`);
             console.log('chargementReussi: ', chargementReussi)
             if (chargementReussi) {
                 // Transfert du sujet si nécessaire :
@@ -581,15 +548,17 @@ class FonctionnaliteAlliance {
                 }
                 console.log('instance pushing', instance);
                 objetsCharges.push(instance);
-                console.log('instance pushed:');
             } else {
                 console.warn(`Échec du chargement de l'objet depuis le sujet: "${sujet.titre}" (ID: ${sujet.id})`);
             }
         }
 
-        console.log('objetsCharges: ', objetsCharges)
-        cacheObjetForums.set(cleDemande, objetsCharges);
-        return objetsCharges;
+        // Détection et suppression des doublons logiques sur les objets principaux
+        const listeSansDoublons = await Utils.eliminerDoublons(objetsCharges);
+
+        console.log('objetsCharges (sans doublons): ', listeSansDoublons)
+        cacheObjetForums.set(cleDemande, listeSansDoublons);
+        return listeSansDoublons;
     }
 
     /**
@@ -602,7 +571,7 @@ class FonctionnaliteAlliance {
     static async mettreAJourCache(objet, supprimer = false) {
         console.log('mise à jour cache pour: ', objet, 'supprimer:', supprimer)
 
-        if (objet.constructor.LOCATION_HISTORY[objet.constructor.LOCATION_HISTORY.length - 1].lieu !== 'titre') {
+        if (objet.getLastLocation().lieu !== 'titre') {
             return;
         }
 
@@ -627,7 +596,7 @@ class FonctionnaliteAlliance {
                     } else {
                         console.log(`[FonctionnaliteAlliance] Mise à jour partielle (données) de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
                         // Transfert des paramètres et attributs de l'objet modifié vers l'objet en cache (qui garde ses flag/contenus propres)
-                        const donnees = await objet.lire();
+                        const donnees = await objet.lire(['paramètres', 'attributs non calculés']);
                         await objetEnCache.ecrire(donnees);
                     }
                 }
@@ -640,7 +609,7 @@ class FonctionnaliteAlliance {
                     // Liste sans contenants mais objet avec contenus -> ajout d'une version légère
                     console.log(`[FonctionnaliteAlliance] Ajout d'une version légère de l'objet ${nomClasse} (ID: ${objet.idSujet}) dans le cache ${key}.`);
                     const instanceLegere = new objet.constructor(objet.fonctionnaliteCreatrice, { idSujet: objet.idSujet, idSection: objet.idSection });
-                    const donnees = await objet.lire();
+                    const donnees = await objet.lire(['paramètres', 'attributs non calculés']);
                     await instanceLegere.ecrire(donnees);
                     liste.unshift(instanceLegere);
                 }

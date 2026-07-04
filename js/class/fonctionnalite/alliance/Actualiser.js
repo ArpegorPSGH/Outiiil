@@ -45,28 +45,31 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
         try {
             await this.page.synchroniserJoueursDepuisDOM();
 
-            await FonctionnaliteAlliance.executerTransaction(async () => {
-                const membresForum = await this.chargerObjetsForum(Joueur, false);
-                const membresForumMap = new Map();
-                for (const m of membresForum) {
-                    membresForumMap.set(await m.lire('Pseudo'), m);
-                }
+            const membresForum = await this.chargerObjetsForum(Joueur, false);
+            const membresForumMap = new Map();
+            for (const m of membresForum) {
+                membresForumMap.set(await m.lire('Pseudo'), m);
+            }
 
-                const promessesProfil = [];
-                for (const pseudo in this.page._alliance.joueurs) {
-                    let joueurForum = membresForumMap.get(pseudo);
+            const promessesProfil = [];
+            for (const pseudo in this.page._alliance.joueurs) {
+                let joueurForum = membresForumMap.get(pseudo);
 
-                    if (!joueurForum) {
-                        joueurForum = new Joueur(this, { donneesInitiales: { 'Pseudo': pseudo, 'Alliance Rattachement': this.page._alliance.tag } });
-                        if (await joueurForum.estJoueurCourant()) {
-                            joueurForum.ecrire('Version Extension', VERSION);
-                        }
-                        promessesProfil.push(joueurForum.enregistrerSurForum());
+                if (!joueurForum) {
+                    joueurForum = new Joueur(this, { donneesInitiales: { 'Pseudo': pseudo, 'Alliance Rattachement': this.page._alliance.tag } });
+                    if (await joueurForum.estJoueurCourant()) {
+                        joueurForum.ecrire('Version Extension', VERSION);
                     }
-
+                    promessesProfil.push(joueurForum.enregistrerSurForum());
                 }
-                await Promise.all(promessesProfil);
-            });
+
+            }
+            await Promise.all(promessesProfil);
+
+            if (promessesProfil.length > 0) {
+                const fonctionnaliteModifierGrade = new ModifierGrade(this.page);
+                await fonctionnaliteModifierGrade.init();
+            }
 
             $.toast({ ...TOAST_SUCCESS, text: "L'alliance a été mise à jour avec succès." });
         } catch (error) {

@@ -40,13 +40,17 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
             const data = membresForumMap.get(pseudo);
 
             if (data) {
+                const premierTd = $(elt).find('td:eq(0)');
+                if (premierTd.find('img[alt="grade"]').length > 0) {
+                    return;
+                }
                 const { joueur, id } = data;
                 const bouton = $(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                 bouton.onActionSecurisee('click', this, (e) => {
                     const boite = new BoiteGrade(joueur, this.page, id);
                     boite.afficher();
                 });
-                $(elt).find('td:eq(0)').append(bouton);
+                premierTd.append(bouton);
             }
         });
     }

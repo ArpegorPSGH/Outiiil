@@ -29,31 +29,29 @@ Utils.register(class AdministrerCommandes extends FonctionnaliteAlliance {
                 for (let etat in ETAT_COMMANDE) options += `<option value="${ETAT_COMMANDE[etat]}">${etat}</option>`;
                 $("#form_cat td:last")
                     .prepend(`<img class="cursor" id="o_afficherEtat" src="${IMG_CHANGE}" height="16" alt="changer" title="Changer l'etat des commandes selectionnées"/>`)
-                    .append(`<select id="o_selectEtatCommande" style="display:none;">${options}</select> <button id="o_changerEtat" style="display:none;">Modifier l'état</button>`);
+                    .append(`<select id="o_selectEtatCommande" style="display:none;">${options}</select> <button type="button" id="o_changerEtat" style="display:none;">Modifier l'état</button>`);
                 $("#o_afficherEtat").click((e) => { $("#o_changerEtat, #o_selectEtatCommande").toggle(); });
                 $("#o_changerEtat").onActionSecurisee('click', this, async (e) => {
-                    await FonctionnaliteAlliance.executerTransaction(async () => {
-                        let promiseCmdModif = new Array();
-                        $("#form_cat tr:gt(0)").each((i, elt) => {
-                            // si la commande est selectionnée
-                            if ($(elt).find("input[name='topic[]']:checked").length) {
-                                let id = $(elt).find("input[name='topic[]']").val();
-                                if (id) {
-                                    let commande = new Commande(this);
-                                    commande.idSujet = parseInt(id, 10);
-                                    promiseCmdModif.push((async () => {
-                                        await commande.rafraichir(false);
-                                        await commande.ecrire('État', $("#o_selectEtatCommande").val());
-                                        return commande.enregistrerSurForum();
-                                    })());
-                                }
+                    console.log('début changement état');
+                    let promiseCmdModif = new Array();
+                    $("#form_cat tr:gt(0)").each((i, elt) => {
+                        // si la commande est selectionnée
+                        if ($(elt).find("input[name='topic[]']:checked").length) {
+                            let id = $(elt).find("input[name='topic[]']").val();
+                            console.warn('id de la commande à changer:', id);
+                            if (id) {
+                                let commande = new Commande(this);
+                                commande.idSujet = parseInt(id, 10);
+                                promiseCmdModif.push((async () => {
+                                    await commande.rafraichir(false);
+                                    await commande.ecrire('État', $("#o_selectEtatCommande").val());
+                                    return commande.enregistrerSurForum();
+                                })());
                             }
-                        });
-                        Promise.all(promiseCmdModif).then((values) => {
-                            $.toast({ ...TOAST_SUCCESS, text: promiseCmdModif.length > 1 ? "Commandes mises à jour avec succès." : "Commande mise à jour avec succès." });
-                            location.reload();
-                        });
+                        }
                     });
+                    await Promise.all(promiseCmdModif);
+                    $.toast({ ...TOAST_SUCCESS, text: promiseCmdModif.length > 1 ? "Commandes mises à jour avec succès." : "Commande mise à jour avec succès." });
                     return false;
                 });
             }

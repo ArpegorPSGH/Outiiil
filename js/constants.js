@@ -218,3 +218,5 @@ const DATEPICKER_OPTION = {
 // Formats globaux par défaut de l'extension
 const FORMAT_DATE_DEFAUT = "D MMM [à] HH[h]mm";
 const FORMAT_DUREE_DEFAUT = "Y[A ]d[J ]h[h ]m[m ]ss[s]";
+
+const TRANSACTION_COLLISION_WAIT_MS = 1000;

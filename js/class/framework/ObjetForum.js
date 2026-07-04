@@ -199,6 +199,7 @@ class ObjetForum {
     constructor(fonctionnaliteCreatrice = null, options = {}) {
         this.fonctionnaliteCreatrice = fonctionnaliteCreatrice;
         this.objetParent = options.objetParent || null;
+        this.idSection = options.idSection || null;
         this.idSujet = options.idSujet || null;
         this.idMessage = options.idMessage || null;
 
@@ -361,7 +362,7 @@ class ObjetForum {
                 } else {
                     let estValide = false;
                     try {
-                        const nomSection = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1].section;
+                        const nomSection = this.getLastLocation().section;
                         const xmlDoc = await Utils.consulterSection(dernierId);
 
                         if (xmlDoc.querySelector('parsererror')) {
@@ -409,35 +410,52 @@ class ObjetForum {
     async rafraichir(chargerContenus = true, mettreAJourCache = true) {
         await this._acquireReadLock();
         console.log('début rafraichir')
+        console.log('transaction existe rafraichir:', transaction);
         let rafraichissementReussi = false;
         try {
-            if (!this.idSujet || this.idSujet < 0) {
-                console.error(`[${this.constructor.name}] Impossible de rafraîchir un objet sans idSujet valide. idSujet: ${this.idSujet}.`);
-            } else {
-                console.log('rafraichir 1')
-                const { titre: titreLu, messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.idSujet);
-                if (titreLu === null) {
-                    console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
+            const formatLieu = this.getLastLocation();
+            if (formatLieu.lieu === 'message') {
+                if (!this.objetParent || !this.objetParent.idSujet || this.idMessage === null) {
+                    console.error(`[${this.constructor.name}] Impossible de rafraîchir un message sans parent valide ou sans idMessage.`);
                 } else {
-                    console.log('rafraichir 2')
-                    if (!await this.chargerDepuisString(titreLu)) {
-                        console.warn(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
+                    const { messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.objetParent.idSujet);
+                    const msg = messagesLu.find(m => m.id === this.idMessage);
+                    if (!msg) {
+                        console.warn(`[${this.constructor.name}] Message ID ${this.idMessage} non trouvé dans le sujet parent.`);
                     } else {
-                        console.log('rafraichir 3')
-                        let erreurContenu = false;
-                        if (chargerContenus) {
-                            if (!await this.chargerObjetForumsContenus(messagesLu)) {
-                                console.warn(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
-                                erreurContenu = true;
+                        rafraichissementReussi = await this.chargerDepuisString(msg.contenu);
+                    }
+                }
+            } else {
+                if (!this.idSujet || this.idSujet < 0) {
+                    console.error(`[${this.constructor.name}] Impossible de rafraîchir un objet sans idSujet valide. idSujet: ${this.idSujet}.`);
+                } else {
+                    console.log('rafraichir 1')
+                    const { titre: titreLu, messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.idSujet);
+                    console.log('titreLu:', titreLu);
+                    if (titreLu === null) {
+                        console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
+                    } else {
+                        console.log('rafraichir 2')
+                        if (!await this.chargerDepuisString(titreLu)) {
+                            console.warn(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
+                        } else {
+                            console.log('rafraichir 3')
+                            let erreurContenu = false;
+                            if (chargerContenus) {
+                                if (!await this.chargerObjetForumsContenus(messagesLu)) {
+                                    console.warn(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
+                                    erreurContenu = true;
+                                }
                             }
-                        }
-                        if (!erreurContenu) {
-                            console.log('rafraichir 4')
-                            if (!await this.completerRafraichissement()) {
-                                console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
-                            } else {
-                                console.log('rafraichir 5')
-                                rafraichissementReussi = true;
+                            if (!erreurContenu) {
+                                console.log('rafraichir 4')
+                                if (!await this.completerRafraichissement()) {
+                                    console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
+                                } else {
+                                    console.log('rafraichir 5')
+                                    rafraichissementReussi = true;
+                                }
                             }
                         }
                     }
@@ -454,12 +472,14 @@ class ObjetForum {
 
 
         if (rafraichissementReussi) {
+            console.log('rafraichir 5.1')
             this.stringInitial = await this.genererStringParametres();
             if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
                 for (const sousObjet of this.objetsForumContenus) {
                     sousObjet.stringInitial = await sousObjet.genererStringParametres();
                 }
             }
+            console.log('rafraichir 5.2')
             await this.enregistrerSurForum(mettreAJourCache);
             console.log('rafraichir 6')
         }
@@ -524,8 +544,11 @@ class ObjetForum {
                     }
                 }
 
+                // Nettoyage des doublons logiques
+                const listeSansDoublons = await Utils.eliminerDoublons(nouveauxObjetForumsContenus);
+
                 // Remplacement de l'ancienne liste par la nouvelle
-                this.objetsForumContenus = nouveauxObjetForumsContenus; // Cette affectation utilisera le setter si une classe fille en définit un.
+                this.objetsForumContenus = listeSansDoublons; // Cette affectation utilisera le setter si une classe fille en définit un.
                 this.contenusCharges = true;
                 return true;
 
@@ -536,6 +559,51 @@ class ObjetForum {
         } finally {
             this._releaseReadLock();
         }
+    }
+
+    /**
+     * Vérifie de manière récursive si cet objet est un doublon logique de 'autre'.
+     * @param {ObjetForum} autre - L'autre objet à comparer.
+     * @returns {Promise<Boolean>} Vrai si c'est un doublon logique.
+     */
+    async estDoublonDe(autre) {
+        if (!autre || this.constructor !== autre.constructor) {
+            return false;
+        }
+
+        const lieu = this.getLastLocation().lieu;
+
+        console.log("[estDoublonDe] this.genererStringParametres() : ", await this.genererStringParametres());
+        console.log("[estDoublonDe] autre.genererStringParametres() : ", await autre.genererStringParametres());
+
+        if (await this.genererStringParametres() !== await autre.genererStringParametres()) {
+            return false;
+        }
+
+        if (lieu === 'message') {
+            return true;
+        }
+
+        if (this.objetsForumContenus.length !== autre.objetsForumContenus.length) {
+            return false;
+        }
+        const associes = new Set();
+        for (const sousObj of this.objetsForumContenus) {
+            let trouve = false;
+            for (let i = 0; i < autre.objetsForumContenus.length; i++) {
+                if (associes.has(i)) continue;
+                const autreSousObj = autre.objetsForumContenus[i];
+                if (await sousObj.estDoublonDe(autreSousObj)) {
+                    associes.add(i);
+                    trouve = true;
+                    break;
+                }
+            }
+            if (!trouve) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
@@ -830,6 +898,14 @@ class ObjetForum {
         return proprietes;
     }
 
+    static getLastLocation() {
+        return this.LOCATION_HISTORY[this.LOCATION_HISTORY.length - 1];
+    }
+
+    getLastLocation() {
+        return this.constructor.getLastLocation();
+    }
+
     // =========================================================================
     // MÉTHODES UNIFIÉES DE LECTURE / ÉCRITURE
     // =========================================================================
@@ -853,46 +929,83 @@ class ObjetForum {
      *
      * - `lire('Pseudo')` → retourne la valeur seule
      * - `lire(['Pseudo', 'Grade'])` → retourne `{ Pseudo: ..., Grade: ... }`
-     * - `lire(null)` → retourne l'ensemble : paramètres (dernière version) + tous les attributs
+     * - `lire(null)` ou `lire('tout')` → retourne l'ensemble : paramètres (dernière version) + tous les attributs
+     * - `lire('parametres')` → retourne uniquement les paramètres de la dernière version
+     * - `lire('attributs')` → retourne uniquement tous les attributs
+     * - `lire('attributs_calculés')` → retourne uniquement les attributs calculés
+     * - `lire('attributs_non_calculés')` → retourne uniquement les attributs non calculés
      *
      * En mode liste, les ErreurRestriction sont agrégées dans l'objet résultat puis relancées
      * sous forme d'une unique ErreurRestriction portant l'objet partiel en `.donnees`.
      *
-     * @param {string|string[]|null} noms - Nom unique, liste de noms, ou null pour tout lire.
+     * @param {string|string[]|null} noms - Nom unique, liste de noms, mot-clé ('tout', 'parametres', 'attributs', 'attributs_calculés', 'attributs_non_calculés'), ou null pour tout lire.
      * @param {boolean} [peutVoirDonneesRestreintes=true]
-     * @returns {Promise<*|Object>} Valeur unique (string) ou objet {nom: valeur} (liste/null).
+     * @returns {Promise<*|Object>} Valeur unique (string) ou objet {nom: valeur} (liste/null/mots-clés).
      */
-    async lire(noms = null, peutVoirDonneesRestreintes = true) {
+    async lire(noms = 'tout', peutVoirDonneesRestreintes = true) {
+        const normalizeKey = (str) => {
+            if (typeof str !== 'string') return '';
+            return str.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "");
+        };
+
         // --- Mode unitaire ---
-        if (typeof noms === 'string') {
+        const motsClesNormalises = ['tout', 'tous', 'parametres', 'attributs', 'attributscalcules', 'attributsnoncalcules'];
+        const nomNormalise = typeof noms === 'string' ? normalizeKey(noms) : '';
+        if (typeof noms === 'string' && !motsClesNormalises.includes(nomNormalise)) {
             const donnee = this._resoudreDonnee(noms);
             if (!donnee) return null;
             return await donnee.lire(peutVoirDonneesRestreintes);
         }
 
-        // --- Mode liste ou null ---
+        // --- Mode liste ou mots-clés ou null ---
         const resultats = {};
         const erreursRestriction = [];
 
-        let entrees; // [{nom, donnee}]
+        let entrees = []; // [{nom, donnee}]
+        let selectors = [];
         if (Array.isArray(noms)) {
-            // Liste explicite : on résout chaque nom
-            entrees = noms
-                .map(nom => ({ nom, donnee: this._resoudreDonnee(nom) }))
-                .filter(e => e.donnee !== null);
+            selectors = noms;
         } else {
-            // null : paramètres de la dernière version + tous les attributs
-            const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1] || [];
-            const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
-            entrees = classesDerniereVersion
-                .map(classe => mapClasseInstance.get(classe))
-                .filter(Boolean)
-                .map(p => ({ nom: p.constructor.getDernierNom(), donnee: p }));
-            // Ajouter les attributs
-            for (const attribut of this.attributs) {
-                entrees.push({ nom: attribut.constructor.getDernierNom(), donnee: attribut });
-            }
+            selectors = [noms];
         }
+
+        selectors.forEach(sel => {
+            const selNorm = normalizeKey(sel);
+            if (motsClesNormalises.includes(selNorm)) {
+                // Ajouter les paramètres
+                if (selNorm === 'tout' || selNorm === 'tous' || selNorm === 'parametres') {
+                    const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1] || [];
+                    const mapClasseInstance = new Map(this.parametres.map(p => [p.constructor, p]));
+                    classesDerniereVersion.forEach(classe => {
+                        const p = mapClasseInstance.get(classe);
+                        if (p) {
+                            entrees.push({ nom: p.constructor.getDernierNom(), donnee: p });
+                        }
+                    });
+                }
+
+                // Ajouter les attributs
+                if (selNorm === 'tout' || selNorm === 'tous' || selNorm === 'attributs' || selNorm === 'attributscalcules' || selNorm === 'attributsnoncalcules') {
+                    for (const attribut of this.attributs) {
+                        const estCalcule = attribut._estCalcule();
+                        if (selNorm === 'tout' || selNorm === 'tous' || selNorm === 'attributs' ||
+                            (selNorm === 'attributscalcules' && estCalcule) ||
+                            (selNorm === 'attributsnoncalcules' && !estCalcule)) {
+                            entrees.push({ nom: attribut.constructor.getDernierNom(), donnee: attribut });
+                        }
+                    }
+                }
+            } else {
+                // Nom de donnée spécifique
+                const donnee = this._resoudreDonnee(sel);
+                if (donnee) {
+                    entrees.push({ nom: sel, donnee });
+                }
+            }
+        });
 
         for (const { nom, donnee } of entrees) {
             try {
@@ -953,30 +1066,35 @@ class ObjetForum {
      * @returns {Promise<void>}
      */
     async supprimerSurForum() {
-        const formatLieu = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1];
-        if (formatLieu.lieu === 'titre') {
-            if (this.idSujet !== null) {
-                await Utils.supprimerSujet(this.idSujet, this.idSection);
-                this.idSujet = null;
-                this.estModifie = true;
-                transaction.enregistrerSuppression(this);
+        await this._acquireWriteLock();
+        try {
+            const formatLieu = this.getLastLocation();
+            if (formatLieu.lieu === 'titre') {
+                if (this.idSujet !== null) {
+                    await Utils.supprimerSujet(this.idSujet, this.idSection);
+                    transaction.enregistrerSuppression(this);
+                    this.idSujet = null;
+                    this.estModifie = true;
+                }
+                if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
+                    this.objetsForumContenus.forEach(m => {
+                        m.idMessage = null;
+                        m.estModifie = true;
+                    });
+                }
+            } else if (formatLieu.lieu === 'message') {
+                if (this.idMessage !== null) {
+                    console.warn(`Suppression message: ${this.idMessage}`);
+                    await Utils.supprimerMessage(this.idMessage);
+                    transaction.enregistrerSuppression(this);
+                    this.idMessage = null;
+                    this.estModifie = true;
+                }
             }
-            if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
-                this.objetsForumContenus.forEach(m => {
-                    m.idMessage = null;
-                    m.estModifie = true;
-                });
-            }
-        } else if (formatLieu.lieu === 'message') {
-            if (this.idMessage !== null) {
-                console.warn(`Suppression message: ${this.idMessage}`);
-                await Utils.supprimerMessage(this.idMessage);
-                this.idMessage = null;
-                this.estModifie = true;
-                transaction.enregistrerSuppression(this);
-            }
+            await FonctionnaliteAlliance.mettreAJourCache(this, true);
+        } finally {
+            this._releaseWriteLock();
         }
-        await FonctionnaliteAlliance.mettreAJourCache(this, true);
     }
 
     /**
@@ -998,14 +1116,19 @@ class ObjetForum {
      * @param {number} idSection - L'ID de la section de destination.
      */
     async transferer(idSectionCible) {
-        if (this.idSujet === null || this.idSection === null) {
-            console.error(`Erreur lors du transfert: L'objet n'a pas de sujet forum ou de section.`);
-            return;
+        await this._acquireWriteLock();
+        try {
+            if (this.idSujet === null || this.idSection === null) {
+                console.error(`Erreur lors du transfert: L'objet n'a pas de sujet forum ou de section.`);
+                return;
+            }
+            await Utils.transfererSujet(this.idSujet, idSectionCible, this.idSection);
+            transaction.enregistrerTransfert(this);
+            this.idSection = idSectionCible;
+            console.log(`[${this.constructor.name}] Transfert: ${this.idSujet} -> ${idSectionCible}. Nouvelle section: ${this.idSection}`);
+        } finally {
+            this._releaseWriteLock();
         }
-        await Utils.transfererSujet(this.idSujet, idSectionCible, this.idSection);
-        transaction.enregistrerTransfert(this);
-        this.idSection = idSectionCible;
-        console.log(`[${this.constructor.name}] Transfert: ${this.idSujet} -> ${idSectionCible}. Nouvelle section: ${this.idSection}`);
     }
 
     /**
@@ -1017,12 +1140,13 @@ class ObjetForum {
         await this._acquireWriteLock();
         try {
             console.log(`[${this.constructor.name}] estModifie:`, this.estModifie);
+            console.log('transaction existe enregistrerSurForum:', transaction);
             // 1. Enregistrement de l'objet principal (conditionnel)
             if (this.estModifie) {
                 const contenuFinal = await this.genererStringParametres();
                 console.log(`[${this.constructor.name}] contenuFinal: ${contenuFinal}`);
 
-                const formatLieu = this.constructor.LOCATION_HISTORY[this.constructor.LOCATION_HISTORY.length - 1];
+                const formatLieu = this.getLastLocation();
                 const idSection = this.idSection ? this.idSection : this.idsSection[this.idsSection.length - 1];
 
                 if (formatLieu.lieu === 'titre') {

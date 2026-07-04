@@ -219,7 +219,7 @@ async function initialiserFrameworkGlobal() {
     window.nomsSectionsRequis = new Set();
     registreClasses.ObjetForum.forEach(ClasseObjetForum => {
         if (Array.isArray(ClasseObjetForum.LOCATION_HISTORY) && ClasseObjetForum.LOCATION_HISTORY.length > 0) {
-            const dernierLieu = ClasseObjetForum.LOCATION_HISTORY[ClasseObjetForum.LOCATION_HISTORY.length - 1];
+            const dernierLieu = ClasseObjetForum.getLastLocation();
             if (dernierLieu.section) {
                 nomsSectionsRequis.add(dernierLieu.section);
             }
@@ -242,6 +242,8 @@ async function initialiserFrameworkGlobal() {
 
     // Création de la variable globale des transactions
     window.transaction = null;
+    // window.transaction2 = null;
+    // window.transaction3 = null;
 
     console.log("Framework global initialisé.");
 }

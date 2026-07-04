@@ -13,7 +13,7 @@ Utils.register(class Convoi extends ObjetForum {
             DateDepart,
             Expediteur,
             IdCommande,
-            IdAnnulation
+            IdConvoi
         ]
     ];
 
@@ -119,13 +119,13 @@ Utils.register(class Convoi extends ObjetForum {
     // *
     // */
     // get idAnnulation() {
-    //     return this.lire('Id Annulation');
+    //     return this.lire('Id Convoi');
     // }
     // /**
     // *
     // */
     // set idAnnulation(newIdAnnulation) {
-    //     this.ecrire('Id Annulation', newIdAnnulation);
+    //     this.ecrire('Id Convoi', newIdAnnulation);
     // }
     // /**
     // *
@@ -167,7 +167,7 @@ Utils.register(class Convoi extends ObjetForum {
     //     // Si le convoi m'est destiné et que le datetime d'arrivée n'est pas dépassé
     //     let tempsRestant = moment(await this.lire('Date Arrivée')).diff(moment()) / 1000;
     //     $(id).after(`<strong>- Vous allez recevoir ${numeral(await this.lire('Nourriture')).format()} ${IMG_POMME} et ${numeral(await this.lire('Matériaux')).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${await this.lire('Expéditeur')}">${await this.lire('Expéditeur')}</a> dans <span id='convoi_${this._id}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(await this.lire('Date Arrivée')).format("D MMM YYYY à HH[h]mm")}</small><br/>`);
-    //     Utils.decreaseTime(moment(await this.lire('Date Arrivée')).diff(moment()) / 1000, "convoi_" + await this.lire('Id Annulation'));
+    //     Utils.decreaseTime(moment(await this.lire('Date Arrivée')).diff(moment()) / 1000, "convoi_" + await this.lire('Id Convoi'));
     //     return this;
     // }
 

@@ -78,14 +78,45 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
             $("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
+                // $("#o_ajouterCommande").on('click', async (e) => {
                 // let commandeTest = new Commande(this);
+                // await commandeTest.enregistrerSurForum();
+
+                // let commandeTest2 = this.commandes[0];
+                // await commandeTest2.ecrire('Matériaux Demandés', 1000);
+                // await commandeTest2.enregistrerSurForum();
+                // await commandeTest2.transferer(50769);
+
+                // let commandeTest2 = this.commandes[0];
+                // await commandeTest2.ecrire('Matériaux Demandés', 1000);
+                // await commandeTest2.enregistrerSurForum();
+                // let convoiTest = commandeTest2.objetsForumContenus[0];
+                // await convoiTest.ecrire('Matériaux', 50);
+                // await convoiTest.enregistrerSurForum();
+                // await convoiTest.supprimer();
+                // await commandeTest2.supprimer();
+
                 // let convoiTest = new Convoi(this);
-                // await FonctionnaliteAlliance.executerTransaction(async () => {
-                //     await commandeTest.enregistrerSurForum();
-                //     commandeTest.objetsForumContenus = [convoiTest];
-                //     convoiTest.objetParent = commandeTest;
-                //     await commandeTest.enregistrerSurForum();
-                //     await commandeTest.ecrire('Matériaux Demandés', 1000);
+                // let commandeTest3 = this.commandes[1];
+                // commandeTest3.objetsForumContenus = [convoiTest];
+                // convoiTest.objetParent = commandeTest3;
+                // await commandeTest3.enregistrerSurForum();
+
+                // let convoiTest2 = this.commandes[2].objetsForumContenus[0];
+                // await convoiTest2.ecrire('Matériaux', 50);
+                // await this.commandes[2].enregistrerSurForum()
+
+                // this.commandes[0].objetsForumContenus = [convoiTest];
+                // convoiTest.objetParent = this.commandes[0];
+                // await this.commandes[0].enregistrerSurForum();
+
+                // console.log('commandeTest:', commandeTest);
+                // await commandeTest.enregistrerSurForum();
+                // await commandeTest.transferer(50769);
+                // await convoiTest.ecrire('Matériaux', 100);
+                // await this.commandes[0].enregistrerSurForum();
+                // console.log('début attente');
+                // await Utils.sleep(30000);
                 //     await commandeTest.enregistrerSurForum();
                 //     await commandeTest.transferer(50769);
                 //     await convoiTest.ecrire('Matériaux', 100);
@@ -95,10 +126,10 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 //     await commandeTest.transferer(50908);
                 //     await convoiTest.ecrire('Matériaux', 10000);
                 //     await commandeTest.enregistrerSurForum();
-                //     await convoiTest.supprimer();
+                // await convoiTest.supprimer();
                 // });
                 // await FonctionnaliteAlliance.executerTransaction(async () => {
-                //     await commandeTest.supprimer();
+                // await commandeTest.supprimer();
                 //     await Utils.sleep(10000);
                 //     throw new Error('Erreur de test');
                 // });
@@ -110,7 +141,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     this.commandes.push(nouvelleCommande);
                 }
                 let boiteCommande = new BoiteCommande(nouvelleCommande, this.page);
-                await boiteCommande.afficher();
+                boiteCommande.afficher();
             });
 
         }
@@ -314,7 +345,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         const idsDejaRattaches = new Set();
         for (const cmd of this.commandes) {
             for (const convContenu of cmd.objetsForumContenus) {
-                const idAnnul = await convContenu.lire('Id Annulation');
+                const idAnnul = await convContenu.lire('Id Convoi');
                 if (idAnnul) idsDejaRattaches.add(idAnnul);
             }
         }
@@ -347,7 +378,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             console.log("Correspondances: ", correspondances);
             if (correspondances.length > 0) {
                 const leBonConvoi = correspondances[0];
-                await convoiDataObj.ecrire('Id Annulation', leBonConvoi.idAnnulation);
+                await convoiDataObj.ecrire('Id Convoi', leBonConvoi.idAnnulation);
 
                 await FonctionnaliteAlliance.executerTransaction(async () => {
                     await commande.ajouterConvoi(convoiDataObj);

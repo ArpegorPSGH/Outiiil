@@ -33,6 +33,7 @@ Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramèt
         - Si le paramètre a des restrictions d'affichage, définissez `ParametreObjetForum.stringRestriction`.
         - **Format d'affichage personnalisé :** Définissez `DonneeValidable.FORMAT_AFFICHAGE` (ex: `'D MMM [à] HH[h]mm'`). Pour les dates (`moment`), si cette propriété est nulle, le format global `window.FORMAT_DATE_DEFAUT` (défini dans `main.js`) est appliqué.
         - La valeur par défaut du paramètre doit être initialisée directement dans la déclaration de la classe fille (ex: `valeur = 0;`). Un paramètre ne peut contenir que des listes, des dictionnaires, ou des types primitifs (nombre, chaîne, booléen), peu importe le niveau de nesting.
+        - **Classe personnalisée :** En cas d'utilisation d'une classe personnalisée (custom class) comme valeur de paramètre, celle-ci devra obligatoirement implémenter la sérialisation.
     - **Pour un attribut :**
         - Définissez son nom d'affichage via `AttributObjet.NOM_AFFICHAGE` (une liste de chaînes).
         - (Optionnel) Définissez ses alias d'appel via `AttributObjet.NOM_APPEL`.
@@ -92,7 +93,8 @@ Pour garantir la robustesse des fonctionnalités :
     - Les classes de paramètres, objets, fonctionnalités et pages doivent directement hériter de leurs classes mères respectives.
     - Les modifications de formats des paramètres (comme les formats de template string) ne doivent être effectuées que dans la classe mère des paramètres (`ParametreObjetForum`), et non dans les classes de paramètres filles.
 - **Accès au forum :** Ne jamais accéder au forum avec un `ObjetForum` créé à l'extérieur d'une `FonctionnaliteAlliance`. Ces instances doivent être créées à l'intérieur de la fonctionnalité (ou sa classe mère), dans un autre `ObjetForum` (via `objetsForumContenus`), ou dans `initialiserFrameworkGlobal()` pour les objets globaux.
-- **Manipulation des sujets/messages :** Ne jamais créer, modifier ou supprimer un sujet ou un message sur le forum sans passer par les fonctions dédiées de l'objet (`ObjetForum`).
+- **Manipulation des sujets/messages :** Ne jamais créer, modifier, lire, transférer ou supprimer un sujet ou un message sur le forum directement avec `Utils`, mais uniquement en passant par les fonctions dédiées de l'objet (`ObjetForum`).
+- **Recréation d'objets supprimés :** Ne jamais recréer sur le forum un objet supprimé (en dehors du mécanisme de rollback).
 - **Initialisation des gestionnaires :** Pour un nouveau gestionnaire, il doit être créé dans la fonction d'initialisation et hériter d'`ObjetForum`, et spécifier sa section dans `ObjetForum.LOCATION_HISTORY`.
 - **Unicité des historiques :**
     - Le premier format de `ParametreObjetForum.FORMAT_HISTORY` sert d'ancre unique pour un paramètre. Deux classes de paramètres ne doivent jamais partager la même ancre.
@@ -273,6 +275,7 @@ Pour prévenir les conflits de modification et l'utilisation de données périm�
 *   **Points de vigilance :**
     - L'analyse AST détecte les dépendances dans la classe actuelle et sa classe parente.
     - Seuls les objets chargés via `chargerObjetsForum` sont inclus dans l'empreinte automatique.
+    - L'action sécurisée appelle déjà la transaction en interne. Il faut donc veiller à ne pas déclarer de transaction (`executerTransaction`) dans le callback d'une action sécurisée, afin d'éviter une exception d'imbrication de transactions.
 
 ---
 
@@ -355,6 +358,14 @@ Pour des cas d'écriture complexes impliquant plusieurs objets ou des actions va
         *   `enregistrerModification(objet)` : Conserve l'objet et son `stringInitial` d'origine pour pouvoir le restaurer.
         *   `enregistrerTransfert(objet)` : Conserve l'objet transféré pour le replacer dans sa section originale.
         *   `enregistrerSuppression(objet)` : Conserve l'objet supprimé pour le recréer si nécessaire.
+    *   **Détermination des objets actifs :** Exclut de la liste des objets actifs les objets présents dans la liste de suppression, ainsi que tous les objets dont le parent direct (`objetParent`) est lui-même présent dans la liste de suppression.
+    *   **Vérification de l'état post-transaction et gestion fine des collisions :**
+        *   Les tests unitaires (`valeur`, `section`) sont exécutés uniquement sur les objets actifs.
+        *   En cas d'échec d'un test unitaire (collision partielle), l'objet concerné est sélectivement retiré des listes d'opérations de la transaction qui sont associées à ce test précis :
+            *   Un échec du test **`valeur`** retire l'objet des listes `modifications` et `creations`.
+            *   Un échec du test **`section`** retire l'objet des listes `transferts` et `creations`.
+            *   Pour une création d'objet (par exemple un sujet actif nécessitant à la fois la vérification de la valeur et de la section), l'échec d'un seul de ces deux tests unitaires suffit à exclure l'objet de la liste `creations`.
+            *   *Bénéfice :* Cela garantit que le rollback (`annuler()`) ultérieur de la transaction n'écrase pas les opérations concurrentes légitimes effectuées par d'autres transactions sur le forum.
     *   **Méthode `annuler()` (Rollback) :** Exécute les opérations inverses dans l'ordre approprié pour remettre le forum dans son état initial en cas d'échec.
 
 *   **Utilisation dans `FonctionnaliteAlliance` :**
@@ -367,7 +378,6 @@ Pour des cas d'écriture complexes impliquant plusieurs objets ou des actions va
         *   **Périmètre :** Restreindre la portée des transactions au plus près autour des écritures sur le forum (et non englober de longs calculs ou requêtes préalables) afin de limiter la durée de verrouillage et de réduire le risque de collisions entre transactions concurrentes.
         *   **Lieu de déclaration :** Les transactions sont à déclarer exclusivement au niveau des fonctionnalités (classes héritant de `FonctionnaliteAlliance`) et des boîtes (classes héritant de `Boite`) appelées par ces fonctionnalités.
         *   **Pas d'action utilisateur dans la transaction :** Le callback exécuté au sein d'une transaction ne doit pas inclure la moindre action ou interaction de l'utilisateur (comme attendre la saisie d'un formulaire, une confirmation ou un clic). Toute interaction doit être gérée en amont.
-        *   **Pas d'imbrication (nesting) :** Veiller à ne pas nester (imbriquer) des appels à `executerTransaction`. Si une fonction exécutant déjà une transaction en appelle une autre, s'assurer que cette dernière n'initie pas elle-même une nouvelle transaction imbriquée (ce qui lèverait une exception de transaction déjà en cours).
     *   **Exemple d'utilisation :**
         ```javascript
         await this.executerTransaction(async () => {

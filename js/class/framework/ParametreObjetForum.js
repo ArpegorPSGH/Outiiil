@@ -247,7 +247,8 @@ class ParametreObjetForum extends DonneeValidable {
             const checkResult = this._checkValeur(valeurMigree);
             if (checkResult.success) {
                 this.estCharge = true;
-                if (this.valeur !== checkResult.value) {
+                if (JSON.stringify(this.valeur) !== JSON.stringify(checkResult.value)) {
+                    console.log(`[${this.constructor.name}] La valeur a été modifiée. Valeur avant : ${this.valeur}. Valeur après : ${checkResult.value}.`);
                     this.estModifie = true;
                 }
                 this.valeur = checkResult.value;

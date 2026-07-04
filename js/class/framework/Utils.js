@@ -413,12 +413,12 @@ class Utils {
         });
     }
 
-     /**
-     * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
-     * @async
-     * @param {Number} idSection L'ID de la section à consulter.
-     * @returns {Promise<Array<{id: Number, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
-     */
+    /**
+    * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
+    * @async
+    * @param {Number} idSection L'ID de la section à consulter.
+    * @returns {Promise<Array<{id: Number, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
+    */
     static async recupererSujetsSection(idSection) {
         try {
             const dataSection = await Utils.consulterSection(idSection);
@@ -571,15 +571,21 @@ class Utils {
     }
 
     /**
-     * Consulte un sujet et retourne une liste d'objets message, incluant le contenu et l'ID de chaque message.
+     * Consulte un sujet et retourne une liste d'objets message, incluant le contenu et l'ID de chaque message, ainsi que l'ID de la section courante.
      * @async
      * @param {Number} idSujet L'ID du sujet à consulter.
-     * @returns {Promise<{titre: String, messages: Array<{id: Number, contenu: String}>}>} Une promesse qui résout avec un objet contenant le titre du sujet et un tableau d'objets message.
+     * @returns {Promise<{idSection: Number, titre: String, messages: Array<{id: Number, contenu: String}>}>} Une promesse qui résout avec un objet contenant l'ID de la section, le titre du sujet et un tableau d'objets message.
      */
     static async consulterSujetAvecMessagesEtIds(idSujet) {
         try {
             const dataSujet = await Utils.consulterSujet(idSujet);
             const response = $(dataSujet).find("cmd:eq(1)").text();
+
+            if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
+                console.error("[Utils][consulterSujetAvecMessagesEtIds] Impossible de récupérer le contenu du sujet.");
+                return { titre: null, messages: null };
+            }
+
             const sujetHtml = $("<div/>").append(response);
             const titre = sujetHtml.find("h2").text();
             const messageElements = sujetHtml.find(".messageForum");
@@ -648,21 +654,38 @@ class Utils {
      * @returns {Promise<any>}
      */
     static async supprimerSujet(idSujet, idSection) {
-        return $.ajax({
-            type: "post",
-            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
-            data: {
-                "xajax": "callSupprimer",
-                "xajaxargs[]": [
-                    `<xjxquery><q>topic[]=${idSujet}</q></xjxquery>`,
-                    idSection
-                ],
-                "xajaxr": moment().valueOf()
+        try {
+            const data = await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+                data: {
+                    "xajax": "callSupprimer",
+                    "xajaxargs[]": [
+                        `<xjxquery><q>topic[]=${idSujet}</q></xjxquery>`,
+                        idSection
+                    ],
+                    "xajaxr": moment().valueOf()
+                }
+            });
+
+            let responseText = "";
+            if (data) {
+                if (typeof data === "string") {
+                    responseText = data;
+                } else {
+                    responseText = $(data).find("cmd").text() || $(data).text() || "";
+                }
             }
-        }).catch(error => {
+
+            if (responseText.includes(`xajax_callGetTopic(${idSujet})`) || responseText.includes(`xajax_callGetTopic('${idSujet}')`)) {
+                throw new Error(`Le sujet ID ${idSujet} est toujours présent dans la réponse du forum après suppression.`);
+            }
+
+            return data;
+        } catch (error) {
             console.error(`[Utils] Erreur lors de la suppression du sujet : ${idSujet}):`, error);
             throw error;
-        });
+        }
     }
 
     /**
@@ -745,24 +768,70 @@ class Utils {
         }
     }
 
-        /**
-     * Supprime un message du forum.
-     * @static
-     * @param {number} idMessage - L'ID du message à supprimer.
-     * @returns {Promise<any>}
-     */
+    /**
+ * Supprime un message du forum.
+ * @static
+ * @param {number} idMessage - L'ID du message à supprimer.
+ * @returns {Promise<any>}
+ */
     static async supprimerMessage(idMessage) {
-        return $.ajax({
-            type: "post",
-            url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
-            data: {
-                "xajax": "callSupprimerMessage",
-                "xajaxargs[]": idMessage,
-                "xajaxr": moment().valueOf()
+        try {
+            const data = await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
+                data: {
+                    "xajax": "callSupprimerMessage",
+                    "xajaxargs[]": idMessage,
+                    "xajaxr": moment().valueOf()
+                }
+            });
+
+            let responseText = "";
+            if (data) {
+                if (typeof data === "string") {
+                    responseText = data;
+                } else {
+                    responseText = $(data).find("cmd").text() || $(data).text() || "";
+                }
             }
-        }).catch(error => {
+
+            if (responseText.includes(`remove_message(${idMessage})`) ||
+                responseText.includes(`remove_message('${idMessage}')`) ||
+                responseText.includes(`xajax_editMessage(${idMessage})`) ||
+                responseText.includes(`xajax_editMessage('${idMessage}')`)) {
+                throw new Error(`Le message ID ${idMessage} est toujours présent dans la réponse du forum après suppression.`);
+            }
+
+            return data;
+        } catch (error) {
             console.error(`[Utils] Erreur lors de la suppression du message : ${idMessage}):`, error);
             throw error;
-        });
+        }
+    }
+
+    /**
+     * Élimine les doublons logiques d'une liste d'instances d'ObjetForum.
+     * @static
+     * @param {Array<ObjetForum>} instances - La liste des instances à nettoyer.
+     * @returns {Promise<Array<ObjetForum>>} La liste filtrée sans doublons.
+     */
+    static async eliminerDoublons(instances) {
+        const listeSansDoublons = [];
+        for (const instance of instances) {
+            let estDoublon = false;
+            for (const uniqueInstance of listeSansDoublons) {
+                if (await instance.estDoublonDe(uniqueInstance)) {
+                    estDoublon = true;
+                    break;
+                }
+            }
+            if (estDoublon) {
+                console.log(`Doublon détecté pour ${instance.constructor.name} ID ${instance.idMessage || instance.idSujet}. Suppression du doublon.`);
+                await instance.supprimer();
+            } else {
+                listeSansDoublons.push(instance);
+            }
+        }
+        return listeSansDoublons;
     }
 }

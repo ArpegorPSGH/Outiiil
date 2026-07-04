@@ -50,13 +50,13 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
                 const tempsRestant = moment(dateArrivee).diff(moment(), 'seconds');
 
                 if (tempsRestant > 0) {
-                    const convoiData = await convoi.lire(['Nourriture', 'Matériaux', 'Expéditeur', 'Id Annulation']);
+                    const convoiData = await convoi.lire(['Nourriture', 'Matériaux', 'Expéditeur', 'Id Convoi']);
 
-                    html += `<strong>- Vous allez recevoir ${numeral(convoiData['Nourriture']).format()} ${IMG_POMME} et ${numeral(convoiData['Matériaux']).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${convoiData['Expéditeur']}">${convoiData['Expéditeur']}</a> dans <span id='convoi_entrant_${convoiData['Id Annulation']}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(dateArrivee).format("D MMM YYYY à HH[h]mm")}</small><br/>`;
+                    html += `<strong>- Vous allez recevoir ${numeral(convoiData['Nourriture']).format()} ${IMG_POMME} et ${numeral(convoiData['Matériaux']).format()} ${IMG_MAT} de <a href="Membre.php?Pseudo=${convoiData['Expéditeur']}">${convoiData['Expéditeur']}</a> dans <span id='convoi_entrant_${convoiData['Id Convoi']}'>${Utils.intToTime(tempsRestant)}</span></strong> - <small>Retour le ${Utils.roundMinute(dateArrivee).format("D MMM YYYY à HH[h]mm")}</small><br/>`;
 
                     timers.push({
                         temps: tempsRestant,
-                        id: "convoi_entrant_" + convoiData['Id Annulation']
+                        id: "convoi_entrant_" + convoiData['Id Convoi']
                     });
                 }
             }

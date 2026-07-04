@@ -309,7 +309,7 @@ Utils.register(class Commande extends ObjetForum {
         // Rechercher le convoi avec cet ID d'annulation dans les convois de cette commande
         let convoiTrouve = null;
         for (const convoi of this.objetsForumContenus) {
-            const idAnnulationConvoi = await convoi.lire('Id Annulation');
+            const idAnnulationConvoi = await convoi.lire('Id Convoi');
             if (idAnnulationConvoi === idAnnulation) {
                 convoiTrouve = convoi;
                 break;

@@ -100,11 +100,8 @@ class BoiteCommande extends Boite {
             let message = await this._commande.estValide();
             if (!message) {
                 try {
-                    await FonctionnaliteAlliance.executerTransaction(async () => {
-                        // Enregistrer sur le forum via le framework
-                        await this._commande.enregistrerSurForum();
-                    });
-
+                    // Enregistrer sur le forum via le framework
+                    await this._commande.enregistrerSurForum();
                     if (this._estNouvelle) {
                         $.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
                     } else {
@@ -169,7 +166,7 @@ class BoiteCommande extends Boite {
             <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${materiauxDemandes}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
             <div class="group"><input name="o_dateCommande" class="o_input" type="text" value="${dateSouhaite}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Pour le*</label></div>
             <div class="group"><input name="o_dateApres" class="o_input" type="text" value="${dateApres}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>&Agrave; Partir du</label></div>
-            <br/><button id="o_commander${await this._commande.idSujet}" name="o_btnCommande" class="o_button f_success">Commander</button>
+            <br/><button type="button" id="o_commander${await this._commande.idSujet}" name="o_btnCommande" class="o_button f_success">Commander</button>
             </form></div>`);
         return this;
     }

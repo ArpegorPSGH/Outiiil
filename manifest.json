@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "Outiiil",
-	"version": "3.18.0",
+	"version": "3.19.0",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
 		"48": "images/icons/gear_48.png",
@@ -134,7 +134,7 @@
 				"js/class/parametre/convoi/DateDepart.js",
 				"js/class/parametre/convoi/Destinataire.js",
 				"js/class/parametre/convoi/Expediteur.js",
-				"js/class/parametre/convoi/IdAnnulation.js",
+				"js/class/parametre/convoi/IdConvoi.js",
 				"js/class/parametre/convoi/IdCommande.js",
 				"js/class/parametre/convoi/MateriauxEnvoyes.js",
 				"js/class/parametre/convoi/NourritureEnvoyee.js",
@@ -148,6 +148,7 @@
 				"js/class/fonctionnalite/alliance/JoueursExterieurs.js",
 				"js/class/fonctionnalite/alliance/ModifierGrade.js",
 				"js/class/fonctionnalite/alliance/Recenser.js",
+				"js/class/fonctionnalite/commerce/testTransactionsConcurrentes.js",
 				"js/class/fonctionnalite/commerce/AfficherConvois.js",
 				"js/class/fonctionnalite/commerce/GererCommandes.js",
 				"js/class/fonctionnalite/forum/AdministrerForum.js",

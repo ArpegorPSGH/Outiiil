@@ -9,8 +9,59 @@ $.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
     return this.on(evenement, async function (e, data) {
         // 1. Validation du flag de sécurité
         if (data && data.isSecured) {
-            return await callback.call(this, e);
+            // Bloque l'action par défaut du navigateur (soumission, clic de lien, etc.) de manière synchrone pendant que la transaction s'exécute
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            let resultatAction = await FonctionnaliteAlliance.executerTransaction(async () => {
+                return await callback.call(this, e);
+            });
+            $.fn.onActionSecurisee.actionEnCours = false;
+
+            // Si la transaction s'est déroulée avec succès
+            // Cas 1 : Si c'est un bouton de soumission ou un élément d'un formulaire qui doit soumettre le formulaire parent
+            const $form = $(this).closest('form');
+            if ($form.length > 0 && ($(this).is(':submit') || $(this).attr('type') === 'submit' || $(this).is('button:not([type])') || $(this).is("input[name='convoi']"))) {
+                console.log("[ActionSecurisee] Soumission du formulaire après la fin de la transaction.");
+
+                // Si le bouton de soumission cliqué a un name et une valeur, on les ajoute sous forme d'input caché pour que le serveur les reçoive !
+                // (les soumissions via form.submit() de l'API DOM n'incluent pas les données du bouton ayant déclenché l'événement à l'origine)
+                const name = $(this).attr('name');
+                const value = $(this).attr('value') || $(this).text() || '';
+                if (name) {
+                    $form.find(`input[type='hidden'][name='${name}']`).remove();
+                    $form.append($(`<input type="hidden" name="${name}" />`).val(value));
+                }
+
+                $form.get(0).submit();
+            }
+            // Cas 2 : Si c'est un lien <a> qui doit naviguer vers son href
+            else if (evenement === 'click' && $(this).is('a')) {
+                const href = $(this).attr('href');
+                if (href && href !== '#' && !href.startsWith('javascript:')) {
+                    console.log("[ActionSecurisee] Navigation vers le lien après la transaction :", href);
+                    location.href = href;
+                }
+            }
+
+            return resultatAction;
         }
+
+        // Blocage si une autre action sécurisée est déjà en cours
+        if ($.fn.onActionSecurisee.actionEnCours) {
+            $.toast({
+                ...TOAST_INFO,
+                heading: "Action en cours",
+                text: "Une action sécurisée est déjà en cours. Veuillez patienter.",
+                hideAfter: 3000
+            });
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+        }
+
+        // Verrouillage
+        $.fn.onActionSecurisee.actionEnCours = true;
 
         // 2. Blocage de l'événement original
         e.preventDefault();
@@ -32,7 +83,7 @@ $.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
                     text: "Vos droits, votre appartenance à l'alliance ou la configuration du forum ont été modifiés. La page va être rechargée.",
                     hideAfter: 5000
                 });
-                setTimeout(() => location.reload(), 5000);
+                setTimeout(() => location.href = location.href, 5000);
                 return;
             }
 
@@ -49,20 +100,12 @@ $.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
                     text: "Les données ont été modifiées par un autre utilisateur. L'affichage va être actualisé.",
                     hideAfter: 3000
                 });
-                setTimeout(() => location.reload(), 3000);
+                setTimeout(() => location.href = location.href, 3000);
                 return;
             }
 
             // 8. Tout est OK, on redéclenche l'événement avec le flag isSecured
             $(this).trigger(evenement, [{ isSecured: true }]);
-
-            // Cas particulier des liens <a> : trigger('click') ne déclenche pas la navigation native
-            if (evenement === 'click' && $(this).is('a')) {
-                const href = $(this).attr('href');
-                if (href && href !== '#' && !href.startsWith('javascript:')) {
-                    window.location.href = href;
-                }
-            }
 
         } catch (error) {
             console.error("[onActionSecurisee] Erreur lors de la sécurisation de l'action:", error);
@@ -72,7 +115,7 @@ $.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
                 text: "Une erreur est survenue lors de la vérification des données. La page va être rechargée par sécurité.",
                 hideAfter: 3000
             });
-            setTimeout(() => location.reload(), 3000);
+            setTimeout(() => location.href = location.href, 3000);
         }
     });
 };
