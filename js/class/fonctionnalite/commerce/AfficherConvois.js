@@ -74,7 +74,7 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
      */
     async chargerConvois() {
         let commandes;
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             commandes = await this.chargerObjetsForum(Commande, true);
         });
         this.convois = [];

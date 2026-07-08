@@ -14,7 +14,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     async run() {
         // Charger toutes les commandes via le framework
         console.log('Chargement des commandes')
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             this.commandes = await this.chargerObjetsForum(Commande, true);
             console.log('commandes', this.commandes)
 
@@ -128,7 +128,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 //     await commandeTest.enregistrerSurForum();
                 // await convoiTest.supprimer();
                 // });
-                // await FonctionnaliteAlliance.executerTransaction(async () => {
+                // await this.executerTransaction(async () => {
                 // await commandeTest.supprimer();
                 //     await Utils.sleep(10000);
                 //     throw new Error('Erreur de test');
@@ -328,75 +328,76 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Traite le convoi après envoi au jeu.
      */
     async _traiterConvoiApresEnvoiJeu() {
-        const convoiDataObj = new Convoi(this);
-        const convoiCharge = await convoiDataObj.chargerDepuisLocalStorage('outiiil_convoi_a_poster');
-        if (!convoiCharge) return;
-
-        const idCommande = await convoiDataObj.lire('Id Commande');
-        const commande = this.commandes.find(c => c.idSujet == idCommande);
-        if (!commande) {
-            localStorage.removeItem('outiiil_convoi_a_poster');
-            return;
-        }
-
-        const convoisPage = this.getConvoisEnCoursDePage();
-
-        // 1. Collecter tous les IDs de convois déjà rattachés à des commandes (pour éviter les doublons)
-        const idsDejaRattaches = new Set();
-        for (const cmd of this.commandes) {
-            for (const convContenu of cmd.objetsForumContenus) {
-                const idAnnul = await convContenu.lire('Id Convoi');
-                if (idAnnul) idsDejaRattaches.add(idAnnul);
-            }
-        }
-
-        // 2. Extraire les critères attendus en une seule fois
-        const convoiParams = await convoiDataObj.lire(['Nourriture', 'Matériaux', 'Destinataire', 'Date Arrivée', 'Date Départ']);
-
-        // 3. Filtrer les convois de la page qui correspondent
-        const correspondances = convoisPage.filter(cp => {
-            const estLibre = !idsDejaRattaches.has(cp.idAnnulation);
-            const ressourcesMatch = cp.nourriture === convoiParams['Nourriture'] && cp.materiaux === convoiParams['Matériaux'];
-            const destMatch = cp.destinataire === convoiParams['Destinataire'];
-
-            // On utilise la date de départ (moment du clic) comme référence au lieu du moment présent
-            // pour être plus proche de l'heure serveur au moment de la génération de la page.
-            const dateArriveePage = convoiParams['Date Départ'].clone().add(cp.tempsRestant, 's');
-            const dateMatch = Math.abs(dateArriveePage.diff(convoiParams['Date Arrivée'], 'seconds')) <= 1;
-
-            return estLibre && ressourcesMatch && destMatch && dateMatch;
-        });
-
-        // 4. Trier par proximité de date
-        correspondances.sort((a, b) => {
-            const aArrival = convoiParams['Date Départ'].clone().add(a.tempsRestant, 's');
-            const bArrival = convoiParams['Date Départ'].clone().add(b.tempsRestant, 's');
-            return Math.abs(aArrival.diff(convoiParams['Date Arrivée'])) - Math.abs(bArrival.diff(convoiParams['Date Arrivée']));
-        });
-
         try {
-            console.log("Correspondances: ", correspondances);
-            if (correspondances.length > 0) {
-                const leBonConvoi = correspondances[0];
-                await convoiDataObj.ecrire('Id Convoi', leBonConvoi.idAnnulation);
+            await this.executerTransaction(async () => {
+                const convoiDataObj = new Convoi(this);
+                const convoiCharge = await convoiDataObj.chargerDepuisLocalStorage('outiiil_convoi_a_poster');
+                if (!convoiCharge) return;
 
-                await FonctionnaliteAlliance.executerTransaction(async () => {
+                const idCommande = await convoiDataObj.lire('Id Commande');
+                const commande = this.commandes.find(c => c.idSujet == idCommande);
+                if (!commande) {
+                    localStorage.removeItem('outiiil_convoi_a_poster');
+                    return;
+                }
+
+                const convoisPage = this.getConvoisEnCoursDePage();
+
+                // 1. Collecter tous les IDs de convois déjà rattachés à des commandes (pour éviter les doublons)
+                const idsDejaRattaches = new Set();
+                for (const cmd of this.commandes) {
+                    for (const convContenu of cmd.objetsForumContenus) {
+                        const idAnnul = await convContenu.lire('Id Convoi');
+                        if (idAnnul) idsDejaRattaches.add(idAnnul);
+                    }
+                }
+
+                // 2. Extraire les critères attendus en une seule fois
+                const convoiParams = await convoiDataObj.lire(['Nourriture', 'Matériaux', 'Destinataire', 'Date Arrivée', 'Date Départ']);
+
+                // 3. Filtrer les convois de la page qui correspondent
+                const correspondances = convoisPage.filter(cp => {
+                    const estLibre = !idsDejaRattaches.has(cp.idAnnulation);
+                    const ressourcesMatch = cp.nourriture === convoiParams['Nourriture'] && cp.materiaux === convoiParams['Matériaux'];
+                    const destMatch = cp.destinataire === convoiParams['Destinataire'];
+
+                    // On utilise la date de départ (moment du clic) comme référence au lieu du moment présent
+                    // pour être plus proche de l'heure serveur au moment de la génération de la page.
+                    const dateArriveePage = convoiParams['Date Départ'].clone().add(cp.tempsRestant, 's');
+                    const dateMatch = Math.abs(dateArriveePage.diff(convoiParams['Date Arrivée'], 'seconds')) <= 1;
+
+                    return estLibre && ressourcesMatch && destMatch && dateMatch;
+                });
+
+                // 4. Trier par proximité de date
+                correspondances.sort((a, b) => {
+                    const aArrival = convoiParams['Date Départ'].clone().add(a.tempsRestant, 's');
+                    const bArrival = convoiParams['Date Départ'].clone().add(b.tempsRestant, 's');
+                    return Math.abs(aArrival.diff(convoiParams['Date Arrivée'])) - Math.abs(bArrival.diff(convoiParams['Date Arrivée']));
+                });
+
+                console.log("Correspondances: ", correspondances);
+                if (correspondances.length > 0) {
+                    const leBonConvoi = correspondances[0];
+                    await convoiDataObj.ecrire('Id Convoi', leBonConvoi.idAnnulation);
+
                     await commande.ajouterConvoi(convoiDataObj);
                     $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
+
                     // Passer la prochaine commande en cours si nécessaire
                     await this._activerProchaineCommandeSiBesoin();
-                });
-                await this.actualiserCommandes();
-            } else {
-                $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
-            }
+                    await this.actualiserCommandes();
+                } else {
+                    $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
+                }
+            });
         } catch (error) {
             $.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
             console.error(error);
             throw error;
-        } finally {
-            localStorage.removeItem('outiiil_convoi_a_poster');
         }
+
+        localStorage.removeItem('outiiil_convoi_a_poster');
     }
 
     /**
@@ -404,14 +405,14 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      */
     async _traiterAnnulationConvoiApresRechargement() {
         try {
-            const idPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
-            if (!idPending) return;
+            await this.executerTransaction(async () => {
+                const idPending = localStorage.getItem('outiiil_convoi_annulation_pending_id');
+                if (!idPending) return;
 
-            let convoiTraite = false;
-            const idPendingNum = numeral(idPending).value();
-            const timestampClic = localStorage.getItem('outiiil_convoi_annulation_pending_timestamp');
+                let convoiTraite = false;
+                const idPendingNum = numeral(idPending).value();
+                const timestampClic = localStorage.getItem('outiiil_convoi_annulation_pending_timestamp');
 
-            await FonctionnaliteAlliance.executerTransaction(async () => {
                 for (const commande of this.commandes) {
                     const resultat = await commande.annulerConvoi(idPendingNum, timestampClic);
                     if (resultat.trouve) {
@@ -425,15 +426,18 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                         break;
                     }
                 }
-            });
 
-            if (!convoiTraite) {
-                $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
-            }
-        } finally {
-            localStorage.removeItem('outiiil_convoi_annulation_pending_id');
-            localStorage.removeItem('outiiil_convoi_annulation_pending_timestamp');
+                if (!convoiTraite) {
+                    $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
+                }
+            });
+        } catch (error) {
+            console.error("Erreur lors du traitement de l'annulation du convoi:", error);
+            throw error;
         }
+
+        localStorage.removeItem('outiiil_convoi_annulation_pending_id');
+        localStorage.removeItem('outiiil_convoi_annulation_pending_timestamp');
     }
 
     /**

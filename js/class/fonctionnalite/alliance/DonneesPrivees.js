@@ -17,7 +17,7 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
     async run() {
         console.log(`[${this.#nom}] Exécution`);
         let membresForum;
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             membresForum = await this.chargerObjetsForum(Joueur, false);
         });
         console.log('membresForum: ', membresForum);

@@ -74,7 +74,7 @@ Pour garantir la robustesse des fonctionnalités :
 - **Actualisation des données :**
     - Pour un `ObjetForum`, actualisez cet objet en utilisant `ObjetForum.rafraichir()`.
     - Pour un objet classique, envoyez une (ou des) requête(s) ajax pour récupérer le contenu de la (ou des) page(s) actualisée(s), mais sans effectuer un rechargement visuellement.
-- **Gestion des collisions :** Si des collisions sont avérées ou qu'une fonctionnalité a besoin de s'assurer qu'un `ObjetForum` n'est pas modifié pendant qu'elle l'utilise, introduisez un mécanisme d'anti-collision sur le forum (par exemple, via un flag de réservation sur l'objet forum).
+- **Actions de création/suppression basées sur Fourmizzz :** Pour toutes les actions de création ou suppression d'objet forum suite à la création ou la suppression d'un objet Fourmizzz, il faut stocker cet objet dans le local storage et attendre le rechargement pour vérifier la création ou suppression effective de l'objet avant de le rendre effectif sur le forum. En cas d'erreur de cette fonction, il faut annuler l'objet Fourmizzz (via la transaction).
 
 ---
 

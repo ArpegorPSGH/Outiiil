@@ -19,7 +19,7 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
         await this.page.synchroniserJoueursDepuisDOM();
         const joueursDejaDansTableau = Object.keys(this.page._alliance.joueurs);
         let tousLesMembres;
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             tousLesMembres = await this.chargerObjetsForum(Joueur, false);
         });
         const tousLesMembresMap = new Map();

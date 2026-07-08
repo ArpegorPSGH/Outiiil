@@ -31,33 +31,32 @@ class Transaction {
     rollbacking = false;
 
     /**
-     * Indique si le blocage des clics est actif.
-     * @type {Boolean}
-     * @public
+     * Lie la transactrion à la fonctionnalité qui l'a lancée.
+     * @type {FonctionnaliteAlliance}
+     * @private
      */
-    blocageClicActif = true;
-    /**
-     * Indique si le blocage des soumissions de formulaires est actif.
-     * @type {Boolean}
-     * @public
-     */
-    blocageFormulaireActif = true;
-    /**
-     * Indique si la destruction de la page ou son rafraichissement est actif.
-     * @type {Boolean}
-     * @public
-     */
-    blocageDestructionActif = true;
+    fonctionnalite = true;
 
-    constructor() {
+    constructor(fonctionnalite) {
         this.bloquerFermetureEtRafraichissement = this.bloquerFermetureEtRafraichissement.bind(this);
         this.intercepterClicsDestructeurs = this.intercepterClicsDestructeurs.bind(this);
         this.intercepterSoumissionsFormulaire = this.intercepterSoumissionsFormulaire.bind(this);
+        this.fonctionnalite = fonctionnalite
+    }
+
+    /**
+     * Vérifie si l'opération en cours provient de l'intérieur de la transaction.
+     * @private
+     * @returns {Boolean}
+     */
+    _vientDeLaTransaction() {
+        const stack = new Error().stack || "";
+        return stack.includes("Transaction.run") || (stack.match(/executerTransaction/g) || []).length >= 2;
     }
 
     // Bloque les clics sur les liens menant à une autre page dans le même onglet
     intercepterClicsDestructeurs(e) {
-        if (!this.blocageClicActif) return;
+        if (this._vientDeLaTransaction()) return;
         const lien = e.target.closest('a');
         if (lien) {
             const href = lien.getAttribute('href');
@@ -81,7 +80,7 @@ class Transaction {
     // Bloque la soumission de formulaires standards (qui rechargeraient la page)
     intercepterSoumissionsFormulaire(e) {
         console.log('tentative de transmission de formulaire');
-        if (!this.blocageFormulaireActif) return;
+        if (this._vientDeLaTransaction()) return;
         e.preventDefault();
         e.stopPropagation();
         $.toast({
@@ -92,7 +91,7 @@ class Transaction {
 
     // Bloque le rafraîchissement (F5 / bouton actualiser), la fermeture d'onglet, et la navigation externe
     bloquerFermetureEtRafraichissement(e) {
-        if (!this.blocageDestructionActif) return;
+        if (this._vientDeLaTransaction()) return;
         e.preventDefault();
         e.returnValue = "Une transaction est en cours. Vos modifications risquent d'être perdues.";
         return e.returnValue;
@@ -141,6 +140,7 @@ class Transaction {
                     } catch (rollbackError) {
                         console.error("[executerTransaction] Échec du rollback après collision incohérente:", rollbackError);
                     }
+                    await this.executerActionsApresAnnuler();
                     const dureeAnnulation = moment().diff(debutAnnulation);
                     const tempsRestant = Math.max(0, 5000 - dureeAnnulation);
                     setTimeout(() => location.href = location.href, tempsRestant);
@@ -156,6 +156,7 @@ class Transaction {
             } catch (rollbackError) {
                 console.error(`[${this.constructor.name}][executerTransaction] Échec critique lors du rollback de la transaction:`, rollbackError);
             }
+            await this.executerActionsApresAnnuler();
             $.toast({
                 ...TOAST_ERROR,
                 text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée."
@@ -338,6 +339,26 @@ class Transaction {
             }
         }
 
+    }
+
+    /**
+     * Exécute les actions après l'annulation de la transaction.
+     */
+    async executerActionsApresAnnuler() {
+        const convoisCrees = this.creations.filter(obj => obj.constructor.name === 'Convoi');
+        if (convoisCrees.length > 0) {
+            console.log(`[Transaction] Annulation de convois détectée.`, convoisCrees);
+            const convoisPage = this.fonctionnalite.getConvoisEnCoursDePage();
+            const convoisPageIds = convoisPage.map(cp => cp.idAnnulation);
+            for (const convoi of convoisCrees) {
+                const idConvoi = await convoi.lire('Id Convoi');
+                if (convoisPageIds.includes(idConvoi)) {
+                    const $link = $(`a[href*="commerce.php?annuler=${idConvoi}"]`);
+                    console.log(`[Transaction] Clic sur le lien d'annulation pour le convoi ID ${idConvoi}`);
+                    $link.get(0).click();
+                }
+            }
+        }
     }
 
     /**

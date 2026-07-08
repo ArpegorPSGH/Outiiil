@@ -6,14 +6,14 @@
  * @param {Function} callback - La fonction à exécuter si les données sont à jour.
  */
 $.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
-    return this.on(evenement, async function (e, data) {
+    return this.on(evenement, async function onActionSecuriseeHandler(e, data) {
         // 1. Validation du flag de sécurité
         if (data && data.isSecured) {
             // Bloque l'action par défaut du navigateur (soumission, clic de lien, etc.) de manière synchrone pendant que la transaction s'exécute
             e.preventDefault();
             e.stopImmediatePropagation();
 
-            let resultatAction = await FonctionnaliteAlliance.executerTransaction(async () => {
+            let resultatAction = await fonctionnalite.executerTransaction(async () => {
                 return await callback.call(this, e);
             });
             $.fn.onActionSecurisee.actionEnCours = false;
@@ -48,7 +48,9 @@ $.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
         }
 
         // Blocage si une autre action sécurisée est déjà en cours
-        if ($.fn.onActionSecurisee.actionEnCours) {
+        const stack = new Error().stack || "";
+        const isNested = (stack.match(/onActionSecuriseeHandler/g) || []).length >= 2;
+        if ($.fn.onActionSecurisee.actionEnCours && !isNested) {
             $.toast({
                 ...TOAST_INFO,
                 heading: "Action en cours",

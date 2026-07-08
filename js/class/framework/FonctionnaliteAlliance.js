@@ -44,7 +44,7 @@ class FonctionnaliteAlliance {
      * @param {Function} callback - La fonction asynchrone contenant les opérations à exécuter.
      * @returns {Promise<any>} Le résultat du callback.
      */
-    static async executerTransaction(callback) {
+    async executerTransaction(callback) {
         console.log("[GererCommandes] Transaction : ", transaction);
         if (transaction !== null) {
             // Pour s'assurer qu'il s'agit d'un véritable appel imbriqué (nesting)
@@ -70,7 +70,7 @@ class FonctionnaliteAlliance {
         //     transaction2 = new Transaction();
         //     transaction = transaction2;
         // }
-        transaction = new Transaction();
+        transaction = new Transaction(this);
 
         try {
             const resultat = await transaction.run(callback);
@@ -351,7 +351,7 @@ class FonctionnaliteAlliance {
 
                 console.log(`[${this.constructor.name}] Prise d'empreinte pour la signature : chargerObjetsForum(${sig.map(a => a.value || a.raw).join(', ')})`);
                 let objets;
-                await FonctionnaliteAlliance.executerTransaction(async () => {
+                await this.executerTransaction(async () => {
                     objets = await this.chargerObjetsForum(...resolvedArgs);
                 });
                 const empreintes = await Promise.all(objets.map(obj => obj._prendreEmpreinte()));
@@ -402,7 +402,7 @@ class FonctionnaliteAlliance {
             FonctionnaliteAlliance.viderCacheClasse(Joueur);
         }
         let joueurs;
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             joueurs = await this.chargerObjetsForum(Joueur, false);
             console.log('joueurs chargés inside', joueurs)
         });
@@ -436,7 +436,7 @@ class FonctionnaliteAlliance {
     async rafraichirDroits() {
         // On passe 'this' pour que le gestionnaire puisse utiliser les méthodes de la fonctionnalité,
         // comme chargerObjetsForum, pour charger les données nécessaires.
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             await gestionnaireDroits.rafraichir(this);
         });
     }

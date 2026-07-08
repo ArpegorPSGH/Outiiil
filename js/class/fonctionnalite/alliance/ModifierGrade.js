@@ -22,7 +22,7 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
     async run() {
         console.log(`[${this.#nom}] Exécution`);
         let membresForum;
-        await FonctionnaliteAlliance.executerTransaction(async () => {
+        await this.executerTransaction(async () => {
             membresForum = await this.chargerObjetsForum(Joueur, false);
         });
         const membresForumMap = new Map();
