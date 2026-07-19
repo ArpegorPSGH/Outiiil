@@ -16,7 +16,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * Configuration déclarative. Historique des noms et lieux pour les paramètres de droits.
      * @type {Array<Object>}
      */
-    static LOCATION_HISTORY = [{ section: 'Droits Outiiil', lieu: 'titre' }];
+    static LOCATION_HISTORY = [{ section: 'Droits Outiiil', lieu: 'titre', visibilite: 'caché' }];
 
     /**
      * Formats historiques pour les paramètres de pseudo et de droits.
@@ -107,35 +107,41 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
     /**
      * Détermine si le joueur actuel a un niveau de droit suffisant pour une fonctionnalité donnée.
      * @param {String} abrevFonctionnalite - L'abréviation de la fonctionnalité à vérifier.
-     * @param {String} niveauRequis - Le niveau de droit requis ('B', 'R', 'N', 'A').
+     * @param {String} niveauOutiiilRequis - Le niveau de droit requis ('B', 'R', 'N', 'A').
      * @returns {Boolean} - True si le joueur a le droit suffisant, false sinon.
      */
-    async verifierDroit(abrevFonctionnalite, niveauRequis) {
-        // 1. Identifier le Joueur Actuel
+    async verifierDroit(abrevFonctionnalite, niveauOutiiilRequis, niveauFourmizzzRequis) {
+        // 1. Si le joueur a les droits Fourmizzz, pas besoin d'aller plus loin.
+        const droitsFourmizzz = await monProfilJoueur.lire('Droits Fourmizzz');
+        if (droitsFourmizzz[niveauFourmizzzRequis]) {
+            return true;
+        }
+
+        // 2. Identifier le Joueur Actuel
         const pseudoJoueur = await monProfilJoueur.lire('Pseudo'); // Supposant que le pseudo est dans pseudo
         if (!pseudoJoueur) {
             console.warn(`[GestionnaireDroits] Pseudo du joueur non trouvé.`);
             return false;
         }
 
-        // 2. Trouver l'ObjetForum de Droits du Joueur
+        // 3. Trouver l'ObjetForum de Droits du Joueur
         const objetDroit = this.mapDroits.get(pseudoJoueur);
         if (!objetDroit) {
             return false; // Pas de droits définis pour ce joueur
         }
 
-        // 3. Trouver le Droit Spécifique à la Fonctionnalité
+        // 4. Trouver le Droit Spécifique à la Fonctionnalité
         const droitActuel = await objetDroit.lire(abrevFonctionnalite);
         if (droitActuel === null) {
             return false; // Pas de paramètre de droit pour cette fonctionnalité
         }
 
-        // 4. Comparaison des Droits
+        // 5. Comparaison des Droits
         const indexDroitActuel = this.constructor.NIVEAUX_ORDONNES.indexOf(droitActuel);
-        const indexDroitRequis = this.constructor.NIVEAUX_ORDONNES.indexOf(niveauRequis);
+        const indexDroitRequis = this.constructor.NIVEAUX_ORDONNES.indexOf(niveauOutiiilRequis);
 
         if (indexDroitActuel === -1 || indexDroitRequis === -1) {
-            console.warn(`[GestionnaireDroits] Niveau de droit invalide. Actuel: ${droitActuel}, Requis: ${niveauRequis}.`);
+            console.warn(`[GestionnaireDroits] Niveau de droit invalide. Actuel: ${droitActuel}, Requis: ${niveauOutiiilRequis}.`);
             return false; // Niveau de droit invalide
         }
 

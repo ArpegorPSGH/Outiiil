@@ -10,9 +10,9 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
     static ABREVIATIONS_HISTORY = ['MGR'];
 
     /**
-     * @property {string} NIVEAU_DROIT_REQUIS - Niveau de droit requis pour cette fonctionnalité
+     * @property {string} NIVEAU_DROIT_OUTIIIL_REQUIS - Niveau de droit requis pour cette fonctionnalité
      */
-    static NIVEAU_DROIT_REQUIS = 'A';
+    static NIVEAU_DROIT_OUTIIIL_REQUIS = 'A';
 
     /**
      * Exécute la fonctionnalité.

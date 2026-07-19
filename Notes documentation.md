@@ -18,6 +18,7 @@ Pour ajouter une fonctionnalité qui ne persiste pas de données sur le forum :
 
 Pour ajouter ou modifier une fonctionnalité d'alliance, un objet ou un paramètre qui utilise des données stockées sur le forum :
 - **Fonctionnalité :** Créez une classe héritant de `FonctionnaliteAlliance`. Définissez son historique d'abréviations via la propriété statique `FonctionnaliteAlliance.ABREVIATIONS_HISTORY`.
+    - Définissez les droits requis de la fonctionnalité via `NIVEAU_DROIT_OUTIIIL_REQUIS` (niveau de droit Outiiil, ex: `'R'`) et `NIVEAU_DROIT_FOURMIZZZ_REQUIS` (clé de permission Fourmizzz, ex: `"Administrer l'alliance"`). La méthode `verifierDroits()` vérifie si l'utilisateur possède l'un de ces deux types de droits.
     - Ajoutez cette classe à la liste statique `FONCTIONNALITES_ALLIANCE` de la classe `Page` correspondante.
 - **Objet :** Créez une classe héritant de `ObjetForum`.
     - Définissez sa version logique via `ObjetForum.VERSION_LOGIQUE`.
@@ -112,7 +113,7 @@ Pour garantir la robustesse des fonctionnalités :
 - **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lire()` et `ObjetForum.ecrire()`. Ces méthodes délèguent aux méthodes `lire()` et `ecrire()` de `ParametreObjetForum`, qui gèrent la concurrence via un système de verrous (locks) et assurent la validation des types de données. Ne jamais accéder directement à la propriété `valeur` d'un paramètre.
 - **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.
 - **Mise à jour de la documentation :** Après chaque fonctionnalité implémentée, assurez-vous de mettre à jour la documentation (si nécessaire) pour refléter les changements et les nouvelles pratiques.
-- **Gestion des droits d'administration Fourmizzz :** Il n'est pas nécessaire de surcharger la méthode `verifierDroits()` dans les classes héritant de `FonctionnaliteAlliance` pour gérer les droits d'administration Fourmizzz. La vérification est déjà incluse et délègue à la méthode `estAdminFourmizzz()` de la classe `Page` qui lance la fonctionnalité. Il suffit donc d'implémenter correctement la vérification dans la classe fille de `Page` concernée.
+- **Gestion des droits d'administration Fourmizzz et permissions :** Les permissions de l'alliance sur Fourmizzz sont chargées de manière dynamique et robuste lors du rafraîchissement du joueur courant (`Joueur`). Elles sont stockées sous la forme d'un dictionnaire dans l'attribut `Droits Fourmizzz` du joueur courant, contenant les 8 clés standard d'administration/accès Fourmizzz (ex: `"Administrer l'alliance"`, `'Administrer le forum'`, `'Voir les forums cachés'`). La validation des droits au sein de `FonctionnaliteAlliance` s'appuie directement sur ces permissions ainsi que sur les droits Outiiil correspondants. Il suffit de configurer les droits requis dans `FonctionnaliteAlliance` (voir 5.2) pour que la validation soit automatique.
 
 ### 5.3 Configuration des Formats d'Enregistrement
 
@@ -394,3 +395,31 @@ Pour des cas d'écriture complexes impliquant plusieurs objets ou des actions va
 #### 7.2.4 Recommandations à l'attention de l'utilisateur
 
 *   **Enchaînement des actions :** L'utilisateur doit impérativement attendre le toast de confirmation d'une action avant d'en démarrer une autre ou de changer de page (ce qui est normalement déjà bloqué par le système de transactions). Cela permet de s'assurer que les opérations asynchrones et l'écriture des données sur le forum se terminent correctement sans interruption ni corruption.
+
+---
+
+## 8. Gestion Automatique des IDs de Section
+
+Pour permettre à tous les joueurs (y compris non-administrateurs ou n'ayant pas accès aux forums cachés) de récupérer automatiquement et de manière transparente les IDs de l'ensemble des sections du forum, le framework utilise un mécanisme de synchronisation centralisé via la classe `GestionnaireSections` :
+
+### 8.1 Détermination des Visibilités
+*   Chaque section du forum possède une visibilité théorique configurée dans `LOCATION_HISTORY` (`'caché'`, `'restreint'`, ou `'visible'`).
+*   La liste globale des sections à gérer est constituée à partir de toutes les entrées d'historique de chaque objet.
+
+### 8.2 Extraction et Gestion des Absences d'IDs
+Lors du chargement d'une page :
+1.  **Extraction du DOM :** Les IDs des sections visibles dans le DOM de la page Forum sont extraits.
+2.  **Gestion des Sections Manquantes :**
+    *   Si une section n'est pas trouvée et que le joueur **n'a pas les droits** théoriques requis pour la voir (ex: pas d'accès aux forums cachés ou restreints) : l'ID interne reste vide `""` (inconnu).
+    *   Si une section n'est pas trouvée alors que le joueur **a les droits** requis pour la voir : le framework marque l'ID interne comme `'inexistant'`.
+3.  **Vérification de Cohérence pour les Administrateurs :** Si le joueur possède le droit `'Administrer le forum'`, la visibilité réelle de chaque section sur Fourmizzz est vérifiée et automatiquement corrigée pour correspondre à sa configuration théorique.
+
+### 8.3 Synchronisation Centralisée (Forum)
+Pour partager les IDs connus entre tous les membres sans forcer chaque joueur à être administrateur :
+*   Les IDs de section sont encodés sous forme de dictionnaire JSON stocké dans le titre d'un sujet dédié au sein d'une section d'indexation ("Sections Outiiil").
+*   La méthode `synchroniser()` compare l'état extrait en local avec l'état partagé sur le forum :
+    *   **Mise à jour forum :** Si l'ID local d'une section diffère de l'ID enregistré sur le forum, le forum est mis à jour.
+    *   **Nettoyage forum :** Si une section est marquée `'inexistant'` en local, son ID est effacé sur le forum.
+    *   **Récupération locale :** Si l'ID local d'une section est inconnu (vide), il est récupéré depuis le forum s'il y est défini.
+    *   **Création de sujet :** Si une section interne ne possède pas encore de sujet d'indexation sur le forum, celui-ci est créé.
+    *   Finalement, le profil de l'utilisateur (`monProfilUtilisateur`) est mis à jour avec les IDs résolus, permettant le bon fonctionnement de toutes les fonctionnalités de l'alliance.

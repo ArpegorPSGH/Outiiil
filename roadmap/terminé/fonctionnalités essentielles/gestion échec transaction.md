@@ -53,20 +53,20 @@ Créer un système de transaction pour assurer la cohérence du forum en cas d'e
        - Si `supprimer` est vrai, retirer l'objet du cache (du tableau des sujets ou des sous-messages du contenant).
 
 3. **Capture de l'état initial et suppression dans `ObjetForum`** :
-   - **Méthode de suppression `supprimerSurForum()`** : Appelle `Utils.supprimerSujet` ou `Utils.supprimerMessage`, puis appelle `mettreAJourCache(this, true)` pour retirer l'objet du cache.
-   - **Nouvelle méthode `transferer(idSection)`** : Appelle `Utils.transfererSujet(this.idSujet, idSection)`.
+   - **Méthode de suppression `supprimerSurForum()`** : Appelle `AccesForum.supprimerSujet` ou `AccesForum.supprimerMessage`, puis appelle `mettreAJourCache(this, true)` pour retirer l'objet du cache.
+   - **Nouvelle méthode `transferer(idSection)`** : Appelle `AccesForum.transfererSujet(this.idSujet, idSection)`.
    - **État Original** : Remplacer `etatOriginal` par un simple `stringInitial` pour simplifier la structure. L'état initial (`stringInitial`) est récupéré lors du rafraîchissementde l'objet.
    - **Enregistrement auprès de la transaction** : Délocaliser la détection et l'enregistrement auprès de la transaction de `Utils` vers les méthodes d'écriture (`enregistrerSurForum`, `supprimerSurForum`, `transferer`) de `ObjetForum`.
 
 4. **Interception directement dans les méthodes `Utils` via l'objet** :
    - Retirer l'objet `ObjetForum` des signatures des méthodes de `Utils` pour simplifier ces fonctions utilitaires et éliminer tout couplage avec la logique transactionnelle :
-     - `Utils.creerSujetEtRetournerId(nomSujet, contenu, id, type)`
-     - `Utils.modifierSujet(nomSujet, contenu, idSujet)`
-     - `Utils.supprimerSujet(idSujet, idSection)`
-     - `Utils.envoyerMessageEtRetournerId(idSujet, message)`
-     - `Utils.transfererSujet(idSujet, idSectionDestination)`
-     - `Utils.modifierMessage(idMessage, contenu)`
-     - `Utils.supprimerMessage(idMessage)`
+     - `AccesForum.creerSujetEtRetournerId(nomSujet, contenu, id, type)`
+     - `AccesForum.modifierSujet(nomSujet, contenu, idSujet)`
+     - `AccesForum.supprimerSujet(idSujet, idSection)`
+     - `AccesForum.envoyerMessageEtRetournerId(idSujet, message)`
+     - `AccesForum.transfererSujet(idSujet, idSectionDestination)`
+     - `AccesForum.modifierMessage(idMessage, contenu)`
+     - `AccesForum.supprimerMessage(idMessage)`
 
 
 ## Tests à effectuer

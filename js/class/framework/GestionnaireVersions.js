@@ -62,6 +62,14 @@ class GestionnaireVersions {
         }
     }
 
+    constructor() {
+        sectionsRequises.add({
+            nom: 'Versions Outiiil',
+            visibilite: 'caché',
+            estDerniere: true
+        });
+    }
+
     /**
      * Vérifie la présence et l'accessibilité de la section 'Versions Outiiil' sur le forum.
      * @returns {Promise<Boolean>} Vrai si la section 'Versions Outiiil' est présente et accessible, sinon faux.
@@ -79,7 +87,7 @@ class GestionnaireVersions {
 
                 let estValide = false;
                 try {
-                    const xmlDoc = await Utils.consulterSection(idSection); // Assuming this already returns a parsed XML Document
+                    const xmlDoc = await AccesForum.consulterSection(idSection); // Assuming this already returns a parsed XML Document
 
                     // Check for parsing errors if the document itself indicates them (e.g., from a previous internal parse)
                     if (xmlDoc.querySelector('parsererror')) {
@@ -142,7 +150,7 @@ class GestionnaireVersions {
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
 
                 // 2. Chargement des Sujets via recupererSujetsSection
-                const sujets = await Utils.recupererSujetsSection(idSection);
+                const sujets = await AccesForum.recupererSujetsSection(idSection);
 
                 // 3. Parsing des Sujets et Messages
                 for (const sujet of sujets) {
@@ -157,7 +165,7 @@ class GestionnaireVersions {
                         const nomClasse = titreMatch[2];
 
                         // Lecture des Messages avec IDs
-                        const { messages: messagesDuSujet } = await Utils.consulterSujetAvecMessagesEtIds(sujet.id);
+                        const { messages: messagesDuSujet } = await AccesForum.consulterSujetAvecMessagesEtIds(sujet.id);
 
                         // Le message 0 est le message initial du sujet, les données commencent à l'index 1.
                         // Nous devons donc ajuster les index pour récupérer les messages de données.
@@ -401,15 +409,15 @@ class GestionnaireVersions {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Nouvel objet ${nomClasseLocale} détecté. Création de la version sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `objet: ${nomClasseLocale}`;
-                const newId = await Utils.creerSujetEtRetournerId(idSection, titreSujet);
+                const newId = await AccesForum.creerSujetEtRetournerId(idSection, titreSujet);
                 if (newId) {
                     // Le message 0 est créé automatiquement avec le sujet. Les messages suivants commencent à l'index 1.
                     // On envoie les données dans les messages suivants et on récupère leurs IDs.
-                    const idMessageVersionLogique = await Utils.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
+                    const idMessageVersionLogique = await AccesForum.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
                     await Utils.sleep(10)
-                    const idMessageClassesParametres = await Utils.envoyerMessageEtRetournerId(newId, JSON.stringify(classesParametresLocales)); // Message 2
+                    const idMessageClassesParametres = await AccesForum.envoyerMessageEtRetournerId(newId, JSON.stringify(classesParametresLocales)); // Message 2
                     await Utils.sleep(10)
-                    const idMessageFormatsLieux = await Utils.envoyerMessageEtRetournerId(newId, JSON.stringify(formatsLieuxLocaux)); // Message 3
+                    const idMessageFormatsLieux = await AccesForum.envoyerMessageEtRetournerId(newId, JSON.stringify(formatsLieuxLocaux)); // Message 3
                     this.versionsObjetsForum.push({
                         idSujet: newId,
                         type: 'objet',
@@ -485,11 +493,11 @@ class GestionnaireVersions {
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
                 console.log(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Forum obsolète pour ${nomClasseLocale}. Mise à jour de la version sur le forum.`);
-                await Utils.modifierSujet(versionForum.idSujet, `objet: ${nomClasseLocale}`);
+                await AccesForum.modifierSujet(versionForum.idSujet, `objet: ${nomClasseLocale}`);
                 // Les messages sont modifiés en utilisant leurs IDs.
-                await Utils.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale); // Message pour versionLogique
-                await Utils.modifierMessage(versionForum.idMessageClassesParametres, JSON.stringify(nouvelHistoriqueComplet)); // Message pour classesParametres
-                await Utils.modifierMessage(versionForum.idMessageFormatsLieux, JSON.stringify(formatsLieuxLocaux)); // Message pour formatsLieux
+                await AccesForum.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale); // Message pour versionLogique
+                await AccesForum.modifierMessage(versionForum.idMessageClassesParametres, JSON.stringify(nouvelHistoriqueComplet)); // Message pour classesParametres
+                await AccesForum.modifierMessage(versionForum.idMessageFormatsLieux, JSON.stringify(formatsLieuxLocaux)); // Message pour formatsLieux
 
                 // Mettre à jour le cache local
                 versionForum.versionLogique = versionLogiqueLocale;
@@ -542,11 +550,11 @@ class GestionnaireVersions {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 4: Nouveau paramètre. Création du sujet sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `parametre: ${nomClasseLocale}`;
-                const newId = await Utils.creerSujetEtRetournerId(idSection, titreSujet);
+                const newId = await AccesForum.creerSujetEtRetournerId(idSection, titreSujet);
                 if (newId) {
-                    const idMessageVersionLogique = await Utils.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
+                    const idMessageVersionLogique = await AccesForum.envoyerMessageEtRetournerId(newId, versionLogiqueLocale); // Message 1
                     await Utils.sleep(10)
-                    const idMessageFormatHistory = await Utils.envoyerMessageEtRetournerId(newId, JSON.stringify(formatHistoryLocal)); // Message 2
+                    const idMessageFormatHistory = await AccesForum.envoyerMessageEtRetournerId(newId, JSON.stringify(formatHistoryLocal)); // Message 2
                     this.versionsParamsForum.push({
                         idSujet: newId,
                         type: 'parametre',
@@ -599,9 +607,9 @@ class GestionnaireVersions {
             // Scénario 2 (Forum obsolète)
             else if (compVersion > 0 || compFormatHistory > 0) {
                 console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 2: Forum obsolète. Mise à jour du sujet et des messages pour le paramètre ${nomClasseLocale}.`);
-                await Utils.modifierSujet(versionForum.idSujet, `parametre: ${nomClasseLocale}`);
-                await Utils.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale);
-                await Utils.modifierMessage(versionForum.idMessageFormatHistory, JSON.stringify(formatHistoryLocal));
+                await AccesForum.modifierSujet(versionForum.idSujet, `parametre: ${nomClasseLocale}`);
+                await AccesForum.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale);
+                await AccesForum.modifierMessage(versionForum.idMessageFormatHistory, JSON.stringify(formatHistoryLocal));
                 versionForum.versionLogique = versionLogiqueLocale; // Mise à jour du cache
                 versionForum.formatHistory = formatHistoryLocal; // Mise à jour du cache
                 return true;

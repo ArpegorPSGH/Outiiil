@@ -61,6 +61,18 @@
 
         await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
+        // Charger et synchroniser les sections
+        window.gestionnaireSections = new GestionnaireSections();
+
+        window.gestionnaireVersions = new GestionnaireVersions();
+
+        // Initialisation du profil du joueur en cours
+        window.monProfilUtilisateur = new ProfilUtilisateur();
+        // chargement des parametre
+        await monProfilUtilisateur.getParametre();
+
+        window.monProfilJoueur = new Joueur()
+
         // Chargement du joueur courant et affichage des outils
         await monProfilJoueur.chargerJoueurCourant().then(async (isLoaded) => {
             if (!isLoaded) {
@@ -68,6 +80,10 @@
                 return;
             }
             console.log('monProfilJoueur: ', monProfilJoueur)
+
+            await gestionnaireSections.chargerSections();
+
+            window.gestionnaireDroits = new GestionnaireDroits();
 
             // Ajout des outils
             let boite = new Dock();
@@ -114,52 +130,24 @@ async function initialiserFrameworkGlobal() {
         Page: new Map()
     };
 
-    const manifestURL = chrome.runtime.getURL('manifest.json');
-    const manifestResponse = await fetch(manifestURL);
-    const manifest = await manifestResponse.json();
-
-    const allScripts = manifest.content_scripts.flatMap(script => script.js);
-
-    // Dossiers susceptibles de contenir des classes pour le framework
-    const classFolders = ['js/class/'];
-
-    const classFiles = allScripts.filter(path =>
-        classFolders.some(folder => path.startsWith(folder))
-    );
-
-    // Regex pour trouver les déclarations de classes héritant de ObjetForum, FonctionnaliteAlliance ou Page
-    const classRegex = /class\s+([a-zA-Z0-9_]+)\s+extends\s+(ObjetForum|FonctionnaliteAlliance|Page)/g;
-
-    for (const filePath of classFiles) {
+    // Parcours de l'objet window pour identifier les classes enregistrées via Utils.register
+    for (const key of Object.getOwnPropertyNames(window)) {
         try {
-            const fileURL = chrome.runtime.getURL(filePath);
-            const fileResponse = await fetch(fileURL);
-            const fileContent = await fileResponse.text();
-
-            let match;
-            while ((match = classRegex.exec(fileContent)) !== null) {
-                const className = match[1];
-                const parentName = match[2];
-                const ClassConstructor = window[className];
-
-                if (typeof ClassConstructor === 'function') {
-                    console.log(`  Found class ${className} extending ${parentName}`);
-                    if (parentName === ObjetForum.name) {
-                        registreClasses.ObjetForum.set(className, ClassConstructor);
-                        console.log(`      Added ${className} to ObjetForum registry.`);
-                    } else if (parentName === FonctionnaliteAlliance.name) {
-                        registreClasses.FonctionnaliteAlliance.set(className, ClassConstructor);
-                        console.log(`      Added ${className} to FonctionnaliteAlliance registry.`);
-                    } else if (parentName === Page.name) {
-                        registreClasses.Page.set(className, ClassConstructor);
-                        console.log(`      Added ${className} to Page registry.`);
-                    }
-                } else {
-                    console.warn(`  Found class declaration for ${className} but constructor is not on window object.`);
+            const ClassConstructor = window[key];
+            if (typeof ClassConstructor === 'function' && ClassConstructor.prototype) {
+                if (ClassConstructor.prototype instanceof ObjetForum) {
+                    registreClasses.ObjetForum.set(key, ClassConstructor);
+                    console.log(`  Added ${key} to ObjetForum registry (detected via prototype).`);
+                } else if (ClassConstructor.prototype instanceof FonctionnaliteAlliance) {
+                    registreClasses.FonctionnaliteAlliance.set(key, ClassConstructor);
+                    console.log(`  Added ${key} to FonctionnaliteAlliance registry (detected via prototype).`);
+                } else if (ClassConstructor.prototype instanceof Page) {
+                    registreClasses.Page.set(key, ClassConstructor);
+                    console.log(`  Added ${key} to Page registry (detected via prototype).`);
                 }
             }
         } catch (error) {
-            console.error(`Erreur lors de l'analyse du fichier ${filePath}:`, error);
+            // Ignorer les erreurs d'accès sur certaines propriétés sécurisées de window
         }
     }
 
@@ -216,29 +204,50 @@ async function initialiserFrameworkGlobal() {
     window.sectionsEnCache = new Map();
 
     // Création de la liste globale des sections
-    window.nomsSectionsRequis = new Set();
+    const sectionsMap = new Map();
+
     registreClasses.ObjetForum.forEach(ClasseObjetForum => {
         if (Array.isArray(ClasseObjetForum.LOCATION_HISTORY) && ClasseObjetForum.LOCATION_HISTORY.length > 0) {
-            const dernierLieu = ClasseObjetForum.getLastLocation();
-            if (dernierLieu.section) {
-                nomsSectionsRequis.add(dernierLieu.section);
-            }
+            const classSections = new Map();
+            const lastLieu = ClasseObjetForum.getLastLocation();
+            const lastSectionName = lastLieu.section;
+
+            ClasseObjetForum.LOCATION_HISTORY.forEach((lieu, index) => {
+                if (lieu.section) {
+                    const isMostRecentForSection = ClasseObjetForum.LOCATION_HISTORY.map(l => l.section).lastIndexOf(lieu.section) === index;
+                    if (isMostRecentForSection) {
+                        classSections.set(lieu.section, {
+                            visibilite: lieu.visibilite || 'caché',
+                            estDerniere: lieu.section === lastSectionName
+                        });
+                    }
+                }
+            });
+
+            classSections.forEach((info, nom) => {
+                if (sectionsMap.has(nom)) {
+                    const existing = sectionsMap.get(nom);
+                    const resolvedVisibilite = GestionnaireSections.getPlusRestrictif(existing.visibilite, info.visibilite);
+                    const resolvedEstDerniere = existing.estDerniere || info.estDerniere;
+                    sectionsMap.set(nom, {
+                        nom: nom,
+                        visibilite: resolvedVisibilite,
+                        estDerniere: resolvedEstDerniere
+                    });
+                } else {
+                    sectionsMap.set(nom, {
+                        nom: nom,
+                        visibilite: info.visibilite,
+                        estDerniere: info.estDerniere
+                    });
+                }
+            });
         }
     });
-    nomsSectionsRequis.add('Versions Outiiil');
-    console.log("Sections requises découvertes :", nomsSectionsRequis);
 
-    // Initialisation du profil du joueur en cours
-    window.monProfilUtilisateur = new ProfilUtilisateur();
-    // chargement des parametre
-    await monProfilUtilisateur.getParametre();
+    window.sectionsRequises = new Set(sectionsMap.values());
 
-    window.monProfilJoueur = new Joueur()
-
-    // Créer les instances globales des gestionnaires
-    window.gestionnaireDroits = new GestionnaireDroits();
-    window.gestionnaireVersions = new GestionnaireVersions();
-    await gestionnaireVersions.rafraichir(); // Assurez-vous que les versions sont chargées avant utilisation
+    console.log("Sections requises découvertes :", sectionsRequises);
 
     // Création de la variable globale des transactions
     window.transaction = null;

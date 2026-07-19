@@ -16,7 +16,7 @@ Utils.register(class Commande extends ObjetForum {
         DateCommande
     ]];
 
-    static LOCATION_HISTORY = [{ section: 'Commandes Outiiil', lieu: 'titre' }];
+    static LOCATION_HISTORY = [{ section: 'Commandes Outiiil', lieu: 'titre', visibilite: 'caché' }];
 
     static classeObjetsForumContenus = Convoi;
 

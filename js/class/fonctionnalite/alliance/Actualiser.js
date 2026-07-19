@@ -10,9 +10,9 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
     static ABREVIATIONS_HISTORY = ['ACT'];
 
     /**
-     * @property {string} NIVEAU_DROIT_REQUIS - Niveau de droit requis pour cette fonctionnalité
+     * @property {string} NIVEAU_DROIT_OUTIIIL_REQUIS - Niveau de droit requis pour cette fonctionnalité
      */
-    static NIVEAU_DROIT_REQUIS = 'A';
+    static NIVEAU_DROIT_OUTIIIL_REQUIS = 'A';
 
     /**
      * @property {boolean} VERIFICATION_MEMBRE_REQUIS - Vérification de l'état de membre requis pour cette fonctionnalité

@@ -262,6 +262,7 @@ class ObjetForum {
             const ids = new Set();
             this.constructor.LOCATION_HISTORY.forEach(format => {
                 const parametreSection = monProfilUtilisateur.parametre[format.section];
+                console.log('parametreSection:', parametreSection);
                 if (parametreSection && parametreSection.valeur !== undefined) {
                     const id = parseInt(parametreSection.valeur, 10);
                     if (!isNaN(id)) {
@@ -350,20 +351,23 @@ class ObjetForum {
     async verifierPresenceSection() {
         await this._acquireReadLock();
         try {
+            console.log('this.idsSection:', this.idsSection);
             if (this.idsSection.length > 0) {
                 const dernierId = this.idsSection[this.idsSection.length - 1];
+                console.log('dernierId:', dernierId);
 
                 if (!dernierId) {
                     return false;
                 }
 
                 if (sectionsEnCache && sectionsEnCache.has(dernierId)) {
+                    console.log('sectionsEnCache:', sectionsEnCache);
                     if (!sectionsEnCache.get(dernierId)) return false;
                 } else {
                     let estValide = false;
                     try {
                         const nomSection = this.getLastLocation().section;
-                        const xmlDoc = await Utils.consulterSection(dernierId);
+                        const xmlDoc = await AccesForum.consulterSection(dernierId);
 
                         if (xmlDoc.querySelector('parsererror')) {
                             console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML pour la section '${nomSection}'.`);
@@ -418,7 +422,7 @@ class ObjetForum {
                 if (!this.objetParent || !this.objetParent.idSujet || this.idMessage === null) {
                     console.error(`[${this.constructor.name}] Impossible de rafraîchir un message sans parent valide ou sans idMessage.`);
                 } else {
-                    const { messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.objetParent.idSujet);
+                    const { messages: messagesLu } = await AccesForum.consulterSujetAvecMessagesEtIds(this.objetParent.idSujet);
                     const msg = messagesLu.find(m => m.id === this.idMessage);
                     if (!msg) {
                         console.warn(`[${this.constructor.name}] Message ID ${this.idMessage} non trouvé dans le sujet parent.`);
@@ -431,7 +435,7 @@ class ObjetForum {
                     console.error(`[${this.constructor.name}] Impossible de rafraîchir un objet sans idSujet valide. idSujet: ${this.idSujet}.`);
                 } else {
                     console.log('rafraichir 1')
-                    const { titre: titreLu, messages: messagesLu } = await Utils.consulterSujetAvecMessagesEtIds(this.idSujet);
+                    const { titre: titreLu, messages: messagesLu } = await AccesForum.consulterSujetAvecMessagesEtIds(this.idSujet);
                     console.log('titreLu:', titreLu);
                     if (titreLu === null) {
                         console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
@@ -943,17 +947,10 @@ class ObjetForum {
      * @returns {Promise<*|Object>} Valeur unique (string) ou objet {nom: valeur} (liste/null/mots-clés).
      */
     async lire(noms = 'tout', peutVoirDonneesRestreintes = true) {
-        const normalizeKey = (str) => {
-            if (typeof str !== 'string') return '';
-            return str.toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9]/g, "");
-        };
 
         // --- Mode unitaire ---
         const motsClesNormalises = ['tout', 'tous', 'parametres', 'attributs', 'attributscalcules', 'attributsnoncalcules'];
-        const nomNormalise = typeof noms === 'string' ? normalizeKey(noms) : '';
+        const nomNormalise = typeof noms === 'string' ? Utils.normaliser(noms) : '';
         if (typeof noms === 'string' && !motsClesNormalises.includes(nomNormalise)) {
             const donnee = this._resoudreDonnee(noms);
             if (!donnee) return null;
@@ -973,7 +970,7 @@ class ObjetForum {
         }
 
         selectors.forEach(sel => {
-            const selNorm = normalizeKey(sel);
+            const selNorm = Utils.normaliser(sel);
             if (motsClesNormalises.includes(selNorm)) {
                 // Ajouter les paramètres
                 if (selNorm === 'tout' || selNorm === 'tous' || selNorm === 'parametres') {
@@ -1071,7 +1068,7 @@ class ObjetForum {
             const formatLieu = this.getLastLocation();
             if (formatLieu.lieu === 'titre') {
                 if (this.idSujet !== null) {
-                    await Utils.supprimerSujet(this.idSujet, this.idSection);
+                    await AccesForum.supprimerSujet(this.idSujet, this.idSection);
                     transaction.enregistrerSuppression(this);
                     this.idSujet = null;
                     this.estModifie = true;
@@ -1085,7 +1082,7 @@ class ObjetForum {
             } else if (formatLieu.lieu === 'message') {
                 if (this.idMessage !== null) {
                     console.warn(`Suppression message: ${this.idMessage}`);
-                    await Utils.supprimerMessage(this.idMessage);
+                    await AccesForum.supprimerMessage(this.idMessage);
                     transaction.enregistrerSuppression(this);
                     this.idMessage = null;
                     this.estModifie = true;
@@ -1122,7 +1119,7 @@ class ObjetForum {
                 console.error(`Erreur lors du transfert: L'objet n'a pas de sujet forum ou de section.`);
                 return;
             }
-            await Utils.transfererSujet(this.idSujet, idSectionCible, this.idSection);
+            await AccesForum.transfererSujet(this.idSujet, idSectionCible, this.idSection);
             transaction.enregistrerTransfert(this);
             this.idSection = idSectionCible;
             console.log(`[${this.constructor.name}] Transfert: ${this.idSujet} -> ${idSectionCible}. Nouvelle section: ${this.idSection}`);
@@ -1154,7 +1151,7 @@ class ObjetForum {
                         throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un titre de sujet (${contenuFinal.length} > 240 caractères).`);
                     }
                     if (this.idSujet === null) {
-                        const newId = await Utils.creerSujetEtRetournerId(idSection, contenuFinal);
+                        const newId = await AccesForum.creerSujetEtRetournerId(idSection, contenuFinal);
                         if (!newId) {
                             console.error(`[${this.constructor.name}] Échec de la création du sujet.`);
                         } else {
@@ -1163,7 +1160,7 @@ class ObjetForum {
                             transaction.enregistrerCreation(this);
                         }
                     } else {
-                        await Utils.modifierSujet(this.idSujet, contenuFinal);
+                        await AccesForum.modifierSujet(this.idSujet, contenuFinal);
                         transaction.enregistrerModification(this);
                     }
                 } else if (formatLieu.lieu === 'message') {
@@ -1175,7 +1172,7 @@ class ObjetForum {
                         throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un message (${contenuFinal.length} > 61495 caractères).`);
                     }
                     if (this.idMessage === null) {
-                        const newId = await Utils.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
+                        const newId = await AccesForum.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
                         if (newId === null) {
                             console.error(`[${this.constructor.name}] Échec de l'envoi du message.`);
                         } else {
@@ -1183,7 +1180,7 @@ class ObjetForum {
                             transaction.enregistrerCreation(this);
                         }
                     } else {
-                        await Utils.modifierMessage(this.idMessage, contenuFinal);
+                        await AccesForum.modifierMessage(this.idMessage, contenuFinal);
                         transaction.enregistrerModification(this);
                     }
                 }

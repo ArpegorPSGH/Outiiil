@@ -13,7 +13,7 @@
  */
 Utils.register(class Joueur extends ObjetForum {
     static VERSION_LOGIQUE = '1.0';
-    static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre' }];
+    static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre', visibilite: 'caché' }];
     static PARAMETRES_OBJET = [
         [
             Pseudo,
@@ -43,7 +43,8 @@ Utils.register(class Joueur extends ObjetForum {
         Materiaux,
         ArmeeJoueur,
         Coordonnees,
-        EtatJoueur
+        EtatJoueur,
+        DroitsFourmizzz
     ];
 
 
@@ -278,21 +279,23 @@ Utils.register(class Joueur extends ObjetForum {
      * @returns {Promise<boolean>} Vrai si le chargement complémentaire a réussi.
      */
     async completerRafraichissement() {
-        // Enregistrement de la version de l'extension pour le joueur courant
-        if (await this.estJoueurCourant()) {
-            await this.ecrire('Version Extension', VERSION);
-        }
 
-        // Deuxième temps : chargement des données depuis la page Membre.php
+        // Premier temps : chargement des données depuis la page Membre.php
         const membreDataLoaded = await this.chargerDonneesMembre();
         if (!membreDataLoaded) {
             return false;
         }
         console.log('completerRafraichissement 1')
 
-        // Troisième temps (optionnel) : chargement des constructions, recherches, armée et ressources
+        // Deuxième temps (optionnel) : chargement des constructions, recherches, armée et ressources
         if (await this.estJoueurCourant()) {
             // Pour le joueur courant, on charge les données "fraîches"
+
+            // Enregistrement de la version de l'extension, du rang et des droits pour le joueur courant
+            await this.ecrire('Version Extension', VERSION);
+            await this.chargerRang();
+            await this.chargerDroitsFourmizzz();
+
             // Constructions
             await this.chargerConstruction();
             console.log('completerRafraichissement 2')
@@ -307,7 +310,7 @@ Utils.register(class Joueur extends ObjetForum {
                 console.log("[Joueur] Armée : ", await this.lire('Armée'));
                 const armee = await this.lire('Armée');
                 const htmlArmee = await armee.getArmee();
-                console.log("[Joueur] Html Armée : ", htmlArmee);
+                // console.log("[Joueur] Html Armée : ", htmlArmee);
                 await armee.chargeData(htmlArmee);
                 armee.unite[0] = Utils.ouvrieres;
                 await this.ecrire('Armée', armee);
@@ -389,6 +392,126 @@ Utils.register(class Joueur extends ObjetForum {
         }
 
         return true;
+    }
+
+    async chargerRang() {
+        const pseudo = await this.lire('Pseudo');
+        if (!pseudo) return false;
+        try {
+            const data = await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?Membres",
+                dataType: "text",
+                data: {
+                    "xajax": "membre",
+                    "xajaxargs[]": "",
+                    "xajaxr": moment().valueOf()
+                }
+            });
+
+            // Analyse standard du XML via DOMParser pour extraire proprement le CDATA.
+            const xmlDoc = new DOMParser().parseFromString(data, "text/xml");
+            const allianceCmd = xmlDoc.querySelector("cmd[t='alliance']");
+            const htmlContent = allianceCmd.textContent;
+
+            const doc = $("<div/>").html(htmlContent);
+            const table = doc.find("#tabMembresAlliance");
+            let pseudoIdx = -1;
+            let rangIdx = -1;
+            table.find("tr").each((idx, tr) => {
+                const ths = $(tr).find("th, td");
+                ths.each((cIdx, cell) => {
+                    const text = $(cell).text().trim();
+                    if (text === "Pseudo") pseudoIdx = cIdx;
+                    if (text === "Rang") rangIdx = cIdx;
+                });
+                if (pseudoIdx !== -1 && rangIdx !== -1) return false;
+            });
+            if (pseudoIdx === -1) pseudoIdx = 3;
+            if (rangIdx === -1) rangIdx = 2;
+            let rangTrouve = null;
+            table.find("tbody tr, tr").each((idx, tr) => {
+                const tds = $(tr).find("td");
+                const cellPseudo = $(tds[pseudoIdx]).text().trim();
+                if (cellPseudo === pseudo) {
+                    rangTrouve = $(tds[rangIdx]).text().trim();
+                    return false;
+                }
+            });
+            if (rangTrouve) {
+                await this.ecrire('Rang', rangTrouve);
+                return true;
+            }
+        } catch (error) {
+            console.error(`[Joueur] Erreur lors du chargement du rang :`, error);
+        }
+        return false;
+    }
+
+    async chargerDroitsFourmizzz() {
+        const rang = await this.lire('Rang');
+        if (!rang) return false;
+        try {
+            const data = await $.ajax({
+                type: "post",
+                url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?Options",
+                dataType: "text",
+                data: {
+                    "xajax": "getConfiguration",
+                    "xajaxargs[]": "",
+                    "xajaxr": moment().valueOf()
+                }
+            });
+
+            // Analyse standard du XML via DOMParser pour extraire proprement le CDATA.
+            const xmlDoc = new DOMParser().parseFromString(data, "text/xml");
+            const allianceCmd = xmlDoc.querySelector("cmd[t='alliance']");
+            const htmlContent = allianceCmd.textContent;
+
+            const doc = $("<div/>").html(htmlContent);
+            const table = doc.find("#AffichageRang table");
+            const headerTr = table.find("tr").eq(2);
+            const headerCells = headerTr.find("td, th");
+            let droitsActuels = await this.lire('Droits Fourmizzz');
+            const colMap = {};
+            headerCells.each((cIdx, cell) => {
+                const text = $(cell).text().trim().toLowerCase();
+                for (const key of Object.keys(droitsActuels)) {
+                    if (Utils.normaliser(text) === Utils.normaliser(key)) {
+                        colMap[key] = cIdx;
+                    }
+                }
+            });
+            let targetTr = null;
+            table.find("tr").each((idx, tr) => {
+                const strong = $(tr).find("td strong").first();
+                if (strong.length) {
+                    const trRang = strong.text().trim();
+                    if (trRang === rang.trim()) {
+                        targetTr = $(tr);
+                        return false;
+                    }
+                }
+            });
+            if (targetTr) {
+                const tds = targetTr.find("td");
+                for (const key in colMap) {
+                    const colIdx = colMap[key];
+                    const td = $(tds[colIdx]);
+                    const img = td.find("img");
+                    if (img.length) {
+                        droitsActuels[key] = true;
+                    } else {
+                        droitsActuels[key] = false;
+                    }
+                }
+            }
+            await this.ecrire('Droits Fourmizzz', droitsActuels);
+            return true;
+        } catch (error) {
+            console.error(`[Joueur] Erreur lors du chargement des droits :`, error);
+        }
+        return false;
     }
 
     /**

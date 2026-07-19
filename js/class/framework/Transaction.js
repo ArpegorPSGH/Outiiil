@@ -435,7 +435,7 @@ class Transaction {
                     if (nomTest === 'section') {
                         try {
                             console.log(`objet.idSection après rafraichissement: ${objet.idSection}`);
-                            const sujetsSection = await Utils.recupererSujetsSection(objet.idSection);
+                            const sujetsSection = await AccesForum.recupererSujetsSection(objet.idSection);
                             return sujetsSection.some(s => s.id === objet.idSujet);
                         } catch (err) {
                             return false;

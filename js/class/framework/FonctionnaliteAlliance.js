@@ -6,10 +6,16 @@ class FonctionnaliteAlliance {
     static ABREVIATIONS_HISTORY = [];
 
     /**
-     * Niveau de droit requis pour initialiser la fonctionnalité.
+     * Niveau de droit outiiil requis pour initialiser la fonctionnalité.
      * @type {String}
      */
-    static NIVEAU_DROIT_REQUIS = 'R';
+    static NIVEAU_DROIT_OUTIIIL_REQUIS = 'R';
+
+    /**
+     * Niveau de droit fourmizzz requis pour initialiser la fonctionnalité.
+     * @type {String}
+     */
+    static NIVEAU_DROIT_FOURMIZZZ_REQUIS = "Administrer l'alliance";
 
     /**
      * Vérification de l'état de membre requis pour initialiser la fonctionnalité.
@@ -373,9 +379,15 @@ class FonctionnaliteAlliance {
 
         if (forcerRafraichissement) {
             sectionsEnCache.clear();
-            await gestionnaireVersions.rafraichir();
             this.objetsDependants.forEach(obj => obj._actualiserIdsSection());
         }
+
+        if (!(await gestionnaireVersions.verifierPresenceSectionVersions())) {
+            console.error(`Échec de la vérification de section pour les versions`);
+            return false;
+        }
+
+        await gestionnaireVersions.rafraichir();
 
         for (const objet of this.objetsDependants) {
             if (!(await objet.verifierVersionSuffisante())) {
@@ -447,19 +459,19 @@ class FonctionnaliteAlliance {
      * @param {String} niveauRequis - Le niveau de droit à vérifier (ex: 'R', 'N', 'A').
      * @returns {Boolean} - True si le joueur a le droit suffisant, sinon false.
      */
-    async verifierDroit(niveauRequis) {
+    async verifierDroit(niveauOutiiilRequis) {
         const abrevHistory = this.constructor.ABREVIATIONS_HISTORY;
         if (!abrevHistory || abrevHistory.length === 0) {
             console.error(`Aucune abréviation n'est définie pour la fonctionnalité ${this.constructor.name}.`);
             return false;
         }
         const abrev = abrevHistory[abrevHistory.length - 1];
-        return await gestionnaireDroits.verifierDroit(abrev, niveauRequis);
+        return await gestionnaireDroits.verifierDroit(abrev, niveauOutiiilRequis, this.constructor.NIVEAU_DROIT_FOURMIZZZ_REQUIS);
     }
 
     /**
      * Vérifie que le joueur a les droits suffisants pour l'initialisation de la fonctionnalité,
-     * en se basant sur l'attribut `NIVEAU_DROIT_REQUIS`.
+     * en se basant sur les attributs `NIVEAU_DROIT_OUTIIIL_REQUIS` et `NIVEAU_DROIT_FOURMIZZZ_REQUIS`.
      * @param {Boolean} [forcerRafraichissement=false] - Si true, rafraîchit le gestionnaire de droits.
      * @private
      * @returns {Promise<Boolean>} - True si le joueur a le droit requis, sinon false.
@@ -471,9 +483,8 @@ class FonctionnaliteAlliance {
             FonctionnaliteAlliance.viderCacheClasse(classeDroits);
         }
         await this.rafraichirDroits();
-        const aDroitOutiiil = await this.verifierDroit(this.constructor.NIVEAU_DROIT_REQUIS);
-        const estAdminFZ = this.page.estAdminFourmizzz();
-        return aDroitOutiiil || estAdminFZ;
+        const aDroitOutiiil = await this.verifierDroit(this.constructor.NIVEAU_DROIT_OUTIIIL_REQUIS);
+        return aDroitOutiiil;
     }
 
     /**
@@ -519,7 +530,7 @@ class FonctionnaliteAlliance {
         let tousLesSujets = [];
         for (const idSection of instanceTemporaire.idsSection) {
             try {
-                const sujetsSection = await Utils.recupererSujetsSection(idSection);
+                const sujetsSection = await AccesForum.recupererSujetsSection(idSection);
                 sujetsSection.forEach(sujet => {
                     sujet.idSectionSource = idSection;
                     tousLesSujets.push(sujet);

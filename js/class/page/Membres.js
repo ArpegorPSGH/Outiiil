@@ -104,14 +104,6 @@ Utils.register(class Membres extends Page {
     }
 
     /**
-     * Surcharge la fonction de la classe mère en se basant sur la présence de l'icône de modification.
-     * @returns {boolean}
-     */
-    estAdminFourmizzz() {
-        return $("img[src='images/crayon.gif']").length > 0;
-    }
-
-    /**
      * Initialise la page Alliance.
      * Attend le chargement du tableau des membres avant d'appeler l'initialisation du framework.
      * @returns {Promise<void>}

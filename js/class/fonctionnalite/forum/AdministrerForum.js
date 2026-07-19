@@ -13,7 +13,9 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
 
     static ABREVIATIONS_HISTORY = ['AF'];
 
-    static NIVEAU_DROIT_REQUIS = 'A';
+    static NIVEAU_DROIT_OUTIIIL_REQUIS = 'A';
+
+    static NIVEAU_DROIT_FOURMIZZZ_REQUIS = 'Administrer le forum';
 
     /**
      * @returns {Promise<void>}
@@ -30,18 +32,23 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
             $("#alliance .simulateur").append(`<div id="o_formGuerre" style="display:none;"><input id="o_tagGuerre" type="text"/> <button id="o_creerSectionGuerre">Créer section</button></div>`);
             // Creation de l'utilitaire
             $("#o_creerUtilitaire").onActionSecurisee('click', this, async (e) => {
-                if (nomsSectionsRequis) {
-                    for (const nomSection of nomsSectionsRequis) {
+                if (sectionsRequises) {
+                    for (const sec of sectionsRequises) {
+                        if (!sec.estDerniere) continue;
+                        const nomSection = sec.nom;
+                        const visibiliteTheorique = sec.visibilite;
+                        const typeCategorie = Utils.normaliser(visibiliteTheorique);
+
                         if (!$(`#cat_forum span:contains('${nomSection}')`).length) {
                             try {
-                                const idCat = await Utils.creerSectionEtRetournerId(nomSection);
+                                const idCat = await AccesForum.creerSectionEtRetournerId(nomSection);
                                 if (idCat) {
                                     if (monProfilUtilisateur.parametre[nomSection]) {
                                         monProfilUtilisateur.parametre[nomSection].valeur = idCat;
                                         monProfilUtilisateur.parametre[nomSection].sauvegarde();
                                     }
 
-                                    Utils.modifierSection(idCat, nomSection).then((data) => {
+                                    AccesForum.modifierSection(idCat, nomSection, typeCategorie).then((data) => {
                                         $.toast({ ...TOAST_SUCCESS, text: `La section ${nomSection} a été correctement créée et son ID sauvegardé.` });
                                     }, (jqXHR, textStatus, errorThrown) => {
                                         console.error(`[AdministrerForum][o_creerUtilitaire] Erreur lors de la modification de la section ${nomSection} (ID: ${idCat}):`, textStatus, errorThrown);
@@ -59,7 +66,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                         }
                     }
                 } else {
-                    console.warn("[AdministrerForum][o_creerUtilitaire] nomsSectionsRequis n'est pas défini. Aucune section à créer.");
+                    console.warn("[AdministrerForum][o_creerUtilitaire] sectionsRequises n'est pas défini. Aucune section à créer.");
                 }
                 return false;
             });
@@ -80,7 +87,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                 let alliance = new Alliance({ tag: $("#o_tagGuerre").val() }), titreSection = "Guerre " + alliance.tag;
                 if (!$("#cat_forum span[class^='forum']").text().toUpperCase().includes(titreSection.toUpperCase())) {
                     // on créer la section "Guerre " + tag
-                    Utils.creerSection(titreSection).then((data) => {
+                    AccesForum.creerSection(titreSection).then((data) => {
                         // on recup la section pour ajouter les sujets des joueurs
                         let response = $("<div/>").append($(data).find("cmd:eq(1)").html());
                         let idCat = $(response).find(`input[value='${titreSection}']`).parent().attr("id").match(/\d+/)[0];
@@ -89,7 +96,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                             let promiseJoueur = new Array();
                             $(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => {
                                 let pseudo = $(elt).find("td:eq(2)").text();
-                                promiseJoueur.push(Utils.creerSujet(idCat, pseudo, `[player]${pseudo}[/player]`));
+                                promiseJoueur.push(AccesForum.creerSujet(idCat, pseudo, `[player]${pseudo}[/player]`));
                             });
                             // on creer les sujets
                             Promise.all(promiseJoueur).then((values) => { location.reload(); });

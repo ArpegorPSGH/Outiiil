@@ -13,7 +13,9 @@ Utils.register(class AdministrerCommandes extends FonctionnaliteAlliance {
 
     static ABREVIATIONS_HISTORY = ['ACF'];
 
-    static NIVEAU_DROIT_REQUIS = 'A';
+    static NIVEAU_DROIT_OUTIIIL_REQUIS = 'A';
+
+    static NIVEAU_DROIT_FOURMIZZZ_REQUIS = 'Administrer le forum';
 
     /**
      * @returns {Promise<void>}

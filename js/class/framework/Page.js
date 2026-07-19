@@ -74,30 +74,15 @@ class Page {
      * @returns {Promise<void>}
      */
     async init() {
-        const versionsPresentes = await gestionnaireVersions.verifierPresenceSectionVersions();
-        if (versionsPresentes) {
-            await gestionnaireVersions.rafraichir();
-        }
 
         for (const item of this.constructor.FONCTIONNALITES) {
             if (item.prototype instanceof FonctionnaliteAlliance) {
-                if (versionsPresentes) {
-                    console.log('item fonctionnalite ', item)
-                    const instance = new item(this);
-                    await instance.init();
-                }
+                console.log('item fonctionnalite ', item)
+                const instance = new item(this);
+                await instance.init();
             } else if (typeof item === 'function') {
                 await item.call(this);
             }
         }
-    }
-
-    /**
-     * Vérifie si le joueur est un administrateur Fourmizzz sur la page actuelle.
-     * A surcharger dans les classes filles avec le moyen de le déterminer.
-     * @returns {boolean}
-     */
-    estAdminFourmizzz() {
-        return false;
     }
 }

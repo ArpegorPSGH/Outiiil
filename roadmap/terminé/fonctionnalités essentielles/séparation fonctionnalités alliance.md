@@ -72,7 +72,7 @@ Une méthode utilitaire, `synchroniserJoueursDepuisDOM`, sera responsable de lir
         ```
 
 2.  **Mettre à jour `FonctionnaliteAlliance.js` :**
-    *   Ajouter l'attribut `NIVEAU_DROIT_REQUIS = 'R';`.
+    *   Ajouter l'attribut `NIVEAU_DROIT_OUTIIIL_REQUIS = 'R';`.
     *   Mettre à jour la méthode `verifierDroits` pour qu'elle utilise cet attribut par défaut.
 
 3.  **Refactoriser `Joueur.js` et `Alliance.js` :**
@@ -232,7 +232,7 @@ La liste `FONCTIONNALITES` de `Membres.js` contiendra toujours **toutes les fonc
 1.  **Mettre à jour `Page.js` :**
     *   La méthode `init()` a été modifiée pour parcourir la liste unifiée `FONCTIONNALITES` et exécuter chaque élément séquentiellement.
 2.  **Mettre à jour `FonctionnaliteAlliance.js` :**
-    *   L'attribut `NIVEAU_DROIT_REQUIS = 'R';` a été ajouté.
+    *   L'attribut `NIVEAU_DROIT_OUTIIIL_REQUIS = 'R';` a été ajouté.
     *   La méthode `verifierDroits` a été mise à jour pour utiliser cet attribut par défaut.
 3.  **Refactoriser `Joueur.js` et `Alliance.js` :**
     *   **`Joueur.js` :** L'attribut `mv` a été remplacé par `etat` et toutes les références associées ont été mises à jour.

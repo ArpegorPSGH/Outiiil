@@ -16,7 +16,7 @@ La détection de collision repose sur la vérification indépendante de proprié
 #### A. Vérification pour les objets actifs (Créations, Modifications, Transferts)
 - **Existence (Sujets et Messages) :** On s'assure que l'objet existe toujours sur le forum. Le succès de la méthode de rafraîchissement permet de conclure que l'objet existe.
 - **Section attendue (uniquement pour les Sujets) :**
-  - La fonction utilitaire de récupération d'un sujet (par exemple `Utils.consulterSujetAvecMessagesEtIds(idSujet)`) est modifiée pour inclure la récupération et le retour de l'ID de la section courante (identifié à partir de la section en surbrillance dans l'interface du forum).
+  - La fonction utilitaire de récupération d'un sujet (par exemple `AccesForum.consulterSujetAvecMessagesEtIds(idSujet)`) est modifiée pour inclure la récupération et le retour de l'ID de la section courante (identifié à partir de la section en surbrillance dans l'interface du forum).
   - Lors du rafraîchissement d'un sujet, la mise à jour de sa propriété `idSection` s'effectue directement à partir de cette valeur retournée (et non plus au sein de `chargerObjetsForum`).
   - Pour s'assurer de la validité de la section du sujet, on compare sa valeur `idSection` avant et après le rafraîchissement (la section est correcte si les valeurs correspondent).
 - **Conformité de la valeur (Sujets et Messages) :** Appel à la méthode `rafraichir(false, false)` pour charger l'état depuis le forum sans impacter le cache local, et s'assurer que `estModifie === false` (les paramètres locaux sont strictement identiques à ceux du forum).
@@ -66,7 +66,7 @@ const TRANSACTION_COLLISION_WAIT_MS = 1000;
 - **Méthode de suppression :**
   - Modifier le séquencement interne : appeler d'abord l'enregistrement de l'opération de suppression dans la transaction (qui capture l'`idSujet` et l'`idMessage`), et effectuer le vidage des identifiants (`this.idSujet = null; this.idMessage = null;`) **uniquement après** cet enregistrement.
 - **Modification de `rafraichir(chargerContenus = true, mettreAJourCache = true)` :**
-  - Mettre à jour la propriété `idSection` de l'objet (uniquement si c'est un sujet) directement avec la valeur retournée par la fonction utilitaire de consultation (ex: `Utils.consulterSujetAvecMessagesEtIds`).
+  - Mettre à jour la propriété `idSection` de l'objet (uniquement si c'est un sujet) directement avec la valeur retournée par la fonction utilitaire de consultation (ex: `AccesForum.consulterSujetAvecMessagesEtIds`).
   - Permettre l'appel directement sur un sous-objet de type message (`lieu === 'message'`).
   - Dans ce scénario, interroger le sujet parent (`this.objetParent.idSujet`), retrouver le message correspondant à son `idMessage` dans la liste.
   - S'il n'est pas trouvé dans la liste des objets contenus, la méthode doit renvoyer `false`.
@@ -110,7 +110,7 @@ const TRANSACTION_COLLISION_WAIT_MS = 1000;
   - Classer le résultat final global en `OK`, `COLLISION_TOTAL` ou `COLLISION_INCOHERENT` selon la répartition des succès/échecs.
 
 ### 6. Fonctions Utilitaires (`js/utils/Utils.js`)
-- **Modification de la fonction de récupération de sujet (ex: `Utils.consulterSujetAvecMessagesEtIds`) :**
+- **Modification de la fonction de récupération de sujet (ex: `AccesForum.consulterSujetAvecMessagesEtIds`) :**
   - Ajouter l'extraction et la récupération de l'ID de section (la section actuellement en surbrillance/active dans l'interface du forum).
   - Retourner cet ID de section en plus du titre et des messages : `{ idSection, titre, messages }`.
 ---
@@ -176,7 +176,7 @@ Effectuer les tests combinatoires avec les types de collisions suivants :
 
 ### 9. Validation d'échec de suppression sur un ID inexistant
 - **Protocole :** Lancer la suppression d'un sujet ou d'un message réel avec un identifiant fictif ou inexistant (ex: `99999999`).
-- **Résultat attendu :** L'appel aux méthodes `Utils.supprimerSujet` ou `Utils.supprimerMessage` doit lever une erreur, signalant que le sujet ou le message n'a pas pu être supprimé de manière effective (toujours présent ou erreur réseau/forum).
+- **Résultat attendu :** L'appel aux méthodes `AccesForum.supprimerSujet` ou `AccesForum.supprimerMessage` doit lever une erreur, signalant que le sujet ou le message n'a pas pu être supprimé de manière effective (toujours présent ou erreur réseau/forum).
 
 ## Avancement
 Dédoublonnage validé

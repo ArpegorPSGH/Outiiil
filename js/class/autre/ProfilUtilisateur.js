@@ -8,10 +8,8 @@
 *
 * @class ProfilUtilisateur
 */
-class ProfilUtilisateur
-{
-    constructor()
-    {
+class ProfilUtilisateur {
+    constructor() {
         console.log("[ProfilUtilisateur] Début du constructeur ProfilUtilisateur.");
         /**
         * Préférence de l'utilisateur.
@@ -33,9 +31,10 @@ class ProfilUtilisateur
         this._parametre["boiteHide"] = new ParametreUI("boiteHide", "Effet disparition des boites", "select", 0, EFFET);
         // parametres utilitaires
         // Dynamically add parameters for required sections
-        if (nomsSectionsRequis) {
-            console.log("[ProfilUtilisateur] Ajout dynamique des paramètres de section. Sections requises:", nomsSectionsRequis);
-            for (const nomSection of nomsSectionsRequis) {
+        if (sectionsRequises) {
+            console.log("[ProfilUtilisateur] Ajout dynamique des paramètres de section. Sections requises:", sectionsRequises);
+            for (const sec of sectionsRequises) {
+                const nomSection = sec.nom;
                 // Only add if it's not already defined as a static parameter
                 if (!this._parametre[nomSection]) {
                     this._parametre[nomSection] = new ParametreUI(nomSection, nomSection, 'input');
@@ -45,7 +44,7 @@ class ProfilUtilisateur
                 }
             }
         } else {
-            console.warn("[ProfilUtilisateur] nomsSectionsRequis est indéfini lors de la création des paramètres dynamiques.");
+            console.warn("[ProfilUtilisateur] sectionsRequises est indéfini lors de la création des paramètres dynamiques.");
         }
 
         // parametres armée
@@ -72,8 +71,7 @@ class ProfilUtilisateur
     * @method parametre
     * @return {Object} les paramètres format JSON.
     */
-    get parametre()
-    {
+    get parametre() {
         return this._parametre;
     }
 
@@ -83,13 +81,12 @@ class ProfilUtilisateur
     * @method getParametre
     * @return {ProfilUtilisateur} L'instance de ProfilUtilisateur.
     */
-    getParametre()
-    {
+    getParametre() {
         console.log("[ProfilUtilisateur] Entrée dans getParametre().");
         let data = JSON.parse(localStorage.getItem("outiiil_parametre")) || {};
         console.log("[ProfilUtilisateur] Données chargées depuis localStorage:", data);
         // Si des données sont deja presente et à jour on les charges
-        for(let cle in data) {
+        for (let cle in data) {
             if (this._parametre[cle]) {
                 this._parametre[cle].valeur = data[cle];
                 console.log(`[ProfilUtilisateur] Paramètre "${cle}" mis à jour avec la valeur "${data[cle]}".`);
@@ -106,8 +103,7 @@ class ProfilUtilisateur
     *
     * @method sauvegarderParametres
     */
-    sauvegarderParametres()
-    {
+    sauvegarderParametres() {
         let paramsToSave = {};
         for (let key in this._parametre) {
             paramsToSave[key] = this._parametre[key].valeur;

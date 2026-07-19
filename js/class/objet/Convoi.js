@@ -17,7 +17,7 @@ Utils.register(class Convoi extends ObjetForum {
         ]
     ];
 
-    static LOCATION_HISTORY = [{ section: 'Commandes Outiiil', lieu: 'message' }];
+    static LOCATION_HISTORY = [{ section: 'Commandes Outiiil', lieu: 'message', visibilite: 'caché' }];
 
     // /**
     // *

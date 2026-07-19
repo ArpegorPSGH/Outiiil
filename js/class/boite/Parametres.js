@@ -10,13 +10,11 @@
 * @constructor
 * @extends Boite
 */
-class BoiteParametre extends Boite
-{
+class BoiteParametre extends Boite {
     /**
     *
     */
-    constructor()
-    {
+    constructor() {
         super("o_boiteParametre", "Paramètres", `<div id='o_tabsParametre' class='o_tabs'><ul><li><a href='#o_tabsParametre1'>Général</a></li><li><a href='#o_tabsParametre2'>Utilitaire</a></li><li><a href='#o_tabsParametre3'>Apparence</a></li><li><a href='#o_tabsParametre4'>Traceur</a></li></ul><div id='o_tabsParametre1'/><div id='o_tabsParametre2'/><div id='o_tabsParametre3'/><div id='o_tabsParametre4'/></div>`);
         /**
         *
@@ -35,52 +33,49 @@ class BoiteParametre extends Boite
         */
         this._paramTraceur = ["etatTraceurJoueur", "intervalleTraceurJoueur", "nbPageTraceurJoueur", "etatTraceurAlliance", "intervalleTraceurAlliance"];
     }
-	/**
+    /**
     * Affiche la boite.
     *
     * @private
     * @method afficher
     */
-	async afficher()
-	{
-        if(await super.afficher()){
-            $("#o_tabsParametre").tabs({activate : (e, ui) => {this.css();}}).removeClass("ui-widget");
-            if(!monProfilUtilisateur.parametre["cleTraceur"].valeur) $("#o_tabsParametre").tabs("disable", 3);
+    async afficher() {
+        if (await super.afficher()) {
+            $("#o_tabsParametre").tabs({ activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
+            if (!monProfilUtilisateur.parametre["cleTraceur"].valeur) $("#o_tabsParametre").tabs("disable", 3);
             this.parametreStyle().parametreUtilitaire().parametreGeneral().parametreTraceur().css().event();
         }
-	}
-	/**
-	* Applique le style propre à la boite.
+    }
+    /**
+    * Applique le style propre à la boite.
     *
-	* @private
-	* @method css
-	*/
-	css()
-	{
+    * @private
+    * @method css
+    */
+    css() {
         super.css();
         $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
         $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
         $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => {$(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => {return parseInt(m, 16);}).concat('0.5') + ")");},
-            (e) => {$(e.currentTarget).css("color", "inherit");}
+            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({cursor : "not-allowed", "pointer-events" : "all"});
+        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
-	}
-	/**
-	* Ajoute les evenements propres à la boite.
+    }
+    /**
+    * Ajoute les evenements propres à la boite.
     *
-	* @private
-	* @method event
-	*/
-	event()
-	{
+    * @private
+    * @method event
+    */
+    event() {
         super.event();
 
         // Delegated event listener for text inputs (type 'input') and color inputs
-        $("#o_boiteParametre").on("input", ".o_input:not([type='checkbox']):not([type='color']), .o_inputColor", function(e) {
+        $("#o_boiteParametre").on("input", ".o_input:not([type='checkbox']):not([type='color']), .o_inputColor", function (e) {
             const paramId = this.id.replace('Picker', ''); // Handle color picker ID
             const param = monProfilUtilisateur.parametre[paramId];
             if (param) {
@@ -95,7 +90,7 @@ class BoiteParametre extends Boite
         });
 
         // Delegated event listener for checkboxes and selects
-        $("#o_boiteParametre").on("change", ".o_checkbox, select.o_input", function(e) {
+        $("#o_boiteParametre").on("change", ".o_checkbox, select.o_input", function (e) {
             const paramId = this.id;
             const param = monProfilUtilisateur.parametre[paramId];
             if (param) {
@@ -136,7 +131,7 @@ class BoiteParametre extends Boite
                 } else {
                     spinnerOptions.min = 0;
                 }
-                
+
                 $(`#${paramId}`).spinner(spinnerOptions);
 
                 // Also add an input event for direct typing into spinner field
@@ -149,27 +144,25 @@ class BoiteParametre extends Boite
         }
 
         return this;
-	}
+    }
     /**
     *
     */
-    parametreStyle()
-    {
+    parametreStyle() {
         let content = ``;
-        for(let param of this._paramStyle) content += monProfilUtilisateur.parametre[param].getForm();
+        for (let param of this._paramStyle) content += monProfilUtilisateur.parametre[param].getForm();
         $("#o_tabsParametre3").append(`<form>${content}</form>`);
         return this;
     }
     /**
     *
     */
-    parametreUtilitaire()
-    {
+    parametreUtilitaire() {
         console.log("[BoiteParametre] Entrée dans parametreUtilitaire()");
-        console.log("[BoiteParametre] nomsSectionsRequis:", nomsSectionsRequis);
+        console.log("[BoiteParametre] sectionsRequises:", sectionsRequises);
 
-        if (nomsSectionsRequis) {
-            this._paramUtilitaire = Array.from(nomsSectionsRequis);
+        if (sectionsRequises) {
+            this._paramUtilitaire = Array.from(sectionsRequises).map(s => s.nom);
             console.log("[BoiteParametre] _paramUtilitaire après Array.from:", this._paramUtilitaire);
 
             for (const nomSection of this._paramUtilitaire) {
@@ -181,7 +174,7 @@ class BoiteParametre extends Boite
                 }
             }
         } else {
-            console.warn("[BoiteParametre] nomsSectionsRequis est indéfini.");
+            console.warn("[BoiteParametre] sectionsRequises est indéfini.");
         }
 
         let content = ``;
@@ -189,8 +182,8 @@ class BoiteParametre extends Boite
         const sortedParams = [...this._paramUtilitaire].sort();
         console.log("[BoiteParametre] Paramètres triés pour affichage:", sortedParams);
 
-        for(let param of sortedParams) {
-            if(monProfilUtilisateur.parametre[param]) {
+        for (let param of sortedParams) {
+            if (monProfilUtilisateur.parametre[param]) {
                 content += monProfilUtilisateur.parametre[param].getForm();
             } else {
                 console.error(`[BoiteParametre] Erreur: monProfilUtilisateur.parametre[${param}] est indéfini lors de la génération du formulaire.`);
@@ -203,8 +196,7 @@ class BoiteParametre extends Boite
     /**
     *
     */
-    parametreGeneral()
-    {
+    parametreGeneral() {
         $("#o_tabsParametre1").append(`<form>
             <p class='left reduce gras'>L'affectation sera automatique lors de la consultation de la page ressource</p>
             ${monProfilUtilisateur.parametre[this._paramGeneral[0]].getForm()}
@@ -219,8 +211,7 @@ class BoiteParametre extends Boite
     /**
     *
     */
-    parametreTraceur()
-    {
+    parametreTraceur() {
         $("#o_tabsParametre4").append(`<form>
             <p class='left reduce gras'>Paramètres pour le traçage des joueurs</p>
             ${monProfilUtilisateur.parametre[this._paramTraceur[0]].getForm() + monProfilUtilisateur.parametre[this._paramTraceur[1]].getForm() + monProfilUtilisateur.parametre[this._paramTraceur[2]].getForm()}
