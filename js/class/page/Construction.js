@@ -35,7 +35,6 @@ Utils.register(class Construction extends Page {
     /**
     * Ajoute un title detaillé pour connaitre la rentabilité de la construction : etable à pucerons.
     *
-    * @private
     * @method titleEtable
     */
     async titleEtable() {
@@ -62,7 +61,6 @@ Utils.register(class Construction extends Page {
     /**
     * Sauvegarde la construction en cours.
     *
-    * @private
     * @method plus
     */
     plus() {
@@ -71,7 +69,7 @@ Utils.register(class Construction extends Page {
         if ($("#centre > strong").length)
             $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la construction en cours
-        this.saveConstruction();
+        this.#saveConstruction();
         // Suppresion de la construction en cours si on annule
         if ($("a:contains('Annuler')").length)
             $("a:contains('Annuler')").click((e) => {
@@ -86,9 +84,9 @@ Utils.register(class Construction extends Page {
     * Sauvegarde la construction en cours.
     *
     * @private
-    * @method saveConstruction
+    * @method #saveConstruction
     */
-    saveConstruction() {
+    #saveConstruction() {
         let str = $("#centre > strong").text();
         let construction = str.substring(2, str.indexOf("se termine") - 1);
         if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {

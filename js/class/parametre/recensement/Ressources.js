@@ -1,4 +1,4 @@
-class Ressources extends ParametreObjetForum {
+Utils.register(class Ressources extends ParametreObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static FORMAT_HISTORY = [
         { nom: 'Ressources', format: '(nom): (valeur) |' }
@@ -8,4 +8,4 @@ class Ressources extends ParametreObjetForum {
         'Matériaux': 0,
         'Terrain de Chasse': 0
     };
-};
+});

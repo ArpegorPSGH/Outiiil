@@ -39,12 +39,6 @@ Utils.register(class Membres extends Page {
     ];
 
     /**
-     * Instance de la classe Alliance pour gérer les données globales de l'alliance.
-     * @type {Alliance}
-     */
-    _alliance = null;
-
-    /**
      * Constructeur de la classe Membres.
      */
     constructor() {
@@ -80,7 +74,7 @@ Utils.register(class Membres extends Page {
                 }
             });
             if (foundIndices.length === 0) {
-                console.warn(`[Membres] getColonneIndex: Colonne(s) "${singleNomEnTete}" non trouvée(s).`);
+                console.log(`[Membres] getColonneIndex: Colonne(s) "${singleNomEnTete}" non trouvée(s).`);
             }
             return foundIndices;
         };
@@ -143,12 +137,10 @@ Utils.register(class Membres extends Page {
      * @returns {Promise<void>}
      */
     async synchroniserJoueursDepuisDOM() {
-        console.log('lancement ')
         const joueursDansDOM = {};
 
         const pseudoColIndex = this.getColonneIndex('Pseudo');
         const etatColIndex = this.getColonneIndex('État');
-        console.log(`[Membres] synchroniserDepuisDOM: Pseudo index=${pseudoColIndex}, État index=${etatColIndex}`);
 
         const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
             const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().trim().split(' ')[0];
@@ -174,8 +166,7 @@ Utils.register(class Membres extends Page {
         await Promise.all(promises); // Attendre que toutes les promesses soient résolues
 
         this._alliance.joueurs = joueursDansDOM;
-        console.log('this._alliance.joueurs :', this._alliance.joueurs)
-        console.log("[Membres] synchroniserJoueursDepuisDOM: Joueurs synchronisés depuis le DOM:", Object.keys(this._alliance.joueurs));
+        console.log("[Membres] synchroniserJoueursDepuisDOM: Joueurs synchronisés depuis le DOM:", this._alliance.joueurs);
     }
 
     /**
@@ -183,26 +174,19 @@ Utils.register(class Membres extends Page {
      * @returns {Promise<void>}
      */
     async afficherColonnesPubliques() {
-        console.log('getColonneIndex', this.getColonneIndex(""));
         await this.synchroniserJoueursDepuisDOM();
-        console.log('this._alliance.joueurs colonnes publiques :', this._alliance.joueurs)
 
         // Insérer les en-têtes pour TdT et Retour après la colonne "Fourmilière" dans le thead
         const thFourmiliere = $("#tabMembresAlliance thead tr th:contains('Fourmilière')");
-        if (thFourmiliere.length) {
-            thFourmiliere.after(`<th class="dt-head-center">TdT</th><th class="dt-head-center">Retour</th>`);
-        } else {
-            console.error("[Membres] Impossible de trouver la colonne 'Fourmilière' pour insérer TdT/Retour.");
-        }
+        thFourmiliere.after(`<th class="dt-head-center">TdT</th><th class="dt-head-center">Retour</th>`);
+
 
         const pseudoColIndex = this.getColonneIndex('Pseudo');
         const fourmiliereColIndex = this.getColonneIndex('Fourmilière');
 
         const itemsPromises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
             const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
-            console.log('[Membres] pseudo:', pseudo)
             const joueur = this._alliance.joueurs[pseudo];
-            console.log('[Membres] joueur:', joueur)
 
             if (joueur) {
                 // Insérer les cellules TdT et Retour après la colonne "Fourmilière"
@@ -227,7 +211,6 @@ Utils.register(class Membres extends Page {
     async afficherIndicateursAttaqueDefense() {
         if (!Utils.comptePlus) {
             await this.synchroniserJoueursDepuisDOM();
-            console.log('this._alliance.joueurs :', this._alliance.joueurs)
             const pseudoColIndex = this.getColonneIndex('Pseudo');
             const TerrainColIndex = this.getColonneIndex('Terrain de Chasse');
 
@@ -256,16 +239,10 @@ Utils.register(class Membres extends Page {
      */
     async afficherStatsEtCompteurs() {
         await this.synchroniserJoueursDepuisDOM(); // S'assurer que la liste des joueurs est à jour
-        console.log('this._alliance.joueurs :', this._alliance.joueurs)
         const totalTerrain = await this._alliance.calculTerrain();
         const totalFourmiliere = await this._alliance.calculFourmiliere();
         const totalTechnologie = await this._alliance.calculTechnologie();
         const nbJoueurs = Object.keys(this._alliance.joueurs).length;
-
-        console.log('totalTerrain :', totalTerrain)
-        console.log('totalFourmiliere :', totalFourmiliere)
-        console.log('totalTechnologie :', totalTechnologie)
-        console.log('nbJoueurs :', nbJoueurs)
 
         const moyenneTerrain = nbJoueurs > 0 ? totalTerrain / nbJoueurs : 0;
         const moyenneFourmiliere = nbJoueurs > 0 ? totalFourmiliere / nbJoueurs : 0;
@@ -313,14 +290,12 @@ Utils.register(class Membres extends Page {
     * @returns {Promise<void>}
     */
     async ajouterBoutonsDataTable() {
-        console.log("[Membres] ajouterBoutonsDataTable: Début");
         const allHeaderTexts = [];
         const colspans = [];
         $("#tabMembresAlliance thead th").each((i, th) => {
             const text = $(th).text().trim().replace(/\s+/g, ' ');
             allHeaderTexts.push(text);
             colspans.push(parseInt($(th).attr('colspan') || 1));
-            console.log(`[Membres] Header detected: "${text}" (colspan=${$(th).attr('colspan') || 1})`);
         });
 
         const proprietes = Joueur.recupererProprietesAffichage(allHeaderTexts);
@@ -352,33 +327,6 @@ Utils.register(class Membres extends Page {
         })();
 
         const terrainIndex = this.getColonneIndex('Terrain de Chasse');
-        console.log(`[Membres] Index de tri (Terrain de Chasse): ${terrainIndex}`);
-
-        // ── LOGS DE DIAGNOSTIC : contenu du header et des lignes ──────────────────────
-        const nbColonnesAttendues = $("#tabMembresAlliance thead th").get().reduce((acc, th) => acc + parseInt($(th).attr('colspan') || 1), 0);
-        console.log(`[Membres] DIAGNOSTIC: thead couvre ${nbColonnesAttendues} colonnes (via ${$("#tabMembresAlliance thead th").length} <th>) :`, allHeaderTexts);
-
-        let lignesIncaherentes = 0;
-        $("#tabMembresAlliance tbody tr").each((i, tr) => {
-            const $tds = $(tr).find("td");
-            const nbTd = $tds.length;
-            const cellsContent = $tds.map((j, td) => $(td).text().trim()).get();
-            const pseudo = $(tr).find(`td:eq(${this.getColonneIndex('Pseudo') >= 0 ? this.getColonneIndex('Pseudo') : 3})`).text().trim().split(' ')[0] || `ligne_${i}`;
-
-            if (nbTd !== nbColonnesAttendues) {
-                console.warn(`[Membres] DIAGNOSTIC INCOHÉRENCE ligne ${i} (${pseudo}): ${nbTd} <td> vs ${nbColonnesAttendues} attendues. Contenu:`, cellsContent);
-                lignesIncaherentes++;
-            } else {
-                console.log(`[Membres] DIAGNOSTIC ligne ${i} (${pseudo}): OK. Contenu:`, cellsContent);
-            }
-        });
-
-        if (lignesIncaherentes > 0) {
-            console.error(`[Membres] DIAGNOSTIC: ${lignesIncaherentes} ligne(s) incohérente(s) détectée(s) (nbTd !== ${nbColonnesAttendues}) → DataTables va échouer !`);
-        } else {
-            console.log(`[Membres] DIAGNOSTIC: Toutes les lignes sont cohérentes avec le thead (${nbColonnesAttendues} colonnes).`);
-        }
-        // ── FIN LOGS DE DIAGNOSTIC ──────────────────────────────────────────
 
         // Initialiser DataTable
         $("#tabMembresAlliance").DataTable({
@@ -393,6 +341,5 @@ Utils.register(class Membres extends Page {
             },
             columnDefs: columnDefs
         });
-        console.log("[Membres] DataTable initialisé.");
     }
 });

@@ -1,14 +1,12 @@
 /**
 * Classe pour la gestion des différents outils globals à fourmizzz.
 *
-* @class Outil
+* @class Dock
 * @constructor
 * @extends Boite
 */
-class Dock
-{
-    constructor()
-    {
+Utils.register(class Dock {
+    constructor() {
         /**
         *
         */
@@ -19,6 +17,7 @@ class Dock
             <div id="o_toolbarItem4" class="o_toolbarItem" title="Traceur"><span id="o_itemTraceur" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
             <div id="o_toolbarItem5" class="o_toolbarItem" title="Carte"><span id="o_itemMap" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
             <div id="o_toolbarItem6" class="o_toolbarItem" title="Préférence"><span id="o_itemParametre" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
+            <div id="o_toolbarItem7" class="o_toolbarItem" title="Signaler un bug"><span id="o_itemBug" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
             </div>`;
         /**
         *
@@ -44,69 +43,74 @@ class Dock
         *
         */
         this._boiteParametre = new BoiteParametre();
+        /**
+        *
+        */
+        this._boiteSignalement = new BoiteSignalement();
     }
-	/**
+    /**
     * Affiche la boite.
     *
-    * @private
     * @method afficher
     */
-	async afficher()
-	{
+    async afficher() {
         $("body").append(this._html);
         $(".o_toolbarDroite .o_toolbarItem").tooltip({
-            tooltipClass : "warning-tooltip",
-            content : function(){return $(this).prop("title");},
-            position : {my : "left+10 center", at : "right center"},
-            hide : {effect: "fade", duration: 10}
+            tooltipClass: "warning-tooltip",
+            content: function () { return $(this).prop("title"); },
+            position: { my: "left+10 center", at: "right center" },
+            hide: { effect: "fade", duration: 10 }
         });
         $(".o_toolbarBas .o_toolbarItem").tooltip({
-            tooltipClass : "warning-tooltip",
-            content : function(){return $(this).prop("title");},
-            position : {my : "center top", at : "center bottom+10"},
-            hide : {effect: "fade", duration: 10}
+            tooltipClass: "warning-tooltip",
+            content: function () { return $(this).prop("title"); },
+            position: { my: "center top", at: "center bottom+10" },
+            hide: { effect: "fade", duration: 10 }
         });
         // selon la pref on cache l'element
-        if(monProfilUtilisateur.parametre["dockVisible"].valeur == "0"){
+        if (monProfilUtilisateur.parametre["dockVisible"].valeur == "0") {
             $(document).mousemove((e) => {
-                if(monProfilUtilisateur.parametre["dockPosition"].valeur == "1"){ // boite en bas
-                    if($(window).height() - e.pageY < 60)
+                if (monProfilUtilisateur.parametre["dockPosition"].valeur == "1") { // boite en bas
+                    if ($(window).height() - e.pageY < 60)
                         $("#o_toolbarOutiiil").slideDown(500);
                     else
                         $("#o_toolbarOutiiil").slideUp(500);
-                }else{ // boite à droite
-                    if($(window).width() - e.pageX < 60)
-                        $("#o_toolbarOutiiil").show("slide", {direction : "right"}, 500);
+                } else { // boite à droite
+                    if ($(window).width() - e.pageX < 60)
+                        $("#o_toolbarOutiiil").show("slide", { direction: "right" }, 500);
                     else
-                        $("#o_toolbarOutiiil").hide("slide", {direction : "right"}, 500);
+                        $("#o_toolbarOutiiil").hide("slide", { direction: "right" }, 500);
                 }
             });
         }
         // evenement sur le clic d'un item de la boite d'outil
         $(".o_toolbarItem").click(async (e) => {
             // affichage de la boite
-            switch($(e.currentTarget).find("span").attr("id")){
-                case "o_itemPonte" :
+            switch ($(e.currentTarget).find("span").attr("id")) {
+                case "o_itemPonte":
                     await this._boitePonte.afficher();
                     break;
-                case "o_itemChasse" :
+                case "o_itemChasse":
                     await this._boiteChasse.afficher();
                     break;
-                case "o_itemCombat" :
+                case "o_itemCombat":
                     await this._boiteCombat.afficher();
                     break;
-                case "o_itemTraceur" :
+                case "o_itemTraceur":
                     await this._boiteTraceur.afficher();
                     break;
-                case "o_itemMap" :
+                case "o_itemMap":
                     await this._boiteMap.afficher();
                     break;
-                case "o_itemParametre" :
+                case "o_itemParametre":
                     await this._boiteParametre.afficher();
                     break;
-                default :
+                case "o_itemBug":
+                    await this._boiteSignalement.afficher();
+                    break;
+                default:
                     break;
             }
         });
-	}
-}
+    }
+});

@@ -10,7 +10,9 @@
 * @constructor
 * @extends Rapport
 */
-class Chasse {
+Utils.register(class Chasse {
+
+
 	constructor(rc) {
 		/**
 		*
@@ -50,26 +52,26 @@ class Chasse {
 	/**
 	* Calcule le niveau d'armes en fonction des degats.
 	*
-	* @private
 	* @method getArmes
+	* @private
 	* @param {Integer} fdf de base
 	* @param {Integer} fdf avec bonus
 	* @return {Integer} le niveau d'armes
 	*/
-	calculArmes(base, bonus) {
+	#calculArmes(base, bonus) {
 		return Math.round(bonus / base * 10);
 	}
 	/**
 	* Calcule le niveau du bouclier.
 	*
-	* @private
 	* @method getBouclier
+	* @private
 	* @param {Integer} degat
 	* @param {Object} armee1
 	* @param {Object} armee2
 	* @return {Integer} le niveau de bouclier
 	*/
-	calculBouclier(degat, armee1, armee2) {
+	#calculBouclier(degat, armee1, armee2) {
 		let viePerdue = armee1.getBaseVie() - armee2.getBaseVie();
 		return Math.round(((degat - viePerdue) / viePerdue) * 10);
 	}
@@ -77,11 +79,11 @@ class Chasse {
 	* Retourne l'armée en retirant d'aprés le rapport les unités perdues suivant le texte.
 	*
 	* @private
-	* @method retirePerte
+	* @method #retirePerte
 	* @param {Object} armee
 	* @return {Object} armee perdue
 	*/
-	retirePerte(armee) {
+	#retirePerte(armee) {
 		let res = new Armee(), tmp = this._rc.split("et en tue"), total = 0;
 		res.unite = armee.unite.slice(0);
 		// Si le rc à plusieurs tours on additionne d'abords les pertes.
@@ -102,11 +104,11 @@ class Chasse {
 	* Retourne l'armée en ajoutant l'xp.
 	*
 	* @private
-	* @method ajouteXP
+	* @method #ajouteXP
 	* @param {Object} armee
 	* @return {Object} armee avec XP
 	*/
-	ajouteXP(armee) {
+	#ajouteXP(armee) {
 		let res = new Armee(), tmp = this._rc.split("- "), tableXP = [-1, 2, 3, -1, 5, 10, 7, -1, 9, -1, -1, 12, -1, 14, -1];
 		res.unite = armee.unite.slice(0);
 		// Pour chaques types d'unitées qui ont XP.
@@ -122,15 +124,14 @@ class Chasse {
 	/**
 	* Récupére l'armée, les pertes et l'xp d'un rapport de chasse.
 	*
-	* @private
 	* @method analyse
 	*/
 	analyse() {
 		let motCle = new Array("Troupes en attaque : ", "et en tue");
 		if (motCle.some((substring) => { return this._rc.includes(substring); })) {
 			this._armeeAv.parseArmee(this._rc.split("Troupes en attaque : ")[1].split(".")[0]);
-			this._armeePe = this.retirePerte(this._armeeAv);
-			this._armeeAp = this.ajouteXP(this._armeePe);
+			this._armeePe = this.#retirePerte(this._armeeAv);
+			this._armeeAp = this.#ajouteXP(this._armeePe);
 			return true;
 		}
 		return false;
@@ -138,7 +139,6 @@ class Chasse {
 	/**
 	* Ajoute les données des chasses pour faire un bilan.
 	*
-	* @private
 	* @method ajoute
 	* @param {Object} chasse
 	*/
@@ -195,4 +195,4 @@ class Chasse {
 			<tr ${bVisible ? "" : "style='display:none'"}><td>${IMG_DEF}</td><td>${numeral(this._armeeAv.getTotalDef(recherches[2])).format()}</td><td>${IMG_DEF}</td><td>${numeral(diffDef).format("+0,0")} (${numeral(diffDef / defAv).format("+0.00%")})</td><td>${IMG_DEF}</td><td>${numeral(this._armeeAp.getTotalDef(recherches[2])).format()}</td></tr>`;
 		return html;
 	}
-}
+});

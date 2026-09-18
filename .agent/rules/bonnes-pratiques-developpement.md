@@ -21,7 +21,7 @@ trigger: always_on
 
 Surcharger ces méthodes dans les classes filles pour injecter une logique spécifique :
 
-- **`completerChargementPourVersionsAnterieures()` :** Gère la migration des données (switch sur `_determinerVersionChargee()`).
+- **`completerChargementPourVersionsAnterieures()` :** Gère la migration des données (switch sur `determinerVersionChargee()`).
 - **`_migrerValeur(valeurChargee)` (Paramètre) :** Convertit une ancienne valeur brute vers le format actuel.
 - **`completerRafraichissement()` :** Appelé après chargement sujet/contenus pour charger des données/attributs additionnels.
 - **`completerAffichage(donnees)` :** Modifie `donnees` avant rendu HTML.

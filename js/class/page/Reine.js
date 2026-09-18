@@ -100,13 +100,14 @@ Utils.register(class Reine extends Page {
                 temps = Utils.timeToInt($(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(3)").text());
             listePonte.push({ "unite": unite.substr(0, 1).toUpperCase() + unite.substr(1), "nombre": nombre, "exp": moment().add(temps, 's') });
         }
-        await this.savePonte(listePonte);
+        await this.#savePonte(listePonte);
     }
     /**
     * Sauvegarde la ponte en cours.
-    * @method savePonte
+    * @method #savePonte
+    * @private
     */
-    async savePonte(listePonte) {
+    async #savePonte(listePonte) {
         boiteComptePlus.ponte = listePonte;
         boiteComptePlus.startPonte = moment();
         await boiteComptePlus.sauvegarder().majPonte();

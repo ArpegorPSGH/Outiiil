@@ -9,10 +9,8 @@
  * @class Boite
  * @constructor
  */
-class Boite
-{
-    constructor(idBoite, titre, content = "")
-    {
+Utils.register(class Boite {
+    constructor(idBoite, titre, content = "") {
         /**
         * id de la boite.
         *
@@ -41,82 +39,73 @@ class Boite
     /**
     * Supprime la boite.
     *
-    * @private
     * @method desctructor
     */
-    destructor()
-    {
+    destructor() {
         $("#" + this._id).remove();
     }
     /**
     * Affiche la boite.
     *
-    * @private
     * @method afficher
     */
-    async afficher()
-    {
+    async afficher() {
         let bCreate = false;
-        if(!$("#" + this._id).length){
+        if (!$("#" + this._id).length) {
             $("body").append(`<div id='${this._id}' class='o_content'><span class='o_titre'>${this._titre}</span><div id="${this._id}Close" class='o_close'><b/><b/><b/><b/></div>${this._content}</div>`);
             $("#" + this._id)
-                .css({top : (Math.random() * 100 + 50) + "px", left : (Math.random() * 250 + 100) + "px"})
-                .draggable({handle: ".o_titre", stack : "div"});
+                .css({ top: (Math.random() * 100 + 50) + "px", left: (Math.random() * 250 + 100) + "px" })
+                .draggable({ handle: ".o_titre", stack: "div" });
             bCreate = true;
         }
         $("#" + this._id).show(EFFET[monProfilUtilisateur.parametre["boiteShow"].valeur].toLowerCase(), () => {
             $(".o_content").css({
-                "background-color" : monProfilUtilisateur.parametre["couleur1"].valeur,
-                "border-color" : monProfilUtilisateur.parametre["couleur3"].valeur
+                "background-color": monProfilUtilisateur.parametre["couleur1"].valeur,
+                "border-color": monProfilUtilisateur.parametre["couleur3"].valeur
             });
         });
         return bCreate;
     }
     /**
-	* Cache la boite avec un effet de slide.
+    * Cache la boite avec un effet de slide.
     *
-	* @private
-	* @method masquer
-	*/
-    masquer()
-    {
+    * @method masquer
+    * @private
+    */
+    masquer() {
         $("#" + this._id).hide(EFFET[monProfilUtilisateur.parametre["boiteHide"].valeur].toLowerCase());
         return this;
     }
     /**
-	* Applique le style propre à la boite.
+    * Applique le style propre à la boite.
     *
-	* @private
-	* @method css
-	*/
-	css()
-	{
+    * @method css
+    */
+    css() {
         $(".o_titre").css("color", monProfilUtilisateur.parametre["couleurTitre"].valeur);
         $(".o_content").css({
-            "background-color" : monProfilUtilisateur.parametre["couleur1"].valeur,
-            "border-color" : monProfilUtilisateur.parametre["couleur3"].valeur
+            "background-color": monProfilUtilisateur.parametre["couleur1"].valeur,
+            "border-color": monProfilUtilisateur.parametre["couleur3"].valeur
         });
         $(".o_close b:nth-child(1)").css("border-top-color", monProfilUtilisateur.parametre["couleur1"].valeur);
         $(".o_close b:nth-child(2)").css("border-left-color", monProfilUtilisateur.parametre["couleur1"].valeur);
         $(".o_close b:nth-child(3)").css("border-bottom-color", monProfilUtilisateur.parametre["couleur1"].valeur);
         $(".o_close b:nth-child(4)").css("border-right-color", monProfilUtilisateur.parametre["couleur1"].valeur);
         $(".o_close").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur).hover(
-            (e) => {$(e.currentTarget).animate({"background-color" : "#bb3333"}, 400);},
-            (e) => {$(e.currentTarget).animate({"background-color" : monProfilUtilisateur.parametre["couleur2"].valeur}, 400);}
-		);
+            (e) => { $(e.currentTarget).animate({ "background-color": "#bb3333" }, 400); },
+            (e) => { $(e.currentTarget).animate({ "background-color": monProfilUtilisateur.parametre["couleur2"].valeur }, 400); }
+        );
         $(".o_tabs > .ui-widget-header").css("border-bottom-color", monProfilUtilisateur.parametre["couleur2"].valeur);
         $(".o_content p, .o_content .o_label, .o_content label, .o_content table").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         return this;
-	}
-	/**
-	* Ajoute les evenements propres à la boite.
+    }
+    /**
+    * Ajoute les evenements propres à la boite.
     *
-	* @private
-	* @method event
-	*/
-	event()
-	{
-        $("#" + this._id + "Close").click((e) => {this.masquer();});
+    * @method event
+    */
+    event() {
+        $("#" + this._id + "Close").click((e) => { this.masquer(); });
         return this;
-	}
-}
+    }
+});

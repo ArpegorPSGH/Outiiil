@@ -1,4 +1,4 @@
-class ObjetForum {
+Utils.register(class ObjetForum {
     /**
      * Configuration déclarative. Version de la logique de fonctionnement de l'objet.
      * @type {String|null}
@@ -27,7 +27,6 @@ class ObjetForum {
     /**
      * Spécifie le type d'objet contenu.
      * @type {typeof ObjetForum|null}
-     * @protected
      */
     static classeObjetsForumContenus = null;
 
@@ -46,49 +45,42 @@ class ObjetForum {
     /**
      * Conteneur des instances de ParametreObjetForum.
      * @type {Array<ParametreObjetForum>}
-     * @private
      */
     parametres = [];
 
     /**
      * Conteneur des instances d'AttributObjet.
      * @type {Array<AttributObjet>}
-     * @private
      */
     attributs = [];
 
     /**
      * Liste des IDs de section où les données de cet objet peuvent être trouvées.
      * @type {Array<Number>}
-     * @protected
      */
     idsSection = [];
 
     /**
      * L'ID du sujet spécifique sur le forum contenant les données de l'instance.
      * @type {Number|null}
-     * @protected
      */
     idSujet = null;
 
     /**
      * L'id du message spécifique dans le sujet contenant les données de l'instance.
      * @type {Number|null}
-     * @protected
      */
     idMessage = null;
 
     /**
      * L'id de la section dans laquelle se trouve l'objet.
      * @type {Number|null}
-     * @protected
      */
     idSection = null;
 
     /**
      * Liste d'autres instances d'ObjetForum imbriquées.
      * @type {Array<ObjetForum>}
-     * @protected
      */
     objetsForumContenus = [];
 
@@ -100,25 +92,69 @@ class ObjetForum {
 
     /**
      * Cache unifié des instances de DonneeValidable (paramètres et attributs), indexées par leurs noms normalisés.
-     * Remplace mapParametres et mapAttributs. Aucun attribut et paramètre ne peut porter le même nom.
+     * Aucun attribut et paramètre ne peut porter le même nom.
      * @type {Map<String, DonneeValidable>}
-     * @private
      */
     mapDonnees = new Map();
 
     /**
      * Indique si les objets contenus de cette instance ont été chargés depuis le forum.
      * @type {Boolean}
-     * @protected
      */
     contenusCharges = false;
 
     /**
-     * Indique si l'objet a été modifié depuis son dernier chargement/enregistrement.
-     * C'est un getter qui retourne le OU logique des estModifie des paramètres de la dernière version de l'objet.
+     * Compteur de lecteurs actifs.
+     * @type {Number}
      * @private
-     * @type {Boolean}
      */
+    #readerCount = 0;
+
+    /**
+     * Indique si un writer est en attente d'acquérir le verrou.
+     * @type {Boolean}
+     * @private
+     */
+    #writerWaiting = false;
+
+    /**
+     * Compteur de writers actifs.
+     * @type {Number}
+     * @private
+     */
+    #writerCount = 0;
+
+    /**
+     * File d'attente pour les lecteurs en attente.
+     * @type {Array<Function>}
+     * @private
+     */
+    #readerQueue = [];
+
+    /**
+     * File d'attente pour les writers en attente.
+     * @type {Array<Function>}
+     * @private
+     */
+    #writerQueue = [];
+
+    /**
+     * Référence à l'instance de la fonctionnalité qui a créé cet objet.
+     * @type {FonctionnaliteAlliance|null}
+     */
+    fonctionnaliteCreatrice = null;
+
+    /**
+     * Référence à l'instance de l'objet parent qui a créé cet objet.
+     * @type {ObjetForum|null}
+     */
+    objetParent = null;
+
+    /**
+  * Indique si l'objet a été modifié depuis son dernier chargement/enregistrement.
+  * C'est un getter qui retourne le OU logique des estModifie des paramètres de la dernière version de l'objet.
+  * @type {Boolean}
+  */
     get estModifie() {
         const classesDerniereVersion = this.constructor.PARAMETRES_OBJET[this.constructor.PARAMETRES_OBJET.length - 1];
         return this.parametres.some(p => classesDerniereVersion.includes(p.constructor) && p.estModifie);
@@ -126,7 +162,6 @@ class ObjetForum {
 
     /**
      * Définit l'état modifié des paramètres de la dernière version de l'objet.
-     * @private
      * @param {Boolean} value - La valeur à laquelle définir estModifie.
      */
     set estModifie(value) {
@@ -137,55 +172,6 @@ class ObjetForum {
             }
         });
     }
-
-    /**
-     * Compteur de lecteurs actifs.
-     * @type {Number}
-     * @private
-     */
-    _readerCount = 0;
-
-    /**
-     * Indique si un writer est en attente d'acquérir le verrou.
-     * @type {Boolean}
-     * @private
-     */
-    _writerWaiting = false;
-
-    /**
-     * Compteur de writers actifs.
-     * @type {Number}
-     * @private
-     */
-    _writerCount = 0;
-
-    /**
-     * File d'attente pour les lecteurs en attente.
-     * @type {Array<Function>}
-     * @private
-     */
-    _readerQueue = [];
-
-    /**
-     * File d'attente pour les writers en attente.
-     * @type {Array<Function>}
-     * @private
-     */
-    _writerQueue = [];
-
-    /**
-     * Référence à l'instance de la fonctionnalité qui a créé cet objet.
-     * @type {FonctionnaliteAlliance|null}
-     * @protected
-     */
-    fonctionnaliteCreatrice = null;
-
-    /**
-     * Référence à l'instance de l'objet parent qui a créé cet objet.
-     * @type {ObjetForum|null}
-     * @protected
-     */
-    objetParent = null;
 
     /**
      * Initialise l'objet, et optionnellement, peuple ses paramètres avec des valeurs fournies.
@@ -247,32 +233,30 @@ class ObjetForum {
         }
 
         // 5. Initialiser les attributs et peupler avec les données initiales
-        this._initialiserAttributsEtParametres(options.donneesInitiales);
+        this.#initialiserAttributsEtParametres(options.donneesInitiales);
 
         // 6. Initialiser les IDs de section à partir de la configuration statique
-        this._actualiserIdsSection();
+        this.actualiserIdsSection();
     }
 
     /**
      * Met à jour la liste des IDs de section de l'objet à partir du profil utilisateur.
-     * @protected
      */
-    _actualiserIdsSection() {
+    actualiserIdsSection() {
         if (this.constructor.LOCATION_HISTORY.length > 0) {
             const ids = new Set();
             this.constructor.LOCATION_HISTORY.forEach(format => {
                 const parametreSection = monProfilUtilisateur.parametre[format.section];
-                console.log('parametreSection:', parametreSection);
                 if (parametreSection && parametreSection.valeur !== undefined) {
                     const id = parseInt(parametreSection.valeur, 10);
                     if (!isNaN(id)) {
                         ids.add(id);
                     } else {
-                        console.warn(`[${this.constructor.name}] La valeur du paramètre de section '${format.section}' n'est pas un nombre valide:`, parametreSection.valeur);
+                        console.error(`[${this.constructor.name}] La valeur du paramètre de section '${format.section}' n'est pas un nombre valide:`, parametreSection.valeur);
                         ids.add(null);
                     }
                 } else {
-                    console.warn(`[${this.constructor.name}] Le paramètre de section '${format.section}' est manquant ou n'a pas de valeur.`);
+                    console.error(`[${this.constructor.name}] Le paramètre de section '${format.section}' est manquant ou n'a pas de valeur.`);
                     ids.add(null);
                 }
             });
@@ -285,8 +269,7 @@ class ObjetForum {
      * @param {Object} [donneesInitiales] - Un objet clé-valeur pour peupler les paramètres et attributs.
      * @private
      */
-    _initialiserAttributsEtParametres(donneesInitiales) {
-        console.log('donneesInitiales:', donneesInitiales)
+    #initialiserAttributsEtParametres(donneesInitiales) {
         // Appliquer les données initiales fournies, qui écrasent les valeurs par défaut
         if (donneesInitiales && typeof donneesInitiales === 'object') {
             for (const cle in donneesInitiales) {
@@ -308,12 +291,12 @@ class ObjetForum {
      * @returns {Promise<Boolean>} Vrai si toutes les vérifications de version réussissent, sinon faux.
      */
     async verifierVersionSuffisante() {
-        await this._acquireReadLock();
+        await this.#acquireReadLock();
         try {
             // 1. Validation des Paramètres
             for (const parametre of this.parametres) {
                 if (!(await parametre.verifierVersionSuffisante())) {
-                    console.error(`Paramètre incompatible pour ${this.constructor.name}`);
+                    console.log(`Paramètre incompatible pour ${this.constructor.name}`);
                     return false;
                 }
             }
@@ -322,7 +305,7 @@ class ObjetForum {
             const estVersionne = this.constructor.VERSION_LOGIQUE && this.constructor.LOCATION_HISTORY.length > 0 && this.constructor.PARAMETRES_OBJET.length > 0;
             if (estVersionne) {
                 if (!(await gestionnaireVersions.verifierCompatibiliteObjetForum(this))) {
-                    console.error(`ObjetForum incompatible: ${this.constructor.name}`);
+                    console.log(`ObjetForum incompatible: ${this.constructor.name}`);
                     return false;
                 }
             }
@@ -331,7 +314,7 @@ class ObjetForum {
             if (this.constructor.classeObjetsForumContenus) {
                 const instanceContenue = new this.constructor.classeObjetsForumContenus();
                 if (!(await instanceContenue.verifierVersionSuffisante())) {
-                    console.error(`ObjetForum contenu incompatible pour ${this.constructor.name}`);
+                    console.log(`ObjetForum contenu incompatible pour ${this.constructor.name}`);
                     return false;
                 }
             }
@@ -339,7 +322,7 @@ class ObjetForum {
             // 4. Résultat Final
             return true;
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
 
@@ -349,44 +332,26 @@ class ObjetForum {
      * @returns {Promise<Boolean>} Vrai si la section est présente, sinon faux.
      */
     async verifierPresenceSection() {
-        await this._acquireReadLock();
+        await this.#acquireReadLock();
         try {
-            console.log('this.idsSection:', this.idsSection);
             if (this.idsSection.length > 0) {
                 const dernierId = this.idsSection[this.idsSection.length - 1];
-                console.log('dernierId:', dernierId);
 
                 if (!dernierId) {
                     return false;
                 }
 
                 if (sectionsEnCache && sectionsEnCache.has(dernierId)) {
-                    console.log('sectionsEnCache:', sectionsEnCache);
                     if (!sectionsEnCache.get(dernierId)) return false;
                 } else {
                     let estValide = false;
                     try {
                         const nomSection = this.getLastLocation().section;
-                        const xmlDoc = await AccesForum.consulterSection(dernierId);
-
-                        if (xmlDoc.querySelector('parsererror')) {
-                            console.error(`[${this.constructor.name}] Erreur lors du parsing de la réponse XML pour la section '${nomSection}'.`);
+                        const { titreSection } = await AccesForum.recupererSujetsSection(dernierId);
+                        if (titreSection && titreSection.includes(nomSection)) {
+                            estValide = true;
                         } else {
-                            const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
-                            if (!allianceCmdElement) {
-                                console.error(`[${this.constructor.name}] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le XML de la section '${nomSection}'.`);
-                            } else {
-                                const htmlContent = allianceCmdElement.textContent;
-                                const htmlParser = new DOMParser();
-                                const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
-                                const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
-                                const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
-                                if (extractedTitle.includes(nomSection)) {
-                                    estValide = true;
-                                } else {
-                                    console.warn(`[${this.constructor.name}] Le titre de la section '${nomSection}' (ID: ${dernierId}) ne correspond pas. Titre reçu: "${extractedTitle}".`);
-                                }
-                            }
+                            console.warn(`[${this.constructor.name}] Le titre de la section '${nomSection}' (ID: ${dernierId}) ne correspond pas. Titre reçu: "${titreSection}".`);
                         }
                     } catch (error) {
                         console.error(`[${this.constructor.name}] Erreur lors de la vérification de la section ${dernierId} pour ${this.constructor.name}.`, error);
@@ -402,7 +367,7 @@ class ObjetForum {
 
             return true;
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
 
@@ -412,9 +377,7 @@ class ObjetForum {
      * @returns {Promise<Boolean>} Vrai si le rafraîchissement a réussi.
      */
     async rafraichir(chargerContenus = true, mettreAJourCache = true) {
-        await this._acquireReadLock();
-        console.log('début rafraichir')
-        console.log('transaction existe rafraichir:', transaction);
+        await this.#acquireReadLock();
         let rafraichissementReussi = false;
         try {
             const formatLieu = this.getLastLocation();
@@ -425,7 +388,7 @@ class ObjetForum {
                     const { messages: messagesLu } = await AccesForum.consulterSujetAvecMessagesEtIds(this.objetParent.idSujet);
                     const msg = messagesLu.find(m => m.id === this.idMessage);
                     if (!msg) {
-                        console.warn(`[${this.constructor.name}] Message ID ${this.idMessage} non trouvé dans le sujet parent.`);
+                        console.error(`[${this.constructor.name}] Message ID ${this.idMessage} non trouvé dans le sujet parent.`);
                     } else {
                         rafraichissementReussi = await this.chargerDepuisString(msg.contenu);
                     }
@@ -434,30 +397,24 @@ class ObjetForum {
                 if (!this.idSujet || this.idSujet < 0) {
                     console.error(`[${this.constructor.name}] Impossible de rafraîchir un objet sans idSujet valide. idSujet: ${this.idSujet}.`);
                 } else {
-                    console.log('rafraichir 1')
                     const { titre: titreLu, messages: messagesLu } = await AccesForum.consulterSujetAvecMessagesEtIds(this.idSujet);
-                    console.log('titreLu:', titreLu);
                     if (titreLu === null) {
-                        console.warn(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
+                        console.error(`[${this.constructor.name}] Le sujet ID ${this.idSujet} n'a pas pu être lu ou n'existe pas.`);
                     } else {
-                        console.log('rafraichir 2')
                         if (!await this.chargerDepuisString(titreLu)) {
-                            console.warn(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
+                            console.error(`[${this.constructor.name}] Échec du chargement des paramètres depuis le titre pour le sujet ID ${this.idSujet}.`);
                         } else {
-                            console.log('rafraichir 3')
                             let erreurContenu = false;
                             if (chargerContenus) {
                                 if (!await this.chargerObjetForumsContenus(messagesLu)) {
-                                    console.warn(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
+                                    console.error(`[${this.constructor.name}] Échec du chargement des objets contenus pour le sujet ID ${this.idSujet}.`);
                                     erreurContenu = true;
                                 }
                             }
                             if (!erreurContenu) {
-                                console.log('rafraichir 4')
                                 if (!await this.completerRafraichissement()) {
-                                    console.warn(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
+                                    console.error(`[${this.constructor.name}] Le complément de rafraîchissement a échoué pour le sujet ID ${this.idSujet}.`);
                                 } else {
-                                    console.log('rafraichir 5')
                                     rafraichissementReussi = true;
                                 }
                             }
@@ -469,23 +426,19 @@ class ObjetForum {
             console.error(`[${this.constructor.name}] Erreur lors du rafraîchissement de l'objet (ID: ${this.idSujet}).`, error);
             throw error;
         } finally {
-            console.log('resultat chargement :', this)
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
 
 
 
         if (rafraichissementReussi) {
-            console.log('rafraichir 5.1')
             this.stringInitial = await this.genererStringParametres();
             if (this.objetsForumContenus && this.objetsForumContenus.length > 0) {
                 for (const sousObjet of this.objetsForumContenus) {
                     sousObjet.stringInitial = await sousObjet.genererStringParametres();
                 }
             }
-            console.log('rafraichir 5.2')
             await this.enregistrerSurForum(mettreAJourCache);
-            console.log('rafraichir 6')
         }
 
         return rafraichissementReussi;
@@ -495,7 +448,6 @@ class ObjetForum {
      * Méthode de complément destinée à être surchargée dans les classes filles pour ajouter une logique
      * spécifique à la fin du processus de rafraîchissement.
      * @returns {Promise<Boolean>} Vrai si le complément a réussi.
-     * @protected
      */
     async completerRafraichissement() {
         // Logique à surcharger par les classes enfants.
@@ -506,10 +458,9 @@ class ObjetForum {
      * Peuple le tableau `objetsForumContenus` en transformant les messages fournis en instances d'un sous-objet.
      * @param {Array<Object>} messages - La liste des messages du sujet, avec leurs IDs et contenus.
      * @returns {Promise<Boolean>} Vrai si le chargement des objets contenus a réussi.
-     * @protected
      */
     async chargerObjetForumsContenus(messages) {
-        await this._acquireReadLock();
+        await this.#acquireReadLock();
         try {
             // 1. Vérification des prérequis
             if (!this.constructor.classeObjetsForumContenus) {
@@ -517,7 +468,7 @@ class ObjetForum {
                 return true;
             }
             if (!(this.constructor.classeObjetsForumContenus.prototype instanceof ObjetForum)) {
-                console.error(`[${this.constructor.name}] La classe ${this.constructor.classeObjetsForumContenus.name} n'hérite pas de ObjetForum.`);
+                console.warn(`[${this.constructor.name}] La classe ${this.constructor.classeObjetsForumContenus.name} n'hérite pas de ObjetForum.`);
                 return false;
             }
 
@@ -543,7 +494,7 @@ class ObjetForum {
                     if (chargeOk) {
                         nouveauxObjetForumsContenus.push(instance);
                     } else {
-                        console.warn(`[${this.constructor.name}] Échec du chargement de l'objet contenu ${instance.constructor.name} depuis le message ID ${idMessage}.`);
+                        console.error(`[${this.constructor.name}] Échec du chargement de l'objet contenu ${instance.constructor.name} depuis le message ID ${idMessage}.`);
                         return false; // Si un sous-objet échoue, le chargement global échoue
                     }
                 }
@@ -561,7 +512,7 @@ class ObjetForum {
                 throw error;
             }
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
 
@@ -576,9 +527,6 @@ class ObjetForum {
         }
 
         const lieu = this.getLastLocation().lieu;
-
-        console.log("[estDoublonDe] this.genererStringParametres() : ", await this.genererStringParametres());
-        console.log("[estDoublonDe] autre.genererStringParametres() : ", await autre.genererStringParametres());
 
         if (await this.genererStringParametres() !== await autre.genererStringParametres()) {
             return false;
@@ -615,10 +563,9 @@ class ObjetForum {
      * puis lance le chargement de ses objets contenus.
      * @param {String} contenu - La chaîne de caractères à parser.
      * @returns {Promise<Boolean>} Vrai si le chargement a réussi.
-     * @protected
      */
     async chargerDepuisString(contenu) {
-        await this._acquireReadLock();
+        await this.#acquireReadLock();
         try {
             // 1. Chargement des Paramètres Propres
             for (const parametre of this.parametres) {
@@ -626,7 +573,7 @@ class ObjetForum {
             }
 
             // Vérifier si des paramètres ont été chargés avec succès
-            const versionChargeeIndex = this._determinerVersionChargee();
+            const versionChargeeIndex = this.determinerVersionChargee();
             const classesChargees = new Set(
                 this.parametres
                     .filter(p => p.estCharge)
@@ -649,7 +596,7 @@ class ObjetForum {
             console.error(`[${this.constructor.name}] Erreur lors de chargerDepuisString() pour l'objet ID: ${this.idSujet}.`, error);
             throw error;
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
 
@@ -657,7 +604,6 @@ class ObjetForum {
      * Contient la logique de migration pour calculer les valeurs des paramètres des versions récentes
      * à partir des données d'une version plus ancienne qui a été chargée.
      * Cette méthode est destinée à être surchargée dans les classes filles.
-     * @protected
      */
     async completerChargementPourVersionsAnterieures() {
         // La classe de base n'a pas de logique de migration.
@@ -669,7 +615,7 @@ class ObjetForum {
      * @returns {typeof DonneeValidable|null} La classe correspondante ou null.
      * @private
      */
-    static _trouverClasseParNom(nom) {
+    static trouverClasseParNom(nom) {
         if (!nom) return null;
 
         // Chercher parmi les paramètres
@@ -716,11 +662,10 @@ class ObjetForum {
                 ordreAffichage.push(ClasseAttribut.getNomAffichage());
             }
         }
-        console.log('ordreAffichage:', ordreAffichage)
         // Construction de l'en-tête HTML
         let en_tete_html = '';
         ordreAffichage.forEach(nom => {
-            const element = this._trouverClasseParNom(nom);
+            const element = this.trouverClasseParNom(nom);
             if (element) {
                 en_tete_html += `<th>${element.getNomAffichage()}</th>`;
             } else if (nom) {
@@ -772,7 +717,6 @@ class ObjetForum {
                 throw error;
             }
         }
-        console.log('donnees:', donnees);
 
         // 2. Détermination de l'ordre d'affichage
         let ordreAffichage;
@@ -799,7 +743,6 @@ class ObjetForum {
 
         // 3. Construction du corps jQuery
         const $tr = $('<tr>');
-        let totalCells = 0;
 
         ordreAffichage.forEach(nomParametre => {
             const valeur = donnees[nomParametre];
@@ -809,7 +752,7 @@ class ObjetForum {
                 if (val === null || val === undefined || val === '') return '';
                 if (val instanceof jQuery || val instanceof Element) return val;
 
-                const donnee = this._resoudreDonnee(nom);
+                const donnee = this.#resoudreDonnee(nom);
                 const affichage = donnee ? donnee.formaterValeur(val) : Utils.formatNombre(val);
 
                 if (typeLien === 'joueur') {
@@ -829,7 +772,6 @@ class ObjetForum {
                     $td.html(contenu);
                 }
                 $tr.append($td);
-                totalCells++;
             };
 
             if (valeur !== undefined && valeur !== null) {
@@ -847,7 +789,6 @@ class ObjetForum {
             }
         });
 
-        console.log(`[ObjetForum] afficherCorps(): ${totalCells} cellules générées.`);
         return $tr;
     }
 
@@ -877,7 +818,7 @@ class ObjetForum {
         }
 
         ordreAffichage.forEach(nom => {
-            const element = this._trouverClasseParNom(nom);
+            const element = this.trouverClasseParNom(nom);
 
             if (element) {
                 proprietes[nom] = {
@@ -920,7 +861,7 @@ class ObjetForum {
      * @returns {DonneeValidable|null} L'instance trouvée ou null.
      * @private
      */
-    _resoudreDonnee(nom) {
+    #resoudreDonnee(nom) {
         const donnee = this.mapDonnees.get(nom);
         if (!donnee) {
             console.warn(`[${this.constructor.name}] Donnée "${nom}" introuvable dans mapDonnees.`);
@@ -952,7 +893,7 @@ class ObjetForum {
         const motsClesNormalises = ['tout', 'tous', 'parametres', 'attributs', 'attributscalcules', 'attributsnoncalcules'];
         const nomNormalise = typeof noms === 'string' ? Utils.normaliser(noms) : '';
         if (typeof noms === 'string' && !motsClesNormalises.includes(nomNormalise)) {
-            const donnee = this._resoudreDonnee(noms);
+            const donnee = this.#resoudreDonnee(noms);
             if (!donnee) return null;
             return await donnee.lire(peutVoirDonneesRestreintes);
         }
@@ -987,7 +928,7 @@ class ObjetForum {
                 // Ajouter les attributs
                 if (selNorm === 'tout' || selNorm === 'tous' || selNorm === 'attributs' || selNorm === 'attributscalcules' || selNorm === 'attributsnoncalcules') {
                     for (const attribut of this.attributs) {
-                        const estCalcule = attribut._estCalcule();
+                        const estCalcule = attribut.estCalcule();
                         if (selNorm === 'tout' || selNorm === 'tous' || selNorm === 'attributs' ||
                             (selNorm === 'attributscalcules' && estCalcule) ||
                             (selNorm === 'attributsnoncalcules' && !estCalcule)) {
@@ -997,7 +938,7 @@ class ObjetForum {
                 }
             } else {
                 // Nom de donnée spécifique
-                const donnee = this._resoudreDonnee(sel);
+                const donnee = this.#resoudreDonnee(sel);
                 if (donnee) {
                     entrees.push({ nom: sel, donnee });
                 }
@@ -1040,7 +981,7 @@ class ObjetForum {
     async ecrire(noms, valeur) {
         // --- Mode unitaire ---
         if (typeof noms === 'string') {
-            const donnee = this._resoudreDonnee(noms);
+            const donnee = this.#resoudreDonnee(noms);
             if (!donnee) return false;
             return await donnee.ecrire(valeur);
         }
@@ -1048,7 +989,7 @@ class ObjetForum {
         // --- Mode objet ---
         const resultats = {};
         for (const nom in noms) {
-            const donnee = this._resoudreDonnee(nom);
+            const donnee = this.#resoudreDonnee(nom);
             if (donnee) {
                 resultats[nom] = await donnee.ecrire(noms[nom]);
             } else {
@@ -1063,7 +1004,7 @@ class ObjetForum {
      * @returns {Promise<void>}
      */
     async supprimerSurForum() {
-        await this._acquireWriteLock();
+        await this.#acquireWriteLock();
         try {
             const formatLieu = this.getLastLocation();
             if (formatLieu.lieu === 'titre') {
@@ -1081,7 +1022,6 @@ class ObjetForum {
                 }
             } else if (formatLieu.lieu === 'message') {
                 if (this.idMessage !== null) {
-                    console.warn(`Suppression message: ${this.idMessage}`);
                     await AccesForum.supprimerMessage(this.idMessage);
                     transaction.enregistrerSuppression(this);
                     this.idMessage = null;
@@ -1090,7 +1030,7 @@ class ObjetForum {
             }
             await FonctionnaliteAlliance.mettreAJourCache(this, true);
         } finally {
-            this._releaseWriteLock();
+            this.#releaseWriteLock();
         }
     }
 
@@ -1113,18 +1053,19 @@ class ObjetForum {
      * @param {number} idSection - L'ID de la section de destination.
      */
     async transferer(idSectionCible) {
-        await this._acquireWriteLock();
+        await this.#acquireWriteLock();
         try {
             if (this.idSujet === null || this.idSection === null) {
                 console.error(`Erreur lors du transfert: L'objet n'a pas de sujet forum ou de section.`);
-                return;
+                return false;
             }
             await AccesForum.transfererSujet(this.idSujet, idSectionCible, this.idSection);
             transaction.enregistrerTransfert(this);
             this.idSection = idSectionCible;
             console.log(`[${this.constructor.name}] Transfert: ${this.idSujet} -> ${idSectionCible}. Nouvelle section: ${this.idSection}`);
+            return true;
         } finally {
-            this._releaseWriteLock();
+            this.#releaseWriteLock();
         }
     }
 
@@ -1134,10 +1075,8 @@ class ObjetForum {
      * @returns {Promise<void>}
      */
     async enregistrerSurForum(mettreAJourCache = true) {
-        await this._acquireWriteLock();
+        await this.#acquireWriteLock();
         try {
-            console.log(`[${this.constructor.name}] estModifie:`, this.estModifie);
-            console.log('transaction existe enregistrerSurForum:', transaction);
             // 1. Enregistrement de l'objet principal (conditionnel)
             if (this.estModifie) {
                 const contenuFinal = await this.genererStringParametres();
@@ -1147,8 +1086,9 @@ class ObjetForum {
                 const idSection = this.idSection ? this.idSection : this.idsSection[this.idsSection.length - 1];
 
                 if (formatLieu.lieu === 'titre') {
-                    if (contenuFinal.length > 240) {
-                        throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un titre de sujet (${contenuFinal.length} > 240 caractères).`);
+                    const tailleEchappee = Utils.estimerTailleEchappee(contenuFinal);
+                    if (tailleEchappee > TITLE_MAX_LENGTH) {
+                        throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un titre de sujet (${tailleEchappee} > ${TITLE_MAX_LENGTH} caractères échappés).`);
                     }
                     if (this.idSujet === null) {
                         const newId = await AccesForum.creerSujetEtRetournerId(idSection, contenuFinal);
@@ -1168,8 +1108,9 @@ class ObjetForum {
                         console.error(`[${this.constructor.name}] Erreur: Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.`);
                         throw new Error("Un objet contenu ne peut être enregistré sans un objet parent ayant un idSujet.");
                     }
-                    if (contenuFinal.length > 61495) {
-                        throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un message (${contenuFinal.length} > 61495 caractères).`);
+                    const tailleEchappee = Utils.estimerTailleEchappee(contenuFinal);
+                    if (tailleEchappee > MESSAGE_MAX_LENGTH) {
+                        throw new Error(`La chaîne d'enregistrement dépasse la limite autorisée pour un message (${tailleEchappee} > ${MESSAGE_MAX_LENGTH} caractères échappés).`);
                     }
                     if (this.idMessage === null) {
                         const newId = await AccesForum.envoyerMessageEtRetournerId(this.objetParent.idSujet, contenuFinal);
@@ -1207,7 +1148,7 @@ class ObjetForum {
             }
 
         } finally {
-            this._releaseWriteLock();
+            this.#releaseWriteLock();
         }
     }
 
@@ -1271,13 +1212,12 @@ class ObjetForum {
      * @param {String} [cleStockage=this.constructor.name] - La clé de stockage dans le localStorage.
      */
     async enregistrerLocalStorage(cleStockage = this.constructor.name) {
-        await this._acquireReadLock();
-        console.log(`[${this.constructor.name}.enregistrerLocalStorage] Enregistrement de ${this.constructor.name} dans le localStorage...`);
+        await this.#acquireReadLock();
         try {
             const obj = await this.genererObjetPourLocalStorage();
             localStorage.setItem(cleStockage, JSON.stringify(obj));
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
 
@@ -1303,9 +1243,8 @@ class ObjetForum {
     /**
      * Analyse les paramètres chargés pour déterminer à quelle version de l'objet ils correspondent.
      * @returns {Number} L'index de la version correspondante, ou -1 si aucune correspondance exacte n'est trouvée.
-     * @protected
      */
-    _determinerVersionChargee() {
+    determinerVersionChargee() {
         const classesChargees = new Set(
             this.parametres
                 .filter(p => p.estCharge)
@@ -1332,19 +1271,19 @@ class ObjetForum {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireReadLock() {
+    async #acquireReadLock() {
         return new Promise(resolve => {
             const tryAcquire = () => {
                 // If a read lock is already held by this context, allow re-entry.
-                // In a single-threaded async environment, if _readerCount > 0,
+                // In a single-threaded async environment, if #readerCount > 0,
                 // it implies the current execution path holds the lock.
-                if (this._readerCount > 0) {
-                    this._readerCount++;
+                if (this.#readerCount > 0) {
+                    this.#readerCount++;
                     resolve();
-                } else if (this._writerCount > 0 || this._writerWaiting) { // Block if any writer is active or waiting
-                    this._readerQueue.push(tryAcquire);
+                } else if (this.#writerCount > 0 || this.#writerWaiting) { // Block if any writer is active or waiting
+                    this.#readerQueue.push(tryAcquire);
                 } else {
-                    this._readerCount++;
+                    this.#readerCount++;
                     resolve();
                 }
             };
@@ -1357,12 +1296,12 @@ class ObjetForum {
      * Si aucun autre lecteur n'est actif et qu'il y a des writers en attente, le prochain writer est notifié.
      * @private
      */
-    _releaseReadLock() {
-        this._readerCount--;
-        if (this._readerCount === 0) {
+    #releaseReadLock() {
+        this.#readerCount--;
+        if (this.#readerCount === 0) {
             // If no other readers are active, check if there are writers waiting
-            if (this._writerQueue.length > 0) {
-                const nextWriter = this._writerQueue.shift();
+            if (this.#writerQueue.length > 0) {
+                const nextWriter = this.#writerQueue.shift();
                 nextWriter();
             }
         }
@@ -1374,16 +1313,16 @@ class ObjetForum {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireWriteLock() {
+    async #acquireWriteLock() {
         return new Promise(resolve => {
             const tryAcquire = () => {
-                if (this._readerCount > 0) { // Block if any reader is active
-                    this._writerWaiting = true; // A writer is now waiting
-                    this._writerQueue.push(tryAcquire);
+                if (this.#readerCount > 0) { // Block if any reader is active
+                    this.#writerWaiting = true; // A writer is now waiting
+                    this.#writerQueue.push(tryAcquire);
                 } else {
-                    this._writerCount++;
-                    // Update _writerWaiting based on queue state after acquiring lock
-                    this._writerWaiting = (this._writerQueue.length > 0);
+                    this.#writerCount++;
+                    // Update #writerWaiting based on queue state after acquiring lock
+                    this.#writerWaiting = (this.#writerQueue.length > 0);
                     resolve();
                 }
             };
@@ -1396,21 +1335,21 @@ class ObjetForum {
      * Notifie les lecteurs ou le prochain writer en attente si aucun writer n'est actif.
      * @private
      */
-    _releaseWriteLock() {
-        this._writerCount--;
-        if (this._writerCount === 0) { // Only notify if no other writers are active
-            // Update _writerWaiting based on the queue state
-            this._writerWaiting = (this._writerQueue.length > 0);
+    #releaseWriteLock() {
+        this.#writerCount--;
+        if (this.#writerCount === 0) { // Only notify if no other writers are active
+            // Update #writerWaiting based on the queue state
+            this.#writerWaiting = (this.#writerQueue.length > 0);
 
-            if (this._readerQueue.length > 0) {
+            if (this.#readerQueue.length > 0) {
                 // Libère tous les lecteurs en attente
-                while (this._readerQueue.length > 0) {
-                    const nextReader = this._readerQueue.shift();
+                while (this.#readerQueue.length > 0) {
+                    const nextReader = this.#readerQueue.shift();
                     nextReader();
                 }
-            } else if (this._writerQueue.length > 0) {
+            } else if (this.#writerQueue.length > 0) {
                 // Ou le prochain writer en attente
-                const nextWriter = this._writerQueue.shift();
+                const nextWriter = this.#writerQueue.shift();
                 nextWriter();
             }
         }
@@ -1437,7 +1376,7 @@ class ObjetForum {
 
         // Capturer les attributs non calculés et marqués pour l'empreinte
         for (const a of this.attributs) {
-            if (!a._estCalcule() && a.EST_INCLUS_DANS_EMPREINTE) {
+            if (!a.estCalcule() && a.EST_INCLUS_DANS_EMPREINTE) {
                 etat.attributs[a.constructor.name] = await a.lire(true);
             }
         }
@@ -1450,4 +1389,4 @@ class ObjetForum {
 
         return JSON.stringify(etat);
     }
-}
+});

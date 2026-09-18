@@ -4,7 +4,7 @@
  * Encapsule le nom affiché, la valeur courante et la méthode de calcul.
  */
 
-class AttributObjet extends DonneeValidable {
+Utils.register(class AttributObjet extends DonneeValidable {
 
     /**
     * Chaîne à afficher si l'accès est restreint.
@@ -28,8 +28,8 @@ class AttributObjet extends DonneeValidable {
      * @returns {Promise<*>} La valeur de l'attribut.
      */
     async lire(peutVoirDonneesRestreintes = true) {
-        if (this._estCalcule()) {
-            return await this._invoquerCalculSecurise(peutVoirDonneesRestreintes);
+        if (this.estCalcule()) {
+            return await this.#invoquerCalculSecurise(peutVoirDonneesRestreintes);
         }
         return this.valeur;
     }
@@ -37,9 +37,8 @@ class AttributObjet extends DonneeValidable {
     /**
      * Vérifie si l'attribut est calculé en détectant si calculerValeur a été surchargé.
      * @returns {Boolean} Vrai si calculerValeur a été surchargé.
-     * @private
      */
-    _estCalcule() {
+    estCalcule() {
         return this.calculerValeur !== AttributObjet.prototype.calculerValeur;
     }
 
@@ -48,7 +47,6 @@ class AttributObjet extends DonneeValidable {
      * À surcharger dans les classes filles pour les attributs calculés.
      * @param {Boolean} peutVoirDonneesRestreintes - Si l'utilisateur peut voir les données restreintes.
      * @returns {Promise<*>} La valeur calculée.
-     * @protected
      */
     async calculerValeur(peutVoirDonneesRestreintes) {
         return this.valeur;
@@ -62,7 +60,7 @@ class AttributObjet extends DonneeValidable {
      * @returns {Promise<*>} La valeur calculée, ou une chaîne indiquant une restriction ou une erreur.
      * @private
      */
-    async _invoquerCalculSecurise(peutVoirDonneesRestreintes) {
+    async #invoquerCalculSecurise(peutVoirDonneesRestreintes) {
         try {
             const resultat = await this.calculerValeur(peutVoirDonneesRestreintes);
             // Sécurité supplémentaire : si le calcul produit NaN, null ou undefined sans planter, on le gère aussi.
@@ -75,7 +73,7 @@ class AttributObjet extends DonneeValidable {
             if (error instanceof ErreurRestriction) {
                 // Les paramètres sous-jacents sont restreints
                 // Appliquer récursivement la restriction sur error.donnees
-                console.warn(`[${this.constructor.name}] Le calcul a échoué à cause de données restreintes : ${error.message}`);
+                console.log(`[${this.constructor.name}] Le calcul a échoué à cause de données restreintes : ${error.message}`);
                 return this._appliquerRestriction(this.valeur);
             }
             // Relancer toutes les autres erreurs
@@ -90,16 +88,16 @@ class AttributObjet extends DonneeValidable {
      * @returns {Promise<Boolean>} True si la modification a réussi, false sinon.
      */
     async ecrire(nouvelleValeur) {
-        if (this._estCalcule()) {
-            console.error(`[${this.constructor.name}] Impossible de modifier un attribut calculé.`);
+        if (this.estCalcule()) {
+            console.warn(`[${this.constructor.name}] Impossible de modifier un attribut calculé.`);
             return false;
         }
-        const checkResult = this._checkValeur(nouvelleValeur);
+        const checkResult = this.checkValeur(nouvelleValeur);
         if (!checkResult.success) {
-            console.error(`[${this.constructor.name}] La nouvelle valeur n'est pas valide.`);
+            console.warn(`[${this.constructor.name}] La nouvelle valeur n'est pas valide.`);
             return false;
         }
         this.valeur = checkResult.value;
         return true;
     }
-}
+});

@@ -1,4 +1,4 @@
-class EtatJoueur extends AttributObjet {
+Utils.register(class EtatJoueur extends AttributObjet {
     static SORTABLE_PAR_DEFAUT = false;
     static NOM_AFFICHAGE = ['État'];
 
@@ -38,4 +38,4 @@ class EtatJoueur extends AttributObjet {
         // colonne "État" (statut d'activité) + colonne "" (icône colonisé)
         return [etatImage, attributs['Colonisé'] ? IMG_COLONISE : ''];
     }
-}
+});

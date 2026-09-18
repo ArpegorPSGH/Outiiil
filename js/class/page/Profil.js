@@ -17,6 +17,7 @@ Utils.register(class Profil extends Page {
         this.prototype.chargerData,
         this.prototype.afficherTrajet,
         this.prototype.ajouterOptions,
+        this.prototype.plus
     ];
     /**
     *
@@ -62,7 +63,7 @@ Utils.register(class Profil extends Page {
 
         $("#o_historique").click((e) => {
             $(e.currentTarget).off().css("color", "#555555");
-            this.historique();
+            this.#historique();
         });
         $("#o_surveiller").click(async (e) => {
             if (!boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo'))) {
@@ -80,9 +81,9 @@ Utils.register(class Profil extends Page {
     * Récupére et Affiche l'historique du joueur.
     *
     * @private
-    * @method historique
+    * @method #historique
     */
-    historique() {
+    #historique() {
         $("#centre center .boite_membre:eq(1)").after(`<div class='boite_membre' id='o_boiteHistorique'>
             <div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div>
             <div id='o_chartJoueur'></div></div>`);

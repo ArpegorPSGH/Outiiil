@@ -1,4 +1,4 @@
-class Evolution extends ParametreObjetForum {
+Utils.register(class Evolution extends ParametreObjetForum {
     static ENUM = EVOLUTION;
     static VISIBLE_PAR_DEFAUT = false;
     static VERSION_LOGIQUE = '1.0';
@@ -6,4 +6,4 @@ class Evolution extends ParametreObjetForum {
     static FORMAT_HISTORY = [{ nom: 'Évo', format: '(nom): (valeur) |' }];
     static STRING_RESTRICTION = 'Restreint';
     valeur = '';
-}
+});

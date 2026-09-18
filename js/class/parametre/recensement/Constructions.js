@@ -1,4 +1,4 @@
-class Constructions extends ParametreObjetForum {
+Utils.register(class Constructions extends ParametreObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static FORMAT_HISTORY = [
         { nom: 'Constructions', format: '(nom): (valeur) |' }
@@ -7,4 +7,4 @@ class Constructions extends ParametreObjetForum {
         acc[nom] = 0;
         return acc;
     }, {});
-};
+});

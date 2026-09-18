@@ -10,7 +10,7 @@
 * @constructor
 * @extends Rapport
 */
-class Combat {
+Utils.register(class Combat {
     constructor(parametres = {}) {
         /**
         * id du RC dans la messagerie sinon un datetime pour l'analyse dans la boite ou la simulation
@@ -208,7 +208,7 @@ class Combat {
     * @param {Integer} fdf avec bonus
     * @return {Integer} le niveau d'armes
     */
-    calculerArmes(base, bonus) {
+    #calculerArmes(base, bonus) {
         return Math.round(bonus / base * 10);
     }
     /**
@@ -221,7 +221,7 @@ class Combat {
     * @param {Object} armee2
     * @return {Integer} le niveau de bouclier
     */
-    calculerBouclier(degat, armee1, armee2) {
+    #calculerBouclier(degat, armee1, armee2) {
         let viePerdue = armee1.getBaseVie() - armee2.getBaseVie();
         return viePerdue ? Math.round(((degat - viePerdue) / viePerdue) * 10) : -1;
     }
@@ -236,7 +236,7 @@ class Combat {
     * @param {Integer} armes
     * @return {String} les solutions possibles.
     */
-    calculerBouclierLieu(lieu, degat, armee1, armee2, armes) {
+    #calculerBouclierLieu(lieu, degat, armee1, armee2, armes) {
         let solution = new Array(), viePerdue = armee1.getBaseVie() - armee2.getBaseVie(), tmpLieu = -1;
         switch (lieu) {
             case 1:
@@ -259,9 +259,9 @@ class Combat {
         return solution;
     }
     /**
-    *
+    * @private
     */
-    calculerTDP(armee) {
+    #calculerTDP(armee) {
         let tmpTDP = new Array();
         for (let i = 0; i < 140; i++) {
             let tempsPonte = armee.getTemps(i) % 60;
@@ -300,7 +300,7 @@ class Combat {
                     // attaque normale
                 } else if (this._rc.includes("Vous attaquez l")) {
                     await this._defenseur.ecrire('Pseudo', this._rc.split("e de ")[1].split("\nTroupes")[0]);
-                    this._defenseurTDP = this.calculerTDP(this._armeeEnnemieAv);
+                    this._defenseurTDP = this.#calculerTDP(this._armeeEnnemieAv);
                     // rebellion
                 } else {
                     await this._defenseur.ecrire('Pseudo', this._rc.split("contre ")[1].split("\nTroupes")[0]);
@@ -309,50 +309,50 @@ class Combat {
             let recherchesAttaquant = await this._attaquant.lire('Niveaux Recherches');
             let recherchesDefenseur = await this._defenseur.lire('Niveaux Recherches');
             // On calcule l'armée du joueur 1 en sortie
-            this._armeePe = this.retirerPerte(this._armeeAv, "et en tue");
-            this._armeeAp = this.ajouterXP(this._armeePe);
+            this._armeePe = this.#retirerPerte(this._armeeAv, "et en tue");
+            this._armeeAp = this.#ajouterXP(this._armeePe);
             // On calcule l'armée du joueur 2 en sortie
-            this._armeeEnnemieAp = this.retirerPerte(this._armeeEnnemieAv, "et tuez");
+            this._armeeEnnemieAp = this.#retirerPerte(this._armeeEnnemieAv, "et tuez");
             // Calcule du niveau d'arme du "Vous"
             if (this._pointDeVue == 1) {
                 let tmp1 = this._rc.split("Vous infligez")[1].split("dégâts")[0], base1 = parseInt(tmp1.split("(")[0].replace(/ /g, "")), bonus1 = parseInt(tmp1.split("+")[1].split(")")[0].replace(/ /g, ""));
-                recherchesDefenseur[2] = this.calculerArmes(base1, bonus1);
+                recherchesDefenseur[2] = this.#calculerArmes(base1, bonus1);
                 // Calcule du niveau d'arme de "l'ennemie"
                 let tmp2 = this._rc.split("ennemie inflige")[1].split("dégâts")[0], base2 = parseInt(tmp2.split("(")[0].replace(/ /g, "")), bonus2 = parseInt(tmp2.split("+")[1].split(")")[0].replace(/ /g, ""));
-                recherchesAttaquant[2] = this.calculerArmes(base2, bonus2);
+                recherchesAttaquant[2] = this.#calculerArmes(base2, bonus2);
                 // On peut calculer le bouclier du joueur 2 ("ennemie") si on n'est pas en OS ou qu'on à perdu
                 if (this._rc.split("et tuez").length > 2 || this._rc.indexOf("Vous avez gagné") == -1) {
                     if (this._rc.includes("attaque votre") || this._lieu == LIEU.TERRAIN)
-                        recherchesAttaquant[1] = this.calculerBouclier(base1 + bonus1, this._armeeEnnemieAv, this.retirerPerte(this._armeeEnnemieAv, "et tuez", 2));
+                        recherchesAttaquant[1] = this.#calculerBouclier(base1 + bonus1, this._armeeEnnemieAv, this.#retirerPerte(this._armeeEnnemieAv, "et tuez", 2));
                     else
-                        this._attaquantBonusLieu = this.calculerBouclierLieu(this._lieu, base1 + bonus1, this._armeeEnnemieAv, this.retirerPerte(this._armeeEnnemieAv, "et tuez", 2), recherchesDefenseur[2]);
+                        this._attaquantBonusLieu = this.#calculerBouclierLieu(this._lieu, base1 + bonus1, this._armeeEnnemieAv, this.#retirerPerte(this._armeeEnnemieAv, "et tuez", 2), recherchesDefenseur[2]);
                 }
                 // On peut calculer le bouclier du joueur 1 ("vous") si on n'est pas en OS ou qu'on à gagner
                 if (this._rc.split("et en tue").length > 2 || this._rc.includes("Vous avez gagné")) {
                     if (!this._rc.includes("attaque votre") || this._lieu == LIEU.TERRAIN)
-                        recherchesDefenseur[1] = this.calculerBouclier(base2 + bonus2, this._armeeAv, this.retirerPerte(this._armeeAv, "et en tue", 2));
+                        recherchesDefenseur[1] = this.#calculerBouclier(base2 + bonus2, this._armeeAv, this.#retirerPerte(this._armeeAv, "et en tue", 2));
                     else
-                        this._defenseurBonusLieu = this.calculerBouclierLieu(this._lieu, base2 + bonus2, this._armeeAv, this.retirerPerte(this._armeeAv, "et en tue", 2), recherchesAttaquant[2]);
+                        this._defenseurBonusLieu = this.#calculerBouclierLieu(this._lieu, base2 + bonus2, this._armeeAv, this.#retirerPerte(this._armeeAv, "et en tue", 2), recherchesAttaquant[2]);
                 }
             } else {
                 let tmp1 = this._rc.split("Vous infligez")[1].split("dégâts")[0], base1 = parseInt(tmp1.split("(")[0].replace(/ /g, "")), bonus1 = parseInt(tmp1.split("+")[1].split(")")[0].replace(/ /g, ""));
-                recherchesAttaquant[2] = this.calculerArmes(base1, bonus1);
+                recherchesAttaquant[2] = this.#calculerArmes(base1, bonus1);
                 // Calcule du niveau d'arme de "l'ennemie"
                 let tmp2 = this._rc.split("ennemie inflige")[1].split("dégâts")[0], base2 = parseInt(tmp2.split("(")[0].replace(/ /g, "")), bonus2 = parseInt(tmp2.split("+")[1].split(")")[0].replace(/ /g, ""));
-                recherchesDefenseur[2] = this.calculerArmes(base2, bonus2);
+                recherchesDefenseur[2] = this.#calculerArmes(base2, bonus2);
                 // On peut calculer le bouclier du joueur 2 ("ennemie") si on n'est pas en OS ou qu'on à perdu
                 if (this._rc.split("et tuez").length > 2 || this._rc.indexOf("Vous avez gagné") == -1) {
                     if (this._rc.includes("attaque votre") || this._lieu == LIEU.TERRAIN)
-                        recherchesDefenseur[1] = this.calculerBouclier(base1 + bonus1, this._armeeEnnemieAv, this.retirerPerte(this._armeeEnnemieAv, "et tuez", 2));
+                        recherchesDefenseur[1] = this.#calculerBouclier(base1 + bonus1, this._armeeEnnemieAv, this.#retirerPerte(this._armeeEnnemieAv, "et tuez", 2));
                     else
-                        this._defenseurBonusLieu = this.calculerBouclierLieu(this._lieu, base1 + bonus1, this._armeeEnnemieAv, this.retirerPerte(this._armeeEnnemieAv, "et tuez", 2), recherchesDefenseur[2]);
+                        this._defenseurBonusLieu = this.#calculerBouclierLieu(this._lieu, base1 + bonus1, this._armeeEnnemieAv, this.#retirerPerte(this._armeeEnnemieAv, "et tuez", 2), recherchesDefenseur[2]);
                 }
                 // On peut calculer le bouclier du joueur 1 ("vous") si on n'est pas en OS ou qu'on à gagner
                 if (this._rc.split("et en tue").length > 2 || this._rc.includes("Vous avez gagné")) {
                     if (!this._rc.includes("attaque votre") || this._lieu == LIEU.TERRAIN)
-                        recherchesAttaquant[1] = this.calculerBouclier(base2 + bonus2, this._armeeAv, this.retirerPerte(this._armeeAv, "et en tue", 2));
+                        recherchesAttaquant[1] = this.#calculerBouclier(base2 + bonus2, this._armeeAv, this.#retirerPerte(this._armeeAv, "et en tue", 2));
                     else
-                        this._attaquantBonusLieu = this.calculerBouclierLieu(this._lieu, base2 + bonus2, this._armeeAv, this.retirerPerte(this._armeeAv, "et en tue", 2), recherchesAttaquant[2]);
+                        this._attaquantBonusLieu = this.#calculerBouclierLieu(this._lieu, base2 + bonus2, this._armeeAv, this.#retirerPerte(this._armeeAv, "et en tue", 2), recherchesAttaquant[2]);
                 }
             }
             return true;
@@ -363,29 +363,29 @@ class Combat {
     * Retourne l'armée en retirant d'aprés le rapport les unités perdues suivant le texte.
     *
     * @private
-    * @method retirerPerte
+    * @method #retirerPerte
     * @param {Object} armee
     * @param {String} separateur
     * @param {String} nbTour on peut choisir de retirer les pertes sur 1 tour ou plusieurs
     * @return {Object} armee perdue
     */
-    retirerPerte(armee, separateur, nbTour = 100000) {
+    #retirerPerte(armee, separateur, nbTour = 100000) {
         let res = new Armee(), total = 0;
         res.unite = armee.unite.slice(0);
         // Si le rc à plusieurs tours on additionne d'abords les pertes.
         for (let i = 1, tmp = this._rc.split(separateur); i < Math.min(tmp.length, nbTour); total += parseInt(tmp[i++].split('.')[0].replace(/ /g, '')));
         // Tant que le total n'est pas 0 on retire les unités
-        return res.retirerPerte(total);
+        return res.#retirerPerte(total);
     }
     /**
     * Retourne l'armée en ajoutant l'xp.
     *
     * @private
-    * @method ajouterXP
+    * @method #ajouterXP
     * @param {Object} armee
     * @return {Object} armee avec XP
     */
-    ajouterXP(armee) {
+    #ajouterXP(armee) {
         let res = new Armee();
         res.unite = armee.unite.slice(0);
         let tableXP = [-1, 2, 3, -1, 5, 10, 7, -1, 9, -1, -1, 12, -1, 14, -1];
@@ -516,10 +516,10 @@ class Combat {
         this._armeeEnnemieAp.unite = this._armeeEnnemieAv.unite.slice(0);
         // variable de vie du combat
         let vieAttaquant = new Array(15).fill(0), vieDefenseur = new Array(15).fill(0);
-        this._armeeAv.unite.forEach((elt, i) => { vieAttaquant[i] = this.calculerVieUnite(elt, i, recherchesAttaquant[1], 0, 0); });
-        this._armeeEnnemieAv.unite.forEach((elt, i) => { vieDefenseur[i] = this.calculerVieUnite(elt, i, recherchesDefenseur[1], this._lieu, this._lieu == LIEU.TERRAIN ? 0 : (this._lieu == LIEU.DOME ? constructionsDefenseur[9] : constructionsDefenseur[10])); });
+        this._armeeAv.unite.forEach((elt, i) => { vieAttaquant[i] = this.#calculerVieUnite(elt, i, recherchesAttaquant[1], 0, 0); });
+        this._armeeEnnemieAv.unite.forEach((elt, i) => { vieDefenseur[i] = this.#calculerVieUnite(elt, i, recherchesDefenseur[1], this._lieu, this._lieu == LIEU.TERRAIN ? 0 : (this._lieu == LIEU.DOME ? constructionsDefenseur[9] : constructionsDefenseur[10])); });
         // on repique à 10% si l'attaque est strictement supérieur à la vie en def
-        let replique = this.calculerReplique(this._armeeAv.getTotalAtt(recherchesAttaquant[2]), vieDefenseur);
+        let replique = this.#calculerReplique(this._armeeAv.getTotalAtt(recherchesAttaquant[2]), vieDefenseur);
         // tant qu'il rete de la vie sur la defense ou l'attaque on enchaine les tours
         while (vieAttaquant.reduce((acc, val) => { return acc + val; }, 0) > 0 && vieDefenseur.reduce((acc, val) => { return acc + val; }, 0) > 0) {
             baseDegatAtt = recherchesAttaquant[2] ? this._armeeAp.getBaseAtt() : Math.ceil(this._armeeAp.getBaseAtt());
@@ -528,11 +528,11 @@ class Combat {
             baseDegatDef = recherchesDefenseur[2] ? this._armeeEnnemieAp.getBaseDef() * replique : Math.ceil(this._armeeEnnemieAp.getBaseDef() * replique);
             bonusDegatDef = baseDegatDef * recherchesDefenseur[2] / 10;
             // l'attaquant inflige les degats en premier, on calcule l'armée aprés les degats et on met à jour la vie restante
-            retourVieTmp = this.retirerVie(this._armeeEnnemieAp, vieDefenseur, baseDegatAtt + bonusDegatAtt);
+            retourVieTmp = this.#retirerVie(this._armeeEnnemieAp, vieDefenseur, baseDegatAtt + bonusDegatAtt);
             armeeDefTmp = retourVieTmp.armeeFinale;
             vieDefenseur = retourVieTmp.vieFinale;
             // le defenseur inflige les degats on calcule l'armée de l'attaquant puis on met a jour sa vie restante
-            retourVieTmp = this.retirerVie(this._armeeAp, vieAttaquant, baseDegatDef + bonusDegatDef);
+            retourVieTmp = this.#retirerVie(this._armeeAp, vieAttaquant, baseDegatDef + bonusDegatDef);
             armeeAttTmp = retourVieTmp.armeeFinale;
             vieAttaquant = retourVieTmp.vieFinale;
             // ajoute des infos sur le tour pour le rapport
@@ -546,21 +546,21 @@ class Combat {
             this._armeeAp.unite[i] = Math.ceil(this._armeeAp.unite[i]);
             this._armeeEnnemieAp.unite[i] = Math.ceil(this._armeeEnnemieAp.unite[i]);
         }
-        //alert(this.calculeUniteXP(this._armeeAp, this.calculeRatioXPAttaquant()).unite);
+        //alert(this.#calculeUniteXP(this._armeeAp, this.#calculeRatioXPAttaquant()).unite);
         return this;
     }
     /**
-    *
+    * @private
     */
-    calculerReplique(pointAtt, pointVie) {
+    #calculerReplique(pointAtt, pointVie) {
         if (pointAtt > pointVie)
             return 0.1;
         return 1;
     }
     /**
-    *
+    * @private
     */
-    retirerVie(armee, vieUnite, degatInflige) {
+    #retirerVie(armee, vieUnite, degatInflige) {
         let armeePerdu = new Armee();
         armeePerdu.unite = armee.unite.slice(0);
         for (let i = 0; i < armeePerdu.unite.length; i++) {
@@ -579,9 +579,9 @@ class Combat {
         return { armeeFinale: armeePerdu, vieFinale: vieUnite };
     }
     /**
-    *
+    * @private
     */
-    calculerVieUnite(nombre, unite, bonusBouclier, lieu, bonusLieu) {
+    #calculerVieUnite(nombre, unite, bonusBouclier, lieu, bonusLieu) {
         let vie = nombre * VIE_UNITE[unite] + Math.round(nombre * VIE_UNITE[unite] * bonusBouclier / 10);
         switch (parseInt(lieu)) {
             case LIEU.DOME:
@@ -596,9 +596,9 @@ class Combat {
         return vie;
     }
     /**
-    *
+    * @private
     */
-    calculeRatioXPAttaquant() {
+    #calculeRatioXPAttaquant() {
         //let coeff = new Array(0, 0.05, 0.15);
         //return Math.pow(this._armeeEnnemieAv.getPotentielXP() / this._armeeAv.getPotentielXP() * 0.66, 2) * (1 + 0.1 * EtableATT) * 1 / (1 + 0.1 * armesATT) * (1 + armesDef * 0.1) * 1 / (1 + 0.1 * bouclierAtt) * (1 + bouclierDef * 0.1 + (niveauLieuDef + 2) * coeff[this._lieu]);
         return 0;
@@ -616,9 +616,9 @@ class Combat {
     //    $this->ratio_XP = pow($lui->get_PuissanceXP()/$nous->get_PuissanceXP()*0.66,2);
     // $this->ratio_XP *= 1/(1 + 0.1*$nous->niveaux['bouclier'] + ($this->defenseur->niveaux['niveau_lieu'] + 2)*$coeffs[$this->defenseur->niveaux['lieu']]) *  (1 + $lui->niveaux['bouclier']*0.1);
     /**
-    *
+    * @private
     */
-    calculeUniteXP(armee, ratio) {
+    #calculeUniteXP(armee, ratio) {
         let ordreXP = new Array(1, 2, 4, 5, 6, 8, 11, 13), armeeXP = new Armee();
         ordreXP.forEach((val, i) => { armeeXP.unite[val] = Math.round(armee.unite[val] * ratio); });
         return armee;
@@ -627,14 +627,14 @@ class Combat {
     *
     */
     async genererRC() {
-        let boiteRC = new BoiteRapport(this._id, this._pointDeVue == 0 ? this.genererRCAttaquant() : this.genererRCDefenseur());
+        let boiteRC = new BoiteRapport(this._id, this._pointDeVue == 0 ? this.#genererRCAttaquant() : this.#genererRCDefenseur());
         await boiteRC.afficher();
         return this;
     }
     /**
-    *
+    * @private
     */
-    genererRCAttaquant() {
+    #genererRCAttaquant() {
         this._rc = `<span class="gras">Vous attaquez ${parseInt(this._lieu) ? "la " + LIBELLE_LIEU[this._lieu] : "le " + LIBELLE_LIEU[this._lieu]} de Inconnu :</span><br/><br/>`;
         // troupe en attaques
         this._rc += `Troupes en attaque : ${this._armeeAv.toString()}<br/>`;
@@ -661,9 +661,9 @@ class Combat {
         return this._rc;
     }
     /**
-    *
+    * @private
     */
-    genererRCDefenseur() {
+    #genererRCDefenseur() {
         this._rc = `<span class="gras">Inconnu attaque votre ${LIBELLE_LIEU[this._lieu]} :</span><br/><br/>`;
         // troupe en attaques
         this._rc += `Troupes en attaque : ${this._armeeAv.toString()}<br/>`;
@@ -689,4 +689,4 @@ class Combat {
         }
         return this._rc;
     }
-}
+});

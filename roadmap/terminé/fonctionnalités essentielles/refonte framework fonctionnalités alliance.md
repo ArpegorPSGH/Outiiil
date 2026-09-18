@@ -512,9 +512,9 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
         a.  **Chargement des Paramètres Propres :**
             i.  La méthode parcourt `this.parametres` et appelle `parametre.chargerDepuisString(contenu)` pour chacun.
         b.  **Validation du Chargement :**
-            i.  La méthode appelle `this._determinerVersionChargee()` pour identifier la version des paramètres chargés.
+            i.  La méthode appelle `this.determinerVersionChargee()` pour identifier la version des paramètres chargés.
             ii. Elle crée un `Set` des classes de tous les paramètres qui ont été chargés avec succès (en se basant sur leur flag `estCharge`).
-            iii. Si l'ensemble des paramètres chargés est vide (`classesChargees.size === 0`) ou si `_determinerVersionChargee()` retourne `-1` (aucune correspondance exacte avec une version), la méthode retourne `false`.
+            iii. Si l'ensemble des paramètres chargés est vide (`classesChargees.size === 0`) ou si `determinerVersionChargee()` retourne `-1` (aucune correspondance exacte avec une version), la méthode retourne `false`.
             c.  **Succès du Chargement Principal :**
                 i.  L'état `estModifie` des paramètres individuels est géré par `ParametreObjetForumFramework.chargerDepuisString`. L'objet principal est considéré comme chargé avec succès.
         d.  **Migration des Données Anciennes :**
@@ -655,9 +655,9 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     1.  **Recherche Rapide via Map :** La méthode trouve le paramètre en temps constant : `const parametre = this.mapParametres.get(nomParametre);`.
     2.  **Écriture de la Valeur :** Si un `parametre` est trouvé, elle appelle sa méthode `Ecrire(valeur)`.
 
-##### **13. `_determinerVersionChargee()`**
+##### **13. `determinerVersionChargee()`**
 
-*   **Signature :** `_determinerVersionChargee()`
+*   **Signature :** `determinerVersionChargee()`
 *   **Portée :** Protégée (interne à la classe et ses filles).
 *   **Objectif :** Analyser les paramètres qui ont été chargés pour déterminer à quelle version de l'objet ils correspondent, en s'assurant d'une correspondance exacte.
 *   **Logique Détaillée :**
@@ -730,7 +730,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 *   **Exemple d'implémentation dans une classe fille :**
     ```javascript
     completerChargementPourVersionsAnterieures() {
-        let versionActuelle = this._determinerVersionChargee();
+        let versionActuelle = this.determinerVersionChargee();
         const versionCible = this.constructor.PARAMETRES_OBJET.length - 1;
 
         // Boucle tant que nous n'avons pas atteint la dernière version
@@ -853,10 +853,10 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     1.  La méthode reçoit `valeurChargee`, qui est la valeur brute parsée depuis le forum.
     2.  La classe mère retourne par défaut `valeurChargee` telle quelle.
     3.  Les classes filles doivent surcharger cette méthode pour implémenter leur logique de conversion spécifique, transformant `valeurChargee` en un format et une valeur compatibles avec la propriété `valeur` actuelle de l'instance.
-    4.  Le framework tentera ensuite de valider et de caster la valeur retournée par `_migrerValeur` avec la méthode `_checkValeur`.
+    4.  Le framework tentera ensuite de valider et de caster la valeur retournée par `_migrerValeur` avec la méthode `checkValeur`.
 
-##### **10. `_checkValeur(valeurAtester)` (Nouvelle méthode privée)**
-*   **Signature :** `_checkValeur(valeurAtester: any): any | false`
+##### **10. `checkValeur(valeurAtester)` (Nouvelle méthode privée)**
+*   **Signature :** `checkValeur(valeurAtester: any): any | false`
 *   **Objectif :** Factoriser la logique de validation et casting utilisée par `chargerDepuisString` et `Ecrire`.
 *   **Logique Détaillée :**
     1.  **Validation du type de contenant :** Vérifie que le type de contenant (primitif, liste, dictionnaire) de la valeur parsée correspond à celui de `this.valeur`. Si non, log une erreur et retourne `false`.
@@ -894,8 +894,8 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
     3.  **Validation et Casting :**
         a.  Si aucune `meilleureValeurExtraite` n'a été trouvée, log une erreur et retourne `false`.
         b.  Parse la valeur
-        c.  Appelle `this._checkValeur(meilleureValeurExtraite)` pour valider et caster la valeur.
-        d.  Si `_checkValeur` retourne une valeur valide, met à jour `this.valeur`, `this.estCharge = true`, et `this.estModifie = false`. Retourne `true`.
+        c.  Appelle `this.checkValeur(meilleureValeurExtraite)` pour valider et caster la valeur.
+        d.  Si `checkValeur` retourne une valeur valide, met à jour `this.valeur`, `this.estCharge = true`, et `this.estModifie = false`. Retourne `true`.
         d.  Sinon, log une erreur et retourne `false`.
     4.  **Libération du verrou.**
 
@@ -919,7 +919,7 @@ Le constructeur de la classe fille se résume alors à une unique instruction : 
 *   **Objectif :** Mettre à jour la valeur interne du paramètre après validation.
 *   **Logique Détaillée :**
     1.  **Acquisition du verrou exclusif.**
-    2.  Appelle `this._checkValeur(nouvelleValeur)` pour valider et caster la nouvelle valeur.
+    2.  Appelle `this.checkValeur(nouvelleValeur)` pour valider et caster la nouvelle valeur.
     3.  Si la valeur retournée est valide :
         a.  Mets à jour `this.valeur` et passe `this.estModifie` à `true`.
         b.  Retourne `true`.
@@ -1073,7 +1073,7 @@ Hérite de la classe `ObjetForum`.
         a.  Récupère le nom du paramètre pseudo (`nomParametrePseudo`) depuis `FORMAT_HISTORY`.
         b.  La méthode met à jour sa `mapDroits` interne avec les `droitsActuels` fraîchement chargés.
         c.  Initialise une nouvelle liste `droitsSynchronises`, une liste de promesses `promessesEnregistrement`, et un `Set` `membresTraites`.
-        d.  **Détecte les droits obsolètes :** Parcourt les `droitsActuels`. Pour chaque `droit`, vérifie si sa version chargée (`_determinerVersionChargee()`) est inférieure à la dernière version définie dans `PARAMETRES_OBJET`. Si c'est le cas, ajoute la promesse `droit.enregistrerSurForum()` à `promessesEnregistrement` pour forcer sa mise à jour.
+        d.  **Détecte les droits obsolètes :** Parcourt les `droitsActuels`. Pour chaque `droit`, vérifie si sa version chargée (`determinerVersionChargee()`) est inférieure à la dernière version définie dans `PARAMETRES_OBJET`. Si c'est le cas, ajoute la promesse `droit.enregistrerSurForum()` à `promessesEnregistrement` pour forcer sa mise à jour.
         e.  Parcourt les `membresOfficiels`. Pour chaque `membre` :
             i.  Récupère le pseudo du membre.
             ii. Si le pseudo a déjà été traité, passe au membre suivant.
@@ -1511,7 +1511,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
         *   `VERSION_LOGIQUE = '2.0'`
         *   `PARAMETRES_OBJET = [[TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees], [TestParametreObjetForumQuantite, TestParametreObjetForumCoordonnees, TestParametreObjetForumStatut]]`
         *   `LOCATION_HISTORY = [{section: 'Données Test SDC', lieu: 'titre'}, {section: 'Données Test SDC V2', lieu: 'titre'}]`
-        *   Implémenter `completerChargementPourVersionsAnterieures()` pour que si la v1 est chargée (`this._determinerVersionChargee() === 0`) :
+        *   Implémenter `completerChargementPourVersionsAnterieures()` pour que si la v1 est chargée (`this.determinerVersionChargee() === 0`) :
             *   La valeur de `TestParametreObjetForumQuantite` (nom 'Quantité') soit utilisée pour calculer et peupler `TestParametreObjetForumQuantite` (nom 'NouvelleQuantite') (ex: `this.ecrireParametreObjetForum('NouvelleQuantite', this.lireParametreObjetForum('Quantité') * 2)`).
             *   La valeur de `TestParametreObjetForumCoordonnees` soit copiée vers `TestParametreObjetForumCoordonnees` (ex: `this.ecrireParametreObjetForum('Coordonnées', this.lireParametreObjetForum('Coordonnées'))`).
             *   `TestParametreObjetForumStatut` soit initialisé avec une valeur par défaut (ex: `this.ecrireParametreObjetForum('Statut', 'Nouveau')`).
@@ -1742,7 +1742,7 @@ Avant de commencer, il est impératif de préparer l'environnement sur le forum 
     - Les méthodes `lireChaqueParametreObjetForum` et `ecrireChaqueParametreObjetForum` ont été implémentées.
     - La méthode `enregistrerSurForum` a été implémentée et intégrée au mécanisme de verrouillage.
     - Les méthodes `lireParametreObjetForum` et `ecrireParametreObjetForum` ont été implémentées.
-    - La méthode `_determinerVersionChargee` a été implémentée.
+    - La méthode `determinerVersionChargee` a été implémentée.
     - La méthode `completerChargementPourVersionsAnterieures` a été ajoutée comme placeholder.
     - La méthode privée `_acquireLock` a été remplacée par un mécanisme de verrouillage Reader-Writer (`_acquireReadLock`, `_releaseReadLock`, `_acquireWriteLock`, `_releaseWriteLock`) pour permettre la concurrence des opérations de lecture (`rafraichir`, `chargerObjetForumsContenus`) tout en garantissant l'exclusivité des opérations d'écriture (`enregistrerSurForum`).
     - La logique de réutilisation des objets dans `chargerObjetForumsContenus` a été corrigée pour se baser sur `idMessage` plutôt que sur la position dans la liste, assurant une meilleure persistance de l'identité des objets.

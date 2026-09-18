@@ -10,21 +10,20 @@
 * @constructor
 * @extends Boite
 */
-class BoiteMap extends Boite {
+Utils.register(class BoiteMap extends Boite {
     constructor() {
         super("o_boiteMap", "Carte du serveur " + Utils.serveur, `<div id='o_mapContent'></div>`);
     }
     /**
     * Affiche la boite.
     *
-    * @private
     * @method afficher
     */
     async afficher() {
         if (await super.afficher()) {
-            await this.getMap().then(async (data) => {
+            await this.#getMap().then(async (data) => {
                 let donnees = JSON.parse(data);
-                if (donnees.error == "0") await this.afficherMap(donnees.message);
+                if (donnees.error == "0") await this.#afficherMap(donnees.message);
             }, (jqXHR, textStatus, errorThrown) => {
                 $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la map." });
             });
@@ -32,36 +31,34 @@ class BoiteMap extends Boite {
         }
         return this;
     }
-    /**
-    * Applique le style propre à la boite.
-    *
-    * @private
-    * @method css
-    */
-    css() {
-        super.css();
-        return this;
-    }
-    /**
-    * Ajoute les evenements propres à la boite.
-    *
-    * @private
-    * @method event
-    */
-    event() {
-        super.event();
-        return this;
-    }
+    // /**
+    // * Applique le style propre à la boite.
+    // *
+    // * @private
+    // * @method css
+    // */
+    // css() {
+    //     super.css();
+    //     return this;
+    // }
+    // /**
+    // * Ajoute les evenements propres à la boite.
+    // * @method event
+    // */
+    // event() {
+    //     super.event();
+    //     return this;
+    // }
     /**
     *
     */
-    getMap() {
+    #getMap() {
         return $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map");
     }
     /**
-    *
+    * @private
     */
-    async afficherMap(data) {
+    async #afficherMap(data) {
         // on parsed les données pour le graph
         let mesDatas = new Array();
         for (let i = 0, l = data.split("\n"); i < l.length; i++) {
@@ -132,4 +129,4 @@ class BoiteMap extends Boite {
             }]
         });
     }
-}
+});

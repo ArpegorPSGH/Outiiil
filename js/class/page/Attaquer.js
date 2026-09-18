@@ -39,10 +39,10 @@ Utils.register(class Attaquer extends Page {
     async chargerDonnees() {
         if ($("#tabChoixArmee").length) {
             // récupération de l'armée
-            this._armee = new Armee({ unite: this.extraitArmee() });
-            this.majStatistique(this._armee);
+            this._armee = new Armee({ unite: this.#extraitArmee() });
+            this.#majStatistique(this._armee);
             // ajoute event
-            $("input[id^=unite]").on("input", (e) => { this.majStatistique(); });
+            $("input[id^=unite]").on("input", (e) => { this.#majStatistique(); });
 
             const niveauRecherche = await monProfilJoueur.lire('Niveaux Recherches');
             this._nbAttaque = niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
@@ -52,9 +52,9 @@ Utils.register(class Attaquer extends Page {
         }
     }
     /**
-    *
+    * @private
     */
-    extraitArmee() {
+    #extraitArmee() {
         let unites = {};
         $("input[id^='unite']").each((i, elt) => { unites[$(elt).parent().parent().find("td:first").text()] = numeral($(elt).val()).value(); });
         return unites;
@@ -63,11 +63,11 @@ Utils.register(class Attaquer extends Page {
     * Affiche les données de l'armée selectionné.
     *
     * @private
-    * @method majStatistique
+    * @method #majStatistique
     */
-    async majStatistique(armee = null) {
+    async #majStatistique(armee = null) {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
-        let tmp = armee ? armee : new Armee({ unite: this.extraitArmee() }), html = `<table id="o_tableStatArmee" cellspacing=0>
+        let tmp = armee ? armee : new Armee({ unite: this.#extraitArmee() }), html = `<table id="o_tableStatArmee" cellspacing=0>
             <tr class="gras centre"><td></td><td>HB</td><td>AB</td></tr>
             <tr><td>${IMG_VIE}</td><td>${numeral(tmp.getBaseVie()).format()}</td><td>${numeral(tmp.getTotalVie(recherche[1])).format()}</td></tr>
             <tr><td>${IMG_ATT}</td><td>${numeral(tmp.getBaseAtt()).format()}</td><td>${numeral(tmp.getTotalAtt(recherche[2])).format()}</td></tr>
@@ -94,7 +94,7 @@ Utils.register(class Attaquer extends Page {
         $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(await monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
         $("#o_synchro").click((e) => {
             e.preventDefault();
-            this.lancerSynchro(this._cible.attenteSynchro());
+            this.#lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
         // Bouton de sonde
@@ -109,15 +109,15 @@ Utils.register(class Attaquer extends Page {
                     premiereUnite = false;
                 }
             // une sonde est forcement synchro
-            this.lancerSynchro(this._cible.attenteSynchro());
+            this.#lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
         Utils.incrementTime(await monProfilJoueur.getTempsParcours2(this._cible), "o_retourArmee", "o_retourArmeeRC");
     }
     /**
-    *
+    * @private
     */
-    lancerSynchro(attente) {
+    #lancerSynchro(attente) {
         // Affichage du compte à rebours
         $("#formulaireChoixArmee fieldset:eq(1)").append(`<p class="centre">Synchronisation en cours, veuillez attendre : <span id='o_decSyncA'></span>.</p>`);
         Utils.decreaseTime(attente, "o_decSyncA");
@@ -126,7 +126,6 @@ Utils.register(class Attaquer extends Page {
     /**
     * Formulaire de lancement de flood.
     *
-    * @private
     * @method formulaireFlood
     */
     async formulaireFlood() {
@@ -143,13 +142,13 @@ Utils.register(class Attaquer extends Page {
             </fieldset>`);
         $("#o_floodTDCA, #o_floodTDCB, #o_floodAntiSonde, input[id^='o_attaque']").spinner({ min: 0, numberFormat: "i" });
         $("#o_simulationFlood tr:even").addClass("ligne_paire");
-        for (let i = 1; i < Math.min(4, this._nbAttaque); i++) await this.ajouterAttaque();
+        for (let i = 1; i < Math.min(4, this._nbAttaque); i++) await this.#ajouterAttaque();
         // Si la methode par defaut est par standard on prepare
         if (methode)
-            await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
         // event
         $("#o_methodeFlood").change(async (e) => {
-            await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
             if (e.currentTarget.value == "1") // en optimisee on peut ni ajouter ni supprimer d'attaques
                 $("#o_ajouteAttaque, #o_supprimeAttaque").hide();
             else
@@ -158,29 +157,29 @@ Utils.register(class Attaquer extends Page {
         $("#o_floodTDCA").on("input spin", async (e, ui) => {
             let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
             $(e.currentTarget).spinner("value", nombre);
-            await this.preparerFlood(ui ? ui.value : $(e.currentTarget).spinner("value"), $("#o_floodTDCB").spinner("value"));
+            await this.#preparerFlood(ui ? ui.value : $(e.currentTarget).spinner("value"), $("#o_floodTDCB").spinner("value"));
         });
         $("#o_floodTDCB").on("input spin", async (e, ui) => {
             let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
             $(e.currentTarget).spinner("value", nombre);
-            await this.preparerFlood($("#o_floodTDCA").spinner("value"), ui ? ui.value : $(e.currentTarget).spinner("value"));
+            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), ui ? ui.value : $(e.currentTarget).spinner("value"));
         });
         $("#o_floodAntiSonde").on("input spin", async (e, ui) => {
             let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
             $(e.currentTarget).spinner("value", nombre);
-            await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
         });
         $("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.lire('Id'), 0, $("#t:last").attr("name") + "=" + $("#t:last").attr("value")); });
-        $("#o_ajouteAttaque").click(async (e) => { await this.ajouterAttaque(); });
-        $("#o_supprimeAttaque").click((e) => { this.supprimerAttaque(); });
+        $("#o_ajouteAttaque").click(async (e) => { await this.#ajouterAttaque(); });
+        $("#o_supprimeAttaque").click((e) => { this.#supprimerAttaque(); });
     }
     /**
 * Lance une simulation si les données saisies sont correctes.
 *
 * @private
-* @method compileDataFlood
+* @method #preparerFlood
 */
-    async preparerFlood(tdcAtt, tdcCible, bRecup = false) {
+    async #preparerFlood(tdcAtt, tdcCible, bRecup = false) {
         // Si la cible est à porter
         if (tdcCible >= (tdcAtt * 0.5) && tdcCible <= (tdcAtt * 3)) {
             let methode = $("#o_methodeFlood").val();
@@ -210,7 +209,7 @@ Utils.register(class Attaquer extends Page {
             }
             // mise à jour des attaques
             for (let i = 1; i < simulation.length; i++) {
-                if (!$("#o_attaque" + i).length) await this.ajouterAttaque();
+                if (!$("#o_attaque" + i).length) await this.#ajouterAttaque();
                 $("#o_attaque" + i).spinner("value", simulation[i]);
                 // Calcule des terrains
                 if (tdcCible >= (tdcAtt * 0.5)) {
@@ -226,13 +225,14 @@ Utils.register(class Attaquer extends Page {
             }
             // supprime les attaques en trop si besoin
             for (let i = simulation.length; i < $("#o_simulationFlood tr").length - 3; i++)
-                this.supprimerAttaque();
+                this.#supprimerAttaque();
         }
     }
     /**
-    *
+    * Ajoute une attaque au formulaire.
+    * @private
     */
-    async ajouterAttaque() {
+    async #ajouterAttaque() {
         let nbAttaque = $("input[id^='o_attaque']").length + 1;
         // si le nombre d'attaque depasse la VA
         if (nbAttaque >= this._nbAttaque)
@@ -244,22 +244,22 @@ Utils.register(class Attaquer extends Page {
             $("#o_simulationFlood tr:even").addClass("ligne_paire");
             // Event
             $("#o_attaque" + nbAttaque).on("input spin", async (e, ui) => {
-                await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"), true);
+                await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"), true);
             });
             $("input[name='o_suppAttaque']").on("change", async (e) => {
                 // une seule checkbox peut etre cocher
                 $("input[name='o_suppAttaque']").not(e.currentTarget).prop("checked", false);
-                await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+                await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
             });
             // si la methode est uniforme ou degressive on utilise autocomplete la valeur de l'attaque
             let methode = $("#o_methodeFlood").val();
-            if (methode == "2" || methode == "3") await this.preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            if (methode == "2" || methode == "3") await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
         }
     }
     /**
-    *
+    * @private
     */
-    supprimerAttaque() {
+    #supprimerAttaque() {
         // si le nombre d'attaque est de 0
         let nbAttaque = $("input[id^='o_attaque']").length + 1;
         if (nbAttaque == 1)
@@ -274,7 +274,6 @@ Utils.register(class Attaquer extends Page {
     /**
     * Ajoute les fonctionnalités du compte+. Affiche les infos sur l'armée et les fléches dans le tableau des unités.
     *
-    * @private
     * @method plus
     */
     plus() {
@@ -289,15 +288,15 @@ Utils.register(class Attaquer extends Page {
             } else // renfort
                 $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
-        this.saveAttaque(listeAttaque);
+        this.#saveAttaque(listeAttaque);
     }
     /**
     * Verifie les attaques en cours avec ce qui est sauvegarder.
     *
     * @private
-    * @method saveAttaque
+    * @method #saveAttaque
     */
-    saveAttaque(listeAttaque) {
+    #saveAttaque(listeAttaque) {
         let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
         dataEvo.attaque = listeAttaque;
         dataEvo.startAttaque = moment();

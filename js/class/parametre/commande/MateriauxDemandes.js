@@ -1,4 +1,4 @@
-class MateriauxDemandes extends ParametreObjetForum {
+Utils.register(class MateriauxDemandes extends ParametreObjetForum {
     static VISIBLE_PAR_DEFAUT = false;
     static TYPE_AFFICHAGE = 'quantite-grade';
     static VERSION_LOGIQUE = '1.0';
@@ -7,4 +7,4 @@ class MateriauxDemandes extends ParametreObjetForum {
     static STRING_RESTRICTION = 'Restreint';
     static NOM_AFFICHAGE = [`Qté Demandée ${IMG_MAT}`];
     valeur = 0;
-}
+});

@@ -1,4 +1,4 @@
-class MateriauxRestants extends AttributObjet {
+Utils.register(class MateriauxRestants extends AttributObjet {
     static NOM_APPEL = ['Matériaux Restants'];
     static TYPE_AFFICHAGE = 'quantite-grade';
     static NOM_AFFICHAGE = [`Qté à livrer ${IMG_MAT}`];
@@ -12,4 +12,4 @@ class MateriauxRestants extends AttributObjet {
         const params = await this.objetParent.lire(['Matériaux Demandés', 'Matériaux Livrés'], peutVoirDonneesRestreintes);
         return params['Matériaux Demandés'] - params['Matériaux Livrés'];
     }
-}
+});

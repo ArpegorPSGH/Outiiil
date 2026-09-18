@@ -9,12 +9,21 @@
 * @class Armee
 * @constructor
 */
-class Armee {
+Utils.register(class Armee {
+
+	/**
+	* Sauvegarde du nombre de JSN pour le lancement des chasses.
+	*
+	* @private
+	* @property nbrJSN
+	* @type integer
+	*/
+	#nbrJSN = 0;
+
 	constructor(parametres = {}) {
 		/**
 		* Tableau du nombre des unités.
 		*
-		* @private
 		* @property unite
 		* @type array
 		*/
@@ -24,26 +33,16 @@ class Armee {
 				if (parametres.unite.hasOwnProperty(NOM_UNITE[i]))
 					this._unite[i] = parametres.unite[NOM_UNITE[i]];
 		/**
-		* Sauvegarde du nombre de JSN pour le lancement des chasses.
-		*
-		* @private
-		* @property nbrJSN
-		* @type integer
-		*/
-		this._nbrJSN = 0;
-		/**
 		* tableau de la repartition des floods.
 		*
-		* @private
-		* @property floods
+		* @property _floods
 		* @type array
 		*/
 		this._floods = new Array();
 		/**
 		* Repartition de l'armée en fonction des floods ou des chasses.
 		*
-		* @private
-		* @property repartition
+		* @property _repartition
 		* @type array
 		*/
 		this._repartition = new Array();
@@ -64,13 +63,13 @@ class Armee {
 	*
 	*/
 	get nbrJSN() {
-		return this._nbrJSN;
+		return this.#nbrJSN;
 	}
 	/**
 	*
 	*/
 	set nbrJSN(nbr) {
-		this._nbrJSN = nbr;
+		this.#nbrJSN = nbr;
 	}
 	/**
 	*
@@ -91,6 +90,12 @@ class Armee {
 		return this._repartition;
 	}
 	/**
+	*
+	*/
+	set repartition(val) {
+		this._repartition = val;
+	}
+	/**
 	* Récupére l'armée du joueur via un appel ajax.
 	*
 	* @method getArmee
@@ -107,7 +112,6 @@ class Armee {
 		$html.find(".simulateur tr[align='center']:lt(15)").each((i, elt) => {
 			let label = $(elt).find(".pas_sur_telephone").text().replace(/\s/g, ' ').trim();
 			if (label) {
-				console.log("[Armee] Label : ", label);
 				let index = NOM_UNITE.indexOf(label);
 				if (index != -1) {
 					$(elt).find("td span").each((i2, elt2) => {
@@ -118,7 +122,7 @@ class Armee {
 				}
 			}
 		});
-		this._nbrJSN = this._unite[1];
+		this.#nbrJSN = this._unite[1];
 		return this;
 	}
 	/**
@@ -203,7 +207,6 @@ class Armee {
 	/**
 	* calcul le nombre d'unité de l'armee.
 	*
-	* @private
 	* @method getSommeUnite
 	* @return {Integer} la somme des unités
 	*/
@@ -223,7 +226,6 @@ class Armee {
 	/**
 	* calcul le nombre de point de vie de base.
 	*
-	* @private
 	* @method getBaseVie
 	* @return {Integer} Points de vie hors bonus.
 	*/
@@ -233,7 +235,6 @@ class Armee {
 	/**
 	* calcul le nombre de point de vie bonus.
 	*
-	* @private
 	* @method getBonusVie
 	* @param {Integer} bonus
 	* @return {Integer} Points de vie avec bonus bouclier
@@ -245,12 +246,12 @@ class Armee {
 	* calcul le nombre de point de vie bonus du lieu.
 	*
 	* @private
-	* @method getBonusLieuVie
+	* @method #getBonusLieuVie
 	* @param {Integer} bonus
 	* @param {Integer} lieu
 	* @return {Integer} Points de vie avec bonus bouclier et dome ou loge.
 	*/
-	getBonusLieuVie(bonus, lieu) {
+	#getBonusLieuVie(bonus, lieu) {
 		if (lieu == LIEU.DOME)
 			return Math.round(this.getBaseVie() * ((bonus + 2) / 20));
 		if (lieu == LIEU.LOGE)
@@ -268,7 +269,7 @@ class Armee {
 	* @return {Integer} Somme des points de vie de l'armée.
 	*/
 	getTotalVie(bonus, lieu = LIEU.TERRAIN, bonusLieu = 0) {
-		return this.getBaseVie() + this.getBonusVie(bonus) + this.getBonusLieuVie(bonusLieu, lieu);
+		return this.getBaseVie() + this.getBonusVie(bonus) + this.#getBonusLieuVie(bonusLieu, lieu);
 	}
 	/**
 	*
@@ -278,21 +279,20 @@ class Armee {
 		return this._unite.reduce((acc, val, i) => { return tabNonXp.includes(i) ? acc + val * VIE_UNITE[i] : acc }, 0);
 	}
 	/**
-	*
+	* @private
 	*/
-	getNonXPBonusVie(bonus) {
+	#getNonXPBonusVie(bonus) {
 		return Math.round(this.getNonXpBaseVie() * bonus / 10);
 	}
 	/**
 	*
 	*/
 	getNonXpTotalVie(bonus) {
-		return this.getNonXpBaseVie() + this.getNonXPBonusVie(bonus);
+		return this.getNonXpBaseVie() + this.#getNonXPBonusVie(bonus);
 	}
 	/**
 	* calcul le nombre de point d'attaque de base.
 	*
-	* @private
 	* @method getBaseAtt
 	* @return {Integer} Points de combat hors bonus.
 	*/
@@ -303,23 +303,22 @@ class Armee {
 	* calcul le nombre de point d'attaque avec bonus.
 	*
 	* @private
-	* @method getBonusAtt
+	* @method #getBonusAtt
 	* @param {Integer} bonus
 	* @return {Integer} Points de combat avec bonus.
 	*/
-	getBonusAtt(bonus) {
+	#getBonusAtt(bonus) {
 		return Math.round(this.getBaseAtt() * bonus / 10);
 	}
 	/**
 	* calcul le nombre de point d'attaque total de l'armée.
 	*
-	* @private
 	* @method getTotalAtt
 	* @param {Integer} bonus
 	* @return {Integer} Somme des points de combat de l'armée.
 	*/
 	getTotalAtt(bonus) {
-		return this.getBaseAtt() + this.getBonusAtt(bonus);
+		return this.getBaseAtt() + this.#getBonusAtt(bonus);
 	}
 	/**
 	*
@@ -329,21 +328,20 @@ class Armee {
 		return this._unite.reduce((acc, val, i) => { return tabNonXp.includes(i) ? acc + val * ATT_UNITE[i] : acc }, 0);
 	}
 	/**
-	*
+	* @private
 	*/
-	getNonXPBonusAtt(bonus) {
+	#getNonXPBonusAtt(bonus) {
 		return Math.round(this.getNonXpBaseAtt() * bonus / 10);
 	}
 	/**
 	*
 	*/
 	getNonXpTotalAtt(bonus) {
-		return this.getNonXpBaseAtt() + this.getNonXPBonusAtt(bonus);
+		return this.getNonXpBaseAtt() + this.#getNonXPBonusAtt(bonus);
 	}
 	/**
 	* calcul le nombre de point en défense de base.
 	*
-	* @private
 	* @method getBaseDef
 	* @return {Integer} Points de défense hors bonus.
 	*/
@@ -354,11 +352,11 @@ class Armee {
 	* calcul le nombre de point en défense avec bonus.
 	*
 	* @private
-	* @method getBonusDef
+	* @method #getBonusDef
 	* @param {Integer} bonus
 	* @return {Integer} Points de défense avec bonus.
 	*/
-	getBonusDef(bonus) {
+	#getBonusDef(bonus) {
 		return Math.round(this.getBaseDef() * bonus / 10);
 	}
 	/**
@@ -369,7 +367,7 @@ class Armee {
 	* @return {Integer} Somme des points de défense de l'armée.
 	*/
 	getTotalDef(bonus) {
-		return this.getBaseDef() + this.getBonusDef(bonus);
+		return this.getBaseDef() + this.#getBonusDef(bonus);
 	}
 	/**
 	*
@@ -379,16 +377,16 @@ class Armee {
 		return this._unite.reduce((acc, val, i) => { return tabNonXp.includes(i) ? acc + val * DEF_UNITE[i] : acc }, 0);
 	}
 	/**
-	*
+	* @private
 	*/
-	getNonXPBonusDef(bonus) {
+	#getNonXPBonusDef(bonus) {
 		return Math.round(this.getNonXpBaseDef() * bonus / 10);
 	}
 	/**
 	*
 	*/
 	getNonXpTotalDef(bonus) {
-		return this.getNonXpBaseDef() + this.getNonXPBonusDef(bonus);
+		return this.getNonXpBaseDef() + this.#getNonXPBonusDef(bonus);
 	}
 	/**
 	* calcul la consommation en nourriture de l'armée.
@@ -408,7 +406,7 @@ class Armee {
 	* @return
 	*/
 	setJSN(nbr) {
-		this._unite[1] = this._nbrJSN - nbr;
+		this._unite[1] = this.#nbrJSN - nbr;
 	}
 
 	/* ------------------------------------------------------------------ */
@@ -419,7 +417,7 @@ class Armee {
 	* calcul le nombre de chasse et le terrain par chasse en fonction de la difficulté du terrain de depart et du nombre de chasse restante.
 	*
 	* @private
-	* @method calculChasse
+	* @method #calculChasse
 	* @param {Integer} tdcDep
 	* @param {Float} diffChasse
 	* @param {Integer} fixNB
@@ -427,12 +425,12 @@ class Armee {
 	* @param {Integer} reste
 	* @return {Object} Objet avec le nombre de chasse et le terrain par chasse.
 	*/
-	async calculChasse(tdcDep, diffChasse, fixNB, fixHF, reste) {
+	async #calculChasse(tdcDep, diffChasse, fixNB, fixHF, reste) {
 		let iHuntCm2 = fixHF ? fixHF : Math.round(tdcDep * 3 / 10);
 		let iHuntNb = fixNB ? fixNB : 1;
 		// Try to set the number of hunt.
 		if (!fixNB)
-			while (await this.calculRatio(tdcDep, iHuntNb + 1, iHuntCm2) >= diffChasse && iHuntNb < reste)
+			while (await this.#calculRatio(tdcDep, iHuntNb + 1, iHuntCm2) >= diffChasse && iHuntNb < reste)
 				iHuntNb += 1;
 		// If the hunt is too difficult, try to reduce hunted amount.
 		if (!fixHF) {
@@ -440,28 +438,28 @@ class Armee {
 			for (let j = 500000000000; j > 4; j = j / 10) {
 				bBoucle = (iHuntCm2 > j);
 				if (bBoucle)
-					bBoucle = (await this.calculRatio(tdcDep, iHuntNb, iHuntCm2 - j) < diffChasse && iHuntCm2 > 1);
+					bBoucle = (await this.#calculRatio(tdcDep, iHuntNb, iHuntCm2 - j) < diffChasse && iHuntCm2 > 1);
 				while (bBoucle) {
 					iHuntCm2 -= j;
 					bBoucle = iHuntCm2 > j;
 					if (bBoucle)
-						bBoucle = (await this.calculRatio(tdcDep, iHuntNb, iHuntCm2 - j) < diffChasse && iHuntCm2 > 1);
+						bBoucle = (await this.#calculRatio(tdcDep, iHuntNb, iHuntCm2 - j) < diffChasse && iHuntCm2 > 1);
 				}
 			}
 			bBoucle = iHuntCm2 > 1;
 			if (bBoucle)
-				bBoucle = (await this.calculRatio(tdcDep, iHuntNb, iHuntCm2 - 1) < diffChasse && iHuntCm2 > 1);
+				bBoucle = (await this.#calculRatio(tdcDep, iHuntNb, iHuntCm2 - 1) < diffChasse && iHuntCm2 > 1);
 			while (bBoucle) {
 				iHuntCm2 -= 1;
 				bBoucle = iHuntCm2 > 1;
 				if (bBoucle)
-					bBoucle = (await this.calculRatio(tdcDep, iHuntNb, iHuntCm2 - 1) < diffChasse && iHuntCm2 > 1);
+					bBoucle = (await this.#calculRatio(tdcDep, iHuntNb, iHuntCm2 - 1) < diffChasse && iHuntCm2 > 1);
 			}
 			// if the hunt is easier than specified, try to increase hunt amount.
 			for (let j = 5000000000000; j > 4; j = j / 10)
-				while (await this.calculRatio(tdcDep, iHuntNb, iHuntCm2 + j) >= diffChasse)
+				while (await this.#calculRatio(tdcDep, iHuntNb, iHuntCm2 + j) >= diffChasse)
 					iHuntCm2 += j;
-			while (await this.calculRatio(tdcDep, iHuntNb, iHuntCm2 + 1) >= diffChasse)
+			while (await this.#calculRatio(tdcDep, iHuntNb, iHuntCm2 + 1) >= diffChasse)
 				iHuntCm2 += 1;
 		}
 		return { "NB": iHuntNb, "HF": iHuntCm2 };
@@ -470,38 +468,38 @@ class Armee {
 	* calcul le rapport entre la force de frappe et la difficulté
 	*
 	* @private
-	* @method calculRatio
+	* @method #calculRatio
 	* @param {Integer} tdcDep
 	* @param {Integer} nbChasse
 	* @param {Integer} terrainChasse
 	* @return {Float} ratio de la chasse
 	*/
-	async calculRatio(tdcDep, nbChasse, terrainChasse) {
+	async #calculRatio(tdcDep, nbChasse, terrainChasse) {
 		let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-		return this.getTotalAtt(recherches[2]) / this.calculDifficulte(tdcDep, nbChasse, terrainChasse);
+		return this.getTotalAtt(recherches[2]) / this.#calculDifficulte(tdcDep, nbChasse, terrainChasse);
 	}
 	/**
 	* calcul la référence du ratio donné en paramétre si la chasse est paramétre manuellement.
 	*
 	* @private
-	* @method calculRefRatio
+	* @method #calculRefRatio
 	* @param {Float} ratio
 	* @return {Float} indice du ratio
 	*/
-	calculRefRatio(ratio) {
+	#calculRefRatio(ratio) {
 		return RATIO_CHASSE.reduce((prev, curr) => { return (Math.abs(curr - ratio) < Math.abs(prev - ratio) ? curr : prev); });
 	}
 	/**
 	* calcul la difficulté de la chasse.
 	*
 	* @private
-	* @method calculDifficulte
+	* @method #calculDifficulte
 	* @param {Integer} tdcDep
 	* @param {Integer} nbChasse
 	* @param {Integer} terrainChasse
 	* @return {Float} Difficulté de la chasse.
 	*/
-	calculDifficulte(tdcDep, nbChasse, terrainChasse) {
+	#calculDifficulte(tdcDep, nbChasse, terrainChasse) {
 		let dDiff = 0, dStart;
 		for (let iIter = 0; iIter < nbChasse; iIter++) {
 			dStart = tdcDep + terrainChasse * iIter;
@@ -513,13 +511,13 @@ class Armee {
 	* calcul la difficulté par chasse.
 	*
 	* @private
-	* @method calculDifficultes
+	* @method #calculDifficultes
 	* @param {Integer} tdcDep
 	* @param {Integer} nbChasse
 	* @param {Integer} terrainChasse
 	* @return {Array}
 	*/
-	calculDifficultes(tdcDep, nbChasse, terrainChasse) {
+	#calculDifficultes(tdcDep, nbChasse, terrainChasse) {
 		let dTabDiff = new Array(), dStart;
 		for (let iIter = 0; iIter < nbChasse; iIter++) {
 			dStart = tdcDep + terrainChasse * iIter;
@@ -531,12 +529,12 @@ class Armee {
 	* calcul les pertes minimales, maximales et moyennes en fonction de la difficulté de la chasse.
 	*
 	* @private
-	* @method calculPerte
+	* @method #calculPerte
 	* @param {Float} ratioIndex
 	* @param {Float} diff
 	* @return {Object} les pertes MIN, MAX et AVG
 	*/
-	async calculPerte(ratioIndex, diff) {
+	async #calculPerte(ratioIndex, diff) {
 		let recherches = await monProfilJoueur.lire('Niveaux Recherches');
 		return { "MIN": (PERTE_MIN_CHASSE[ratioIndex]) * diff / (10 + recherches[1]) * 10, "MAX": (PERTE_MAX_CHASSE[ratioIndex]) * diff / (10 + recherches[1]) * 10, "AVG": (PERTE_MOY_CHASSE[ratioIndex]) * diff / (10 + recherches[1]) * 10 };
 	}
@@ -544,7 +542,7 @@ class Armee {
 	* Répartie l'armée sur les chasses souhaitées.
 	*
 	* @private
-	* @method repartirUniteChasse
+	* @method #repartirUniteChasse
 	* @param {Integer} nbChasse
 	* @param {Float} diff
 	* @param {Array} tabDiff
@@ -552,14 +550,14 @@ class Armee {
 	* @param {Float} securityFactor
 	* @return
 	*/
-	async repartirUniteChasse(nbChasse, diff, tabDiff, refMaxLoss, securityFactor) {
-		this._repartition = new Array();
+	async #repartirUniteChasse(nbChasse, diff, tabDiff, refMaxLoss, securityFactor) {
+		this.repartition = new Array();
 		// Available units.
 		let iTabAvailableUnits = this._unite.slice();
 
 		for (let iHuntNum = nbChasse - 1; iHuntNum >= 0; iHuntNum--) {
 			// Initialise unit array for this hunt.
-			this._repartition[iHuntNum] = new Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+			this.repartition[iHuntNum] = new Array(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 			// Base attack of units to send for this hunt.
 			let iHuntBaseAtt = (tabDiff[iHuntNum] / diff) * this.getBaseAtt();
 			// Check for available Xp-able units.
@@ -570,46 +568,46 @@ class Armee {
 			// between lasting hunts according to difficulty.
 			if (bXp) {
 				let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-				this._repartition[iHuntNum][1] = Math.round(refMaxLoss * tabDiff[iHuntNum] / (10 + recherches[1]) * 10 * securityFactor);
+				this.repartition[iHuntNum][1] = Math.round(refMaxLoss * tabDiff[iHuntNum] / (10 + recherches[1]) * 10 * securityFactor);
 			} else {
 				let iDiffLet = tabDiff[iHuntNum];
 				for (let iHL = iHuntNum - 1; iHL >= 0; iHL--)
 					iDiffLet += tabDiff[iHL];
-				this._repartition[iHuntNum][1] = Math.round(iTabAvailableUnits[1] * tabDiff[iHuntNum] / iDiffLet);
+				this.repartition[iHuntNum][1] = Math.round(iTabAvailableUnits[1] * tabDiff[iHuntNum] / iDiffLet);
 			}
 			// Deal with last hunt and check the round do not give more unit
 			// than available.
-			if (!iHuntNum || this._repartition[iHuntNum][1] > iTabAvailableUnits[1] || this._repartition[iHuntNum][1] < 0)
-				this._repartition[iHuntNum][1] = iTabAvailableUnits[1];
+			if (!iHuntNum || this.repartition[iHuntNum][1] > iTabAvailableUnits[1] || this.repartition[iHuntNum][1] < 0)
+				this.repartition[iHuntNum][1] = iTabAvailableUnits[1];
 			// Decrease lasting YD by the amount allocated to this hunt.
-			iTabAvailableUnits[1] -= this._repartition[iHuntNum][1];
+			iTabAvailableUnits[1] -= this.repartition[iHuntNum][1];
 			// Decrease also required Att for this hunt
-			iHuntBaseAtt -= (this._repartition[iHuntNum][1] * ATT_UNITE[1]);
+			iHuntBaseAtt -= (this.repartition[iHuntNum][1] * ATT_UNITE[1]);
 			// Dispatch other units.
 			for (let j = 0; j < 13; j++) {
 				// Get unit index in dispatch order.
 				let u = ORDRE_UNITE_CHASSE[j];
 				if (iTabAvailableUnits[u] > 0 && iHuntBaseAtt > 0) {
 					if (iTabAvailableUnits[u] * ATT_UNITE[u] > iHuntBaseAtt)
-						this._repartition[iHuntNum][u] = Math.round(iHuntBaseAtt / ATT_UNITE[u]);
+						this.repartition[iHuntNum][u] = Math.round(iHuntBaseAtt / ATT_UNITE[u]);
 					else
-						this._repartition[iHuntNum][u] = iTabAvailableUnits[u];
+						this.repartition[iHuntNum][u] = iTabAvailableUnits[u];
 					// Deal with last hunt and check the round do not give
 					// more unit than available.
-					if (!iHuntNum || this._repartition[iHuntNum][u] > iTabAvailableUnits[u] || this._repartition[iHuntNum][u] < 0)
-						this._repartition[iHuntNum][u] = iTabAvailableUnits[u];
+					if (!iHuntNum || this.repartition[iHuntNum][u] > iTabAvailableUnits[u] || this.repartition[iHuntNum][u] < 0)
+						this.repartition[iHuntNum][u] = iTabAvailableUnits[u];
 					// Decrease lasting units
-					iTabAvailableUnits[u] -= this._repartition[iHuntNum][u];
+					iTabAvailableUnits[u] -= this.repartition[iHuntNum][u];
 					// Decrease also required Att for this hunt
-					iHuntBaseAtt -= (this._repartition[iHuntNum][u] * ATT_UNITE[u]);
+					iHuntBaseAtt -= (this.repartition[iHuntNum][u] * ATT_UNITE[u]);
 				}
 			}
 			// Si il maque de la force de frappe, malgré le placement des unités on utilise des JSN
 			//			if(iHuntBaseAtt > 0){
-			//				this._repartition[iHuntNum][0] += Math.round(iHuntBaseAtt / ATT_UNITE[1]);
-			//                if(!iHuntNum || this._repartition[iHuntNum][0] > iTabAvailableUnits[0] || this._repartition[iHuntNum][0] < 0)
-			//				    this._repartition[iHuntNum][0] = iTabAvailableUnits[0];
-			//				iTabAvailableUnits[0] -= this._repartition[iHuntNum][0];
+			//				this.repartition[iHuntNum][0] += Math.round(iHuntBaseAtt / ATT_UNITE[1]);
+			//                if(!iHuntNum || this.repartition[iHuntNum][0] > iTabAvailableUnits[0] || this.repartition[iHuntNum][0] < 0)
+			//				    this.repartition[iHuntNum][0] = iTabAvailableUnits[0];
+			//				iTabAvailableUnits[0] -= this.repartition[iHuntNum][0];
 			//			}
 		}
 	}
@@ -627,7 +625,7 @@ class Armee {
 	* @return
 	*/
 	async simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, reste) {
-		let iTabChasse = await this.calculChasse(tdcDep, diffChasse, fixNB, fixHF, reste), dDiff = this.calculDifficulte(tdcDep, iTabChasse["NB"], iTabChasse["HF"]), iTabPerte = await this.calculPerte(RATIO_CHASSE.indexOf(parseFloat(diffChasse)), dDiff);
+		let iTabChasse = await this.#calculChasse(tdcDep, diffChasse, fixNB, fixHF, reste), dDiff = this.#calculDifficulte(tdcDep, iTabChasse["NB"], iTabChasse["HF"]), iTabPerte = await this.#calculPerte(RATIO_CHASSE.indexOf(parseFloat(diffChasse)), dDiff);
 		if ($("#o_chasseNbrAuto").is(':checked')) {
 			$("#o_chasseNbr").spinner("value", iTabChasse["NB"]);
 			nbChasse = iTabChasse["NB"];
@@ -636,14 +634,13 @@ class Armee {
 			$("#o_chasseTDCRep").spinner("value", iTabChasse["HF"]);
 			terrainChasse = iTabChasse["HF"];
 		}
-		let ratio = await this.calculRatio(tdcDep, nbChasse, terrainChasse);
-		await this.repartirUniteChasse(nbChasse, this.calculDifficulte(tdcDep, nbChasse, terrainChasse), this.calculDifficultes(tdcDep, nbChasse, terrainChasse), PERTE_MAX_CHASSE[RATIO_CHASSE.indexOf(this.calculRefRatio(ratio))], 1.0);
-		return { repartition: this._repartition, nbChasse: nbChasse, terrainChasse: terrainChasse, ratio: ratio, ratioRef: this.calculRefRatio(ratio).toFixed(1), iTabPerte: iTabPerte };
+		let ratio = await this.#calculRatio(tdcDep, nbChasse, terrainChasse);
+		await this.#repartirUniteChasse(nbChasse, this.#calculDifficulte(tdcDep, nbChasse, terrainChasse), this.#calculDifficultes(tdcDep, nbChasse, terrainChasse), PERTE_MAX_CHASSE[RATIO_CHASSE.indexOf(this.#calculRefRatio(ratio))], 1.0);
+		return { repartition: this.repartition, nbChasse: nbChasse, terrainChasse: terrainChasse, ratio: ratio, ratioRef: this.#calculRefRatio(ratio).toFixed(1), iTabPerte: iTabPerte };
 	}
 	/**
 	* Envoie une chasse.
 	*
-	* @private
 	* @method envoyerChasse
 	* @param {Integer} indice
 	* @param {String} securite
@@ -654,20 +651,20 @@ class Armee {
 			donnees["" + securite.split("=")[0]] = securite.split("=")[1];
 			donnees["ChoixArmee"] = "1";
 			donnees["AcquerirTerrain"] = terrainChasse;
-			donnees["unite1"] = this._repartition[indice][1];
-			donnees["unite2"] = this._repartition[indice][2];
-			donnees["unite3"] = this._repartition[indice][3];
-			donnees["unite4"] = this._repartition[indice][4];
-			donnees["unite5"] = this._repartition[indice][5];
-			donnees["unite6"] = this._repartition[indice][6];
-			donnees["unite7"] = this._repartition[indice][8];
-			donnees["unite8"] = this._repartition[indice][9];
-			donnees["unite9"] = this._repartition[indice][10];
-			donnees["unite10"] = this._repartition[indice][11];
-			donnees["unite11"] = this._repartition[indice][13];
-			donnees["unite12"] = this._repartition[indice][14];
-			donnees["unite13"] = this._repartition[indice][12];
-			donnees["unite14"] = this._repartition[indice][7];
+			donnees["unite1"] = this.repartition[indice][1];
+			donnees["unite2"] = this.repartition[indice][2];
+			donnees["unite3"] = this.repartition[indice][3];
+			donnees["unite4"] = this.repartition[indice][4];
+			donnees["unite5"] = this.repartition[indice][5];
+			donnees["unite6"] = this.repartition[indice][6];
+			donnees["unite7"] = this.repartition[indice][8];
+			donnees["unite8"] = this.repartition[indice][9];
+			donnees["unite9"] = this.repartition[indice][10];
+			donnees["unite10"] = this.repartition[indice][11];
+			donnees["unite11"] = this.repartition[indice][13];
+			donnees["unite12"] = this.repartition[indice][14];
+			donnees["unite13"] = this.repartition[indice][12];
+			donnees["unite14"] = this.repartition[indice][7];
 			// Requete
 			$.post("http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php", donnees, (data) => {
 				if (data.indexOf("La chasse est lancée.") > -1)
@@ -685,9 +682,9 @@ class Armee {
 	/* ------------------------------------------------------------------ */
 
 	/**
-	*
+	* @private
 	*/
-	placeAntisonde(donneesFlood) {
+	#placeAntisonde(donneesFlood) {
 		if (donneesFlood.attaques[0]) {
 			let priseMax = Math.floor(donneesFlood.tdcCible * 0.2);
 			priseMax = donneesFlood.attaques[0] > priseMax ? priseMax : donneesFlood.attaques[0];
@@ -697,18 +694,18 @@ class Armee {
 			donneesFlood.reste--;
 		}
 		// on place l'antisonde quand même pour garder l'ordre
-		this._floods.push(donneesFlood.attaques[0]);
+		this.floods.push(donneesFlood.attaques[0]);
 	}
 	/**
-	*
+	* @private
 	*/
-	standardFlood(donneesFlood) {
+	#standardFlood(donneesFlood) {
 		let prise = 0, priseMax = 0;
 		for (let i = 1; i < donneesFlood.attaques.length; i++) {
 			prise = donneesFlood.unite >= donneesFlood.attaques[i] ? donneesFlood.attaques[i] : donneesFlood.unite;
 			priseMax = Math.floor(donneesFlood.tdcCible * 0.2);
 			priseMax = prise > priseMax ? priseMax : prise;
-			this._floods.push(prise);
+			this.floods.push(prise);
 			donneesFlood.tdcAtt += priseMax;
 			donneesFlood.tdcCible -= priseMax;
 			donneesFlood.unite -= prise;
@@ -720,19 +717,19 @@ class Armee {
 	* Optimisation de la prise de terrain sur une cible en fonction du nombre d'unité et du nombre d'attaque.
 	*
 	* @private
-	* @method optimiserFlood
+	* @method #optimiserFlood
 	* @param {Integer} tdcAtt
 	* @param {Integer} tdcCible
 	* @param {Integer} unite
 	* @param {Integer} reste
 	*/
-	optimiserFlood(donneesFlood) {
+	#optimiserFlood(donneesFlood) {
 		let prise = 0;
 		// -20% -20% -20%
 		while (donneesFlood.tdcAtt < Math.floor(donneesFlood.tdcCible * 1.4) && donneesFlood.reste > 0) {
 			prise = Math.floor(donneesFlood.tdcCible * 0.2);
 			prise = donneesFlood.unite >= prise ? prise : donneesFlood.unite;
-			this._floods.push(prise);
+			this.floods.push(prise);
 			donneesFlood.tdcAtt += prise;
 			donneesFlood.tdcCible -= prise;
 			donneesFlood.unite -= prise;
@@ -742,7 +739,7 @@ class Armee {
 		if (donneesFlood.reste > 1) { // limite
 			let limite = Math.floor((donneesFlood.tdcCible * 2 - donneesFlood.tdcAtt) / 3) - 1;
 			limite = limite && donneesFlood.unite >= limite ? limite : donneesFlood.unite;
-			this._floods.push(limite);
+			this.floods.push(limite);
 			donneesFlood.tdcAtt += limite;
 			donneesFlood.tdcCible -= limite;
 			donneesFlood.unite -= limite;
@@ -752,7 +749,7 @@ class Armee {
 		if (donneesFlood.reste > 0) { // dernier
 			prise = Math.floor(donneesFlood.tdcCible * 0.2);
 			prise = donneesFlood.unite >= prise ? prise : donneesFlood.unite;
-			this._floods.push(prise);
+			this.floods.push(prise);
 			donneesFlood.tdcAtt += prise;
 			donneesFlood.tdcCible -= prise;
 			donneesFlood.unite -= prise;
@@ -760,14 +757,14 @@ class Armee {
 		}
 	}
 	/**
-	*
+	* @private
 	*/
-	degressifFlood(donneesFlood) {
+	#degressifFlood(donneesFlood) {
 		let prise = 0, nbFlood = donneesFlood.reste;
 		for (let i = 0; i < nbFlood; i++) {
 			prise = Math.floor(donneesFlood.tdcCible * 0.2);
 			prise = donneesFlood.unite >= prise ? prise : donneesFlood.unite;
-			this._floods.push(prise);
+			this.floods.push(prise);
 			donneesFlood.tdcAtt += prise;
 			donneesFlood.tdcCible -= prise;
 			donneesFlood.unite -= prise;
@@ -776,15 +773,15 @@ class Armee {
 		}
 	}
 	/**
-	*
+	* @private
 	*/
-	uniformeFlood(donneesFlood) {
+	#uniformeFlood(donneesFlood) {
 		let prise = 0, priseMax = 0, nbFlood = donneesFlood.reste;
 		for (let i = 0; i < nbFlood; i++) {
 			prise = donneesFlood.unite >= donneesFlood.tdcUniforme ? donneesFlood.tdcUniforme : donneesFlood.unite;
 			priseMax = Math.floor(donneesFlood.tdcCible * 0.2);
 			priseMax = prise > priseMax ? priseMax : prise;
-			this._floods.push(prise);
+			this.floods.push(prise);
 			donneesFlood.tdcAtt += priseMax;
 			donneesFlood.tdcCible -= priseMax;
 			donneesFlood.unite -= prise;
@@ -796,20 +793,20 @@ class Armee {
 	* Répartie l'armée sur les floods souhaitées.
 	*
 	* @private
-	* @method repartirUniteFlood
+	* @method #repartirUniteFlood
 	*/
-	repartirUniteFlood() {
-		this._repartition = new Array();
+	#repartirUniteFlood() {
+		this.repartition = new Array();
 		// Available units.
-		let iTabAvailableUnits = this._unite.slice(), floods = this._floods.slice();
+		let iTabAvailableUnits = this._unite.slice(), floods = this.floods.slice();
 		floods.forEach((f, i, tabFloods) => {
-			this._repartition[i] = new Array(15).fill(0);
+			this.repartition[i] = new Array(15).fill(0);
 			iTabAvailableUnits.forEach((unite, j, tabUnite) => {
 				if (j === 0) return; // on ne flood pas avec des ouvrières
 				if (unite) {
-					this._repartition[i][j] = tabUnite[j] >= tabFloods[i] ? tabFloods[i] : tabUnite[j];
-					tabFloods[i] -= this._repartition[i][j];
-					tabUnite[j] -= this._repartition[i][j];
+					this.repartition[i][j] = tabUnite[j] >= tabFloods[i] ? tabFloods[i] : tabUnite[j];
+					tabFloods[i] -= this.repartition[i][j];
+					tabUnite[j] -= this.repartition[i][j];
 					if (!tabFloods[i]) return false;
 				}
 			});
@@ -821,67 +818,66 @@ class Armee {
 	* @method calculeFlood
 	*/
 	simulerFlood(tdcAtt, tdcCible, methode, attaques, tdcUniforme, reste, indSupp) {
-		this._floods = new Array();
+		this.floods = new Array();
 		// on a besoin d'un objet pour le passer au différentes fonctions
 		let data = { "attaques": attaques, "tdcUniforme": tdcUniforme, "tdcAtt": tdcAtt, "tdcCible": tdcCible, "unite": this.getSommeUnite(), "reste": reste }
 		// Placement de l'antisonde
-		this.placeAntisonde(data);
-		if (data.unite <= 0) return this._floods;
+		this.#placeAntisonde(data);
+		if (data.unite <= 0) return this.floods;
 		// Placement selon la méthode
 		switch (methode) {
 			case "0": // defini manuellement
-				this.standardFlood(data);
+				this.#standardFlood(data);
 				break;
 			case "1": // Opti
-				this.optimiserFlood(data);
+				this.#optimiserFlood(data);
 				break;
 			case "2": // uniforme
-				this.uniformeFlood(data);
+				this.#uniformeFlood(data);
 				break;
 			case "3": // Degressive
-				this.degressifFlood(data);
+				this.#degressifFlood(data);
 				break;
 			default:
 				break;
 		}
 		// Placement de toute les unités si il en reste
-		if (indSupp != -1 && data.unite > 0) this._floods[indSupp] += data.unite;
+		if (indSupp != -1 && data.unite > 0) this.floods[indSupp] += data.unite;
 		// des qu'on simule on prepare la repartition des unités pour le lancement
-		this.repartirUniteFlood();
-		return this._floods;
+		this.#repartirUniteFlood();
+		return this.floods;
 	}
 	/**
 	* Envoie un flood.
 	*
-	* @private
 	* @method envoyerFlood
 	* @param {Integer} indice
 	* @param {String} securite
 	*/
 	envoyerFlood(idCible, indice, securite) {
 		// si on a encore des attaques à lancer
-		if (indice < this._floods.length) {
+		if (indice < this.floods.length) {
 			// si l'attaque est différente de 0
-			if (this._floods[indice]) {
+			if (this.floods[indice]) {
 				let donnees = {};
 				donnees["" + securite.split("=")[0]] = securite.split("=")[1];
 				donnees["ChoixArmee"] = "1";
 				donnees["lieu"] = "1"; //$("input[name=o_domeFlood]:checked").val() == "Oui" ? "2" : "1";
 				donnees["pseudoCible"] = $("input[name=pseudoCible]").val();
-				donnees["unite1"] = this._repartition[indice][1];
-				donnees["unite2"] = this._repartition[indice][2];
-				donnees["unite3"] = this._repartition[indice][3];
-				donnees["unite4"] = this._repartition[indice][4];
-				donnees["unite5"] = this._repartition[indice][5];
-				donnees["unite6"] = this._repartition[indice][6];
-				donnees["unite7"] = this._repartition[indice][8];
-				donnees["unite8"] = this._repartition[indice][9];
-				donnees["unite9"] = this._repartition[indice][10];
-				donnees["unite10"] = this._repartition[indice][11];
-				donnees["unite11"] = this._repartition[indice][13];
-				donnees["unite12"] = this._repartition[indice][14];
-				donnees["unite13"] = this._repartition[indice][12];
-				donnees["unite14"] = this._repartition[indice][7];
+				donnees["unite1"] = this.repartition[indice][1];
+				donnees["unite2"] = this.repartition[indice][2];
+				donnees["unite3"] = this.repartition[indice][3];
+				donnees["unite4"] = this.repartition[indice][4];
+				donnees["unite5"] = this.repartition[indice][5];
+				donnees["unite6"] = this.repartition[indice][6];
+				donnees["unite7"] = this.repartition[indice][8];
+				donnees["unite8"] = this.repartition[indice][9];
+				donnees["unite9"] = this.repartition[indice][10];
+				donnees["unite10"] = this.repartition[indice][11];
+				donnees["unite11"] = this.repartition[indice][13];
+				donnees["unite12"] = this.repartition[indice][14];
+				donnees["unite13"] = this.repartition[indice][12];
+				donnees["unite14"] = this.repartition[indice][7];
 				// Requete
 				$.post("http://" + Utils.serveur + ".fourmizzz.fr/ennemie.php?Attaquer=" + idCible, donnees, (data) => {
 					let res = $("<div/>").append(data).find("center:last").text();
@@ -899,9 +895,9 @@ class Armee {
 	/* ------------------------------------------------------------------ */
 
 	/**
-	*
+	* @private
 	*/
-	retirerPerte(nbUnite) {
+	#retirerPerte(nbUnite) {
 		// Tant que le total n'est pas 0 on retire les unites
 		this._unite.every((elt, ind) => {
 			if (ind === 0) return true; // on ne perd pas d'ouvrières en combat
@@ -921,11 +917,12 @@ class Armee {
 	* Parse le HTML de la page Armee.php pour extraire les totaux d'unités (TDC + Dôme + Loge).
 	*
 	* @static
-	* @method parseHtml
+	* @private
+	* @method #parseHtml
 	* @param {String} html Le contenu HTML de la page /Armee.php.
 	* @return {Object} Un objet où les clés sont les noms des unités (depuis NOM_UNITE) et les valeurs sont les quantités totales.
 	*/
-	static parseHtml(html) {
+	static #parseHtml(html) {
 		let unitesTotales = {};
 		// Initialiser avec toutes les unités à 0 (y compris Ouvrière)
 		NOM_UNITE.forEach(nom => {
@@ -956,4 +953,4 @@ class Armee {
 		}
 		return unitesFinales;
 	}
-}
+});

@@ -13,7 +13,7 @@ Ajouter une section implémentation au readme contenant des instructions destin�
 - Ajouter dans le prompt système et les notes de développement qu'après le développement de chaque fonctionnalité il faut mettre à jour les notes de développement, les instructions d'installation et d'utilisation, la documentation statique et dynamique (via le workflow pour le prompt système), etc...
 - Voir s'il existe un framework permettant de lier la doc au code pour automatiser la mise à jour simultanée
 - Ajouter dans le prompt système de prendre en compte la doc et les notes de développement en permanence et donner leur adresse
-- Créer fichier d'instructions d'utilisation de Fourmizzz
+- Créer fichier d'instructions d'utilisation de Fourmizzz (le rendre disponible dans l'extension)
 - Workflow développement de fonctionnalité
 - Workflow release
 - Ajout de sections
@@ -24,6 +24,7 @@ Ajouter une section implémentation au readme contenant des instructions destin�
 - Nettoyer clinerules
 - Appliquer aux tâches déjà terminées
 - Vérifier bonnes pratiques bien appliquées
+- Mentionner que les suggestions d'amélioration doivent être faites en contribuant à ou créant des issues sur la page du projet
 
 ## Plan d'Implémentation
 

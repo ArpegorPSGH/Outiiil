@@ -8,10 +8,8 @@
 *
 * @class Page
 */
-class ParametreUI
-{
-    constructor(id, libelle, type = "", valeur = "", valeurPossible = [])
-    {
+Utils.register(class ParametreUI {
+    constructor(id, libelle, type = "", valeur = "", valeurPossible = []) {
         /**
         * id du parametre
         */
@@ -36,109 +34,97 @@ class ParametreUI
     /**
     *
     */
-    get id()
-    {
+    get id() {
         return this._id;
     }
     /**
     *
     */
-    get libelle()
-    {
+    get libelle() {
         return this._libelle;
     }
     /**
     *
     */
-    set libelle(newLibelle)
-    {
+    set libelle(newLibelle) {
         this._libelle = newLibelle;
     }
     /**
     *
     */
-    get type()
-    {
+    get type() {
         return this._type;
     }
     /**
     *
     */
-    set type(newType)
-    {
+    set type(newType) {
         this._type = newType;
     }
     /**
     *
     */
-    get valeur()
-    {
+    get valeur() {
         return this._valeur;
     }
     /**
     *
     */
-    set valeur(newValeur)
-    {
+    set valeur(newValeur) {
         this._valeur = newValeur;
     }
     /**
     *
     */
-    get valeurPossible()
-    {
+    get valeurPossible() {
         return this._valeurPossible;
     }
     /**
     *
     */
-    set valeurPossible(newPossible)
-    {
+    set valeurPossible(newPossible) {
         this._valeurPossible = newPossible;
     }
     /**
     * override JSON
     */
-    toJSON()
-    {
+    toJSON() {
         return this._valeur;
     }
     /**
     *
     */
-    sauvegarde()
-    {
+    sauvegarde() {
         localStorage.setItem("outiiil_parametre", JSON.stringify(monProfilUtilisateur.parametre));
         return this;
     }
     /**
     *
     */
-    getForm()
-    {
+    getForm() {
         let html = `<div class="group">`;
-        switch(this._type){
-            case "color" :
+        switch (this._type) {
+            case "color":
                 html += `<input id="${this._id}" class="o_input" type="text" value="${this._valeur}" required/><input id="${this._id}Picker" class="o_inputColor" type="color" value="${this._valeur}"/>`;
                 break;
-            case "number" :
+            case "number":
                 html += `<input class="o_input" type="text" value="0" style="display:none;" required/><input id="${this._id}" value="${this._valeur}" />`;
                 break;
-            case "input" :
+            case "input":
                 html += `<input id="${this._id}" class="o_input" type="text" value="${this._valeur}" required/>`;
                 break;
-            case "checkbox" :
+            case "checkbox":
                 return `<div class="group left"><label for="${this._id}">${this._libelle}</label><input id="${this._id}" class="o_checkbox" type="checkbox" ${this._valeur ? "checked" : ""}/></div>`;
                 break;
-            case "select" :
+            case "select":
                 html += `<select id="${this._id}" class="o_input" required>`;
-                this._valeurPossible.forEach((item, index, array) => {html += `<option value="${index}" ${index == this._valeur ? "selected" : ""}>${item}</option>`;});
+                this._valeurPossible.forEach((item, index, array) => { html += `<option value="${index}" ${index == this._valeur ? "selected" : ""}>${item}</option>`; });
                 html += `</select>`;
                 break;
-            default :
+            default:
                 break;
         }
         html += `<span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>${this._libelle}</label></div>`;
         return html;
     }
-}
+});

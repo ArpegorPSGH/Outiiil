@@ -18,8 +18,6 @@ Utils.register(class ColorerMessage extends FonctionnaliteAlliance {
      * Exécute le chargement des joueurs et applique la coloration des messages.
      */
     async run() {
-        console.log("[FonctionnaliteMessagerieJoueurs] run()");
-
         let joueurs = [];
         await this.executerTransaction(async () => {
             // Récupération des joueurs de l'utilitaire via la nouvelle logique du framework

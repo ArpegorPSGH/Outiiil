@@ -1,4 +1,4 @@
-class NourritureRestante extends AttributObjet {
+Utils.register(class NourritureRestante extends AttributObjet {
     static NOM_APPEL = ['Nourriture Restante'];
     static TYPE_AFFICHAGE = 'quantite-grade';
     static NOM_AFFICHAGE = [`Qté à livrer ${IMG_POMME}`];
@@ -12,4 +12,4 @@ class NourritureRestante extends AttributObjet {
         const params = await this.objetParent.lire(['Nourriture Demandée', 'Nourriture Livrée'], peutVoirDonneesRestreintes);
         return params['Nourriture Demandée'] - params['Nourriture Livrée'];
     }
-}
+});

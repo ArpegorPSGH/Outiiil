@@ -109,7 +109,10 @@ Pour garantir la robustesse des fonctionnalités :
 - **Initialisation des pages :** Une classe `Page` doit surcharger la liste `FONCTIONNALITES_ALLIANCE` de la classe mère et invoquer `Page.init()` pour lancer les fonctionnalités.
 - **Exécution des fonctionnalités :** Le run des fonctionnalités ne doit contenir que les opérations à effectuer séquentiellement au moment du chargement de la page, le reste devra être lancé dans des fonctions `async` non `await`-ées.
 - **Version de logique :** Lorsque la logique de fonctionnement d'un `ObjetForum` ou d'un `ParametreObjetForum` change suffisamment pour ne plus être compatible avec la logique précédente, incrémentez sa propriété statique `VERSION_LOGIQUE`. Pour un `ObjetForum`, cela concerne des situations où, dans des conditions identiques, les paramètres ne seraient plus censés prendre la même valeur. Pour un `ParametreObjetForum`, cela s'applique quand une même valeur brute est traitée différemment.
-- **Enregistrement global :** Les `ObjetForum` et `FonctionnaliteAlliance` doivent être enregistrés dans l'objet `window` avec `Utils.register()`.
+- **Enregistrement global :** Toutes les classes sans exception (framework, mères, filles, utilitaires, boîtes, etc.) doivent être déclarées et enregistrées dans l'objet global avec `Utils.register(class NomClasse ...)`. Cet enregistrement systématique permet notamment au système de journalisation (`Logger`) d'identifier les classes de l'extension (via `window[name]`), de tracer avec précision les instances et d'ignorer les attributs et méthodes privés lors de l'instrumentation et de la sérialisation.
+- **Portée des fonctions et visibilité privée (#) :** Pour optimiser la clarté de l'architecture et la pertinence de la journalisation automatique (`Logger` ignorant getters, setters et fonctions privées lors de l'instrumentation) :
+    - Dans les classes filles, toutes les fonctions non principales (méthodes utilitaires internes, sous-routines de calcul, helpers d'affichage ou de traitement) doivent être définies comme privées (syntaxe `#nomFonction`) lorsque cela est possible.
+    - Dans les classes mères (du framework), conserver les méthodes accessibles pour l'héritage et l'extensibilité, et ne passer en privé (`#`) que les fonctions très mineures.
 - **Accès aux valeurs des paramètres :** Toujours utiliser les méthodes `ObjetForum.lire()` et `ObjetForum.ecrire()`. Ces méthodes délèguent aux méthodes `lire()` et `ecrire()` de `ParametreObjetForum`, qui gèrent la concurrence via un système de verrous (locks) et assurent la validation des types de données. Ne jamais accéder directement à la propriété `valeur` d'un paramètre.
 - **Ajout d'une fonctionnalité modifiant les droits accumulés :** Modifier directement depuis les fonctionnalités concernées au moment de l'opération, ne pas compter sur le script de fond de mise à jour à chaque récolte.
 - **Mise à jour de la documentation :** Après chaque fonctionnalité implémentée, assurez-vous de mettre à jour la documentation (si nécessaire) pour refléter les changements et les nouvelles pratiques.
@@ -138,10 +141,10 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
 *   **`completerChargementPourVersionsAnterieures()`**
     *   **Objectif :** Gérer la migration des données lors du chargement d'une version antérieure de l'objet.
     *   **Utilisation :** Cette méthode est appelée par `ObjetForum.chargerDepuisString()` après que les paramètres de l'objet aient été chargés depuis une chaîne. Elle permet de calculer et de peupler les paramètres des versions récentes à partir des données d'une version plus ancienne.
-    *   **Bonne Pratique :** Utilisez `this._determinerVersionChargee()` pour identifier la version chargée et un `switch` pour implémenter la logique de migration spécifique à chaque version. Utilisez `this.ecrire()` pour mettre à jour les valeurs des paramètres afin de garantir que l'état `estModifie` est correctement géré.
+    *   **Bonne Pratique :** Utilisez `this.determinerVersionChargee()` pour identifier la version chargée et un `switch` pour implémenter la logique de migration spécifique à chaque version. Utilisez `this.ecrire()` pour mettre à jour les valeurs des paramètres afin de garantir que l'état `estModifie` est correctement géré.
     ```javascript
     completerChargementPourVersionsAnterieures() {
-        let versionActuelle = this._determinerVersionChargee();
+        let versionActuelle = this.determinerVersionChargee();
         const versionCible = this.constructor.PARAMETRES_OBJET.length - 1;
 
         // Boucle tant que nous n'avons pas atteint la dernière version
@@ -172,7 +175,7 @@ Le framework `ObjetForum` offre des méthodes de "complément" qui peuvent être
     *   **Fonctionnement :**
         1.  La méthode reçoit `valeurChargee`, qui est la valeur brute parsée depuis le forum (souvent une chaîne, un nombre, un booléen, ou un objet/tableau si le JSON a été parsé).
         2.  La classe fille doit implémenter la logique de conversion pour transformer `valeurChargee` en un format et une valeur compatibles avec la propriété `valeur` actuelle de l'instance.
-        3.  Le framework tentera ensuite de valider et de caster la valeur retournée par `_migrerValeur` avec la méthode `_checkValeur`.
+        3.  Le framework tentera ensuite de valider et de caster la valeur retournée par `_migrerValeur` avec la méthode `checkValeur`.
     *   **Exemple (migration d'une valeur primitive vers un dictionnaire, et conversion de valeur) :**
         ```javascript
         class MonParametreMigrable extends ParametreObjetForum {

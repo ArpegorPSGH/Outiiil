@@ -373,6 +373,10 @@ input:required, select:required {box-shadow:none;}
 {
     background-position:-32px -278px;
 }
+#o_toolbarOutiiil .o_toolbarItem #o_itemBug
+{
+    background-position:0 -200px;
+}
 
 /* Titre des boites */
 .o_titre
@@ -460,6 +464,7 @@ input:required, select:required {box-shadow:none;}
 
 /* Parametre */
 #o_boiteParametre {min-width:40%;}
+#o_boiteSignalement {width: 400px; min-width: auto;}
 #o_tabsParametre1, #o_tabsParametre2, #o_tabsParametre3 {max-height: 50vh;overflow-y:auto;}
 
 /* Commande - Grade */

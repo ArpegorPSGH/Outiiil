@@ -1,10 +1,5 @@
 Utils.register(class Recenser extends FonctionnaliteAlliance {
     /**
-     * @property {string} #nom - Nom pour l'affichage dans les logs
-     */
-    #nom = 'Recensement';
-
-    /**
      * @property {string[]} ABREVIATIONS_HISTORY - Historique des abréviations
      */
     static ABREVIATIONS_HISTORY = ['REC'];
@@ -15,7 +10,6 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        console.log(`[${this.#nom}] Exécution`);
         const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
             const bouton = $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
@@ -35,7 +29,6 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
         bouton.addClass('processing').css('pointer-events', 'none');
 
         try {
-            console.log('monProfilJoueur recensement: ', monProfilJoueur)
             let recensementReussi;
             recensementReussi = await monProfilJoueur.effectuerRecensement();
 

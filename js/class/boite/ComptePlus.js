@@ -5,7 +5,7 @@
 * @constructor
 * @extends Boite
 */
-class BoiteComptePlus {
+Utils.register(class BoiteComptePlus {
     constructor() {
         // attribut de la classe
         this._ponte = [];
@@ -23,7 +23,7 @@ class BoiteComptePlus {
         this._chasse = [];
         this._startChasse = 0;
         // on charge les données depuis le storage
-        this.getData();
+        this.#getData();
     }
     /**
     *
@@ -197,8 +197,9 @@ class BoiteComptePlus {
     * Récupére les données sur les joueurs sous surveillance.
     *
     * @method getRadar
+    * @private
     */
-    getData() {
+    #getData() {
         let data = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
         if (data.ponte) this._ponte = data.ponte;
         if (data.startPonte) this._startPonte = data.startPonte;
@@ -245,9 +246,9 @@ class BoiteComptePlus {
         return this;
     }
     /**
-    *
+    * @private
     */
-    async verifierDonnees() {
+    async #verifierDonnees() {
         // si la construction est fini
         if (this._construction && moment(this._expConstruction).diff(moment()) < 0) {
             // on met à jour le niveau de la construction
@@ -257,7 +258,7 @@ class BoiteComptePlus {
             await monProfilJoueur.ecrire("Niveaux Constructions", constructions);
             // si la construction est une evolution de ponte, on met a jour les pontes
             if (this._construction.includes("Couveuse") || this._construction.includes("Solarium"))
-                this.recalculeTempsPonte();
+                this.#recalculeTempsPonte();
             this._startConstruction = 0;
             this._expConstruction = 0;
             this._construction = "";
@@ -271,7 +272,7 @@ class BoiteComptePlus {
             await monProfilJoueur.ecrire("Niveaux Recherches", recherches);
             // si la recherche est une evolution de ponte, on met a jour les pontes
             if (this._recherche.includes("Technique de ponte"))
-                this.recalculeTempsPonte();
+                this.#recalculeTempsPonte();
             this._expRecherche = 0;
             this._startRecherche = 0;
             this._recherche = "";
@@ -299,15 +300,14 @@ class BoiteComptePlus {
         return this.sauvegarder();
     }
     /**
-    *
+    * @private
     */
-    recalculeTempsPonte() {
+    #recalculeTempsPonte() {
         this._ponte.forEach((ponte) => { ponte.exp = moment().add(Math.round((moment(ponte.exp).diff(moment()) / 1000) * 0.9), 's'); });
     }
     /**
 * Affiche la boite.
 *
-* @private
 * @method afficher
 */
     async afficher() {
@@ -330,7 +330,7 @@ class BoiteComptePlus {
                 // Formulaire de recherche
                 + "</table><form method='post' action='classementAlliance.php' style='text-align:center;margin-top:5px;'><input type='text' name='requete' id='recherche' placeholder='Joueur ou Alliance'/></form></div></div>");
             // Remplissage des champs
-            await this.verifierDonnees()
+            await this.#verifierDonnees()
             await this.majPonte()
             this.majConstruction().majRecherche().majAttaque().majConvoi().majChasse();
             // Formatage du title
@@ -364,7 +364,6 @@ class BoiteComptePlus {
     /**
     * Met à jour les pontes si elles ne correspondent pas.
     *
-    * @private
     * @method majPonte
     */
     async majPonte() {
@@ -396,7 +395,6 @@ class BoiteComptePlus {
     /**
     * Met à jour la construction en cours si elle change.
     *
-    * @private
     * @method majConstruction
     */
     majConstruction() {
@@ -413,7 +411,6 @@ class BoiteComptePlus {
     /**
     * Met à jour la recherche en cours si elle change.
     *
-    * @private
     * @method majRecherche
     */
     majRecherche() {
@@ -430,7 +427,6 @@ class BoiteComptePlus {
     /**
     * Met à jour les attaques si elles ne correspondent pas.
     *
-    * @private
     * @method majAttaque
     */
     majAttaque() {
@@ -457,7 +453,6 @@ class BoiteComptePlus {
     /**
     * Met à jour les convois si ils ne correspondent pas.
     *
-    * @private
     * @method majConvoi
     */
     majConvoi() {
@@ -484,7 +479,6 @@ class BoiteComptePlus {
     /**
     * Met à jour les chasses si elles ne correspondent pas.
     *
-    * @private
     * @method majChasse
     */
     majChasse() {
@@ -511,4 +505,4 @@ class BoiteComptePlus {
         }
         return this;
     }
-}
+})

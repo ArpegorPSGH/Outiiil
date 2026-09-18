@@ -1,10 +1,5 @@
 Utils.register(class Actualiser extends FonctionnaliteAlliance {
     /**
-     * @property {string} #nom - Nom pour l'affichage dans les logs
-     */
-    #nom = 'Actualiser Alliance';
-
-    /**
      * @property {string[]} ABREVIATIONS_HISTORY - Historique des abréviations
      */
     static ABREVIATIONS_HISTORY = ['ACT'];
@@ -25,7 +20,6 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        console.log(`[${this.#nom}] Exécution`);
         const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
             const bouton = $(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);

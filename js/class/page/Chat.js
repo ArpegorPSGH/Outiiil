@@ -37,14 +37,13 @@ Utils.register(class Chat extends Page {
         $("#message").on("keypress", (e) => {
             let code = e.keyCode || e.which;
             if (code == 13)
-                this.parserMessage();
+                this.#parserMessage();
         });
-        $("input[name='Envoyer']").click((e) => { this.parserMessage(); });
+        $("input[name='Envoyer']").click((e) => { this.#parserMessage(); });
     }
     /**
     * Change l'apparance de l'affichage des messages, "Pseudo (datetime) :" au lieu de "datetime pseudo :"
     *
-    * @private
     * @method afficheMessage
     */
     afficheMessage() {
@@ -60,7 +59,7 @@ Utils.register(class Chat extends Page {
         });
         // event sur les anciens message
         $("span[id^='o_cite']").click((e) => {
-            let texte = this.citerMessage(e);
+            let texte = this.#citerMessage(e);
             texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
         });
         // MutationObserver pour les nouveaux messages
@@ -79,7 +78,7 @@ Utils.register(class Chat extends Page {
                                 });
                             });
                             $(`#o_cite${element.attr("id")}`).click((e) => {
-                                let texte = this.citerMessage(e);
+                                let texte = this.#citerMessage(e);
                                 texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
                             });
                         }
@@ -96,15 +95,14 @@ Utils.register(class Chat extends Page {
         return this;
     }
     /**
-    *
+    * @private
     */
-    getMessage() {
+    #getMessage() {
         return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/appelAjax.php", data: "actualiserChat=" + ($(".titre:first").text().includes("Alliance") ? "alliance" : "general") });
     }
     /**
     * Ajoute la Couleur, options de chat.
     *
-    * @private
     * @method plus
     */
     plus() {
@@ -113,7 +111,7 @@ Utils.register(class Chat extends Page {
         $("#actualiser").after(" --- <label><input id='o_autoActualiser' type='checkbox' name='autoActualiser'/>auto</label> ");
         $("#o_autoActualiser").change(() => {
             if ($("#o_autoActualiser").prop("checked"))
-                this.actualiserMessage();
+                this.#actualiserMessage();
             else
                 clearTimeout(this._timeoutChat);
         });
@@ -147,11 +145,11 @@ Utils.register(class Chat extends Page {
         $("#listeSmiley70").html(LISTESMILEY6);
     }
     /**
-    *
+    * @private
     */
-    actualiserMessage(nbTour = 40) {
+    #actualiserMessage(nbTour = 40) {
         if (nbTour) {
-            this.getMessage().then((data) => {
+            this.#getMessage().then((data) => {
                 $("#anciensMessages").prepend($('#nouveauxMessages').html());
                 $("#nouveauxMessages").html(data.message);
                 $("#NonLuMess").html(data.NonLuMess);
@@ -160,15 +158,15 @@ Utils.register(class Chat extends Page {
             }, (jqXHR, textStatus, errorThrown) => {
                 $.toast({ ...TOAST_ERROR, text: "Mise à jour des messages impossible." });
             });
-            this._timeoutChat = setTimeout(() => { this.actualiserMessage(--nbTour); }, 5000);
+            this._timeoutChat = setTimeout(() => { this.#actualiserMessage(--nbTour); }, 5000);
         } else
             $("#o_autoActualiser").prop("checked", false);
         return this;
     }
     /**
-    *
+    * @private
     */
-    citerMessage(e) {
+    #citerMessage(e) {
         let clone = $(e.currentTarget).parent().clone();
         $("span", clone).remove();
         let texte = clone.text();
@@ -179,9 +177,9 @@ Utils.register(class Chat extends Page {
     * Parse le message pour convertir les smiley par le bbcode correspondant.
     *
     * @private
-    * @method parserMessage
+    * @method #parserMessage
     */
-    parserMessage() {
+    #parserMessage() {
         let color = $("#inputCouleur").val();
         if (color != "000000" && color != "0000000")
             $("#message").val("[color=#" + color + "]" + $("#message").val() + "[/color]");
@@ -191,7 +189,6 @@ Utils.register(class Chat extends Page {
     /**
     * Ajoute/modifie le color picker.
     *
-    * @private
     * @method couleur
     */
     couleur() {
@@ -208,7 +205,6 @@ Utils.register(class Chat extends Page {
     /**
     * Ajoute les emoticones de base pour les non compte+.
     *
-    * @private
     * @method emoticone
     */
     emoticone() {

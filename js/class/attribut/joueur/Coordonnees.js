@@ -1,4 +1,4 @@
-class Coordonnees extends AttributObjet {
+Utils.register(class Coordonnees extends AttributObjet {
     static NOM_AFFICHAGE = ['Coordonnées'];
 
     /**
@@ -10,4 +10,4 @@ class Coordonnees extends AttributObjet {
         const { x, y } = await this.objetParent.lire(['X', 'Y'], peutVoirDonneesRestreintes);
         return `(${x}, ${y})`;
     }
-}
+});

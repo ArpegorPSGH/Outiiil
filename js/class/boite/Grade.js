@@ -10,7 +10,7 @@
 * @constructor
 * @extends Boite
 */
-class BoiteGrade extends Boite {
+Utils.register(class BoiteGrade extends Boite {
     constructor(joueur, page, joueurId) {
         super("o_boiteGrade" + joueurId, "Attribuer un grade", "");
         /**
@@ -29,7 +29,6 @@ class BoiteGrade extends Boite {
     */
     async afficher() {
         const grade = await this._joueur.lire('Grade');
-        console.log('grade boite: ', grade)
         const ordreGrade = await this._joueur.lire('Ordre Grade');
         const pseudo = await this._joueur.lire('Pseudo');
 
@@ -43,20 +42,19 @@ class BoiteGrade extends Boite {
             await this.css().event();
         return this;
     }
-    /**
-    * Applique le style propre à la boite.
-    *
-    * @private
-    * @method css
-    */
-    css() {
-        super.css();
-        return this;
-    }
+    // /**
+    // * Applique le style propre à la boite.
+    // *
+    // * @private
+    // * @method css
+    // */
+    // css() {
+    //     super.css();
+    //     return this;
+    // }
     /**
     * Ajoute les evenements propres à la boite.
     *
-    * @private
     * @method event
     */
     async event() {
@@ -67,13 +65,10 @@ class BoiteGrade extends Boite {
                 // on sauvegarde le grade du joueur
                 await this._joueur.ecrire('Grade', $("#o_libGrade" + await this._joueur.lire('Id')).val());
                 await this._joueur.ecrire('Ordre Grade', $("#o_ordGrade" + await this._joueur.lire('Id')).val());
-                console.log('step 1 ');
 
                 // mise a jour du forum
                 await this._joueur.enregistrerSurForum();
-                console.log('step 2');
                 const fonctionnaliteDonneesPrivees = new DonneesPrivees(this._page);
-                console.log('step 3');
                 await fonctionnaliteDonneesPrivees.init();
                 $.toast({ ...TOAST_INFO, text: "Mise à jour correctement effectuée." });
             }
@@ -86,4 +81,4 @@ class BoiteGrade extends Boite {
         });
         return this;
     }
-}
+});

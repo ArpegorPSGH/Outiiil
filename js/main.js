@@ -16,6 +16,7 @@
         const manifestURL = chrome.runtime.getURL('manifest.json');
         const manifestResponse = await fetch(manifestURL);
         const manifest = await manifestResponse.json();
+        window.manifest = manifest;
         window.VERSION = manifest.version;
 
         // Modification du theme jquery humanity
@@ -61,10 +62,15 @@
 
         await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
+        window.logger = new Logger();
+        await logger.instrumenterClassesFramework();
+
         // Charger et synchroniser les sections
         window.gestionnaireSections = new GestionnaireSections();
 
         window.gestionnaireVersions = new GestionnaireVersions();
+
+        console.log("Sections requises découvertes :", sectionsRequises);
 
         // Initialisation du profil du joueur en cours
         window.monProfilUtilisateur = new ProfilUtilisateur();
@@ -75,41 +81,63 @@
 
         // Chargement du joueur courant et affichage des outils
         await monProfilJoueur.chargerJoueurCourant().then(async (isLoaded) => {
-            if (!isLoaded) {
-                console.error("Impossible de charger les données du joueur courant. Les outils ne seront pas affichés.");
-                return;
-            }
-            console.log('monProfilJoueur: ', monProfilJoueur)
+            try {
+                if (!isLoaded) {
+                    console.error("Impossible de charger les données du joueur courant. Les outils ne seront pas affichés.");
+                    return;
+                }
+                console.log('monProfilJoueur: ', monProfilJoueur);
+                // od = new OrdreRadar(null);
+                // monProfilJoueur.attributs[5] = od;
+                // monProfilJoueur.attributs.splice(8, 0, 'test');
+                // monProfilJoueur.attributs.splice(13, 1);
+                // console.error('test modifications:', monProfilJoueur);
+                // console.log('monProfilUtilisateur', monProfilUtilisateur);
+                // console.error('test verrouillage 2');
+                // commandeTest = new Commande(null);
+                // console.log('test duplication:', commandeTest);
+                // await commandeTest.ecrire('Matériaux Demandés', 1000);
+                // console.error('test');
+                // listetest = ['Objet 1', 'Objet 2'];
+                // dictest = { 'Objet 1': 'Objet 1', 'Objet 2': 'Objet 2' };
+                // console.error('test duplication:', [{ 'listetest': listetest, 'dictest': dictest }, 'supplément']);
+                // console.error('test duplication2:', [{ 'listetest': listetest, 'dictest': dictest }, 'supplément']);
+                // console.error('test duplication2:', { base: [listetest, dictest], complement: 'supplément' });
+                // console.error('test duplication2:', commandeTest);
 
-            await gestionnaireSections.chargerSections();
+                await gestionnaireSections.chargerSections();
 
-            window.gestionnaireDroits = new GestionnaireDroits();
+                window.gestionnaireDroits = new GestionnaireDroits();
 
-            // Ajout des outils
-            let boite = new Dock();
-            await boite.afficher();
-            // boite compte plus
-            window.boiteComptePlus = new BoiteComptePlus();
-            await boiteComptePlus.afficher();
-            // Boite radar
-            window.boiteRadar = new BoiteRadar();
-            await boiteRadar.afficher();
+                // Ajout des outils
+                let boite = new Dock();
+                await boite.afficher();
+                // boite compte plus
+                window.boiteComptePlus = new BoiteComptePlus();
+                await boiteComptePlus.afficher();
+                // Boite radar
+                window.boiteRadar = new BoiteRadar();
+                await boiteRadar.afficher();
 
-            // Traceur
-            if (monProfilUtilisateur.parametre["cleTraceur"].valeur) {
-                let traceur1 = new TraceurJoueur(monProfilUtilisateur.parametre["etatTraceurJoueur"].valeur, monProfilUtilisateur.parametre["intervalleTraceurJoueur"].valeur, monProfilUtilisateur.parametre["nbPageTraceurJoueur"].valeur);
-                traceur1.tracer();
-                let traceur2 = new TraceurAlliance(monProfilUtilisateur.parametre["etatTraceurAlliance"].valeur, monProfilUtilisateur.parametre["intervalleTraceurAlliance"].valeur);
-                traceur2.tracer();
-            }
+                // Traceur
+                if (monProfilUtilisateur.parametre["cleTraceur"].valeur) {
+                    let traceur1 = new TraceurJoueur(monProfilUtilisateur.parametre["etatTraceurJoueur"].valeur, monProfilUtilisateur.parametre["intervalleTraceurJoueur"].valeur, monProfilUtilisateur.parametre["nbPageTraceurJoueur"].valeur);
+                    traceur1.tracer();
+                    let traceur2 = new TraceurAlliance(monProfilUtilisateur.parametre["etatTraceurAlliance"].valeur, monProfilUtilisateur.parametre["intervalleTraceurAlliance"].valeur);
+                    traceur2.tracer();
+                }
 
-            // Routing automatique via la fabrique Page
-            let page = new Page();
-            if (page) {
-                console.log(`Page détectée : ${page.constructor.name}`);
-                page.init();
-            } else {
-                console.log("Aucune classe de page correspondante trouvée pour cette URL.");
+                // Routing automatique via la fabrique Page
+                let page = new Page();
+                if (page) {
+                    console.log(`Page détectée : ${page.constructor.name}`);
+                    await page.init();
+                } else {
+                    console.log("Aucune classe de page correspondante trouvée pour cette URL.");
+                }
+            } catch (e) {
+                console.error("Erreur dans le main :", e);
+                throw e;
             }
         });
     }
@@ -121,7 +149,6 @@
  * ou pour réparer un état global corrompu.
  */
 async function initialiserFrameworkGlobal() {
-    console.log("Initialisation du framework global...");
 
     // 1a. Construire le registre global de classes
     window.registreClasses = {
@@ -130,29 +157,28 @@ async function initialiserFrameworkGlobal() {
         Page: new Map()
     };
 
-    // Parcours de l'objet window pour identifier les classes enregistrées via Utils.register
-    for (const key of Object.getOwnPropertyNames(window)) {
+    const classesMap = await Utils.decouvrirClasses();
+
+    for (const [key, ClassConstructor] of classesMap.entries()) {
         try {
-            const ClassConstructor = window[key];
-            if (typeof ClassConstructor === 'function' && ClassConstructor.prototype) {
-                if (ClassConstructor.prototype instanceof ObjetForum) {
-                    registreClasses.ObjetForum.set(key, ClassConstructor);
-                    console.log(`  Added ${key} to ObjetForum registry (detected via prototype).`);
-                } else if (ClassConstructor.prototype instanceof FonctionnaliteAlliance) {
-                    registreClasses.FonctionnaliteAlliance.set(key, ClassConstructor);
-                    console.log(`  Added ${key} to FonctionnaliteAlliance registry (detected via prototype).`);
-                } else if (ClassConstructor.prototype instanceof Page) {
-                    registreClasses.Page.set(key, ClassConstructor);
-                    console.log(`  Added ${key} to Page registry (detected via prototype).`);
-                }
+            if (ClassConstructor.prototype instanceof ObjetForum) {
+                registreClasses.ObjetForum.set(key, ClassConstructor);
+                // console.log(`  Added ${key} to ObjetForum registry (detected via prototype).`);
+            } else if (ClassConstructor.prototype instanceof FonctionnaliteAlliance) {
+                registreClasses.FonctionnaliteAlliance.set(key, ClassConstructor);
+                // console.log(`  Added ${key} to FonctionnaliteAlliance registry (detected via prototype).`);
+            } else if (ClassConstructor.prototype instanceof Page) {
+                registreClasses.Page.set(key, ClassConstructor);
+                // console.log(`  Added ${key} to Page registry (detected via prototype).`);
             }
         } catch (error) {
-            // Ignorer les erreurs d'accès sur certaines propriétés sécurisées de window
+            // Ignorer
         }
     }
 
     console.log("Registre des classes 'ObjetForum':", registreClasses.ObjetForum);
     console.log("Registre des classes 'FonctionnaliteAlliance':", registreClasses.FonctionnaliteAlliance);
+    console.log("Registre des classes 'Page':", registreClasses.Page);
 
 
     // 1b. Créer la "carte des types" des variables globales
@@ -247,12 +273,9 @@ async function initialiserFrameworkGlobal() {
 
     window.sectionsRequises = new Set(sectionsMap.values());
 
-    console.log("Sections requises découvertes :", sectionsRequises);
-
     // Création de la variable globale des transactions
     window.transaction = null;
     // window.transaction2 = null;
     // window.transaction3 = null;
 
-    console.log("Framework global initialisé.");
 }

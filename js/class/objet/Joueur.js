@@ -47,173 +47,6 @@ Utils.register(class Joueur extends ObjetForum {
         DroitsFourmizzz
     ];
 
-
-    // constructor(param1, options = {}) {
-    //     // Gestion de la compatibilité ascendante du constructeur
-    //     if (param1 && param1.constructor && (typeof param1.constructor.ABREVIATIONS_HISTORY !== 'undefined' || typeof param1.constructor.FONCTIONNALITES !== 'undefined')) {
-    //         // Nouveau constructeur du framework
-    //         super(param1, options);
-    //     } else {
-    //         // Ancien constructeur
-    //         super(null, {});
-    //         this._constructeurLegacy(param1 || {});
-    //     }
-    // }
-
-    // /**
-    //  * Logique de l'ancien constructeur pour la compatibilité.
-    //  * @param {object} parametres - L'ancien objet de paramètres.
-    //  * @private
-    //  */
-    // _constructeurLegacy(parametres) {
-    //     console.log("[Joueur] Appel du constructeur legacy.");
-    //     /**
-    //     * id du joueur
-    //     */
-    //     this.ecrire('Id', parametres['Id'] || -1);
-    //     /**
-    //     * pseudo du joueur
-    //     */
-    //     this.ecrire('Pseudo', parametres["Pseudo"]);
-    //     /**
-    //     * rang du joueur
-    //     */
-    //     this.ecrire('Rang', parametres["Rang"] || "");
-    //     /**
-    //     * abscisse du joueur
-    //     */
-    //     this.ecrire('X', parametres["X"] || -1);
-    //     /**
-    //     * ordonnée du joueur
-    //     */
-    //     this.ecrire('Y', parametres["Y"] || -1);
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Terrain de Chasse', parametres["Terrain de Chasse"] || -1);
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Niveaux Recherches', parametres["Niveaux Recherches"] || new Array(10).fill(-1));
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Technologie', parametres["Technologie"] || -1);
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Niveaux Constructions', parametres["Niveaux Constructions"] || new Array(13).fill(-1));
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Fourmilière', parametres["Fourmiliere"] || -1);
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Activité', (parametres["mv"] || false) ? 'vacances' : 'actif');
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Ordre Radar', parametres["Ordre Radar"] || -1);
-    //     /**
-    //     *
-    //     */
-    //     this.idSujet = parametres["sujetForum"] || 0;
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Grade', parametres["Grade"] || "");
-    //     /**
-    //     *
-    //     */
-    //     this.ecrire('Ordre Grade', parametres["Ordre Grade"] || 0);
-    //     /**
-    //     * Tag de l'alliance du joueur (utile pour les joueurs extérieurs).
-    //     */
-    //     this.ecrire('Tag Alliance', parametres["Tag Alliance"] || "");
-    //     const estExterieur = parametres["estExterieur"] || false;
-    //     this.ecrire('Alliance Rattachement', estExterieur ? '' : parametres["Tag Alliance"] || "");
-    //     /**
-    //     * Indique si le joueur est colonisé.
-    //     */
-    //     this.ecrire('Colonisé', parametres["Colonisé"] || false);
-    // }
-
-
-    // =============================================================================================
-    // SECTION: NOUVEAUX GETTERS & SETTERS (FRAMEWORK)
-    // =============================================================================================
-
-    // get id() { return this.lire('Id'); }
-    // set id(newId) { this.ecrire('Id', newId); }
-
-    // get pseudo() { return this.lire('Pseudo'); }
-    // set pseudo(newPseudo) { this.ecrire('Pseudo', newPseudo); }
-
-    // get rang() { return this.lire('Rang'); }
-    // set rang(newRang) { this.ecrire('Rang', newRang); }
-
-    // get ordreRadar() { return this.lire('Ordre Radar'); }
-    // set ordreRadar(newOrdre) { this.ecrire('Ordre Radar', newOrdre); }
-
-    // get grade() { return this.lire('Grade'); }
-    // set grade(newGrade) { this.ecrire('Grade', newGrade); }
-
-    // get ordreGrade() { return this.lire('Ordre Grade'); }
-    // set ordreGrade(newOrdre) { this.ecrire('Ordre Grade', newOrdre); }
-
-    // get allianceRattachement() { return this.lire('Alliance Rattachement'); }
-    // set allianceRattachement(newAlliance) { this.ecrire('Alliance Rattachement', newAlliance); }
-
-    // get colonise() { return this.lire('Colonisé'); }
-    // set colonise(newColonise) { this.ecrire('Colonisé', newColonise); }
-
-    // get allianceTag() { return this.lire('Tag Alliance'); }
-    // set allianceTag(newTag) { this.ecrire('Tag Alliance', newTag); }
-
-    // get x() { return this.lire('X'); }
-    // set x(newX) { this.ecrire('X', newX); }
-
-    // get y() { return this.lire('Y'); }
-    // set y(newY) { this.ecrire('Y', newY); }
-
-    // get terrain() { return this.lire('Terrain de Chasse'); }
-    // set terrain(newTerrain) { this.ecrire('Terrain de Chasse', newTerrain); }
-
-    // get niveauRecherche() { return this.lire('Niveaux Recherches'); }
-    // set niveauRecherche(newNiveau) { this.ecrire('Niveaux Recherches', newNiveau); }
-
-    // get technologie() { return this.lire('Technologie'); }
-    // set technologie(newTechnologie) { this.ecrire('Technologie', newTechnologie); }
-
-    // get niveauxConstructions() { return this.lire('Niveaux Constructions'); }
-    // set niveauxConstructions(newNiveau) { this.ecrire('Niveaux Constructions', newNiveau); }
-
-    // get fourmiliere() { return this.lire('Fourmilière'); }
-    // set fourmiliere(newFourmiliere) { this.ecrire('Fourmilière', newFourmiliere); }
-
-    // /** Activité : délègue à Activite qui gère la conversion image→string. */
-    // get activite() { return this.lire('Activité'); }
-    // set activite(newActivite) { this.ecrire('Activité', newActivite); }
-
-    // get nourriture() { return this.lire('Nourriture'); }
-    // set nourriture(newVal) { this.ecrire('Nourriture', newVal); }
-
-    // get materiaux() { return this.lire('Matériaux'); }
-    // set materiaux(newVal) { this.ecrire('Matériaux', newVal); }
-
-    // get armee() { return this.lire('Armée'); }
-    // set armee(newVal) { this.ecrire('Armée', newVal); }
-
-    // get coordonnees() { return this.lire('Coordonnées'); }
-
-    // get sujetForum() { return this.idSujet; }
-    // set sujetForum(newSujet) { this.idSujet = newSujet; }
-
-    // =============================================================================================
-    // SECTION: NOUVELLE LOGIQUE DE CHARGEMENT (FRAMEWORK)
-    // =============================================================================================
-
     /**
      * Charge les données du joueur depuis sa page Membre.php (deuxième temps du chargement).
      * @returns {Promise<boolean>} Vrai si le chargement a réussi.
@@ -221,14 +54,13 @@ Utils.register(class Joueur extends ObjetForum {
     async chargerDonneesMembre() {
         const pseudo = await this.lire('Pseudo');
         if (!pseudo) {
-            console.warn('[Joueur] Impossible de charger les données membre sans pseudo.');
+            console.error('[Joueur] Impossible de charger les données membre sans pseudo.');
             return false;
         }
 
-        console.log(`[Joueur] Récupération du profil pour: ${pseudo}`);
         try {
             const html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + pseudo });
-            return await this._chargerDonneesMembreDepuisPage(html);
+            return await this.chargerDonneesMembreDepuisPage(html);
         } catch (error) {
             console.error(`[Joueur] Erreur AJAX lors de la récupération du profil pour: ${pseudo}`, error);
             return false;
@@ -239,9 +71,8 @@ Utils.register(class Joueur extends ObjetForum {
      * Parse le HTML de la page Membre.php pour peupler les attributs de l'instance.
      * @param {string} html - Le contenu HTML de la page.
      * @returns {boolean} Vrai si le parsing a réussi.
-     * @private
      */
-    async _chargerDonneesMembreDepuisPage(html) {
+    async chargerDonneesMembreDepuisPage(html) {
         const pseudo = await this.lire('Pseudo');
         if (html.includes("Aucun joueurs avec le pseudo")) {
             console.log(`[Joueur] Profil non trouvé pour: ${pseudo}`);
@@ -285,7 +116,6 @@ Utils.register(class Joueur extends ObjetForum {
         if (!membreDataLoaded) {
             return false;
         }
-        console.log('completerRafraichissement 1')
 
         // Deuxième temps (optionnel) : chargement des constructions, recherches, armée et ressources
         if (await this.estJoueurCourant()) {
@@ -298,30 +128,20 @@ Utils.register(class Joueur extends ObjetForum {
 
             // Constructions
             await this.chargerConstruction();
-            console.log('completerRafraichissement 2')
 
             // Recherches
             await this.chargerRecherche();
-            console.log('completerRafraichissement 3')
-
 
             // Armée et ressources
             try {
-                console.log("[Joueur] Armée : ", await this.lire('Armée'));
                 const armee = await this.lire('Armée');
                 const htmlArmee = await armee.getArmee();
-                // console.log("[Joueur] Html Armée : ", htmlArmee);
                 await armee.chargeData(htmlArmee);
                 armee.unite[0] = Utils.ouvrieres;
                 await this.ecrire('Armée', armee);
                 await this.ecrire('Nourriture', Utils.nourriture);
                 await this.ecrire('Matériaux', Utils.materiaux);
                 await this.ecrire('Terrain de Chasse', Utils.terrain);
-                console.log("[Joueur] Armée : ", await this.lire('Armée'));
-                console.log("[Joueur] Nourriture : ", await this.lire('Nourriture'));
-                console.log("[Joueur] Matériaux : ", await this.lire('Matériaux'));
-                console.log("[Joueur] Terrain de Chasse : ", await this.lire('Terrain de Chasse'));
-                console.log(`[Joueur] Armée et ressources fraîches chargées pour le joueur courant.`);
             } catch (error) {
                 console.error(`[Joueur] Erreur lors du chargement de l'armée ou des ressources pour le joueur courant.`, error);
             }
@@ -537,8 +357,6 @@ Utils.register(class Joueur extends ObjetForum {
     async effectuerRecensement() {
         await this._acquireReadLock(); // Verrouiller l'objet Joueur pendant le recensement
 
-        console.log(`[Joueur] Début de l'opération de recensement pour ${await this.lire('Pseudo')}.`);
-
         try {
             // 1. Charger les données du joueur (assure que les ressources/constructions/recherches/unités sont à jour)
             const rafraichissementReussi = await this.completerRafraichissement(); // Ne pas charger les objets contenus ici
@@ -595,7 +413,6 @@ Utils.register(class Joueur extends ObjetForum {
 
             // 5. Enregistrer le recensement sur le forum
             await recensementInstance.enregistrerSurForum();
-            console.log(`[Joueur] Recensement enregistré sur le forum avec succès.`);
             return true;
 
         } catch (error) {
@@ -603,17 +420,8 @@ Utils.register(class Joueur extends ObjetForum {
             throw error;
         } finally {
             this._releaseReadLock(); // Libérer le verrou
-            console.log(`[Joueur] Fin de l'opération de recensement.`);
         }
     }
-
-    // =============================================================================================
-    // SECTION: MÉTHODES CONSERVÉES POUR COMPATIBILITÉ
-    // =============================================================================================
-
-    // async toUtilitaire() {
-    //     return `${await this.lire('Pseudo')} / ${await this.lire('Id')} / ${await this.lire('X')} / ${await this.lire('Y')}` + (await this.lire('Grade') ? ` / ${await this.lire('Grade')} / ${await this.lire('Ordre Grade')}` : "");
-    // }
 
     async estJoueurCourant() {
         const estCourant = await this.lire('Pseudo') == await monProfilJoueur.lire('Pseudo');
@@ -660,7 +468,6 @@ Utils.register(class Joueur extends ObjetForum {
         const targetX = await joueur.lire('X');
         const targetY = await joueur.lire('Y');
 
-        console.log(`[Joueur] DEBUG: Coordonnées pour le calcul du temps de parcours: this.x=${selfX}, this.y=${selfY}, joueur.x=${targetX}, joueur.y=${targetY}`);
         if (selfX === -1 || selfY === -1 || targetX === -1 || targetY === -1) {
             console.warn(`[Joueur] Calcul du temps de parcours entre ${await this.lire('Pseudo')} et ${await joueur.lire('Pseudo')} sans coordonnées chargées.`);
             return Infinity;
@@ -679,43 +486,6 @@ Utils.register(class Joueur extends ObjetForum {
         const time = await this.getTempsParcours();
         return 60 - (moment().add(time, 's').seconds() % 60);
     }
-
-    // async getProfil() {
-    //     const p = await this.lire('Pseudo');
-    //     console.log(`[Joueur] (Legacy) Récupération du profil pour: ${p}`);
-    //     return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + p });
-    // }
-
-    // async getProfilCourant() {
-    //     // si on est le joueur courant on a peut etre les infos dans le storage
-    //     if (await monProfilJoueur.lire('Pseudo') == await this.lire('Pseudo')) {
-    //         // si on est le joueur courant on regarde dans le localstorage
-    //         let data = JSON.parse(localStorage.getItem("outiiil_joueur")) || {};
-    //         // Si des données sont deja presente et à jour on les charges
-    //         if (data.hasOwnProperty('Id') && data.hasOwnProperty("X") && data.hasOwnProperty("Y")) {
-    //             this.ecrire('Id', data.id);
-    //             this.ecrire('X', data.x);
-    //             this.ecrire('Y', data.y);
-    //         }
-    //     }
-    //     // sinon
-    //     if (await this.lire('X') == -1 || await this.lire('Y') == -1 || await this.lire('Id') == -1)
-    //         return await this.getProfil();
-    //     return null;
-    // }
-
-    // async chargerProfil(html) {
-    //     const success = await this._chargerDonneesMembreDepuisPage(html);
-    //     if (success) {
-    //         console.log(`[Joueur.chargerProfil] Profil chargé avec succès pour ${await this.lire('Pseudo')}. Coordonnées: (${this._x}, ${this._y}), ID: ${this._id}`);
-    //         if (await monProfilJoueur.lire('Pseudo') == await this.lire('Pseudo')) {
-    //             await this.enregistrerLocalStorage();
-    //         }
-    //     } else {
-    //         console.warn(`[Joueur.chargerProfil] Échec du chargement du profil pour ${await this.lire('Pseudo')}.`);
-    //     }
-    //     return success;
-    // }
 
     /**
      * Charge les niveaux de construction.
@@ -918,9 +688,7 @@ Utils.register(class Joueur extends ObjetForum {
     */
     async getLigneRadar(radar, id, indice) { // Make method async
         const pseudoParam = await this.lire('Pseudo'); // Get the raw return value
-        console.log(`[Joueur.getLigneRadar] Valeur brute de lireParametre('Pseudo'):`, pseudoParam, `Type: ${typeof pseudoParam}`);
         const pseudo = (typeof pseudoParam === 'object' && pseudoParam !== null && pseudoParam.hasOwnProperty('valeur')) ? pseudoParam.valeur : pseudoParam;
-        console.log(`[Joueur.getLigneRadar] Début pour pseudo: ${pseudo}, ID: ${await this.lire('Id')}`);
         let enVacances = await this.lire('Activité') === 'vacances';
         let cellTerrain = await this.estAttaquable() ? `<a class="gras ${enVacances ? "blue_light" : ""} href="/ennemie.php?Attaquer=${await this.lire('Id')}&lieu=1">${numeral(await this.lire('Terrain de Chasse')).format()}</a>` : `<span ${enVacances ? `class="blue_light" title="En vacances"` : ""}>${numeral(await this.lire('Terrain de Chasse')).format()}</span>`;
         $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${await this.lire('Id')}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td id="o_nom_${await this.lire('Id')}" class="left" title=""><a class="gras ${enVacances ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${await this.lire('Id')}" class="right reduce" title="">${cellTerrain}</td></tr>`);
@@ -928,12 +696,10 @@ Utils.register(class Joueur extends ObjetForum {
         $("#o_maj_" + await this.lire('Id')).click(async (e) => {
             console.log(`[Joueur.getLigneRadar] Clic sur le bouton de rafraîchissement pour joueur: ${pseudo}, ID: ${await this.lire('Id')}`);
             e.preventDefault(); // Empêche le rechargement de la page
-            console.log(`[Joueur.getLigneRadar] e.preventDefault() appelé pour joueur: ${pseudo}, ID: ${await this.lire('Id')}`);
             try {
                 let oldTerrain = numeral($("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
                 $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
 
-                console.log(`[Joueur.getLigneRadar] Avant chargerDonneesMembre pour ${pseudo}. Pseudo actuel: ${pseudo}`);
                 if (await this.chargerDonneesMembre()) {
                     console.log(`[Joueur.getLigneRadar] chargerDonneesMembre réussi pour ${pseudo}. Nouveau terrain: ${await this.lire('Terrain de Chasse')}, Nouvel état: ${await this.lire('Activité')}`);
                     // si il y une différence de terrain
@@ -964,7 +730,6 @@ Utils.register(class Joueur extends ObjetForum {
                             }).tooltip("open");
                         bSave = true;
                     }
-                    console.log(`[Joueur.getLigneRadar] bSave pour ${pseudo}: ${bSave}`);
                     bSave && await radar.sauvegarder();
                 } else {
                     console.warn(`[Joueur.getLigneRadar] chargerProfil a échoué pour ${pseudo}.`);
@@ -977,7 +742,6 @@ Utils.register(class Joueur extends ObjetForum {
                 console.error(`[Joueur.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${pseudo}:`, error);
                 $.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement du joueur ${pseudo}.` });
             }
-            console.log(`[Joueur.getLigneRadar] Fin du clic sur le bouton de rafraîchissement pour joueur: ${pseudo}.`);
             return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
         });
         // tooltip vacance...
@@ -986,12 +750,9 @@ Utils.register(class Joueur extends ObjetForum {
         $("#o_nom_" + await this.lire('Id')).tooltip({
             position: { my: "left+10 bottom", at: "right center" },
             content: async (callback) => {
-                console.log(`[Joueur.getLigneRadar] Tooltip 'content' function called for pseudo: ${pseudo}`);
                 if (radar.joueurs.hasOwnProperty(pseudo)) {
                     const joueurInRadar = radar.joueurs[pseudo];
-                    console.log(`[Joueur.getLigneRadar] Joueur found in radar.joueurs for content:`, joueurInRadar);
                     const tempsParcours = await monProfilJoueur.getTempsParcours2(joueurInRadar);
-                    console.log(`[Joueur.getLigneRadar] Temps de parcours calculated for content: ${tempsParcours}`);
                     const contentHtml = `<table><tr><td>Temps de trajet</td><td class="right">${Utils.intToTime(tempsParcours)}</td></tr><td>Retour le</td><td class="right">${moment().add(tempsParcours, 's').format("D MMM à HH[h]mm[m]ss[s]")}</td><tr></tr></table>`;
                     callback(contentHtml);
                 } else {

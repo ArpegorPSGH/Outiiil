@@ -8,7 +8,7 @@
 *
 * @class Alliance
 */
-class Alliance {
+Utils.register(class Alliance {
     constructor(parametres) {
         /**
         * tag de l'alliance
@@ -144,10 +144,6 @@ class Alliance {
             const joueur = this._joueurs[pseudo];
             const activite = await joueur.lire('Activité');
             const colonise = await joueur.lire('Colonisé'); // Récupérer l'état colonisé
-            console.log('pseudo :', pseudo)
-            console.log('joueur :', joueur)
-            console.log('activite :', activite)
-            console.log('colonise :', colonise)
             comptes[activite] = (comptes[activite] || 0) + 1;
             if (colonise) {
                 comptes['colonise'] = (comptes['colonise'] || 0) + 1;
@@ -165,7 +161,6 @@ class Alliance {
     /**
     * Récupére la description d'une alliance.
     *
-    * @private
     * @method getDescription
     */
     getDescription() {
@@ -293,4 +288,4 @@ class Alliance {
             }
         });
     }
-}
+});

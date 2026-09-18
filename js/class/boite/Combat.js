@@ -10,7 +10,7 @@
 * @constructor
 * @extends Boite
 */
-class BoiteCombat extends Boite {
+Utils.register(class BoiteCombat extends Boite {
     constructor() {
         super("o_boiteCombat", "Outils d'Attaque", `<div id='o_tabsCombat' class='o_tabs'><ul><li><a href='#o_tabsCombat1'>Analyser</a></li><li><a href='#o_tabsCombat2'>Simuler</a></li><li><a href='#o_tabsCombat3'>Multi-flood</a></li><li><a href='#o_tabsCombat4'>Temps de trajet</a></li></ul><div id='o_tabsCombat1'/><div id='o_tabsCombat2'/><div id='o_tabsCombat3'/><div id='o_tabsCombat4'/></div>`);
         /**
@@ -25,15 +25,14 @@ class BoiteCombat extends Boite {
     /**
     * Affiche la boite.
     *
-    * @private
     * @method afficher
     */
     async afficher() {
         if (await super.afficher()) {
             $("#o_tabsCombat").tabs({ disabled: [2], activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
-            this.analyser()
-            await this.simuler()
-            this.calculatrice().css().event();
+            this.#analyser()
+            await this.#simuler()
+            this.#calculatrice().css().event();
         }
         return this;
     }
@@ -57,30 +56,30 @@ class BoiteCombat extends Boite {
         $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
-    /**
-    * Ajoute les evenements propres à la boite.
-    *
-    * @private
-    * @method event
-    */
-    event() {
-        super.event();
-        return this;
-    }
+    // /**
+    // * Ajoute les evenements propres à la boite.
+    // *
+    // * @private
+    // * @method event
+    // */
+    // event() {
+    //     super.event();
+    //     return this;
+    // }
     /**
     * Formulaire pour analyser une rapport de combat.
     *
     * @private
-    * @method analyse
+    * @method #analyser
     */
-    analyser() {
+    #analyser() {
         $("#o_tabsCombat1").append("<textarea id='o_rcCombat' class='o_maxWidth' placeholder='Rapport de combat...'></textarea><div class='o_marginT15' style='max-height:200px;overflow:auto'><table id='o_resultatCombat' class='o_maxWidth'></table></div>");
-        return this.eventAnalyser();
+        return this.#eventAnalyser();
     }
     /**
     *
     */
-    eventAnalyser() {
+    #eventAnalyser() {
         // event Analyse
         $("#o_rcCombat").on("input", async (e) => {
             let combat = new Combat({ RC: e.currentTarget.value });
@@ -93,9 +92,9 @@ class BoiteCombat extends Boite {
         return this;
     }
     /**
-    *
+    * @private
     */
-    async simuler() {
+    async #simuler() {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
         let html = `<table id="o_simulateur">
@@ -157,52 +156,52 @@ class BoiteCombat extends Boite {
                 }
             }
         });
-        return await this.eventSimulateur();
+        return await this.#eventSimulateur();
     }
     /**
-    *
+    * @private
     */
-    async eventSimulateur() {
+    async #eventSimulateur() {
         $("#o_simulateurArmee input").on("input spin", (e, ui) => {
             let nombre = numeral(ui ? ui.value : e.currentTarget.value).value();
             let name = $(e.currentTarget).attr("name"), armee = new Armee();
             // si le name contient 1 c'est l'attaquant sinon la defense
             if (name.includes("1_"))
-                this.actualiserStatistique(name, nombre);
+                this.#actualiserStatistique(name, nombre);
             else
-                this.actualiserStatistique("", 0, name, nombre);
+                this.#actualiserStatistique("", 0, name, nombre);
             $(e.currentTarget).spinner("value", nombre);
         });
         $("#o_placementAtt").click((e) => {
             if (this._armee)
-                this.placerArmee(1).actualiserStatistique();
+                this.#placerArmee(1).#actualiserStatistique();
             else {
                 this._armee = new Armee();
                 this._armee.getArmee().then((data) => {
                     this._armee.chargeData(data);
-                    this.placerArmee(1).actualiserStatistique();
+                    this.#placerArmee(1).#actualiserStatistique();
                 });
             }
             return false;
         });
         $("#o_placementDef").click((e) => {
             if (this._armee)
-                this.placerArmee(0).actualiserStatistique();
+                this.#placerArmee(0).#actualiserStatistique();
             else {
                 this._armee = new Armee();
                 this._armee.getArmee().then((data) => {
                     this._armee.chargeData(data);
-                    this.placerArmee(0).actualiserStatistique();
+                    this.#placerArmee(0).#actualiserStatistique();
                 });
             }
             return false;
         });
         $("#o_switchArmee").click((e) => {
-            this.permuterArmee().actualiserStatistique();
+            this.#permuterArmee().#actualiserStatistique();
             return false;
         });
-        $("#o_copierAtt").click((e) => { this.copierCollerArmee("ATT"); });
-        $("#o_copierDef").click((e) => { this.copierCollerArmee("DEF"); });
+        $("#o_copierAtt").click((e) => { this.#copierCollerArmee("ATT"); });
+        $("#o_copierDef").click((e) => { this.#copierCollerArmee("DEF"); });
         // event sur les bonus joueurs
         $("#o_bonusAtt").click(async (e) => {
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
@@ -210,7 +209,7 @@ class BoiteCombat extends Boite {
             $("#o_armes1").spinner("value", $("#o_armes1").spinner("value") == recherches[2] ? 0 : recherches[2]);
             $("#o_bouclier1").spinner("value", $("#o_bouclier1").spinner("value") == recherches[1] ? 0 : recherches[1]);
             $("#o_etable1").spinner("value", $("#o_etable1").spinner("value") == constructions[12] ? 0 : constructions[12]);
-            this.actualiserStatistique();
+            this.#actualiserStatistique();
             return false;
         });
         $("#o_bonusDef").click(async (e) => {
@@ -219,34 +218,34 @@ class BoiteCombat extends Boite {
             $("#o_armes2").spinner("value", $("#o_armes2").spinner("value") == recherches[2] ? 0 : recherches[2]);
             $("#o_bouclier2").spinner("value", $("#o_bouclier2").spinner("value") == recherches[1] ? 0 : recherches[1]);
             $("#o_etable2").spinner("value", $("#o_etable2").spinner("value") == constructions[12] ? 0 : constructions[12]);
-            this.actualiserStatistique();
+            this.#actualiserStatistique();
             return false;
         });
-        $("#o_bouclier1").on("input spin", (e, ui) => { this.actualiserStatistique("", 0, "", 0, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_armes1").on("input spin", (e, ui) => { this.actualiserStatistique("", 0, "", 0, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_bouclier2").on("input spin", (e, ui) => { this.actualiserStatistique("", 0, "", 0, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_armes2").on("input spin", (e, ui) => { this.actualiserStatistique("", 0, "", 0, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $("#o_bouclier1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $("#o_armes1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $("#o_bouclier2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $("#o_armes2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
         // event bonus lieu
-        $("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.actualiserStatistique(); });
+        $("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.#actualiserStatistique(); });
         $("#o_bonusLieu").click(async (e) => {
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
             $("#o_domeNiveau").spinner("value", $("#o_domeNiveau").spinner("value") == constructions[9] ? 0 : constructions[9]);
             $("#o_logeNiveau").spinner("value", $("#o_logeNiveau").spinner("value") == constructions[10] ? 0 : constructions[10]);
-            this.actualiserStatistique();
+            this.#actualiserStatistique();
             return false;
         });
-        $("#o_domeNiveau").on("input spin", (e, ui) => { this.actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_logeNiveau").on("input spin", (e, ui) => { this.actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $("#o_domeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $("#o_logeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
         $("#o_simuler").click(async (e) => {
-            await this.lancerSimulation();
+            await this.#lancerSimulation();
             return false;
         });
         return this;
     }
     /**
-    *
+    * @private
     */
-    async lancerSimulation() {
+    async #lancerSimulation() {
         let uniteATT = {}, uniteDef = {};
         // données attaquant
         $("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { uniteATT[NOM_UNITE[i + 1]] = $(elt).spinner("value"); });
@@ -269,14 +268,14 @@ class BoiteCombat extends Boite {
         await combat.defenseur.ecrire("Niveaux Constructions", constructionsDefenseur);
         // lancement du combat
         if (combat.armee1.getSommeUnite() && combat.armee2.getSommeUnite()) {
-            await combat.simuler()
+            await combat.#simuler()
             combat.genererRC();
             // affichage des armées retours dans le formulaire
             for (let i = 1; i <= 14; i++) {
                 $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
                 $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
             }
-            this.actualiserStatistique();
+            this.#actualiserStatistique();
             // ajout de l'event pour switch les armées avant et aprés combat
             $("#o_switchAvantApres").off().click((e) => {
                 let armeeAttTmp = new Array(), armeeDefTmp = new Array();
@@ -296,16 +295,16 @@ class BoiteCombat extends Boite {
                         $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
                     }
                 }
-                this.actualiserStatistique();
+                this.#actualiserStatistique();
             }).parent().show();
         } else
             $.toast({ ...TOAST_ERROR, text: "Le combat ne peut pas etre simulé : aucune unité." });
         return this;
     }
     /**
-    *
+    * @private
     */
-    placerArmee(position) {
+    #placerArmee(position) {
         let armeeTmp = new Array();
         if (position) {
             // on prepare un tableau des unités pour savoir si on renseigne l'armée ou on vide des champs
@@ -330,9 +329,9 @@ class BoiteCombat extends Boite {
         return this;
     }
     /**
-    *
+    * @private
     */
-    permuterArmee() {
+    #permuterArmee() {
         // switch des armées
         for (let i = 0; i < 14; i++) {
             let valueTmp = $("input[name='o_unite1_" + (i + 1) + "']").spinner("value");
@@ -351,9 +350,9 @@ class BoiteCombat extends Boite {
         return this;
     }
     /**
-    *
+    * @private
     */
-    actualiserStatistique(nameAtt = "", valueAtt = 0, nameDef = "", valueDef = 0, bouclier1 = -1, armes1 = -1, bouclier2 = -1, armes2 = -1, niveauDome = -1, niveauLoge = -1) {
+    #actualiserStatistique(nameAtt = "", valueAtt = 0, nameDef = "", valueDef = 0, bouclier1 = -1, armes1 = -1, bouclier2 = -1, armes2 = -1, niveauDome = -1, niveauLoge = -1) {
         let armesAtt = armes1 != -1 ? armes1 : $("#o_armes1").spinner("value"), bouclierAtt = bouclier1 != -1 ? bouclier1 : $("#o_bouclier1").spinner("value");
         let armesDef = armes2 != -1 ? armes2 : $("#o_armes2").spinner("value"), bouclierDef = bouclier2 != -1 ? bouclier2 : $("#o_bouclier2").spinner("value");
         let lieu = parseInt($("#o_simulateurNiveau input[name='o_lieu']:checked").val()), bonusLieu = 0;
@@ -380,9 +379,9 @@ class BoiteCombat extends Boite {
         return this;
     }
     /**
-    *
+    * @private
     */
-    copierCollerArmee(position) {
+    #copierCollerArmee(position) {
         if ($("#o_divccarmee").length) {
             $("#o_divccarmee").show();
             $("#o_camp").val(position);
@@ -424,7 +423,7 @@ class BoiteCombat extends Boite {
                     $("input[name='o_unite" + camp + "_" + i + "']").spinner("value", armee.unite[i]);
                 $("#o_divccarmee").hide();
                 $("#o_textAreaArmee").val("");
-                this.actualiserStatistique();
+                this.#actualiserStatistique();
                 return false;
             });
         }
@@ -433,34 +432,34 @@ class BoiteCombat extends Boite {
     * Affiche une calculatrice pour calculer les temps de trajets, les horraires.
     *
     * @private
-    * @method calculatrice
+    * @method #calculatrice
     */
-    calculatrice() {
+    #calculatrice() {
         let html = `<table id="o_calculatriceCombat" class="centre">
             <thead><tr><th id="o_placementJ" class="cursor" colspan="2">${IMG_FLECHE} Joueur 1 ${IMG_FLECHE}</th><th></th><th>Joueur ou Alliance</th></tr></thead>
             <tr><td></td><td><input type="text" id="o_pseudoTemps" placeholder="Pseudo"/></td><td>-></td><td><input type="text" id="o_cibleJoueurTemps" placeholder="Pseudo1, Pseudo2..."/> <input type="text" id="o_cibleTagTemps" placeholder="tag1, tag2..."/></td></tr>
             <tr><td>Vitesse d'attaque</td><td><input type="number" id="o_vaTemps" value="0" min="0" max="50"/></td><td></td><td></td></tr>
             <tr><td>Dernier mouvement</td><td><input id="o_dernierMvt" placeholder="JJ-MM-AAAA HH:mm"/></td><td></td><td><button id="o_calculerTemps">Calculer</button></td></tr>
-            <tr class="reduce"><td colspan="4"><em>Le temps maximal d'un trajet est de <span id="o_indicationTemps">${this.calculerLimiteTemps(0)}</span>.</em></td></tr>
+            <tr class="reduce"><td colspan="4"><em>Le temps maximal d'un trajet est de <span id="o_indicationTemps">${this.#calculerLimiteTemps(0)}</span>.</em></td></tr>
             </table>`;
         $("#o_tabsCombat4").append(html);
-        return this.eventCalculatrice();
+        return this.#eventCalculatrice();
     }
     /**
-    *
+    * @private
     */
-    eventCalculatrice() {
+    #eventCalculatrice() {
         $("#o_placementJ").click(async () => {
             // si les infos sont deja renseigné on vide
             if ($("#o_pseudoTemps").val() == await monProfilJoueur.lire('Pseudo')) {
                 $("#o_pseudoTemps").val("");
                 $("#o_vaTemps").val(0);
-                $("#o_indicationTemps").text(this.calculerLimiteTemps(0));
+                $("#o_indicationTemps").text(this.#calculerLimiteTemps(0));
             } else {
                 let recherches = await monProfilJoueur.lire('Niveaux Recherches');
                 $("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
                 $("#o_vaTemps").val(recherches[6]);
-                $("#o_indicationTemps").text(this.calculerLimiteTemps(recherches[6]));
+                $("#o_indicationTemps").text(this.#calculerLimiteTemps(recherches[6]));
             }
         });
         $("#o_pseudoTemps").autocomplete({
@@ -504,7 +503,7 @@ class BoiteCombat extends Boite {
         $("#o_dernierMvt").datetimepicker({
             ...DATEPICKER_OPTION, dateFormat: "dd-mm-yy", timeFormat: "HH:mm", timeText: "Horaire", hourText: "Heure", minuteText: "Minute"
         });
-        $("#o_vaTemps").on("input", (e) => { $("#o_indicationTemps").text(this.calculerLimiteTemps($(e.currentTarget).val())); });
+        $("#o_vaTemps").on("input", (e) => { $("#o_indicationTemps").text(this.#calculerLimiteTemps($(e.currentTarget).val())); });
         $("#o_calculerTemps").click(async () => {
             let ref = new Joueur(null, { donneesInitiales: { Pseudo: $("#o_pseudoTemps").val() } });
             let recherches = await ref.lire('Niveaux Recherches');
@@ -528,23 +527,23 @@ class BoiteCombat extends Boite {
             if (!joueurs.length && !alliances.length) {
                 $.toast({ ...TOAST_ERROR, text: "Vous n'avez pas renseigné de joueur ni d'alliance pour lancer le calcul." });
             } else {
-                if (!$("#o_infosTemps").length) this.afficherTemps();
-                await this.calculerTemps(ref, joueurs, alliances, $("#o_dernierMvt").val());
+                if (!$("#o_infosTemps").length) this.#afficherTemps();
+                await this.#calculerTemps(ref, joueurs, alliances, $("#o_dernierMvt").val());
             }
             return false;
         });
         return this;
     }
     /**
-    *
+    * @private
     */
-    calculerLimiteTemps(va) {
+    #calculerLimiteTemps(va) {
         return Utils.intToTime(Math.pow(0.9, va) * 637200);
     }
     /**
-    *
+    * @private
     */
-    async calculerTemps(ref, joueurs, alliances, dernierMvt = "") {
+    async #calculerTemps(ref, joueurs, alliances, dernierMvt = "") {
         try {
             // promise pour recupérer les joueurs et leurs coordonnées
             let promise = new Array();
@@ -617,9 +616,9 @@ class BoiteCombat extends Boite {
         return this;
     }
     /**
-    *
+    * @private
     */
-    afficherTemps() {
+    #afficherTemps() {
         $("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
         $("#o_infosTemps").DataTable({
             dom: "Bfrtip",
@@ -643,4 +642,4 @@ class BoiteCombat extends Boite {
         });
         return this;
     }
-}
+});

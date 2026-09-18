@@ -1,9 +1,8 @@
-class GestionnaireSections {
+Utils.register(class GestionnaireSections {
 
     /**
      * Dictionnaire contenant le nom et l'id de chaque section
      * @type {Object}
-     * @private
      */
     idsSections = {};
 
@@ -12,14 +11,14 @@ class GestionnaireSections {
      * @type {Boolean}
      * @private
      */
-    _lockAcquired = false;
+    #lockAcquired = false;
 
     /**
      * File d'attente pour les fonctions en attente d'acquérir le verrou.
      * @type {Array<Function>}
      * @private
      */
-    _lockQueue = [];
+    #lockQueue = [];
 
     /**
      * Acquiert un verrou unique sur l'instance du gestionnaire.
@@ -27,13 +26,13 @@ class GestionnaireSections {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireLock() {
+    async #acquireLock() {
         return new Promise(resolve => {
             const tryAcquire = () => {
-                if (this._lockAcquired) {
-                    this._lockQueue.push(tryAcquire);
+                if (this.#lockAcquired) {
+                    this.#lockQueue.push(tryAcquire);
                 } else {
-                    this._lockAcquired = true;
+                    this.#lockAcquired = true;
                     resolve();
                 }
             };
@@ -46,10 +45,10 @@ class GestionnaireSections {
      * Notifie la prochaine fonction en attente dans la file.
      * @private
      */
-    _releaseLock() {
-        this._lockAcquired = false;
-        if (this._lockQueue.length > 0) {
-            const nextInQueue = this._lockQueue.shift();
+    #releaseLock() {
+        this.#lockAcquired = false;
+        if (this.#lockQueue.length > 0) {
+            const nextInQueue = this.#lockQueue.shift();
             nextInQueue();
         }
     }
@@ -69,15 +68,22 @@ class GestionnaireSections {
         return p1 >= p2 ? v1 : v2;
     }
 
-    async hasRightsFor(visibilite) {
+    /**
+     * Vérifie si le joueur a le droit de voir la catégorie.
+     * @param {String} visibilite - La visibilité de la catégorie ('caché', 'restreint', 'visible').
+     * @returns {Boolean} - True si le joueur a le droit, false sinon.
+     * @private
+     */
+    async #hasRightsFor(visibilite) {
         const droitsFourmizzz = await monProfilJoueur.lire('Droits Fourmizzz');
+        if (!droitsFourmizzz) return false;
         if (visibilite === 'caché') return droitsFourmizzz['Voir les forums cachés'];
         if (visibilite === 'restreint') return droitsFourmizzz['Voir les forums restreints'];
         return true;
     }
 
     async chargerSections() {
-        await this._acquireLock();
+        await this.#acquireLock();
         try {
             let html;
             try {
@@ -100,14 +106,11 @@ class GestionnaireSections {
 
             } catch (e) {
                 console.error("[GestionnaireSections] Erreur lors de la récupération du menu forum :", e);
-                return;
+                return false;
             }
 
             const element = $("<div/>").html(html);
             const allForumSpans = element.find("span[class^='forum']");
-
-            console.log('element:', element);
-            console.log('allForumSpans:', allForumSpans);
 
             // Récupérer les visibilités réelles via la zone admin (options du forum)
             let optionsHtml = "";
@@ -158,9 +161,6 @@ class GestionnaireSections {
                 const nomSection = sec.nom;
                 const visibiliteTheorique = sec.visibilite;
 
-                console.log('nomSection:', nomSection);
-                console.log('visibiliteTheorique:', visibiliteTheorique);
-
                 let storedId = monProfilUtilisateur.parametre[nomSection].valeur;
                 let sectionActuelleValide = false;
 
@@ -169,8 +169,6 @@ class GestionnaireSections {
                         const classMatch = $(this).attr("class").match(/\d+/);
                         return classMatch && classMatch[0] == storedId;
                     });
-
-                    console.log('currentSectionElement:', currentSectionElement);
 
                     if (currentSectionElement.length) {
                         const currentName = currentSectionElement.text().trim();
@@ -198,8 +196,6 @@ class GestionnaireSections {
                         return $(this).text().trim() === nomSection;
                     });
 
-                    console.log('exactMatchElement:', exactMatchElement);
-
                     if (exactMatchElement.length) {
                         const newPageId = exactMatchElement.attr("class").match(/\d+/)[0];
                         this.idsSections[nomSection] = newPageId;
@@ -220,7 +216,7 @@ class GestionnaireSections {
                 }
 
                 if (!sectionActuelleValide) {
-                    const hasRights = await this.hasRightsFor(visibiliteTheorique);
+                    const hasRights = await this.#hasRightsFor(visibiliteTheorique);
                     console.log(`[GestionnaireSections] hasRights pour ${nomSection}: ${hasRights}`);
                     if (hasRights) {
                         this.idsSections[nomSection] = 'inexistant';
@@ -230,9 +226,7 @@ class GestionnaireSections {
                 }
             }
 
-            console.log(`[GestionnaireSections] idsSections['Test Restreint']: ${this.idsSections['Test Restreint']}`);
-
-            await this.synchroniser();
+            await this.#synchroniser();
 
             let idsUpdated = false;
             for (const nomSection of Object.keys(this.idsSections)) {
@@ -252,28 +246,36 @@ class GestionnaireSections {
             if (idsUpdated) {
                 $.toast({ ...TOAST_SUCCESS, text: "IDs des sections forum Outiiil mis à jour." });
             }
+            return true;
         } finally {
-            this._releaseLock();
+            this.#releaseLock();
         }
     }
 
-    async synchroniser() {
+    /**
+     * Synchronise les IDs des sections avec le forum.
+     * @returns {Boolean} - True si la synchronisation a réussi, false sinon.
+     * @private
+     */
+
+    async #synchroniser() {
         const idSectionGestionnaire = this.idsSections['Sections Outiiil'];
         if (idSectionGestionnaire === '' || idSectionGestionnaire === 'inexistant') {
-            return;
+            return false;
         }
 
         let sujets;
         try {
-            sujets = await AccesForum.recupererSujetsSection(idSectionGestionnaire);
+            const res = await AccesForum.recupererSujetsSection(idSectionGestionnaire);
+            sujets = res.sujets;
         } catch (e) {
             console.error("[GestionnaireSections] Impossible de charger les sujets du gestionnaire :", e);
-            return;
+            return false;
         }
 
         const subjectsMap = {};
         for (const s of sujets) {
-            const parsed = JSON.parse(s.contenu);
+            const parsed = JSON.parse(s.titre);
             subjectsMap[parsed.nom] = { idSujet: s.id, idForum: parsed.id };
         }
 
@@ -317,5 +319,6 @@ class GestionnaireSections {
                 }
             }
         }
+        return true;
     }
-}
+});

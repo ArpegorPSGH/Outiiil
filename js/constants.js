@@ -220,3 +220,19 @@ const FORMAT_DATE_DEFAUT = "D MMM [à] HH[h]mm";
 const FORMAT_DUREE_DEFAUT = "Y[A ]d[J ]h[h ]m[m ]ss[s]";
 
 const TRANSACTION_COLLISION_WAIT_MS = 1000;
+
+// Nombre de caractères maximum sur le forum
+const TITLE_MAX_LENGTH = 255;
+const MESSAGE_MAX_LENGTH = 65535;
+
+// Active ou désactive le Logger
+const LOGGER_ACTIF = true;
+
+// Périmètre de distance dans la pile d'appel autour de l'erreur pour le filtrage des logs lors d'un signalement automatique
+const LOGGER_PERIMETRE_STACK_DISTANCE = 3;
+
+// Profondeur maximale de sérialisation par le Logger (0 = string compressé, 1 = attributs directs, etc.)
+const LOGGER_PROFONDEUR_MAX = 5;
+
+// Longueur maximale d'un string posté par le logger
+const MAX_STR_LEN = 1000;

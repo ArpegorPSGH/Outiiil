@@ -1,4 +1,4 @@
-class Options extends AttributObjet {
+Utils.register(class Options extends AttributObjet {
     static SORTABLE_PAR_DEFAUT = false;
     static NOM_AFFICHAGE = ['Options'];
 
@@ -37,4 +37,4 @@ class Options extends AttributObjet {
         }
         return "";
     }
-}
+});

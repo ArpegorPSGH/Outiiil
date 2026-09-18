@@ -1,4 +1,4 @@
-class Activite extends AttributObjet {
+Utils.register(class Activite extends AttributObjet {
     static NOM_AFFICHAGE = ['Activité'];
     valeur = '';
 
@@ -10,16 +10,15 @@ class Activite extends AttributObjet {
      * @returns {Promise<Boolean>} Vrai si la modification a réussi.
      */
     async ecrire(nouvelleValeur) {
-        console.log('invocation surcharge avec :', nouvelleValeur);
         let valeurNormalisee = nouvelleValeur;
         if (typeof nouvelleValeur === 'object' && nouvelleValeur !== null && typeof nouvelleValeur.attr === 'function') {
             // Objet jQuery : extraire le src
-            valeurNormalisee = this._convertirImageEtatEnString(nouvelleValeur.attr('src'));
+            valeurNormalisee = this.#convertirImageEtatEnString(nouvelleValeur.attr('src'));
         } else if (typeof nouvelleValeur === 'string' && nouvelleValeur.includes('images/icone')) {
             // URL d'image ou balise HTML img
             const srcMatch = nouvelleValeur.match(/src=['"]([^'"]*)['"]/);
             const src = srcMatch ? srcMatch[1] : nouvelleValeur;
-            valeurNormalisee = this._convertirImageEtatEnString(src);
+            valeurNormalisee = this.#convertirImageEtatEnString(src);
         }
 
         return await super.ecrire(valeurNormalisee);
@@ -31,7 +30,7 @@ class Activite extends AttributObjet {
      * @returns {string} La chaîne d'activité ou chaîne vide si non reconnue.
      * @private
      */
-    _convertirImageEtatEnString(imageUrl) {
+    #convertirImageEtatEnString(imageUrl) {
         let normalizedUrl = imageUrl;
         const absoluteMatch = imageUrl.match(/https?:\/\/[^/]+(\/images\/icone\/[^'"]*\.gif)/);
         if (absoluteMatch) {
@@ -51,4 +50,4 @@ class Activite extends AttributObjet {
         console.warn(`[Activite] Image d'activité non reconnue: ${imageUrl}.`);
         return '';
     }
-}
+});

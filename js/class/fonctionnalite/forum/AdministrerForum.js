@@ -55,7 +55,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                                         $.toast({ ...TOAST_ERROR, text: `Une erreur réseau a été rencontrée lors de la protection de la section ${nomSection}.` });
                                     });
                                 } else {
-                                    console.warn(`[AdministrerForum][o_creerUtilitaire] ID de section non retourné pour "${nomSection}".`);
+                                    console.error(`[AdministrerForum][o_creerUtilitaire] ID de section non retourné pour "${nomSection}".`);
                                 }
                             } catch (error) {
                                 console.error(`[AdministrerForum][o_creerUtilitaire] Erreur lors de la création de la section ${nomSection}:`, error);
@@ -66,7 +66,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                         }
                     }
                 } else {
-                    console.warn("[AdministrerForum][o_creerUtilitaire] sectionsRequises n'est pas défini. Aucune section à créer.");
+                    console.error("[AdministrerForum][o_creerUtilitaire] sectionsRequises n'est pas défini. Aucune section à créer.");
                 }
                 return false;
             });

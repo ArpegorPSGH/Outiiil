@@ -33,14 +33,18 @@ Utils.register(class AdministrerCommandes extends FonctionnaliteAlliance {
                     .prepend(`<img class="cursor" id="o_afficherEtat" src="${IMG_CHANGE}" height="16" alt="changer" title="Changer l'etat des commandes selectionnées"/>`)
                     .append(`<select id="o_selectEtatCommande" style="display:none;">${options}</select> <button type="button" id="o_changerEtat" style="display:none;">Modifier l'état</button>`);
                 $("#o_afficherEtat").click((e) => { $("#o_changerEtat, #o_selectEtatCommande").toggle(); });
+                $("#o_changerEtat").click((e) => {
+                    if (!$("#form_cat tr:gt(0) input[name='topic[]']:checked").length) {
+                        e.stopImmediatePropagation();
+                        return false;
+                    }
+                });
                 $("#o_changerEtat").onActionSecurisee('click', this, async (e) => {
-                    console.log('début changement état');
                     let promiseCmdModif = new Array();
                     $("#form_cat tr:gt(0)").each((i, elt) => {
                         // si la commande est selectionnée
                         if ($(elt).find("input[name='topic[]']:checked").length) {
                             let id = $(elt).find("input[name='topic[]']").val();
-                            console.warn('id de la commande à changer:', id);
                             if (id) {
                                 let commande = new Commande(this);
                                 commande.idSujet = parseInt(id, 10);

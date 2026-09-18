@@ -30,7 +30,6 @@ Utils.register(class PageArmee extends Page {
         /**
         * Armée sur le terrain.
         *
-        * @private
         * @property armeeTdc
         * @type Class
         */
@@ -38,7 +37,6 @@ Utils.register(class PageArmee extends Page {
         /**
         * Armée en dome.
         *
-        * @private
         * @property armeeDome
         * @type Class
         */
@@ -46,7 +44,6 @@ Utils.register(class PageArmee extends Page {
         /**
         * Armée en loge.
         *
-        * @private
         * @property armeeLoge
         * @type Class
         */
@@ -54,7 +51,6 @@ Utils.register(class PageArmee extends Page {
         /**
         * Nombre d'attaque en cours.
         *
-        * @private
         * @property nbAttaque
         * @type Integer
         */
@@ -77,18 +73,18 @@ Utils.register(class PageArmee extends Page {
         $(".simulateur:eq(0) tr:eq(0)").after(`<tr><td colspan="10" class='right'><button id='o_replaceArmee' class='o_button f_success'>Replacer l'armée</button></td></tr>`);
         $("#o_replaceArmee").click(() => {
             if (this._armeeLoge.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeTdc.getSommeUnite()) {
-                let premiereUnite = this.indicePremiereUnite();
+                let premiereUnite = this.#indicePremiereUnite();
                 let nbUniteDispo = this._armeeLoge.unite[premiereUnite] + this._armeeDome.unite[premiereUnite] + this._armeeTdc.unite[premiereUnite];
                 // si j'ai assez d'unité pour mettre les antisonde en param
                 if (nbUniteDispo >= monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur + monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur) {
                     // si les unités en terrain et dome ne sont pas dans les bornes dasn antisonde on replace tout sinon on est bon
-                    if (!this.estPlacePourAntiSonde(premiereUnite, monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur, monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur))
-                        this.placerAntisondeSuffisant(premiereUnite, nbUniteDispo);
+                    if (!this.#estPlacePourAntiSonde(premiereUnite, monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur, monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur))
+                        this.#placerAntisondeSuffisant(premiereUnite, nbUniteDispo);
                     else
                         $.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
                 } else {
-                    if (!this.estPlacePourAntiSonde(premiereUnite, 1, nbUniteDispo * 0.3))
-                        this.placerAntisondeInsuffisant(premiereUnite, nbUniteDispo);
+                    if (!this.#estPlacePourAntiSonde(premiereUnite, 1, nbUniteDispo * 0.3))
+                        this.#placerAntisondeInsuffisant(premiereUnite, nbUniteDispo);
                     else
                         $.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
                 }
@@ -105,8 +101,7 @@ Utils.register(class PageArmee extends Page {
     /**
     * Initialise l'armée en terrain de chasse.
     *
-    * @private
-    * @method getArmeeTdc
+    * @method recupereArmeeTdc
     */
     recupereArmeeTdc() {
         let unites = {};
@@ -119,8 +114,7 @@ Utils.register(class PageArmee extends Page {
     /**
     * Initialise l'armée en dome.
     *
-    * @private
-    * @method getArmeeDome
+    * @method recupereArmeeDome
     */
     recupereArmeeDome() {
         let unites = {};
@@ -136,8 +130,7 @@ Utils.register(class PageArmee extends Page {
     /**
     * Initialise l'armée en loge.
     *
-    * @private
-    * @method getArmeeLoge
+    * @method recupereArmeeLoge
     */
     recupereArmeeLoge() {
         let unites = {};
@@ -148,9 +141,9 @@ Utils.register(class PageArmee extends Page {
         this._armeeLoge = new Armee({ unite: unites });
     }
     /**
-    *
+    * @private
     */
-    indicePremiereUnite() {
+    #indicePremiereUnite() {
         // on trouve d'abord la premiere unite dispo c'est elle qui sert d'antisonde
         for (let i = 0; i < this._armeeTdc.unite.length; i++)
             if (this._armeeTdc.unite[i] + this._armeeDome.unite[i] + this._armeeLoge.unite[i])
@@ -158,9 +151,9 @@ Utils.register(class PageArmee extends Page {
         return -1;
     }
     /**
-    *
+    * @private
     */
-    estPlacePourAntiSonde(indUnite, nbUniteTerrain, nbUniteDome) {
+    #estPlacePourAntiSonde(indUnite, nbUniteTerrain, nbUniteDome) {
         if (indUnite != -1) {
             // si on a des unites autres que la premiere en terrain ou dome on est mal place
             for (let i = 0; i < this._armeeTdc.unite.length; i++) {
@@ -180,9 +173,9 @@ Utils.register(class PageArmee extends Page {
             return false;
     }
     /**
-    *
+    * @private
     */
-    placerAntisondeSuffisant(indUnite, nbTroupeDispo) {
+    #placerAntisondeSuffisant(indUnite, nbTroupeDispo) {
         let securite = $("#t").attr("name") + "=" + $("#t").val();
         $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
@@ -203,9 +196,9 @@ Utils.register(class PageArmee extends Page {
         return this;
     }
     /**
-    *
+    * @private
     */
-    placerAntisondeInsuffisant(indUnite, nbTroupeDispo) {
+    #placerAntisondeInsuffisant(indUnite, nbTroupeDispo) {
         let securite = $("#t").attr("name") + "=" + $("#t").val();
         $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
@@ -221,7 +214,6 @@ Utils.register(class PageArmee extends Page {
     /**
     * Ajoute les fonctionnalités du compte+. Affiche les infos sur l'armée et les fléches dans le tableau des unités.
     *
-    * @private
     * @method plus
     */
     async plus() {
@@ -242,10 +234,10 @@ Utils.register(class PageArmee extends Page {
             }
         });
         // Affichage des infos sur l'armée selon son placement
-        await this.afficherLigneVie();
-        this.afficherLigneAttaque();
-        await this.afficherLigneDefense();
-        this.afficherLigneConsommation();
+        await this.#afficherLigneVie();
+        this.#afficherLigneAttaque();
+        await this.#afficherLigneDefense();
+        this.#afficherLigneConsommation();
         // Sauvegarde des attaques en cours
         let listeAttaque = new Array();
         $("span[id^='attaque_']").each((i, elt) => {
@@ -257,15 +249,15 @@ Utils.register(class PageArmee extends Page {
                 $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
         // Verification si les données sont deja enregistré
-        this.saveAttaque(listeAttaque);
+        this.#saveAttaque(listeAttaque);
     }
     /**
     * Affiche les informations supplémentaires sur la vie des armées.
     *
     * @private
-    * @method afficherLigneVie
+    * @method #afficherLigneVie
     */
-    async afficherLigneVie() {
+    async #afficherLigneVie() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let bouclier = recherche[1];
         let line = `<tr align='center' class='vie cursor'>
@@ -287,9 +279,9 @@ Utils.register(class PageArmee extends Page {
     * Affiche les informations supplémentaires sur l'attaque des armées.
     *
     * @private
-    * @method afficherLigneAttaque
+    * @method #afficherLigneAttaque
     */
-    async afficherLigneAttaque() {
+    async #afficherLigneAttaque() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let armes = recherche[2];
         let line = `<tr align="center" class="att ligne_paire cursor">
@@ -311,9 +303,9 @@ Utils.register(class PageArmee extends Page {
     * Affiche les informations supplémentaires sur la defense des armées.
     *
     * @private
-    * @method afficherLigneDefense
+    * @method #afficherLigneDefense
     */
-    async afficherLigneDefense() {
+    async #afficherLigneDefense() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let armes = recherche[2];
         let line = `<tr align="center" class="def cursor">
@@ -335,9 +327,9 @@ Utils.register(class PageArmee extends Page {
     * Affiche les informations supplémentaires sur la consommation des armées.
     *
     * @private
-    * @method afficherLigneConsommation
+    * @method #afficherLigneConsommation
     */
-    afficherLigneConsommation() {
+    #afficherLigneConsommation() {
         let line = `<tr align='center' class='ligne_paire'>
 			 <td>Consommation Journalière</td>
 			 <td colspan=3>${IMG_POMME} ${numeral(this._armeeTdc.getConsommation(1)).format()}</td>
@@ -347,7 +339,6 @@ Utils.register(class PageArmee extends Page {
         $(".simulateur tr[align=center]:last").after(line);
     }
     /**
-    *
     */
     async afficherStatistique() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
@@ -368,9 +359,9 @@ Utils.register(class PageArmee extends Page {
     * Verifie les attaques en cours avec ce qui est sauvegarder.
     *
     * @private
-    * @method saveAttaque
+    * @method #saveAttaque
     */
-    saveAttaque(listeAttaque) {
+    #saveAttaque(listeAttaque) {
         if (!boiteComptePlus.hasOwnProperty("attaque") || boiteComptePlus.attaque.length != listeAttaque.length || boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length) {
             boiteComptePlus.attaque = listeAttaque;
             boiteComptePlus.startAttaque = moment();

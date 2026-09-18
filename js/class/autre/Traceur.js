@@ -8,13 +8,11 @@
 *
 * @class Traceur
 */
-class Traceur
-{
+Utils.register(class Traceur {
     /**
     *
     */
-    constructor(type, etat, intervalle, nbPage)
-    {
+    constructor(type, etat, intervalle, nbPage) {
         /**
         *
         */
@@ -39,102 +37,90 @@ class Traceur
     /**
     *
     */
-    get etat()
-    {
+    get etat() {
         return this._etat;
     }
     /**
     *
     */
-    set etat(newEtat)
-    {
+    set etat(newEtat) {
         this._etat = newEtat;
     }
     /**
     *
     */
-    get intervalle()
-    {
+    get intervalle() {
         return this._intervalle;
     }
     /**
     *
     */
-    set intervalle(newIntervalle)
-    {
+    set intervalle(newIntervalle) {
         this._intervalle = newIntervalle;
     }
     /**
     *
     */
-    get nbPage()
-    {
+    get nbPage() {
         return this._nbPage;
     }
     /**
     *
     */
-    set nbPage(newNbPage)
-    {
+    set nbPage(newNbPage) {
         this._nbPage = newNbPage;
     }
     /**
     *
     */
-    get data()
-    {
+    get data() {
         return this._data;
     }
     /**
     *
     */
-    set data(newData)
-    {
+    set data(newData) {
         this._data = newData;
     }
     /**
-    *
+    * @private
     */
-    envoyerData()
-    {
+    #envoyerData() {
         return $.ajax({
-            type : "post",
-            url : "http://outiiil.fr/fzzz/traceur",
-            data : {
-                cle : monProfilUtilisateur.parametre["cleTraceur"].valeur,
-                serveur : Utils.serveur,
-                type : this._type,
-                date : moment().format("DD-MM-YYYY HH:mm:ss"),
-                data : this._data
+            type: "post",
+            url: "http://outiiil.fr/fzzz/traceur",
+            data: {
+                cle: monProfilUtilisateur.parametre["cleTraceur"].valeur,
+                serveur: Utils.serveur,
+                type: this._type,
+                date: moment().format("DD-MM-YYYY HH:mm:ss"),
+                data: this._data
             }
         });
     }
     /**
-    *
+    * @private
     */
-    getTempsAvantMAJ()
-    {
+    #getTempsAvantMAJ() {
         // on recupere le datetime dans le storage
         let dateHeureStorage = localStorage.getItem("outiiil_traceur_" + this._type);
-        if(dateHeureStorage)
+        if (dateHeureStorage)
             return moment().isAfter(moment(dateHeureStorage, "DD-MM-YYYY HH:mm:ss")) ? 0 : parseInt(moment(dateHeureStorage, "DD-MM-YYYY HH:mm:ss").diff(moment()) / 1000);
         // si on a pas de dateheure en session on fait une mise à jour
         return 0;
     }
     /**
-    *
+    * @private
     */
-    parseJoueur(texte)
-    {
+    #parseJoueur(texte) {
         return texte.replace(/\[p\](.*?)\[\/p\]/g, "<a href='Membre.php?Pseudo=$1'>$1</a>");
     }
     /**
-    *
+    * @private
     */
-    parseAlliance(texte)
-    {
+    #parseAlliance(texte) {
         return texte.replace(/\[t\](.*?)\[\/t\]/g, "<a href='classementAlliance.php?alliance=$1'>$1</a>");
     }
-}
+});
 
 

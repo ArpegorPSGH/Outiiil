@@ -1,4 +1,4 @@
-class Recherches extends ParametreObjetForum {
+Utils.register(class Recherches extends ParametreObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static FORMAT_HISTORY = [
         { nom: 'Recherches', format: '(nom): (valeur) |' }
@@ -7,4 +7,4 @@ class Recherches extends ParametreObjetForum {
         acc[nom] = 0;
         return acc;
     }, {});
-};
+});

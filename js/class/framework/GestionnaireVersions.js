@@ -1,4 +1,4 @@
-class GestionnaireVersions {
+Utils.register(class GestionnaireVersions {
     /**
      * Cache des versions d'objets lues sur le forum.
      * Format : { idSujet, type, nomClasse, versionLogique, classesParametres, Lieux, idVersionLogique, idClassesParametres, idLieux }
@@ -20,14 +20,14 @@ class GestionnaireVersions {
      * @type {Boolean}
      * @private
      */
-    _lockAcquired = false;
+    #lockAcquired = false;
 
     /**
      * File d'attente pour les fonctions en attente d'acquérir le verrou.
      * @type {Array<Function>}
      * @private
      */
-    _lockQueue = [];
+    #lockQueue = [];
 
     /**
      * Acquiert un verrou unique sur l'instance du gestionnaire.
@@ -35,13 +35,13 @@ class GestionnaireVersions {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireLock() {
+    async #acquireLock() {
         return new Promise(resolve => {
             const tryAcquire = () => {
-                if (this._lockAcquired) {
-                    this._lockQueue.push(tryAcquire);
+                if (this.#lockAcquired) {
+                    this.#lockQueue.push(tryAcquire);
                 } else {
-                    this._lockAcquired = true;
+                    this.#lockAcquired = true;
                     resolve();
                 }
             };
@@ -54,10 +54,10 @@ class GestionnaireVersions {
      * Notifie la prochaine fonction en attente dans la file.
      * @private
      */
-    _releaseLock() {
-        this._lockAcquired = false;
-        if (this._lockQueue.length > 0) {
-            const nextInQueue = this._lockQueue.shift();
+    #releaseLock() {
+        this.#lockAcquired = false;
+        if (this.#lockQueue.length > 0) {
+            const nextInQueue = this.#lockQueue.shift();
             nextInQueue();
         }
     }
@@ -75,7 +75,7 @@ class GestionnaireVersions {
      * @returns {Promise<Boolean>} Vrai si la section 'Versions Outiiil' est présente et accessible, sinon faux.
      */
     async verifierPresenceSectionVersions() {
-        await this._acquireLock();
+        await this.#acquireLock();
         try {
             const nomSection = 'Versions Outiiil';
             const idSection = monProfilUtilisateur.parametre[nomSection]?.valeur;
@@ -87,37 +87,12 @@ class GestionnaireVersions {
 
                 let estValide = false;
                 try {
-                    const xmlDoc = await AccesForum.consulterSection(idSection); // Assuming this already returns a parsed XML Document
-
-                    // Check for parsing errors if the document itself indicates them (e.g., from a previous internal parse)
-                    if (xmlDoc.querySelector('parsererror')) {
-                        console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Erreur lors du parsing de la réponse XML (document):`, xmlDoc.querySelector('parsererror').textContent);
-                        estValide = false;
+                    const { titreSection } = await AccesForum.recupererSujetsSection(idSection);
+                    if (titreSection === nomSection) {
+                        estValide = true;
                     } else {
-                        // Extract the HTML content which is within the CDATA section of the 'alliance' command
-                        const allianceCmdElement = xmlDoc.querySelector('cmd[n="as"][t="alliance"]');
-                        if (!allianceCmdElement) {
-                            console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Impossible de trouver l'élément 'cmd' avec t="alliance" dans le document XML.`);
-                            estValide = false;
-                        } else {
-                            const htmlContent = allianceCmdElement.textContent;
-
-                            // Parse the HTML content
-                            const htmlParser = new DOMParser();
-                            const htmlDoc = htmlParser.parseFromString(htmlContent, "text/html");
-
-                            // Find the section title within the HTML. It's typically in a <span> inside the second <th> of the table.
-                            // The structure is: <table> -> <tbody> (implied) -> <tr class="alt"> -> <th> (first) -> <th> (second) -> <span> (first child)
-                            const sectionTitleElement = htmlDoc.querySelector('table.tab_triable tr.alt th:nth-child(2) span:first-child');
-                            const extractedTitle = sectionTitleElement ? sectionTitleElement.textContent.trim() : null;
-
-                            if (extractedTitle === nomSection) { // Vérification du titre
-                                estValide = true;
-                            } else {
-                                console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${extractedTitle}".`);
-                                estValide = false;
-                            }
-                        }
+                        console.warn(`[GestionnaireVersions.verifierPresenceSectionVersions] Le titre de la section '${nomSection}' ne correspond pas au titre attendu ou les données sont invalides. Titre reçu: "${titreSection}".`);
+                        estValide = false;
                     }
                 } catch (error) {
                     console.error(`[GestionnaireVersions.verifierPresenceSectionVersions] Erreur lors de la vérification de la section '${nomSection}' (ID: ${idSection}).`, error);
@@ -131,7 +106,7 @@ class GestionnaireVersions {
             console.warn(`[GestionnaireVersions.verifierPresenceSectionVersions] La section '${nomSection}' n'est pas configurée.`);
             return false; // Ajout d'un retour false si idSection n'est pas trouvé
         } finally {
-            this._releaseLock();
+            this.#releaseLock();
         }
     }
 
@@ -139,7 +114,7 @@ class GestionnaireVersions {
      * Vide et reconstruit l'état du gestionnaire en lisant les titres des sujets de la section `Versions Outiiil`.
      */
     async rafraichir() {
-        await this._acquireLock();
+        await this.#acquireLock();
         try {
             // 1. Réinitialisation
             this.versionsObjetsForum = [];
@@ -150,15 +125,15 @@ class GestionnaireVersions {
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
 
                 // 2. Chargement des Sujets via recupererSujetsSection
-                const sujets = await AccesForum.recupererSujetsSection(idSection);
+                const { sujets } = await AccesForum.recupererSujetsSection(idSection);
 
                 // 3. Parsing des Sujets et Messages
                 for (const sujet of sujets) {
                     try {
                         // Extraction du Type et Nom de Classe du contenu (titre)
-                        const titreMatch = sujet.contenu.match(/^(objet|parametre): (.+)$/);
+                        const titreMatch = sujet.titre.match(/^(objet|parametre): (.+)$/);
                         if (!titreMatch) {
-                            console.warn(`Titre de sujet de version invalide: ${sujet.contenu}`);
+                            console.warn(`Titre de sujet de version invalide: ${sujet.titre}`);
                             continue;
                         }
                         const type = titreMatch[1];
@@ -177,26 +152,26 @@ class GestionnaireVersions {
 
                         for (const message of messagesDuSujet) {
                             if (!versionLogique) {
-                                const parsed = this._parseVersionLogique(message.contenu);
+                                const parsed = this.#parseVersionLogique(message.contenu);
                                 if (parsed) { versionLogique = parsed; idMessageVersionLogique = message.id; }
                             }
                             if (!classesParametres) {
-                                const parsed = this._parseClassesParametres(message.contenu);
+                                const parsed = this.#parseClassesParametres(message.contenu);
                                 if (parsed) { classesParametres = parsed; idMessageClassesParametres = message.id; }
                             }
                             if (!formatsLieux) {
-                                const parsed = this._parseLieux(message.contenu);
+                                const parsed = this.#parseLieux(message.contenu);
                                 if (parsed) { formatsLieux = parsed; idMessageFormatsLieux = message.id; }
                             }
                             if (!formatHistory) {
-                                const parsed = this._parseFormatHistory(message.contenu);
+                                const parsed = this.#parseFormatHistory(message.contenu);
                                 if (parsed) { formatHistory = parsed; idMessageFormatHistory = message.id; }
                             }
                         }
 
                         if (type === 'objet') {
                             if (!versionLogique || !classesParametres || !formatsLieux) {
-                                console.warn(`[GestionnaireVersions.rafraichir] Sujet objet ${sujet.contenu} (ID: ${sujet.id}) n'a pas toutes les données requises. Données récupérées : ${versionLogique}, ${classesParametres}, ${formatsLieux}`);
+                                console.warn(`[GestionnaireVersions.rafraichir] Sujet objet ${sujet.titre} (ID: ${sujet.id}) n'a pas toutes les données requises. Données récupérées : ${versionLogique}, ${classesParametres}, ${formatsLieux}`);
                                 continue;
                             }
                             this.versionsObjetsForum.push({
@@ -212,7 +187,7 @@ class GestionnaireVersions {
                             });
                         } else if (type === 'parametre') {
                             if (!versionLogique || !formatHistory) {
-                                console.warn(`[GestionnaireVersions.rafraichir] Sujet parametre ${sujet.contenu} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
+                                console.warn(`[GestionnaireVersions.rafraichir] Sujet parametre ${sujet.titre} (ID: ${sujet.id}) n'a pas toutes les données requises.`);
                                 continue;
                             }
                             this.versionsParamsForum.push({
@@ -226,17 +201,18 @@ class GestionnaireVersions {
                             });
                         }
                     } catch (e) {
-                        console.error(`[GestionnaireVersions.rafraichir] Erreur lors du parsing du sujet de version ${sujet.contenu} (ID: ${sujet.id}):`, e);
+                        console.error(`[GestionnaireVersions.rafraichir] Erreur lors du parsing du sujet de version ${sujet.titre} (ID: ${sujet.id}):`, e);
                         // Ignorer les sujets qui ne sont pas du format attendu
                         throw e;
                     }
                 }
+                return true;
             } catch (error) {
                 console.error("[GestionnaireVersions.rafraichir] Erreur lors du rafraîchissement du GestionnaireVersions:", error);
-                throw error;
+                return false;
             }
         } finally {
-            this._releaseLock();
+            this.#releaseLock();
         }
     }
 
@@ -246,7 +222,7 @@ class GestionnaireVersions {
      * @param {String} contenu - Le contenu du message.
      * @returns {String|null} La version logique ou null si non trouvée.
      */
-    _parseVersionLogique(contenu) {
+    #parseVersionLogique(contenu) {
         // According to user feedback, the content is directly the version string (e.g., "1.0"), not prefixed.
         // We need to verify it's a valid version format, allowing for leading/trailing whitespace and newlines.
         const trimmedContent = contenu.trim();
@@ -260,7 +236,7 @@ class GestionnaireVersions {
      * @param {String} contenu - Le contenu du message.
      * @returns {Array<Array<Number>>|null} Les classes de paramètres ou null si non trouvées.
      */
-    _parseClassesParametres(contenu) {
+    #parseClassesParametres(contenu) {
         try {
             const parsed = JSON.parse(contenu);
             if (Array.isArray(parsed) && parsed.every(arr => Array.isArray(arr) && arr.every(item => typeof item === 'number'))) {
@@ -278,7 +254,7 @@ class GestionnaireVersions {
      * @param {String} contenu - Le contenu du message.
      * @returns {Array<Object>|null} L'historique des formats ou null si non trouvé.
      */
-    _parseFormatHistory(contenu) {
+    #parseFormatHistory(contenu) {
         try {
             const parsed = JSON.parse(contenu);
             if (Array.isArray(parsed) && parsed.every(item =>
@@ -300,7 +276,7 @@ class GestionnaireVersions {
      * @param {String} contenu - Le contenu du message.
      * @returns {Array<Object>|null} Les formats de lieux ou null si non trouvés.
      */
-    _parseLieux(contenu) {
+    #parseLieux(contenu) {
         try {
             const parsed = JSON.parse(contenu);
             if (Array.isArray(parsed) && parsed.every(obj => typeof obj === 'object' && obj !== null && 'section' in obj && 'lieu' in obj)) {
@@ -319,7 +295,7 @@ class GestionnaireVersions {
      * @returns {Promise<Boolean>} - True si l'objet est compatible ou si la synchronisation a réussi.
      */
     async verifierCompatibiliteObjetForum(objet) {
-        await this._acquireLock();
+        await this.#acquireLock();
         try {
             // Phase 1 : Construction des "Empreintes" de Versions
 
@@ -429,8 +405,11 @@ class GestionnaireVersions {
                         idMessageClassesParametres,
                         idMessageFormatsLieux
                     });
+                    return true;
+                } else {
+                    console.error(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Échec de la création du sujet pour l'objet ${nomClasseLocale}.`);
+                    return false;
                 }
-                return true;
             }
 
             // Scénarios 1, 2, 3
@@ -507,7 +486,6 @@ class GestionnaireVersions {
             }
             // Scénario 3 (Concordance parfaite)
             else if (compVersion === 0 && compFormats === 0 && estAJour) {
-                console.log('Concordance parfaite')
                 if (objet instanceof ObjetForumDroits) {
                     objet.constructor.PARAMETRES_OBJET = convertirIdsEnClasses(versionForum.classesParametres);
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
@@ -520,7 +498,7 @@ class GestionnaireVersions {
                 throw new Error(`Cas de comparaison de version inattendu pour l'objet ${objet.constructor.name}.`);
             }
         } finally {
-            this._releaseLock();
+            this.#releaseLock();
         }
     }
 
@@ -530,7 +508,7 @@ class GestionnaireVersions {
      * @returns {Promise<Boolean>} - True si le paramètre est compatible ou si la synchronisation a réussi.
      */
     async verifierCompatibiliteParametre(parametre) {
-        await this._acquireLock();
+        await this.#acquireLock();
         try {
             // Phase 1 : Identification
             const nomClasseLocale = parametre.constructor.name;
@@ -547,7 +525,7 @@ class GestionnaireVersions {
 
             // Scénario 4 (Nouveau paramètre)
             if (!versionForum) {
-                console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 4: Nouveau paramètre. Création du sujet sur le forum.`);
+                console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Nouveau paramètre. Création du sujet sur le forum.`);
                 const idSection = monProfilUtilisateur.parametre['Versions Outiiil'].valeur;
                 const titreSujet = `parametre: ${nomClasseLocale}`;
                 const newId = await AccesForum.creerSujetEtRetournerId(idSection, titreSujet);
@@ -564,10 +542,11 @@ class GestionnaireVersions {
                         idMessageVersionLogique,
                         idMessageFormatHistory
                     });
+                    return true;
                 } else {
                     console.error(`[GestionnaireVersions.verifierCompatibiliteParametre] Échec de la création du sujet pour le paramètre ${nomClasseLocale}.`);
+                    return false;
                 }
-                return true;
             }
 
             const versionLogiqueForum = versionForum.versionLogique;
@@ -576,7 +555,7 @@ class GestionnaireVersions {
 
             // Scénario 1 (Extension obsolète)
             if (compVersion < 0 || compFormatHistory < 0) {
-                console.warn(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 1: Extension obsolète. Le paramètre ${parametre.constructor.name} nécessite une mise à jour.`);
+                console.warn(`[GestionnaireVersions.verifierCompatibiliteParametre] Extension obsolète. Le paramètre ${parametre.constructor.name} nécessite une mise à jour.`);
                 $.toast({
                     heading: 'Mise à jour requise',
                     text: "Votre extension Outiiil nécessite une mise à jour pour fonctionner correctement. Tentative de mise à jour automatique...",
@@ -606,7 +585,7 @@ class GestionnaireVersions {
             }
             // Scénario 2 (Forum obsolète)
             else if (compVersion > 0 || compFormatHistory > 0) {
-                console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Scénario 2: Forum obsolète. Mise à jour du sujet et des messages pour le paramètre ${nomClasseLocale}.`);
+                console.log(`[GestionnaireVersions.verifierCompatibiliteParametre] Forum obsolète. Mise à jour du sujet et des messages pour le paramètre ${nomClasseLocale}.`);
                 await AccesForum.modifierSujet(versionForum.idSujet, `parametre: ${nomClasseLocale}`);
                 await AccesForum.modifierMessage(versionForum.idMessageVersionLogique, versionLogiqueLocale);
                 await AccesForum.modifierMessage(versionForum.idMessageFormatHistory, JSON.stringify(formatHistoryLocal));
@@ -624,7 +603,7 @@ class GestionnaireVersions {
                 throw new Error(`Cas de comparaison de version inattendu pour le paramètre ${parametre.constructor.name}.`);
             }
         } finally {
-            this._releaseLock();
+            this.#releaseLock();
         }
     }
-}
+});

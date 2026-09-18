@@ -1,4 +1,4 @@
-class Unites extends ParametreObjetForum {
+Utils.register(class Unites extends ParametreObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static FORMAT_HISTORY = [
         { nom: 'Unités', format: '(nom): (valeur) |' }
@@ -7,4 +7,4 @@ class Unites extends ParametreObjetForum {
         acc[nom] = 0;
         return acc;
     }, {});
-};
+});

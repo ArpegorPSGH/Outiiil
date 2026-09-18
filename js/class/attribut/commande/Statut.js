@@ -1,4 +1,4 @@
-class Statut extends AttributObjet {
+Utils.register(class Statut extends AttributObjet {
     static SORTABLE_PAR_DEFAUT = false;
     static NOM_AFFICHAGE = ['Statut'];
 
@@ -22,4 +22,4 @@ class Statut extends AttributObjet {
         }
         return statutHtml;
     }
-}
+});

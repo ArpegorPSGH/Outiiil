@@ -103,13 +103,14 @@ Utils.register(class Commerce extends Page {
 
         // Tri par ordre d'arrivée
         listeConvoi.sort((a, b) => moment(a.exp).diff(moment(b.exp)));
-        this.saveConvoi(listeConvoi);
+        this.#saveConvoi(listeConvoi);
     }
 
     /**
      * Sauvegarde les convois pour la boite compte+.
+     * @private
      */
-    saveConvoi(liste) {
+    #saveConvoi(liste) {
         if (boiteComptePlus) {
             boiteComptePlus.convoi = liste;
             boiteComptePlus.startConvoi = moment();

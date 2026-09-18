@@ -10,17 +10,13 @@
 * @constructor
 * @extends Boite
 */
-class BoiteCommande extends Boite {
-    constructor(commande, page) {
+Utils.register(class BoiteCommande extends Boite {
+    constructor(commande) {
         super("o_boiteCommande" + commande.idSujet, "Commander des ressources");
         /**
         * @type {Commande} Instance de la commande (ObjetForum)
         */
         this._commande = commande;
-        /**
-        * @type {Page} Instance de la page Commerce
-        */
-        this._page = page;
         /**
         * @type {boolean} Indique si la commande est nouvelle (pas encore enregistrée)
         */
@@ -33,23 +29,22 @@ class BoiteCommande extends Boite {
     */
     async afficher() {
         if (await super.afficher())
-            await this.getForm().then(async () => await this.css().event());
+            await this.#getForm().then(async () => await this.css().event());
         return this;
     }
-    /**
-    * Applique le style propre à la boite.
-    *
-    * @private
-    * @method css
-    */
-    css() {
-        super.css();
-        return this;
-    }
+    // /**
+    // * Applique le style propre à la boite.
+    // *
+    // * @private
+    // * @method css
+    // */
+    // css() {
+    //     super.css();
+    //     return this;
+    // }
     /**
     * Ajoute les evenements propres à la boite.
     *
-    * @private
     * @method event
     */
     async event() {
@@ -135,9 +130,9 @@ class BoiteCommande extends Boite {
     * Génère le formulaire de la boite.
     *
     * @private
-    * @method getForm
+    * @method #getForm
     */
-    async getForm() {
+    async #getForm() {
         // Récupérer les paramètres actuels de la commande de manière asynchrone
         const donneesCommande = await this._commande.lire([
             'Évolution',
@@ -170,4 +165,4 @@ class BoiteCommande extends Boite {
             </form></div>`);
         return this;
     }
-}
+});

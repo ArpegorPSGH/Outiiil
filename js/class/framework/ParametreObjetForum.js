@@ -1,4 +1,4 @@
-class ParametreObjetForum extends DonneeValidable {
+Utils.register(class ParametreObjetForum extends DonneeValidable {
     /**
      * Configuration déclarative. Format d'enregistrement personnalisé (ex: 'YYYY-MM-DD').
      * Si null, pour les moments, la méthode toISOString() est utilisée.
@@ -29,37 +29,37 @@ class ParametreObjetForum extends DonneeValidable {
      * @type {Number}
      * @private
     */
-    _readLockCount = 0;
+    #readLockCount = 0;
 
     /**
      * @type {Number}
      * @private
     */
-    _loadLockCount = 0;
+    #loadLockCount = 0;
 
     /**
      * @type {Boolean}
      * @private
     */
-    _exclusiveLockActive = false;
+    #exclusiveLockActive = false;
 
     /**
      * @type {Array<any>}
      * @private
     */
-    _waitingReaders = []; // For Lire, genererStringPourEnregistrement
+    #waitingReaders = []; // For Lire, genererStringPourEnregistrement
 
     /**
      * @type {Array<any>}
      * @private
     */
-    _waitingLoaders = []; // For chargerDepuisString
+    #waitingLoaders = []; // For chargerDepuisString
 
     /**
      * @type {Array<any>}
      * @private
     */
-    _waitingExclusives = []; // For Ecrire
+    #waitingExclusives = []; // For Ecrire
 
     /**
      * Acquiert un verrou de lecture sur l'instance de l'objet.
@@ -67,13 +67,13 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireReadLock() {
+    async #acquireReadLock() {
         // Read lock (Lire, genererStringPourEnregistrement) can proceed if no exclusive lock and no active load locks
         // and no waiting exclusive locks or waiting load locks (to prevent starvation)
-        if (this._exclusiveLockActive || this._loadLockCount > 0 || this._waitingExclusives.length > 0 || this._waitingLoaders.length > 0) {
-            await new Promise(resolve => this._waitingReaders.push(resolve));
+        if (this.#exclusiveLockActive || this.#loadLockCount > 0 || this.#waitingExclusives.length > 0 || this.#waitingLoaders.length > 0) {
+            await new Promise(resolve => this.#waitingReaders.push(resolve));
         }
-        this._readLockCount++;
+        this.#readLockCount++;
     }
 
     /**
@@ -81,9 +81,9 @@ class ParametreObjetForum extends DonneeValidable {
      * Si aucun autre lecteur n'est actif et qu'il y a des writers en attente, le prochain writer est notifié.
      * @private
      */
-    _releaseReadLock() {
-        this._readLockCount--;
-        this._releaseWaitingOperations();
+    #releaseReadLock() {
+        this.#readLockCount--;
+        this.#releaseWaitingOperations();
     }
 
     /**
@@ -91,22 +91,22 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireLoadLock() {
+    async #acquireLoadLock() {
         // Load lock (chargerDepuisString) can proceed if no exclusive lock and no active read locks
         // and no waiting exclusive locks or waiting read locks (to prevent starvation)
-        if (this._exclusiveLockActive || this._readLockCount > 0 || this._waitingExclusives.length > 0 || this._waitingReaders.length > 0) {
-            await new Promise(resolve => this._waitingLoaders.push(resolve));
+        if (this.#exclusiveLockActive || this.#readLockCount > 0 || this.#waitingExclusives.length > 0 || this.#waitingReaders.length > 0) {
+            await new Promise(resolve => this.#waitingLoaders.push(resolve));
         }
-        this._loadLockCount++;
+        this.#loadLockCount++;
     }
 
     /**
      * Libère un verrou de chargement.
      * @private
      */
-    _releaseLoadLock() {
-        this._loadLockCount--;
-        this._releaseWaitingOperations();
+    #releaseLoadLock() {
+        this.#loadLockCount--;
+        this.#releaseWaitingOperations();
     }
 
     /**
@@ -114,45 +114,45 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {Promise<void>}
      * @private
      */
-    async _acquireExclusiveLock() {
+    async #acquireExclusiveLock() {
         // Exclusive lock (Ecrire) can proceed only if no other locks are active
-        if (this._exclusiveLockActive || this._readLockCount > 0 || this._loadLockCount > 0) {
-            await new Promise(resolve => this._waitingExclusives.push(resolve));
+        if (this.#exclusiveLockActive || this.#readLockCount > 0 || this.#loadLockCount > 0) {
+            await new Promise(resolve => this.#waitingExclusives.push(resolve));
         }
-        this._exclusiveLockActive = true;
+        this.#exclusiveLockActive = true;
     }
 
     /**
      * Libère un verrou exclusif.
      * @private
      */
-    _releaseExclusiveLock() {
-        this._exclusiveLockActive = false;
-        this._releaseWaitingOperations();
+    #releaseExclusiveLock() {
+        this.#exclusiveLockActive = false;
+        this.#releaseWaitingOperations();
     }
 
     /**
      * @private
      */
-    _releaseWaitingOperations() {
+    #releaseWaitingOperations() {
         // Prioritize exclusive locks
-        if (this._waitingExclusives.length > 0 && !this._exclusiveLockActive && this._readLockCount === 0 && this._loadLockCount === 0) {
-            this._waitingExclusives.shift()();
+        if (this.#waitingExclusives.length > 0 && !this.#exclusiveLockActive && this.#readLockCount === 0 && this.#loadLockCount === 0) {
+            this.#waitingExclusives.shift()();
             return;
         }
 
         // If no exclusive locks, prioritize loaders if there are no active readers
-        if (this._waitingLoaders.length > 0 && !this._exclusiveLockActive && this._readLockCount === 0) {
-            while (this._waitingLoaders.length > 0 && !this._exclusiveLockActive && this._readLockCount === 0) {
-                this._waitingLoaders.shift()();
+        if (this.#waitingLoaders.length > 0 && !this.#exclusiveLockActive && this.#readLockCount === 0) {
+            while (this.#waitingLoaders.length > 0 && !this.#exclusiveLockActive && this.#readLockCount === 0) {
+                this.#waitingLoaders.shift()();
             }
             return;
         }
 
         // If no exclusive or load locks, prioritize readers if there are no active loaders
-        if (this._waitingReaders.length > 0 && !this._exclusiveLockActive && this._loadLockCount === 0) {
-            while (this._waitingReaders.length > 0 && !this._exclusiveLockActive && this._loadLockCount === 0) {
-                this._waitingReaders.shift()();
+        if (this.#waitingReaders.length > 0 && !this.#exclusiveLockActive && this.#loadLockCount === 0) {
+            while (this.#waitingReaders.length > 0 && !this.#exclusiveLockActive && this.#loadLockCount === 0) {
+                this.#waitingReaders.shift()();
             }
             return;
         }
@@ -166,7 +166,7 @@ class ParametreObjetForum extends DonneeValidable {
         return await gestionnaireVersions.verifierCompatibiliteParametre(this);
     }
 
-    // La méthode _checkValeur est maintenant héritée de DonneeValidable
+    // La méthode checkValeur est maintenant héritée de DonneeValidable
 
     /**
      * Peuple la valeur du paramètre en parsant une chaîne de caractères fournie.
@@ -174,7 +174,7 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {Boolean} - True si le chargement a réussi, false sinon.
      */
     async chargerDepuisString(contenu) {
-        await this._acquireLoadLock();
+        await this.#acquireLoadLock();
         try {
             let meilleureValeurExtraite = null;
 
@@ -194,10 +194,7 @@ class ParametreObjetForum extends DonneeValidable {
                 suffix = suffix.trim();
 
                 const regex = new RegExp(`${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(.*?)${suffix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 's');
-                console.log(`[${this.constructor.name}] Regex construite:`, regex);
-                console.log(`[${this.constructor.name}] Contenu:`, contenu);
                 const match = contenu.match(regex);
-                console.log(`[${this.constructor.name}] Résultat du match:`, match);
 
                 if (match && match[1] !== undefined) {
                     const valeurExtraite = match[1];
@@ -210,7 +207,7 @@ class ParametreObjetForum extends DonneeValidable {
             }
 
             if (meilleureValeurExtraite === null) {
-                console.error(`[${this.constructor.name}] Aucun format n'a pu extraire de valeur.`);
+                console.warn(`[${this.constructor.name}] Aucun format n'a pu extraire de valeur.`);
                 return false;
             }
 
@@ -224,7 +221,7 @@ class ParametreObjetForum extends DonneeValidable {
                 valeurAParser = meilleureValeurExtraite.trim();
                 const strTrimee = valeurAParser;
                 if (strTrimee.startsWith('{') || strTrimee.startsWith('[')) {
-                    console.warn(`[${this.constructor.name}] Le parsing JSON a échoué pour la valeur extraite qui semble être un objet/tableau: "${strTrimee}". La valeur sera traitée comme une chaîne brute.`);
+                    console.log(`[${this.constructor.name}] Le parsing JSON a échoué pour la valeur extraite qui semble être un objet/tableau: "${strTrimee}". La valeur sera traitée comme une chaîne brute.`);
                 } else {
                     console.log(`[${this.constructor.name}] Valeur lue comme chaîne brute: "${strTrimee}"`);
                 }
@@ -244,7 +241,7 @@ class ParametreObjetForum extends DonneeValidable {
                 console.log(`[${this.constructor.name}] La valeur a été migrée, estModifie sera à true.`);
             }
 
-            const checkResult = this._checkValeur(valeurMigree);
+            const checkResult = this.checkValeur(valeurMigree);
             if (checkResult.success) {
                 this.estCharge = true;
                 if (JSON.stringify(this.valeur) !== JSON.stringify(checkResult.value)) {
@@ -259,7 +256,7 @@ class ParametreObjetForum extends DonneeValidable {
                 return false;
             }
         } finally {
-            this._releaseLoadLock();
+            this.#releaseLoadLock();
         }
     }
 
@@ -268,7 +265,6 @@ class ParametreObjetForum extends DonneeValidable {
      * d'un ancien format vers le format actuel du paramètre.
      * @param {any} valeurChargee - La valeur parsée depuis le forum.
      * @returns {Promise<any>} La valeur migrée vers le format actuel.
-     * @protected
      */
     async _migrerValeur(valeurChargee) {
         // Par défaut, aucune migration n'est effectuée. La valeur est retournée telle quelle.
@@ -280,7 +276,7 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {String} - La chaîne formatée.
      */
     async genererStringPourEnregistrement() {
-        await this._acquireReadLock();
+        await this.#acquireReadLock();
         try {
             const dernierFormatInfo = this.constructor.FORMAT_HISTORY[this.constructor.FORMAT_HISTORY.length - 1];
             let valeurStringifiee;
@@ -300,7 +296,7 @@ class ParametreObjetForum extends DonneeValidable {
             str = str.replace('(valeur)', valeurStringifiee);
             return str;
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
 
@@ -310,9 +306,9 @@ class ParametreObjetForum extends DonneeValidable {
      * @returns {Boolean} - True si l'écriture a réussi.
      */
     async ecrire(nouvelleValeur) {
-        await this._acquireExclusiveLock();
+        await this.#acquireExclusiveLock();
         try {
-            const checkResult = this._checkValeur(nouvelleValeur);
+            const checkResult = this.checkValeur(nouvelleValeur);
             if (checkResult.success) {
                 if (this.valeur !== checkResult.value) {
                     this.valeur = checkResult.value;
@@ -320,10 +316,10 @@ class ParametreObjetForum extends DonneeValidable {
                 }
                 return true;
             }
-            console.error(`[${this.constructor.name}] La nouvelle valeur fournie pour ecrire n'est pas valide.`);
+            console.warn(`[${this.constructor.name}] La nouvelle valeur fournie pour ecrire n'est pas valide.`);
             return false;
         } finally {
-            this._releaseExclusiveLock();
+            this.#releaseExclusiveLock();
         }
     }
 
@@ -337,7 +333,7 @@ class ParametreObjetForum extends DonneeValidable {
      * @throws {ErreurRestriction} Si les données sont restreintes et que l'utilisateur n'a pas les droits.
      */
     async lire(peutVoirDonneesRestreintes = true) {
-        await this._acquireReadLock();
+        await this.#acquireReadLock();
         try {
             if (this.constructor.STRING_RESTRICTION !== null && !peutVoirDonneesRestreintes) {
                 const valeurRestreinte = this._appliquerRestriction(this.valeur);
@@ -347,7 +343,7 @@ class ParametreObjetForum extends DonneeValidable {
             }
             return this.valeur;
         } finally {
-            this._releaseReadLock();
+            this.#releaseReadLock();
         }
     }
-}
+});

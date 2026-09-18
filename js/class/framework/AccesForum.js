@@ -1,10 +1,10 @@
-class AccesForum {
+Utils.register(class AccesForum {
 
     /**
     * Crée une section forum.
     * @private
     */
-    static creerSection(nomSection) {
+    static #creerSection(nomSection) {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -24,7 +24,7 @@ class AccesForum {
      */
     static async creerSectionEtRetournerId(nomSection) {
         try {
-            const data = await AccesForum.creerSection(nomSection);
+            const data = await AccesForum.#creerSection(nomSection);
             const response = $("<div/>").append($(data).find("cmd:eq(1)").html());
             const elementSection = response.find(`input[value='${nomSection}']`);
 
@@ -32,11 +32,11 @@ class AccesForum {
                 const idCat = elementSection.parent().attr("id").match(/\d+/)[0];
                 return parseInt(idCat, 10);
             } else {
-                console.error(`[Utils][creerSectionEtRetournerId] Impossible de trouver l'ID de la section nouvellement créée "${nomSection}".`);
+                console.error(`[AccesForum][creerSectionEtRetournerId] Impossible de trouver l'ID de la section nouvellement créée "${nomSection}".`);
                 return null;
             }
         } catch (error) {
-            console.error(`[Utils][creerSectionEtRetournerId] Erreur lors de la création de la section "${nomSection}":`, error);
+            console.error(`[AccesForum][creerSectionEtRetournerId] Erreur lors de la création de la section "${nomSection}":`, error);
             throw error;
         }
     }
@@ -54,18 +54,18 @@ class AccesForum {
                 "xajaxr": moment().valueOf()
             }
         }).catch(error => {
-            console.error(`[Utils] Erreur lors de la modification de la section "${nomSection}" (ID: ${id}):`, error);
+            console.error(`[AccesForum] Erreur lors de la modification de la section "${nomSection}" (ID: ${id}):`, error);
             throw error;
         });
     }
 
     /**
     * Consulte une section du forum.
+    * @private
     */
-    static consulterSection(id) {
+    static #consulterSection(id) {
         const timerName = `consulterSection-${id}`;
-        console.time(timerName);
-        console.log(`[Utils] Début de consulterSection pour ID: ${id}`);
+        // console.time(timerName);
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -76,37 +76,42 @@ class AccesForum {
             },
             timeout: 10000 // Ajout d'un timeout de 10 secondes
         }).then(data => {
-            console.log(`[Utils] consulterSection succès pour ID: ${id}.`);
-            console.timeEnd(timerName);
+            // console.timeEnd(timerName);
             return data;
         }).catch(error => {
             if (error.statusText === "timeout") {
-                console.error(`[Utils] consulterSection échec pour ID: ${id}. Erreur: Timeout de la requête.`);
+                console.error(`[AccesForum] consulterSection échec pour ID: ${id}. Erreur: Timeout de la requête.`);
             } else {
-                console.error(`[Utils] consulterSection échec pour ID: ${id}. Erreur:`, error);
+                console.error(`[AccesForum] consulterSection échec pour ID: ${id}. Erreur:`, error);
             }
-            console.timeEnd(timerName);
+            // console.timeEnd(timerName);
             throw error; // Rejeter l'erreur pour qu'elle soit gérée par l'appelant
         });
     }
 
     /**
-    * Récupère tous les sujets d'une section et les place dans une liste de dictionnaires.
+    * Récupère tous les sujets d'une section ainsi que le titre de la section.
     * @async
     * @param {Number} idSection L'ID de la section à consulter.
-    * @returns {Promise<Array<{id: Number, contenu: String}>>} Une promesse qui résout avec une liste de sujets.
+    * @returns {Promise<{sujets: Array<{id: Number, titre: String}>, titreSection: String|null}>}
     */
     static async recupererSujetsSection(idSection) {
         try {
-            const dataSection = await AccesForum.consulterSection(idSection);
+            const dataSection = await AccesForum.#consulterSection(idSection);
             const responseSection = $(dataSection).find("cmd:eq(1)").text();
 
             if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
-                console.warn(`[Utils][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
-                return [];
+                console.error(`[AccesForum][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
+                return { sujets: [], titreSection: null };
             }
 
-            const sujetElements = $("<div/>").append(responseSection).find("#form_cat tr:gt(0)");
+            const htmlDoc = $("<div/>").append(responseSection);
+
+            // Extraction du titre de la section (présent dans le <span> du 2ème <th> du tableau)
+            const sectionTitleElement = htmlDoc.find('table.tab_triable tr.alt th:nth-child(2) span:first-child');
+            const titreSection = sectionTitleElement.length ? sectionTitleElement.text().trim() : null;
+
+            const sujetElements = htmlDoc.find("#form_cat tr:gt(0)");
             const sujets = [];
 
             sujetElements.each((i, elt) => {
@@ -126,16 +131,16 @@ class AccesForum {
                 if (id && titreSujet) {
                     sujets.push({
                         id: id,
-                        contenu: titreSujet
+                        titre: titreSujet
                     });
                 } else {
-                    console.warn(`[Utils][recupererSujetsSection] Sujet ignoré en raison de données manquantes ou invalides. ID: ${id}, Titre: "${titreSujet}".`);
+                    console.log(`[AccesForum][recupererSujetsSection] Sujet ignoré en raison de données manquantes ou invalides. ID: ${id}, Titre: "${titreSujet}".`);
                 }
             });
-            return sujets;
+            return { sujets, titreSection };
 
         } catch (error) {
-            console.error(`[Utils][recupererSujetsSection] Erreur lors de la récupération des sujets de la section ${idSection}:`, error);
+            console.error(`[AccesForum][recupererSujetsSection] Erreur lors de la récupération des sujets de la section ${idSection}:`, error);
             throw error;
         }
     }
@@ -144,7 +149,7 @@ class AccesForum {
     * Crée un sujet.
     * @private
     */
-    static creerSujet(id, nomSujet, contenu = " ", type = "normal") {
+    static #creerSujet(id, nomSujet, contenu = " ", type = "normal") {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -167,11 +172,11 @@ class AccesForum {
      */
     static async creerSujetEtRetournerId(id, nomSujet, contenu = " ", type = "normal") {
         try {
-            const data = await AccesForum.creerSujet(id, nomSujet, contenu, type);
+            const data = await AccesForum.#creerSujet(id, nomSujet, contenu, type);
             const response = $(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
-                console.error("[Utils][creerSujetEtRetournerId] Impossible de récupérer le contenu de la section après la création du sujet.");
+                console.error("[AccesForum][creerSujetEtRetournerId] Impossible de récupérer le contenu de la section après la création du sujet.");
                 return null;
             }
 
@@ -194,12 +199,12 @@ class AccesForum {
             });
 
             if (idSujet === null) {
-                console.error(`[Utils][creerSujetEtRetournerId] Impossible de trouver l'ID du sujet nouvellement créé "${nomSujet}".`);
+                console.error(`[AccesForum][creerSujetEtRetournerId] Impossible de trouver l'ID du sujet nouvellement créé "${nomSujet}".`);
             }
 
             return idSujet;
         } catch (error) {
-            console.error(`[Utils][creerSujetEtRetournerId] Erreur lors de la création du sujet "${nomSujet}":`, error);
+            console.error(`[AccesForum][creerSujetEtRetournerId] Erreur lors de la création du sujet "${nomSujet}":`, error);
             throw error;
         }
     }
@@ -220,7 +225,7 @@ class AccesForum {
                 "xajaxr": moment().valueOf()
             }
         }).catch(error => {
-            console.error(`[Utils] Erreur lors de la modification du sujet "${nomSujet}" (ID: ${idSujet}):`, error);
+            console.error(`[AccesForum] Erreur lors de la modification du sujet "${nomSujet}" (ID: ${idSujet}):`, error);
             throw error;
         });
     }
@@ -231,9 +236,9 @@ class AccesForum {
      * @param {Number} id L'ID du sujet.
      * @returns {Promise<String>} Une promesse qui résout avec le contenu HTML brut du sujet.
      */
-    static consulterSujet(id) {
-        const timerName = `consulterSujet-${id}`;
-        console.time(timerName);
+    static #consulterSujet(id) {
+        const timerName = `#consulterSujet-${id}`;
+        // console.time(timerName);
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
@@ -243,7 +248,7 @@ class AccesForum {
                 "xajaxr": moment().valueOf()
             }
         }).always(() => {
-            console.timeEnd(timerName);
+            // console.timeEnd(timerName);
         });
     }
 
@@ -255,11 +260,11 @@ class AccesForum {
      */
     static async consulterSujetAvecMessagesEtIds(idSujet) {
         try {
-            const dataSujet = await AccesForum.consulterSujet(idSujet);
+            const dataSujet = await AccesForum.#consulterSujet(idSujet);
             const response = $(dataSujet).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
-                console.error("[Utils][consulterSujetAvecMessagesEtIds] Impossible de récupérer le contenu du sujet.");
+                console.error("[AccesForum][consulterSujetAvecMessagesEtIds] Impossible de récupérer le contenu du sujet.");
                 return { titre: null, messages: null };
             }
 
@@ -289,7 +294,7 @@ class AccesForum {
             });
             return { titre: titre, messages: messages };
         } catch (error) {
-            console.error(`[Utils][consulterSujetAvecMessagesEtIds] Erreur lors de la consultation du sujet ${idSujet}:`, error);
+            console.error(`[AccesForum][consulterSujetAvecMessagesEtIds] Erreur lors de la consultation du sujet ${idSujet}:`, error);
             throw error;
         }
     }
@@ -304,7 +309,7 @@ class AccesForum {
      */
     static async transfererSujet(idSujet, idSectionDestination, idSectionSource) {
         try {
-            await $.ajax({
+            $.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -318,7 +323,7 @@ class AccesForum {
             });
             return true;
         } catch (error) {
-            console.error(`[Utils] Erreur lors du transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}:`, error);
+            console.error(`[AccesForum] Erreur lors du transfert du sujet ID: ${idSujet} vers la section ID: ${idSectionDestination}:`, error);
             throw error;
         }
     }
@@ -360,7 +365,7 @@ class AccesForum {
 
             return data;
         } catch (error) {
-            console.error(`[Utils] Erreur lors de la suppression du sujet : ${idSujet}):`, error);
+            console.error(`[AccesForum] Erreur lors de la suppression du sujet : ${idSujet}):`, error);
             throw error;
         }
     }
@@ -369,13 +374,13 @@ class AccesForum {
     @private
     * Envoie un message.
     */
-    static envoyerMessage(idSujet, message) {
+    static #envoyerMessage(idSujet, message) {
         return $.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
                 "xajax": "envoiNouveauMessage",
-                "xajaxargs[]": `<xjxquery><q>topic=${idSujet}&message=${message}&send=Envoyer</q></xjxquery>`,
+                "xajaxargs[]": `<xjxquery><q>topic=${idSujet}&message=${encodeURIComponent(message)}&send=Envoyer</q></xjxquery>`,
                 "xajaxr": moment().valueOf()
             }
         });
@@ -390,11 +395,11 @@ class AccesForum {
      */
     static async envoyerMessageEtRetournerId(idSujet, message) {
         try {
-            const data = await AccesForum.envoyerMessage(idSujet, message);
+            const data = await AccesForum.#envoyerMessage(idSujet, message);
             const response = $(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
-                console.error("[Utils][envoyerMessageEtRetournerId] Impossible de récupérer le contenu du sujet après l'envoi du message.");
+                console.error("[AccesForum][envoyerMessageEtRetournerId] Impossible de récupérer le contenu du sujet après l'envoi du message.");
                 return null;
             }
 
@@ -415,7 +420,7 @@ class AccesForum {
 
             return idMessage;
         } catch (error) {
-            console.error(`[Utils][envoyerMessageEtRetournerId] Erreur lors de l'envoi pour le sujet ${idSujet}:`, error);
+            console.error(`[AccesForum][envoyerMessageEtRetournerId] Erreur lors de l'envoi pour le sujet ${idSujet}:`, error);
             throw error;
         }
     }
@@ -429,7 +434,7 @@ class AccesForum {
      */
     static async modifierMessage(idMessage, nouveauContenu) {
         try {
-            await $.ajax({
+            $.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -440,7 +445,7 @@ class AccesForum {
             });
             return true;
         } catch (error) {
-            console.error(`[Utils] Erreur lors de la modification du message ID: ${idMessage}:`, error);
+            console.error(`[AccesForum] Erreur lors de la modification du message ID: ${idMessage}:`, error);
             throw error;
         }
     }
@@ -481,9 +486,9 @@ class AccesForum {
 
             return data;
         } catch (error) {
-            console.error(`[Utils] Erreur lors de la suppression du message : ${idMessage}):`, error);
+            console.error(`[AccesForum] Erreur lors de la suppression du message : ${idMessage}):`, error);
             throw error;
         }
     }
 
-}
+})

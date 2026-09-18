@@ -18,7 +18,8 @@ Utils.register(class Forum extends Page {
      */
     static FONCTIONNALITES = [
         AdministrerForum,
-        AdministrerCommandes
+        AdministrerCommandes,
+        CopierLogs
     ];
 
     constructor() {

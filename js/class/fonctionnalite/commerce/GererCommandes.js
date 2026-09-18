@@ -13,18 +13,15 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      */
     async run() {
         // Charger toutes les commandes via le framework
-        console.log('Chargement des commandes')
         await this.executerTransaction(async () => {
             this.commandes = await this.chargerObjetsForum(Commande, true);
-            console.log('commandes', this.commandes)
 
             // Activer la prochaine commande si besoin
-            await this._activerProchaineCommandeSiBesoin();
+            await this.#activerProchaineCommandeSiBesoin();
         })
 
         // Afficher le tableau des commandes
         await this.afficherTableauCommandes();
-        console.log('tableau commandes affiché')
 
         // Gérer le traitement des convois après rechargement
         await this._traiterConvoiApresEnvoiJeu();
@@ -79,7 +76,6 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
             $("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
                 // $("#o_ajouterCommande").on('click', async (e) => {
-                // let commandeTest = new Commande(this);
                 // await commandeTest.enregistrerSurForum();
 
                 // let commandeTest2 = this.commandes[0];
@@ -161,7 +157,6 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         const monPseudo = await monProfilJoueur.lire('Pseudo');
         let auMoinsUneCommandeEtrangere = false;
 
-        console.log("this.commandes", this.commandes);
         for (const commande of this.commandes) {
             if (!await commande.estAFaire()) continue;
 
@@ -171,7 +166,6 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
             // Utiliser la fonction afficher de l'objet pour générer la ligne
             const corps_html = await commande.afficherCorps();
-            console.log("corps_html", corps_html);
             tableRows.push(corps_html);
 
             const materiauxRestants = await commande.lire('Matériaux Restants');
@@ -376,7 +370,6 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     return Math.abs(aArrival.diff(convoiParams['Date Arrivée'])) - Math.abs(bArrival.diff(convoiParams['Date Arrivée']));
                 });
 
-                console.log("Correspondances: ", correspondances);
                 if (correspondances.length > 0) {
                     const leBonConvoi = correspondances[0];
                     await convoiDataObj.ecrire('Id Convoi', leBonConvoi.idAnnulation);
@@ -385,7 +378,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
 
                     // Passer la prochaine commande en cours si nécessaire
-                    await this._activerProchaineCommandeSiBesoin();
+                    await this.#activerProchaineCommandeSiBesoin();
                     await this.actualiserCommandes();
                 } else {
                     $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
@@ -419,7 +412,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                         convoiTraite = true;
                         if (resultat.modifie) {
                             if (resultat.resurrection) {
-                                await this._repasserEnAttenteProchaineCommande(commande.idSujet);
+                                await this.#repasserEnAttenteProchaineCommande(commande.idSujet);
                             }
                             await this.actualiserCommandes();
                         }
@@ -442,8 +435,9 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
 
     /**
      * Active la prochaine commande "En attente" si aucune commande n'est actuellement "En cours".
+     * @private
      */
-    async _activerProchaineCommandeSiBesoin() {
+    async #activerProchaineCommandeSiBesoin() {
         let cmdSuivante = null;
         let foundActive = false;
         for (const cmd of this.commandes) {
@@ -467,8 +461,9 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
     /**
      * Repasse les commandes indûment activées en attente si une commande précédente a été ressuscitée.
      * @param {number} idSujetRessuscite - L'ID du sujet de la commande qui vient d'être remise en cours.
+     * @private
      */
-    async _repasserEnAttenteProchaineCommande(idSujetRessuscite) {
+    async #repasserEnAttenteProchaineCommande(idSujetRessuscite) {
         for (const cmd of this.commandes) {
             if (cmd.idSujet != idSujetRessuscite && await cmd.lire('État') === ETAT_COMMANDE["En cours"]) {
                 await cmd.ecrire('État', ETAT_COMMANDE["En attente"]);

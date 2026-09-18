@@ -1,46 +1,40 @@
-class Transaction {
+Utils.register(class Transaction {
     /**
      * Listes d'objets créés durant la transaction.
      * @type {Array<ObjetForum>}
-     * @private
      */
     creations = [];
     /**
      * Listes d'objets modifiés durant la transaction.
      * @type {Array<ObjetForum>}
-     * @private
      */
     modifications = [];
     /**
      * Listes d'objets transférés durant la transaction.
      * @type {Array<ObjetForum>}
-     * @private
      */
     transferts = [];
     /**
      * Listes d'objets supprimés durant la transaction.
      * @type {Array<ObjetForum>}
-     * @private
      */
     suppressions = [];
     /**
      * Indique si la transaction est en cours d'annulation.
      * @type {Boolean}
-     * @private
      */
     rollbacking = false;
 
     /**
-     * Lie la transactrion à la fonctionnalité qui l'a lancée.
+     * Lie la transaction à la fonctionnalité qui l'a lancée.
      * @type {FonctionnaliteAlliance}
-     * @private
      */
     fonctionnalite = true;
 
     constructor(fonctionnalite) {
-        this.bloquerFermetureEtRafraichissement = this.bloquerFermetureEtRafraichissement.bind(this);
-        this.intercepterClicsDestructeurs = this.intercepterClicsDestructeurs.bind(this);
-        this.intercepterSoumissionsFormulaire = this.intercepterSoumissionsFormulaire.bind(this);
+        this.bloquerFermetureEtRafraichissement = this.#bloquerFermetureEtRafraichissement.bind(this);
+        this.intercepterClicsDestructeurs = this.#intercepterClicsDestructeurs.bind(this);
+        this.intercepterSoumissionsFormulaire = this.#intercepterSoumissionsFormulaire.bind(this);
         this.fonctionnalite = fonctionnalite
     }
 
@@ -49,14 +43,16 @@ class Transaction {
      * @private
      * @returns {Boolean}
      */
-    _vientDeLaTransaction() {
+    #vientDeLaTransaction() {
         const stack = new Error().stack || "";
         return stack.includes("Transaction.run") || (stack.match(/executerTransaction/g) || []).length >= 2;
     }
-
+    /**
+    @private
     // Bloque les clics sur les liens menant à une autre page dans le même onglet
-    intercepterClicsDestructeurs(e) {
-        if (this._vientDeLaTransaction()) return;
+    */
+    #intercepterClicsDestructeurs(e) {
+        if (this.#vientDeLaTransaction()) return;
         const lien = e.target.closest('a');
         if (lien) {
             const href = lien.getAttribute('href');
@@ -77,10 +73,12 @@ class Transaction {
         }
     }
 
+    /**
+    @private
     // Bloque la soumission de formulaires standards (qui rechargeraient la page)
-    intercepterSoumissionsFormulaire(e) {
-        console.log('tentative de transmission de formulaire');
-        if (this._vientDeLaTransaction()) return;
+    */
+    #intercepterSoumissionsFormulaire(e) {
+        if (this.#vientDeLaTransaction()) return;
         e.preventDefault();
         e.stopPropagation();
         $.toast({
@@ -89,9 +87,12 @@ class Transaction {
         });
     };
 
+    /**
+    @private
     // Bloque le rafraîchissement (F5 / bouton actualiser), la fermeture d'onglet, et la navigation externe
-    bloquerFermetureEtRafraichissement(e) {
-        if (this._vientDeLaTransaction()) return;
+    */
+    #bloquerFermetureEtRafraichissement(e) {
+        if (this.#vientDeLaTransaction()) return;
         e.preventDefault();
         e.returnValue = "Une transaction est en cours. Vos modifications risquent d'être perdues.";
         return e.returnValue;
@@ -105,14 +106,13 @@ class Transaction {
     async run(callback) {
         try {
             // Active les bloqueurs pour cette transaction
-            window.addEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
-            document.addEventListener('click', this.intercepterClicsDestructeurs, true);
-            document.addEventListener('submit', this.intercepterSoumissionsFormulaire, true);
+            window.addEventListener('beforeunload', this.#bloquerFermetureEtRafraichissement);
+            document.addEventListener('click', this.#intercepterClicsDestructeurs, true);
+            document.addEventListener('submit', this.#intercepterSoumissionsFormulaire, true);
 
             const resultat = await callback();
-            console.warn("Transaction : Callback terminé ")
 
-            if (this.contientDesOperationsActives()) {
+            if (this.#contientDesOperationsActives()) {
                 await Utils.sleep(TRANSACTION_COLLISION_WAIT_MS);
                 // if (!transaction3) {
                 //     transaction = transaction2;
@@ -125,7 +125,11 @@ class Transaction {
                         text: "Les modifications forum ont été entièrement altérées ou supprimées par un tiers, invalidant l'opération. La page va être rechargée.",
                         hideAfter: 5000
                     });
-                    setTimeout(() => location.href = location.href, 5000);
+                    const debutAnnulation = moment();
+                    await logger.attendreFinPosteLogs();
+                    const dureeAnnulation = moment().diff(debutAnnulation);
+                    const tempsRestant = Math.max(0, 5000 - dureeAnnulation);
+                    setTimeout(() => location.href = location.href, tempsRestant);
                     return;
                 } else if (etatCollision === 'COLLISION_INCOHERENT') {
                     $.toast({
@@ -141,6 +145,7 @@ class Transaction {
                         console.error("[executerTransaction] Échec du rollback après collision incohérente:", rollbackError);
                     }
                     await this.executerActionsApresAnnuler();
+                    await logger.attendreFinPosteLogs();
                     const dureeAnnulation = moment().diff(debutAnnulation);
                     const tempsRestant = Math.max(0, 5000 - dureeAnnulation);
                     setTimeout(() => location.href = location.href, tempsRestant);
@@ -151,6 +156,7 @@ class Transaction {
             return resultat;
         } catch (error) {
             console.error(`[${this.constructor.name}][executerTransaction] Erreur lors de l'exécution de la transaction. Lancement du rollback.`, error);
+            const debutGestionErreur = moment();
             try {
                 await this.annuler();
             } catch (rollbackError) {
@@ -159,22 +165,27 @@ class Transaction {
             await this.executerActionsApresAnnuler();
             $.toast({
                 ...TOAST_ERROR,
-                text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée."
+                text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée.",
+                hideAfter: 3000
             });
-            setTimeout(() => location.href = location.href, 3000);
+            await logger.attendreFinPosteLogs();
+            const dureeGestionErreur = moment().diff(debutGestionErreur);
+            const tempsRestant = Math.max(0, 3000 - dureeGestionErreur);
+            setTimeout(() => location.href = location.href, tempsRestant);
             throw error;
         } finally {
-            window.removeEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
-            document.removeEventListener('click', this.intercepterClicsDestructeurs, true);
-            document.removeEventListener('submit', this.intercepterSoumissionsFormulaire, true);
+            window.removeEventListener('beforeunload', this.#bloquerFermetureEtRafraichissement);
+            document.removeEventListener('click', this.#intercepterClicsDestructeurs, true);
+            document.removeEventListener('submit', this.#intercepterSoumissionsFormulaire, true);
         }
     }
 
     /**
      * Retourne true s'il y a au moins une opération enregistrée dans la transaction.
      * @returns {Boolean}
+     * @private
      */
-    contientDesOperationsActives() {
+    #contientDesOperationsActives() {
         return this.creations.length > 0 ||
             this.modifications.length > 0 ||
             this.transferts.length > 0;
@@ -245,7 +256,6 @@ class Transaction {
         if (this.rollbacking) {
             return;
         }
-        console.warn(`idSection: ${objetForum.idSection}`);
         const indexCreation = this.creations.indexOf(objetForum);
         if (indexCreation !== -1) {
             this.creations.splice(indexCreation, 1);
@@ -281,11 +291,6 @@ class Transaction {
     async annuler() {
         this.rollbacking = true;
 
-        console.log('modifications:', this.modifications);
-        console.log('suppressions:', this.suppressions);
-        console.log('transferts:', this.transferts);
-        console.log('creations:', this.creations);
-
         // 1. Suppressions (Recréations) dans l'ordre inverse
         const suppressionsInverse = [...this.suppressions].reverse();
         for (const entry of suppressionsInverse) {
@@ -319,10 +324,8 @@ class Transaction {
 
         // 3. Modifications
         for (const { objetForum, stringInitial } of this.modifications) {
-            console.warn(`[Transaction] Rollback de modification: ${stringInitial}`);
             try {
                 await objetForum.chargerDepuisString(stringInitial);
-                console.log(`[Transaction] après chargement depuis string:`, objetForum);
                 await objetForum.enregistrerSurForum();
             } catch (e) {
                 console.error(`[Transaction] Erreur lors du rollback de modification:`, e);
@@ -366,10 +369,6 @@ class Transaction {
      * @returns {Promise<String>} Le statut global: 'OK', 'COLLISION_TOTAL', ou 'COLLISION_INCOHERENT'.
      */
     async verifierEtatForum() {
-        console.log(`[verifierEtatForum] modifications: ${this.modifications.length}`);
-        console.log(`[verifierEtatForum] suppressions: ${this.suppressions.legth}`);
-        console.log(`[verifierEtatForum] transferts: ${this.transferts.length}`);
-        console.log(`[verifierEtatForum] creations: ${this.creations.length}`);;
 
         const resultatsUnitaires = []; // Tableau de booleans (true = Succès unitaire, false = Échec unitaire)
 
@@ -404,8 +403,6 @@ class Transaction {
                 tests.add('section');
             }
 
-            console.log(`objet.idSection avant rafraichissement: ${objet.idSection}`);
-
             const stringForumInitial = await objet.genererStringParametres();
 
             let rafraichissementOk;
@@ -434,8 +431,7 @@ class Transaction {
                     }
                     if (nomTest === 'section') {
                         try {
-                            console.log(`objet.idSection après rafraichissement: ${objet.idSection}`);
-                            const sujetsSection = await AccesForum.recupererSujetsSection(objet.idSection);
+                            const { sujets: sujetsSection } = await AccesForum.recupererSujetsSection(objet.idSection);
                             return sujetsSection.some(s => s.id === objet.idSujet);
                         } catch (err) {
                             return false;
@@ -443,9 +439,6 @@ class Transaction {
                     }
                     return false;
                 };
-
-                console.log('tests', tests);
-                console.log('test valeur:', objet.estModifie === false, objet.estModifie)
 
                 for (const test of tests) {
                     const res = await executerTest(test);
@@ -476,8 +469,6 @@ class Transaction {
             }
         }
 
-        console.log('resultatsUnitaires:', resultatsUnitaires);
-
         if (resultatsUnitaires.length === 0) {
             return 'OK';
         }
@@ -493,4 +484,4 @@ class Transaction {
             return 'COLLISION_INCOHERENT';
         }
     }
-}
+});

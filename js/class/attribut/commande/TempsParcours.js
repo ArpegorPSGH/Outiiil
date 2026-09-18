@@ -1,4 +1,4 @@
-class TempsParcours extends AttributObjet {
+Utils.register(class TempsParcours extends AttributObjet {
     static TYPE_AFFICHAGE = 'time-unformat';
     static NOM_AFFICHAGE = ['Temps de trajet'];
 
@@ -24,4 +24,4 @@ class TempsParcours extends AttributObjet {
         const tempsParcours = await monProfilJoueur.getTempsParcours2(joueurDemandeur);
         return Utils.intToTime(tempsParcours);
     }
-}
+});

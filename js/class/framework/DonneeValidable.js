@@ -1,10 +1,10 @@
 /**
  * DonneeValidable.js
  * Classe de base pour les données qui nécessitent validation et gestion des restrictions.
- * Contient les méthodes communes de validation (_checkValeur) et d'application de restrictions (_appliquerRestriction).
+ * Contient les méthodes communes de validation (checkValeur) et d'application de restrictions (#appliquerRestriction).
  */
 
-class DonneeValidable {
+Utils.register(class DonneeValidable {
 
     /**
      * Configuration déclarative. Liste des formats historiques du paramètre, du plus ancien au plus récent.
@@ -48,7 +48,7 @@ class DonneeValidable {
      * @type {string|null}
      */
     static TYPE_LIEN = null;
-    
+
     /**
      * Configuration déclarative. Format d'affichage personnalisé (ex: 'D MMM YYYY').
      * Pour les moments, si null, FORMAT_DATE_DEFAUT est utilisé.
@@ -159,10 +159,8 @@ class DonneeValidable {
      * Valide et caste une valeur par rapport à la valeur actuelle.
      * @param {any} valeurAValider - La valeur à valider.
      * @returns {{success: boolean, value: any}} - Le résultat de l'opération.
-     * @private
      */
-    _checkValeur(valeurAValider) {
-        console.log(`[${this.constructor.name}] valeurAValider`, valeurAValider);
+    checkValeur(valeurAValider) {
         if (this.valeur === null || this.valeur === undefined) {
             console.error(`[${this.constructor.name}] La valeur actuelle est nulle, impossible de valider le type.`);
             return { success: false };
@@ -201,7 +199,7 @@ class DonneeValidable {
         const typeContenantAValider = Array.isArray(valeurAValider) ? 'array' : (typeof valeurAValider === 'object' && valeurAValider !== null) ? 'object' : 'primitive';
 
         if (typeContenantActuel !== typeContenantAValider) {
-            console.error(`[${this.constructor.name}] Le type de contenant ne correspond pas: attendu ${typeContenantActuel}, reçu ${typeContenantAValider}.`);
+            console.warn(`[${this.constructor.name}] Le type de contenant ne correspond pas: attendu ${typeContenantActuel}, reçu ${typeContenantAValider}.`);
             return { success: false };
         }
 
@@ -233,12 +231,12 @@ class DonneeValidable {
 
         if (typeContenantActuel === 'array') {
             if (this.valeur.length === 0) {
-                console.error(`[${this.constructor.name}] La liste actuelle est vide, impossible de valider le type des éléments.`);
+                console.warn(`[${this.constructor.name}] La liste actuelle est vide, impossible de valider le type des éléments.`);
                 return { success: false };
             }
             const resultatListe = [];
             for (const element of valeurAValider) {
-                const checkResult = this._checkValeur.call({ valeur: this.valeur[0] }, element);
+                const checkResult = this.checkValeur.call({ valeur: this.valeur[0] }, element);
                 if (!checkResult.success) {
                     console.error(`[${this.constructor.name}] Échec du casting de l'élément "${element}" de la liste.`);
                     return { success: false };
@@ -254,23 +252,23 @@ class DonneeValidable {
                 if (valeurAValider instanceof this.valeur.constructor) {
                     return { success: true, value: valeurAValider };
                 }
-                console.error(`[${this.constructor.name}] Type de classe incompatible: attendu ${this.valeur.constructor.name}, reçu ${valeurAValider?.constructor?.name || typeof valeurAValider}.`);
+                console.warn(`[${this.constructor.name}] Type de classe incompatible: attendu ${this.valeur.constructor.name}, reçu ${valeurAValider?.constructor?.name || typeof valeurAValider}.`);
                 return { success: false };
             }
 
             for (const cle in this.valeur) {
                 if (!valeurAValider.hasOwnProperty(cle)) {
-                    console.error(`[${this.constructor.name}] La clé attendue "${cle}" est manquante dans la valeur validée.`);
+                    console.warn(`[${this.constructor.name}] La clé attendue "${cle}" est manquante dans la valeur validée.`);
                     return { success: false };
                 }
             }
             const resultatDict = {};
             for (const cle in valeurAValider) {
                 if (!this.valeur.hasOwnProperty(cle)) {
-                    console.error(`[${this.constructor.name}] La clé "${cle}" n'est pas attendue dans le dictionnaire.`);
+                    console.warn(`[${this.constructor.name}] La clé "${cle}" n'est pas attendue dans le dictionnaire.`);
                     return { success: false };
                 }
-                const checkResult = this._checkValeur.call({ valeur: this.valeur[cle] }, valeurAValider[cle]);
+                const checkResult = this.checkValeur.call({ valeur: this.valeur[cle] }, valeurAValider[cle]);
                 if (!checkResult.success) return { success: false };
                 resultatDict[cle] = checkResult.value;
             }
@@ -285,7 +283,7 @@ class DonneeValidable {
      * @returns {*} La valeur avec les restrictions appliquées.
      * @private
      */
-    _appliquerRestriction(valeur) {
+    #appliquerRestriction(valeur) {
         // Détection spéciale pour les objets moment ou autres instances de classes
         if (typeof moment !== 'undefined' && moment.isMoment(valeur)) {
             return this.constructor.STRING_RESTRICTION;
@@ -296,7 +294,7 @@ class DonneeValidable {
             return this.constructor.STRING_RESTRICTION;
         }
         if (typeContenant === 'array') {
-            return valeur.map(v => this._appliquerRestriction(v));
+            return valeur.map(v => this.#appliquerRestriction(v));
         }
         if (typeContenant === 'object') {
             // Si c'est une instance de classe (autre que Object), on vérifie simplement la classe
@@ -306,9 +304,9 @@ class DonneeValidable {
 
             const res = {};
             for (const key in valeur) {
-                res[key] = this._appliquerRestriction(valeur[key]);
+                res[key] = this.#appliquerRestriction(valeur[key]);
             }
             return res;
         }
     }
-}
+});

@@ -1,10 +1,5 @@
 Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
     /**
-     * @property {string} #nom - Nom pour l'affichage dans les logs
-     */
-    #nom = 'Joueurs Extérieurs';
-
-    /**
      * @property {string[]} ABREVIATIONS_HISTORY - Historique des abréviations
      */
     static ABREVIATIONS_HISTORY = ['JEX'];
@@ -15,7 +10,6 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        console.log(`[${this.#nom}] Exécution`);
         await this.page.synchroniserJoueursDepuisDOM();
         const joueursDejaDansTableau = Object.keys(this.page._alliance.joueurs);
         let tousLesMembres;
@@ -36,7 +30,6 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
         console.log('membresExterieurs: ', membresExterieurs);
 
         if (membresExterieurs.length > 0) {
-            console.log(`[${this.#nom}] ${membresExterieurs.length} joueur(s) extérieur(s) trouvé(s).`);
 
             const pseudoColIndex = this.page.getColonneIndex('Pseudo');
             let tagAllianceColIndex = this.page.getColonneIndex('Tag Alliance');
@@ -45,7 +38,7 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
                 // Créer la colonne "Tag Alliance" juste après "Pseudo"
                 $('<th>Tag Alliance</th>').insertAfter($(`#tabMembresAlliance thead tr th:eq(${pseudoColIndex})`));
                 tagAllianceColIndex = pseudoColIndex + 1;
-                console.log(`[${this.#nom}] Colonne 'Tag Alliance' créée.`);
+                console.log(`[${this.constructor.name}] Colonne 'Tag Alliance' créée.`);
             }
 
             // Peupler la colonne pour tous les joueurs déjà dans le tableau
@@ -76,10 +69,10 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
                 const $corps = await membre.afficherCorps(headers);
                 $("#tabMembresAlliance tbody").append($corps);
                 const pseudo = await membre.lire('Pseudo');
-                console.log(`[${this.#nom}] Ligne ajoutée pour le joueur ${pseudo}.`);
+                console.log(`[${this.constructor.name}] Ligne ajoutée pour le joueur ${pseudo}.`);
             }
         } else {
-            console.log(`[${this.#nom}] Aucun joueur extérieur à ajouter.`);
+            console.log(`[${this.constructor.name}] Aucun joueur extérieur à ajouter.`);
         }
     }
 });

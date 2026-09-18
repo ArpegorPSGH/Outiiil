@@ -364,4 +364,119 @@ class Utils {
         return listeSansDoublons;
     }
 
+    /**
+     * Estime la taille d'une chaîne après échappement par le serveur Fourmizzz.
+     * @static
+     * @method estimerTailleEchappee
+     * @param {String} str - La chaîne à évaluer.
+     * @returns {Number} La taille estimée.
+     */
+    static estimerTailleEchappee(str) {
+        if (!str) return 0;
+        let extra = 0;
+        const mQuotes = str.match(/["']/g);
+        if (mQuotes) extra += mQuotes.length * 5;
+        const mAmps = str.match(/&/g);
+        if (mAmps) extra += mAmps.length * 4;
+        const mLtGt = str.match(/[<>]/g);
+        if (mLtGt) extra += mLtGt.length * 3;
+        const mNl = str.match(/\n/g);
+        if (mNl) extra += mNl.length;
+        const mNonAscii = str.match(/[^\x00-\x7F]/g);
+        if (mNonAscii) extra += mNonAscii.length * 2;
+        return str.length + extra;
+    }
+
+    /**
+     * Calcule le hash DJB2 d'une chaîne de caractères.
+     * @static
+     * @param {String} str - La chaîne à hacher.
+     * @returns {String} Le hash sous forme de chaîne hexadécimale.
+     */
+    static genererHash(str) {
+        let hash = 5381;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        }
+        return (hash >>> 0).toString(16);
+    }
+
+    /**
+     * Découvre et met en cache toutes les classes définies dans les fichiers de l'extension
+     * listés dans le champ `js` du manifest.json.
+     *
+     * @static
+     * @async
+     * @method decouvrirClasses
+     * @return {Promise<Map<string, Function>>} Une promesse résolue avec la Map des classes (nomClasse => Constructeur).
+     */
+    static async decouvrirClasses() {
+        if (window.classesCache) {
+            return classesCache;
+        }
+
+        const jsFiles = (manifest.content_scripts?.flatMap(cs => cs.js || []) || [])
+            .filter(file => file.includes('js/class/'));
+
+        const classesMap = new Map();
+        const processed = new Set();
+        const reservedWords = new Set([
+            'extends', 'implements', 'interface', 'package', 'private', 'protected', 'public', 'static',
+            'yield', 'to', 'from', 'of', 'in', 'as', 'is', 'if', 'else', 'for', 'while', 'do', 'return',
+            'function', 'class', 'const', 'let', 'var', 'default', 'import', 'export', 'try', 'catch',
+            'finally', 'throw', 'new', 'this', 'super', 'typeof', 'instanceof', 'void', 'delete',
+            'null', 'true', 'false', 'undefined'
+        ]);
+        const excludedClasses = new Set([
+            'ObjetForumDroits'
+        ]);
+
+        for (const file of jsFiles) {
+            try {
+                const candidates = new Set();
+                const baseName = file.split('/').pop().replace(/\.js$/, '');
+
+                try {
+                    const url = chrome.runtime.getURL(file);
+                    const response = await fetch(url);
+                    const content = await response.text();
+
+                    // Nettoyer les commentaires et les chaînes de caractères pour éviter les faux positifs
+                    const cleanContent = content
+                        .replace(/\/\*[\s\S]*?\*\//g, '')
+                        .replace(/\/\/.*/g, '')
+                        .replace(/(["'])(?:(?=(\\?))\2[\s\S])*?\1|`(?:\\.|[^`])*`/g, '');
+
+                    for (const match of cleanContent.matchAll(/\bclass\s+([A-Za-z0-9_$]+)/g)) {
+                        const name = match[1];
+                        if (!reservedWords.has(name) && !excludedClasses.has(name)) {
+                            candidates.add(name);
+                        }
+                    }
+                } catch (e) { }
+
+                for (const key of candidates) {
+                    if (processed.has(key)) continue;
+                    processed.add(key);
+
+                    try {
+                        let ClassConstructor = window[key] || globalThis[key];
+
+                        if (ClassConstructor && (typeof ClassConstructor === 'function' || typeof ClassConstructor === 'object')) {
+                            classesMap.set(key, ClassConstructor);
+                        }
+                    } catch (error) {
+                        // Ignorer les propriétés inaccessibles
+                    }
+                }
+            } catch (e) {
+                // Ignorer
+            }
+        }
+
+        window.classesCache = classesMap;
+        return classesMap;
+    }
 }
+
+Utils.register(Utils);

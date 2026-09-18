@@ -131,20 +131,20 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             });
         }
 
-        await this.actualiserConvois();
+        await this.#actualiserConvois();
     }
 
     /**
      * Actualise le tableau des convois.
+     * @private
      */
-    async actualiserConvois() {
+    async #actualiserConvois() {
         const tableRows = [];
         for (const convoi of this.convois) {
             // Utiliser la fonction afficher de l'objet pour générer la ligne
             const corps_html = await convoi.afficherCorps();
             tableRows.push(corps_html);
         }
-        console.log('tableRows', tableRows)
         // Optimisation : Utiliser l'API DataTables sans détruire/recréer la table
         if ($.fn.DataTable.isDataTable('#o_tableListeConvoi')) {
             const table = $("#o_tableListeConvoi").DataTable();

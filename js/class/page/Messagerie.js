@@ -55,10 +55,10 @@ Utils.register(class Messagerie extends Page {
                                 if (titreMess.includes("chasseuses ont conquis")) {
                                     const messages = element.find(".message");
                                     for (const elt of messages.get()) {
-                                        await this.analyseChasse(convId, $(elt).parent().attr("id"), $(elt).text());
+                                        await this.#analyseChasse(convId, $(elt).parent().attr("id"), $(elt).text());
                                     }
                                     if (messages.length > 1) {
-                                        await this.analyseChasses(convId);
+                                        await this.#analyseChasses(convId);
                                     }
                                     // Si on est sur des rapports de combat
                                 } else if (
@@ -69,9 +69,9 @@ Utils.register(class Messagerie extends Page {
                                 ) {
                                     const combatMessages = element.find(".message");
                                     for (const elt of combatMessages.get()) {
-                                        await this.analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());
+                                        await this.#analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());
                                     }
-                                    this.optionMessage(combatMessages.first().parent().attr("id"));
+                                    this.#optionMessage(combatMessages.first().parent().attr("id"));
                                 }
                                 // Ajout des balises de mise en forme pour envoyer des messages
                                 if (element.find("div[id^='champ_bbcode_']").length && !Utils.comptePlus) {
@@ -87,8 +87,8 @@ Utils.register(class Messagerie extends Page {
                                         // Si on affiche plus de message d'un rapport de chasse
                                         if (titreChasse.includes("chasseuses ont conquis")) {
                                             const convId = header.attr("id").split("_")[1];
-                                            await this.analyseChasse(convId, element.find(".message").parent().attr("id"), element.find(".message").text());
-                                            await this.analyseChasses(convId);
+                                            await this.#analyseChasse(convId, element.find(".message").parent().attr("id"), element.find(".message").text());
+                                            await this.#analyseChasses(convId);
                                         }
                                     }
                                 }
@@ -172,15 +172,15 @@ Utils.register(class Messagerie extends Page {
         return this;
     }
     /**
-    *
+    * @private
     */
-    async analyseCombat(id, dateHeure, message) {
+    async #analyseCombat(id, dateHeure, message) {
         let id_mess = id.split("_")[1], combat = new Combat({ id: id_mess, dateHeure: dateHeure, RC: message });
         let simulation = message.includes("Vos troupes ont échoué") ? ` <span id="o_simuler_${id_mess}">Simuler</span>` : "";
         // preparation de l'analyse
         await combat.analyse();
         // affichage des optiosn
-        $("#" + id + " td:eq(1)").append(`<p class="o_optionMessage gras cursor"><span id="show_info_${id_mess}">+</span>${simulation}</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${await combat.toHTMLMessagerie()}</div>`);
+        $("#" + id + " td:eq(1)").append(`<p class="o_#optionMessage gras cursor"><span id="show_info_${id_mess}">+</span>${simulation}</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${await combat.toHTMLMessagerie()}</div>`);
         $("#show_info_" + id_mess).click((e) => { $(e.currentTarget).text($(e.currentTarget).text() == "+" ? "-" : "+").parent().next().toggle("blind", 400); });
         $("#o_simuler_" + id_mess).click(async (e) => {
             // ouverture de la boite combat sur l'onglet de simulation
@@ -220,9 +220,9 @@ Utils.register(class Messagerie extends Page {
         return this;
     }
     /**
-    *
+    * @private
     */
-    async analyseChasse(id_conv, id, message) {
+    async #analyseChasse(id_conv, id, message) {
         let id_mess = id.split("_")[1];
         if (!this._messagesOuvert.hasOwnProperty(id_mess)) {
             let chasse = new Chasse(message);
@@ -246,7 +246,7 @@ Utils.register(class Messagerie extends Page {
     /**
     *
     */
-    async analyseChasses(id_conv) {
+    async #analyseChasses(id_conv) {
         if (!this._messagesOuvert["conv_" + id_conv]) return;
 
         const idBilan = "#o_bilan_" + id_conv;
@@ -276,9 +276,9 @@ Utils.register(class Messagerie extends Page {
         }
     }
     /**
-    *
+    * @private
     */
-    optionMessage(id_conv) {
+    #optionMessage(id_conv) {
         $("#" + id_conv + " td:eq(0)").append(`<div class="cursor_copy o_group_bouton_mess">
             <img id="copier_${id_conv}" src="${IMG_COPIER}" height="16" alt="copy" title="copier dans le presse papier"/></span>
             <span id="copier_plus_${id_conv}"><img class="afficher_plus" src="images/icone/more_options.gif" title="Afficher les options" width="10" style="position:relative; top:-4px; margin-left:8px;"/>
@@ -296,17 +296,17 @@ Utils.register(class Messagerie extends Page {
         // action menu plus
         $("#copier_plus_" + id_conv).click((e) => { $("#choix_supp_" + id_conv).toggle(); });
         // action bouton principale
-        let messDefaut = new Clipboard("#copier_" + id_conv, { text: () => { return this.formatMessage(id_conv); } });
+        let messDefaut = new Clipboard("#copier_" + id_conv, { text: () => { return this.#formatMessage(id_conv); } });
         messDefaut.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
         messDefaut.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
         // action bouton supplementaire
-        let messHOF = new Clipboard("#copier_hof_" + id_conv, { text: () => { return this.formatMessage(id_conv, true); } });
+        let messHOF = new Clipboard("#copier_hof_" + id_conv, { text: () => { return this.#formatMessage(id_conv, true); } });
         messHOF.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
         messHOF.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
-        let messBonus = new Clipboard("#copier_bonus_" + id_conv, { text: () => { return this.formatMessage(id_conv, false, true); } });
+        let messBonus = new Clipboard("#copier_bonus_" + id_conv, { text: () => { return this.#formatMessage(id_conv, false, true); } });
         messBonus.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
         messBonus.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
-        let messHOFBonus = new Clipboard("#copier_hof_bonus_" + id_conv, { text: () => { return this.formatMessage(id_conv, true, true); } });
+        let messHOFBonus = new Clipboard("#copier_hof_bonus_" + id_conv, { text: () => { return this.#formatMessage(id_conv, true, true); } });
         messHOFBonus.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
         messHOFBonus.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
     }
@@ -324,9 +324,9 @@ Utils.register(class Messagerie extends Page {
         return this;
     }
     /**
-    *
+    * @private
     */
-    async formatMessage(id_conv, hof = false, bonus = false) {
+    async #formatMessage(id_conv, hof = false, bonus = false) {
         let html = ``;
         // pour chaque message de la conversation (attaque terrain + dome + loge par exemple)
         await $("#" + id_conv).parent().find("tr[id^='message_']").each(async (i, elt) => {
@@ -336,7 +336,7 @@ Utils.register(class Messagerie extends Page {
             // on supprime le plus/moins
             let detail = $("div[id^='o_analyse']", message).remove();
             // on supprimer l'analyse
-            $(".o_optionMessage", message).remove();
+            $(".o_#optionMessage", message).remove();
             // en fonction du rc on on met en evidence l'ennemie
             let texte = message.text();
             if (texte.includes("Vous attaquez")) {

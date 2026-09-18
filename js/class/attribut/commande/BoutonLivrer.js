@@ -1,4 +1,4 @@
-class BoutonLivrer extends AttributObjet {
+Utils.register(class BoutonLivrer extends AttributObjet {
     static SORTABLE_PAR_DEFAUT = false;
     static NOM_AFFICHAGE = ['Livrer'];
 
@@ -41,4 +41,4 @@ class BoutonLivrer extends AttributObjet {
         }
         return "";
     }
-}
+});

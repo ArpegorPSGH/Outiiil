@@ -1,4 +1,4 @@
-class DroitsFourmizzz extends AttributObjet {
+Utils.register(class DroitsFourmizzz extends AttributObjet {
     static NOM_AFFICHAGE = ['Droits Fourmizzz'];
     valeur = {
         'Voir les candidatures': false,
@@ -10,4 +10,4 @@ class DroitsFourmizzz extends AttributObjet {
         'Administrer le forum': false,
         "Administrer l'alliance": false
     };
-}
+});

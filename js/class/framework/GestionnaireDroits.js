@@ -51,7 +51,6 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      */
     constructor() {
         super(null); // Le GestionnaireDroits est global, pas de créateur direct.
-        console.log('Construction du gestionnaire droits')
         // Étape 1 : Création de la classe ObjetForumDroits
         class ObjetForumDroits extends ObjetForum { }
         ObjetForumDroits.VERSION_LOGIQUE = this.constructor.VERSION_LOGIQUE; // Peupler la VERSION_LOGIQUE de l'ObjetForumDroits
@@ -120,7 +119,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         // 2. Identifier le Joueur Actuel
         const pseudoJoueur = await monProfilJoueur.lire('Pseudo'); // Supposant que le pseudo est dans pseudo
         if (!pseudoJoueur) {
-            console.warn(`[GestionnaireDroits] Pseudo du joueur non trouvé.`);
+            console.error(`[GestionnaireDroits] Pseudo du joueur non trouvé.`);
             return false;
         }
 
@@ -141,7 +140,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         const indexDroitRequis = this.constructor.NIVEAUX_ORDONNES.indexOf(niveauOutiiilRequis);
 
         if (indexDroitActuel === -1 || indexDroitRequis === -1) {
-            console.warn(`[GestionnaireDroits] Niveau de droit invalide. Actuel: ${droitActuel}, Requis: ${niveauOutiiilRequis}.`);
+            console.error(`[GestionnaireDroits] Niveau de droit invalide. Actuel: ${droitActuel}, Requis: ${niveauOutiiilRequis}.`);
             return false; // Niveau de droit invalide
         }
 
@@ -153,8 +152,8 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @param {Joueur|String} joueur - L'instance Joueur ou le pseudo du joueur.
      * @returns {Object|null} - Un objet des droits (ex: { pseudo: 'Joueur1', sdc: 'N' }) ou null si le joueur n'est pas trouvé.
      */
-    async lireChaqueParametre(joueur) {
-        const objetDroit = await this._getObjetForumDroit(joueur);
+    async lire(joueur) {
+        const objetDroit = await this.#getObjetForumDroit(joueur);
         if (!objetDroit) {
             return null;
         }
@@ -168,8 +167,8 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @param {Object} nouvellesValeurs - Un objet où les clés sont les abréviations des fonctionnalités (ex: { sdc: 'A' }).
      * @returns {Boolean} - True si le joueur a été trouvé et les droits mis à jour, false sinon.
      */
-    async ecrireChaqueParametre(joueur, nouvellesValeurs) {
-        const objetDroit = await this._getObjetForumDroit(joueur);
+    async ecrire(joueur, nouvellesValeurs) {
+        const objetDroit = await this.#getObjetForumDroit(joueur);
         if (!objetDroit) {
             return false;
         }
@@ -192,7 +191,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @returns {String|null} - La chaîne HTML du corps, or null if the player is not found.
      */
     async afficherCorps(joueur) {
-        const objetDroit = await this._getObjetForumDroit(joueur);
+        const objetDroit = await this.#getObjetForumDroit(joueur);
         if (!objetDroit) {
             return null;
         }
@@ -205,7 +204,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @returns {ObjetForum|null} - L'objet de droits du joueur ou null s'il n'est pas trouvé.
      * @private
      */
-    async _getObjetForumDroit(joueur) {
+    async #getObjetForumDroit(joueur) {
         const pseudoCible = typeof joueur === 'string' ? joueur : await joueur.lire('Pseudo');
         if (!pseudoCible) {
             return null;
@@ -218,12 +217,16 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
      * @param {FonctionnaliteAlliance} fonctionnaliteAppelante - L'instance de la fonctionnalité qui demande le rafraîchissement.
      */
     async rafraichir(fonctionnaliteAppelante) {
-        console.log('Rafraichissement gstionnaire droits')
         // 1. Chargement parallèle
         const [droitsActuels, membresOfficiels] = await Promise.all([
             fonctionnaliteAppelante.chargerObjetsForum(this.constructor.classeObjetsForumContenus, false),
             fonctionnaliteAppelante.chargerObjetsForum(Joueur, false) // Assurez-vous que la classe Joueur est disponible
         ]);
+
+        if (!droitsActuels || !membresOfficiels) {
+            console.error("[GestionnaireDroits.rafraichir] Échec du chargement des droits ou de la liste des membres.");
+            return false;
+        }
 
         // 2. Indexation et Synchronisation
         const nomParametrePseudo = 'Pseudo';
@@ -239,7 +242,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
 
         // Détecter les droits obsolètes et les mettre en file pour ré-enregistrement
         for (const droit of droitsActuels) {
-            const versionChargée = droit._determinerVersionChargee();
+            const versionChargée = droit.determinerVersionChargee();
             const derniereVersionIndex = droit.constructor.PARAMETRES_OBJET.length - 1;
 
             if (versionChargée < derniereVersionIndex) {
@@ -279,11 +282,11 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         // 4. Mise à jour finale
         this.objetsForumContenus = droitsSynchronises;
         this.mapDroits.clear();
-        console.log('droitsSynchronises', droitsSynchronises)
         cacheObjetForums.set(`${this.constructor.classeObjetsForumContenus.name}_false`, droitsSynchronises)
         for (const droit of this.objetsForumContenus) {
             const pseudo = await droit.lire(nomParametrePseudo);
             if (pseudo) this.mapDroits.set(pseudo, droit);
         }
+        return true;
     }
 })

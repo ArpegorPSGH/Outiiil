@@ -1,10 +1,5 @@
 Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
     /**
-     * @property {string} #nom - Nom pour l'affichage dans les logs
-     */
-    #nom = 'Données Privées';
-
-    /**
      * @property {string[]} ABREVIATIONS_HISTORY - Historique des abréviations
      */
     static ABREVIATIONS_HISTORY = ['DPR'];
@@ -15,12 +10,11 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        console.log(`[${this.#nom}] Exécution`);
         let membresForum;
         await this.executerTransaction(async () => {
             membresForum = await this.chargerObjetsForum(Joueur, false);
         });
-        console.log('membresForum: ', membresForum);
+
         const membresForumMap = new Map();
         for (const j of membresForum) {
             membresForumMap.set(await j.lire('Pseudo'), j);
@@ -32,7 +26,7 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
 
         if (gradeColIndex === -1) {
             // La colonne 'Grade' n'existe pas, on la crée
-            console.log(`[${this.#nom}] Création de la colonne 'Grade'.`);
+            console.log(`[${this.constructor.name}] Création de la colonne 'Grade'.`);
             $('<th class="dt-head-center">Grade</th>').insertBefore($(`#tabMembresAlliance thead tr th:eq(${initialRangColIndex})`));
 
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
@@ -49,10 +43,9 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
             }).get();
 
             await Promise.all(promises);
-            console.log(`[${this.#nom}] Colonne 'Grade' ajoutée.`);
         } else {
             // La colonne 'Grade' existe, on la met à jour
-            console.log(`[${this.#nom}] Mise à jour de la colonne 'Grade'.`);
+            console.log(`[${this.constructor.name}] Mise à jour de la colonne 'Grade'.`);
             const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
                 const row = $(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
@@ -66,7 +59,6 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
             }).get();
 
             await Promise.all(promises);
-            console.log(`[${this.#nom}] Colonne 'Grade' mise à jour.`);
         }
     }
 });

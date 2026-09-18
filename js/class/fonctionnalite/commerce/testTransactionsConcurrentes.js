@@ -6,10 +6,8 @@ Utils.register(class testTransactionsConcurrentes extends FonctionnaliteAlliance
      */
     async run() {
         // Charger toutes les commandes via le framework
-        console.log('Fonctionnalité de test de concurrence de transaction')
         await this.executerTransaction(async () => {
             this.commandes = await this.chargerObjetsForum(Commande, true);
-            console.log('commandes', this.commandes)
         })
 
         let commandeOriginale = this.commandes[0];

@@ -8,7 +8,7 @@
 *
 * @class TraceurJoueur
 */
-class TraceurJoueur extends Traceur {
+Utils.register(class TraceurJoueur extends Traceur {
     /**
     *
     */
@@ -16,9 +16,9 @@ class TraceurJoueur extends Traceur {
         super(0, etat, intervalle, nbPage);
     }
     /**
-    *
+    * @private
     */
-    getClassement(numeroPage) {
+    #getClassement(numeroPage) {
         return $.ajax({
             type: "get",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classement2.php",
@@ -32,9 +32,9 @@ class TraceurJoueur extends Traceur {
         });
     }
     /**
-    *
+    * @private
     */
-    getInformation() {
+    #getInformation() {
         return $.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/player`);
     }
     /**
@@ -50,7 +50,7 @@ class TraceurJoueur extends Traceur {
                 localStorage.setItem("outiiil_traceur_" + this._type, moment().add(this._intervalle, 'm').format("DD-MM-YYYY HH:mm:ss"));
                 // creation des requetes
                 let promiseClassement = new Array();
-                for (let i = 1; i <= this._nbPage; i++) promiseClassement.push(this.getClassement(i));
+                for (let i = 1; i <= this._nbPage; i++) promiseClassement.push(this.#getClassement(i));
                 // recupérer des données
                 Promise.all(promiseClassement).then((values) => {
                     this._data = {};
@@ -103,7 +103,7 @@ class TraceurJoueur extends Traceur {
                 $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
-        this.getInformation().then((data) => {
+        this.#getInformation().then((data) => {
             let info = null, rows = new Array(), donnees = JSON.parse(data);
             if (donnees.error == "0") { // si pas d'erreur coté serveur
                 for (let line of donnees.message.split("\n")) {
@@ -119,6 +119,6 @@ class TraceurJoueur extends Traceur {
         });
         return this;
     }
-}
+});
 
 

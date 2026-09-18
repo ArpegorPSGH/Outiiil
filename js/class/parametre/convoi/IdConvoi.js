@@ -1,5 +1,5 @@
-class IdConvoi extends ParametreObjetForum {
+Utils.register(class IdConvoi extends ParametreObjetForum {
     static VERSION_LOGIQUE = '1.0';
     static FORMAT_HISTORY = [{ nom: 'Id Convoi', format: '(nom): (valeur) |' }];
     valeur = 0;
-}
+});

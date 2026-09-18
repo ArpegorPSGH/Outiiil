@@ -41,12 +41,11 @@ Utils.register(class Ressource extends Page {
     /**
     * Formulaire de lancement pour les chasses.
     *
-    * @private
     * @method lanceur
     */
     async lanceur() {
         if (!$("#boite_tdc").length) {
-            console.warn("[Ressources] Element #boite_tdc introuvable.");
+            console.error("[Ressources] Element #boite_tdc introuvable.");
             return;
         }
         $("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
@@ -79,19 +78,19 @@ Utils.register(class Ressource extends Page {
         $("#o_chasseDiff, #o_chasseInt").outerHeight($("#o_chasseTDCDep").parent().height());
         $("#o_chasseDiff").css("color", "green");
         // Completion des valeurs
-        await this.preparerChasse();
+        await this.#preparerChasse();
         // Event
         $("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", async (e, ui) => {
             let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
             $(e.currentTarget).spinner("value", nombre);
-            await this.preparerChasse();
+            await this.#preparerChasse();
         });
         $("#o_chasseNbrAuto").click(async (e) => {
             if (!$(e.currentTarget).is(':checked'))
                 $("#o_chasseNbr").spinner("enable");
             else {
                 $("#o_chasseNbr").spinner("disable");
-                await this.preparerChasse();
+                await this.#preparerChasse();
             }
         });
         $("#o_chasseTDCRepAuto").click(async (e) => {
@@ -99,7 +98,7 @@ Utils.register(class Ressource extends Page {
                 $("#o_chasseTDCRep").spinner("enable");
             else {
                 $("#o_chasseTDCRep").spinner("disable");
-                await this.preparerChasse();
+                await this.#preparerChasse();
             }
         });
         $("#o_chasseDiff").change(async (e) => {
@@ -118,13 +117,13 @@ Utils.register(class Ressource extends Page {
                     $(e.currentTarget).css("color", "green");
                     break;
             }
-            await this.preparerChasse();
+            await this.#preparerChasse();
         });
         $("#o_chasseJSN").on("input spin", async (e, ui) => {
             let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
             $(e.currentTarget).spinner("value", nombre);
             this._armee.setJSN(nombre);
-            await this.preparerChasse();
+            await this.#preparerChasse();
         });
         // Lancement des chasses
         $("#o_chasseEnvoyer").click((e) => {
@@ -144,9 +143,9 @@ Utils.register(class Ressource extends Page {
     * Calcule les données de la chasse en fonction des valeurs souhaitées par le joueur.
     *
     * @private
-    * @method preparerChasse
+    * @method #preparerChasse
     */
-    async preparerChasse() {
+    async #preparerChasse() {
         let tdcDep = $("#o_chasseTDCDep").spinner("value"),
             diffChasse = $("#o_chasseDiff").val(),
             nbChasse = $("#o_chasseNbr").spinner("value"),
@@ -156,18 +155,18 @@ Utils.register(class Ressource extends Page {
         // Si une chasse peut être calculer
         if (tdcDep) {
             let simu = await this._armee.simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, this._nbChasse);
-            this.majSimulation(simu.repartition);
-            await this.majRecapitulatif(simu.nbChasse, simu.terrainChasse, simu.ratio, simu.ratioRef, simu.iTabPerte);
+            this.#majSimulation(simu.repartition);
+            await this.#majRecapitulatif(simu.nbChasse, simu.terrainChasse, simu.ratio, simu.ratioRef, simu.iTabPerte);
         }
     }
     /**
     * Affiche la répartition des unités pour les chasses.
     *
     * @private
-    * @method majSimulation
+    * @method #majSimulation
     * @param {Array} repartition
     */
-    majSimulation(repartition) {
+    #majSimulation(repartition) {
         let simulation = `<tr class='gras'><td>Chasse</td>
             ${this._armee.unite[1] ? "<td>JSN</td>" : ""}
             ${this._armee.unite[2] ? "<td>SN</td>" : ""}
@@ -196,14 +195,14 @@ Utils.register(class Ressource extends Page {
     * Affiche le compte rendu de la simulation.
     *
     * @private
-    * @method majRecapitulatif
+    * @method #majRecapitulatif
     * @param {Integer} nbChasse
     * @param {Integer} terrainChasse
     * @param {Float} ratio
     * @param {Float} ratioRef
     * @param {Array} iTabPerte
     */
-    async majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte) {
+    async #majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte) {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
         $("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
         let temps = Math.round((Utils.terrain + terrainChasse) * Math.pow(0.9, recherches[5]));
@@ -216,7 +215,6 @@ Utils.register(class Ressource extends Page {
     /**
     * Ajoute les boutons "max", sauvegarde la chasse en cours.
     *
-    * @private
     * @method plus
     */
     plus() {
@@ -231,7 +229,7 @@ Utils.register(class Ressource extends Page {
             $(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
         });
         // Sauvegarde de la chasse en cours
-        this.saveChasse(listeChasse);
+        this.#saveChasse(listeChasse);
         let affection = parseInt(monProfilUtilisateur.parametre["affectationRessource"].valeur);
         // Ajout de la pref pour l'affectation auto
         $("#ChangeRessource").parent().parent().before(`<tr>
@@ -278,9 +276,9 @@ Utils.register(class Ressource extends Page {
     * Sauvegarde la chasse en cours.
     *
     * @private
-    * @method saveChasse
+    * @method #saveChasse
     */
-    saveChasse(listeChasse) {
+    #saveChasse(listeChasse) {
         boiteComptePlus.chasse = listeChasse;
         boiteComptePlus.startChasse = moment();
         boiteComptePlus.sauvegarder().majChasse();

@@ -8,7 +8,7 @@
 *
 * @class TraceurAlliance
 */
-class TraceurAlliance extends Traceur {
+Utils.register(class TraceurAlliance extends Traceur {
     /**
     *
     */
@@ -16,9 +16,9 @@ class TraceurAlliance extends Traceur {
         super(1, etat, intervalle, 1);
     }
     /**
-    *
+    * @private
     */
-    getClassement(numeroPage) {
+    #getClassement(numeroPage) {
         return $.ajax({
             type: "get",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classement2.php",
@@ -32,9 +32,9 @@ class TraceurAlliance extends Traceur {
         });
     }
     /**
-    *
+    * @private
     */
-    getInformation() {
+    #getInformation() {
         return $.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/team`);
     }
     /**
@@ -48,7 +48,7 @@ class TraceurAlliance extends Traceur {
                 // mise à jour du timer directement pour eviter les doubles envois (multionglet, multifenetre)
                 localStorage.setItem("outiiil_traceur_" + this._type, moment().add(this._intervalle, 'm').format("DD-MM-YYYY HH:mm:ss"));
                 // recupérer des données
-                this.getClassement(1).then((data) => {
+                this.#getClassement(1).then((data) => {
                     this._data = {};
                     $("<div/>").append(data["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
                         // on enregistre un tablea avec [alliance, terrain, construction, recherche, trophée]
@@ -95,7 +95,7 @@ class TraceurAlliance extends Traceur {
                 $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
-        this.getInformation().then((data) => {
+        this.#getInformation().then((data) => {
             let rows = new Array(), info = null, donnees = JSON.parse(data);
             if (donnees.error == "0") {
                 for (let line of donnees.message.split("\n")) {
@@ -111,6 +111,6 @@ class TraceurAlliance extends Traceur {
         });
         return this;
     }
-}
+});
 
 

@@ -1,10 +1,5 @@
 Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
     /**
-     * @property {string} #nom - Nom pour l'affichage dans les logs
-     */
-    #nom = 'Modification de Grade';
-
-    /**
      * @property {string[]} ABREVIATIONS_HISTORY - Historique des abréviations
      */
     static ABREVIATIONS_HISTORY = ['MGR'];
@@ -20,7 +15,6 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        console.log(`[${this.#nom}] Exécution`);
         let membresForum;
         await this.executerTransaction(async () => {
             membresForum = await this.chargerObjetsForum(Joueur, false);

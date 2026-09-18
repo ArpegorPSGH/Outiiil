@@ -1,4 +1,4 @@
-class Page {
+Utils.register(class Page {
     /**
      * Critères de correspondance pour activer cette page.
      * Peut être une String (hrefContains), un Object { href, search }, ou un Array d'entre eux.
@@ -77,7 +77,6 @@ class Page {
 
         for (const item of this.constructor.FONCTIONNALITES) {
             if (item.prototype instanceof FonctionnaliteAlliance) {
-                console.log('item fonctionnalite ', item)
                 const instance = new item(this);
                 await instance.init();
             } else if (typeof item === 'function') {
@@ -85,4 +84,4 @@ class Page {
             }
         }
     }
-}
+});

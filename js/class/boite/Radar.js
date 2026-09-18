@@ -5,7 +5,7 @@
 * @constructor
 * @extends Boite
 */
-class BoiteRadar {
+Utils.register(class BoiteRadar {
     constructor() {
         /**
         * liste des joueurs
@@ -16,7 +16,7 @@ class BoiteRadar {
         */
         this._alliances = {};
         // on recupére les données
-        this.getData();
+        this.#getData();
     }
     /**
     *
@@ -47,7 +47,7 @@ class BoiteRadar {
     */
     async ajouteJoueur(joueur) {
         this._joueurs[await joueur.lire('Pseudo')] = joueur;
-        await this._joueurs[await joueur.lire('Pseudo')].ecrire('Ordre Radar', await this.getOrdreMax() + 1);
+        await this._joueurs[await joueur.lire('Pseudo')].ecrire('Ordre Radar', await this.#getOrdreMax() + 1);
         return this;
     }
     /**
@@ -62,7 +62,7 @@ class BoiteRadar {
     */
     async ajouteAlliance(alliance) {
         this._alliances[alliance.tag] = alliance;
-        this._alliances[alliance.tag].ordreRadar = await this.getOrdreMax() + 1;
+        this._alliances[alliance.tag].ordreRadar = await this.#getOrdreMax() + 1;
         return this;
     }
     /**
@@ -73,9 +73,9 @@ class BoiteRadar {
         return this;
     }
     /**
-    *
+    * @private
     */
-    async getOrdreMax() {
+    async #getOrdreMax() {
         let max = 0;
         for (let j in this._joueurs) {
             let ordre = await this._joueurs[j].lire('Ordre Radar');
@@ -90,9 +90,9 @@ class BoiteRadar {
         return max;
     }
     /**
-    *
+    * @private
     */
-    async calculeOrdre(serie) {
+    async #calculeOrdre(serie) {
         let newOrdre = serie.split("&"), item = new Array(), lien = "";
         for (let i = 0; i < newOrdre.length; i++) {
             item = newOrdre[i].split("=");
@@ -109,28 +109,24 @@ class BoiteRadar {
     * Récupére les données sur les joueurs sous surveillance.
     *
     * @method getRadar
+    * @private
     */
-    getData() {
+    #getData() {
         let data = JSON.parse(localStorage.getItem("outiiil_radar")) || {};
-        console.log("[BoiteRadar.getData] Données brutes du localStorage:", data);
+        console.log("[BoiteRadar.#getData] Données brutes du localStorage:", data);
         // Si des données sont deja presente et à jour on les charges
         if (data.hasOwnProperty("joueurs")) {
             for (let item in data.joueurs) {
-                console.log(`[BoiteRadar.getData] Création Joueur pour item: ${item}, avec données:`, data.joueurs[item]);
+                console.log(`[BoiteRadar.#getData] Création Joueur pour item: ${item}, avec données:`, data.joueurs[item]);
                 this._joueurs[item] = new Joueur(null, { donneesInitiales: data.joueurs[item] });
-                console.log(`[BoiteRadar.getData] Joueur créé:`, this._joueurs[item]);
             }
-            console.log("[BoiteRadar.getData] Boucle joueurs terminée.");
         }
         if (data.hasOwnProperty("alliances")) {
             for (let item in data.alliances) {
-                console.log(`[BoiteRadar.getData] Création Alliance pour item: ${item}, avec données:`, data.alliances[item]);
+                console.log(`[BoiteRadar.#getData] Création Alliance pour item: ${item}, avec données:`, data.alliances[item]);
                 this._alliances[item] = new Alliance(data.alliances[item]);
-                console.log(`[BoiteRadar.getData] Alliance créée:`, this._alliances[item]);
             }
-            console.log("[BoiteRadar.getData] Boucle alliances terminée.");
         }
-        console.log("[BoiteRadar.getData] Fin de getData.");
     }
     /**
     *
@@ -167,7 +163,6 @@ class BoiteRadar {
     /**
     * Affiche la boie.
     *
-    * @private
     * @method afficher
     */
     async afficher() {
@@ -191,7 +186,6 @@ class BoiteRadar {
     /**
     * Rafraichie la boite radar quand un element est inséré ou retiré.
     *
-    * @private
     * @method actualiseBoite
     */
     async actualiser() {
@@ -204,7 +198,7 @@ class BoiteRadar {
             $("#o_radar tbody").sortable({
                 placeholder: "o_radarPlaceholder",
                 update: (e, ui) => {
-                    this.calculeOrdre($("#o_radar tbody").sortable("serialize"));
+                    this.#calculeOrdre($("#o_radar tbody").sortable("serialize"));
                 }
             });
         }
@@ -212,7 +206,6 @@ class BoiteRadar {
         $("#o_radar").off();
         // affichage des elements
         let j = 1;
-        console.log("[BoiteRadar.actualiser] Début de l'actualisation. Joueurs:", this._joueurs, "Alliances:", this._alliances);
         let elements = [];
         for (let joueur in this._joueurs) elements.push({ nom: joueur, obj: this._joueurs[joueur], ordreRadar: await this._joueurs[joueur].lire('Ordre Radar') });
         for (let alliance in this._alliances) elements.push({ nom: alliance, obj: this._alliances[alliance], ordreRadar: this._alliances[alliance].ordreRadar });
@@ -220,10 +213,8 @@ class BoiteRadar {
         elements.sort((a, b) => (a.ordreRadar || 0) - (b.ordreRadar || 0));
 
         for (let el of elements) {
-            console.log(`[BoiteRadar.actualiser] Appel getLigneRadar, ordre: ${el.ordreRadar}`);
             await el.obj.getLigneRadar(this, "#o_radar", j++);
         }
-        console.log("[BoiteRadar.actualiser] Fin de l'actualisation.");
         return this;
     }
-}
+})

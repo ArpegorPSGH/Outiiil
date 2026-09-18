@@ -1,4 +1,4 @@
-class Y extends AttributObjet {
+Utils.register(class Y extends AttributObjet {
     static NOM_AFFICHAGE = ['Y'];
     valeur = -1;
-}
+});

@@ -1,4 +1,4 @@
-class DateSouhaite extends ParametreObjetForum {
+Utils.register(class DateSouhaitee extends ParametreObjetForum {
     static TYPE_AFFICHAGE = 'moment-D MMM YYYY';
     static FORMAT_AFFICHAGE = 'D MMM YYYY';
     static FORMAT_ENREGISTREMENT = 'YYYY-MM-DD';
@@ -6,4 +6,4 @@ class DateSouhaite extends ParametreObjetForum {
     static NOM_APPEL = ['Date Souhaitée'];
     static FORMAT_HISTORY = [{ nom: 'DateSouh', format: '(nom): (valeur) |' }];
     valeur = moment(); // Date stored as string DD MMM YYYY
-}
+})

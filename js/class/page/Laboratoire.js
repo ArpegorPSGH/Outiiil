@@ -36,7 +36,6 @@ Utils.register(class Laboratoire extends Page {
     /**
     * Ajoute un title detaillé pour connaitre la rentabilité du niveau bouclier.
     *
-    * @private
     * @method titleBouclier
     */
     async titleBouclier() {
@@ -99,7 +98,6 @@ Utils.register(class Laboratoire extends Page {
     /**
     * Sauvegarde la recherche en cours.
     *
-    * @private
     * @method plus
     */
     plus() {
@@ -108,7 +106,7 @@ Utils.register(class Laboratoire extends Page {
         if ($("#centre > strong").length)
             $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la recherche en cours
-        this.saveRecherche();
+        this.#saveRecherche();
         // Suppresion de la recherche en cours si on annule
         if ($("a:contains('Je confirme')").length)
             $("a:contains('Je confirme')").click((e) => {
@@ -123,10 +121,10 @@ Utils.register(class Laboratoire extends Page {
     * Sauvegarde la recherche en cours.
     *
     * @private
-    * @method saveRecherche
+    * @method #saveRecherche
     * @return
     */
-    saveRecherche() {
+    #saveRecherche() {
         let str = $("#centre strong").text();
         let recherche = str.substring(2, str.indexOf("termin") - 1);
         if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {

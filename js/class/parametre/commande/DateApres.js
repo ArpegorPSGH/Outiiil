@@ -1,4 +1,4 @@
-class DateApres extends ParametreObjetForum {
+Utils.register(class DateApres extends ParametreObjetForum {
     static TYPE_AFFICHAGE = 'moment-D MMM YYYY';
     static FORMAT_AFFICHAGE = 'D MMM YYYY';
     static FORMAT_ENREGISTREMENT = 'YYYY-MM-DD';
@@ -6,4 +6,4 @@ class DateApres extends ParametreObjetForum {
     static NOM_APPEL = ['Date Après'];
     static FORMAT_HISTORY = [{ nom: 'DateApr', format: '(nom): (valeur) |' }];
     valeur = moment(); // Date stored as string DD MMM YYYY
-}
+})
