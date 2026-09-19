@@ -236,3 +236,6 @@ const LOGGER_PROFONDEUR_MAX = 5;
 
 // Longueur maximale d'un string posté par le logger
 const MAX_STR_LEN = 1000;
+
+// Intervalle minimum entre deux vérifications de mise à jour
+const DELAI_MIN_VERIFICATION_MS = 60 * 1000; // 1 minute

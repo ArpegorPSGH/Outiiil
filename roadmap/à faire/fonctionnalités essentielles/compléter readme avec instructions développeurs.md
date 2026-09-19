@@ -15,7 +15,8 @@ Ajouter une section implémentation au readme contenant des instructions destin�
 - Ajouter dans le prompt système de prendre en compte la doc et les notes de développement en permanence et donner leur adresse
 - Créer fichier d'instructions d'utilisation de Fourmizzz (le rendre disponible dans l'extension)
 - Workflow développement de fonctionnalité
-- Workflow release
+- Créer une pipeline CI/CD pour effectuer une release
+- Mettre sur doc développement comment effectuer une release
 - Ajout de sections
 - Modification de format
 - Robustesse
