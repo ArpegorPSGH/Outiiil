@@ -33,7 +33,10 @@ BRANCH_SOCLE = "socle"
 
 def run_cmd(cmd, cwd=BASE_DIR, check=True):
     """Exécute une commande système et retourne sa sortie textuelle."""
-    res = subprocess.run(cmd, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
+    # Désactiver les vérifications dubious ownership lors des opérations locales
+    git_cmd_prefix = "-c safe.directory=* " if cmd.strip().startswith("git") else ""
+    full_cmd = f"git {git_cmd_prefix}{cmd[4:]}" if cmd.strip().startswith("git ") else cmd
+    res = subprocess.run(full_cmd, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
     if check and res.returncode != 0:
         print(f"Erreur lors de l'exécution : {cmd}", file=sys.stderr)
         print(res.stderr, file=sys.stderr)
@@ -91,10 +94,10 @@ def main():
         remote_branches = run_cmd("git branch -r", check=False)
         has_remote_gh = f"origin/{BRANCH_GH_PAGES}" in remote_branches
 
-        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} . "{temp_gh_dir}"', check=False)
+        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{BASE_DIR}" "{temp_gh_dir}"', check=False)
         if not os.path.exists(os.path.join(temp_gh_dir, ".git")):
             # Si la branche n'existe pas encore localement ou sur origin
-            run_cmd(f'git clone . "{temp_gh_dir}"')
+            run_cmd(f'git clone "{BASE_DIR}" "{temp_gh_dir}"')
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
@@ -117,7 +120,7 @@ def main():
     # 5. Préparation de la branche socle
     print(f"[*] Préparation de la branche '{BRANCH_SOCLE}' pour la version {version}...")
     with tempfile.TemporaryDirectory() as temp_socle_dir:
-        run_cmd(f'git clone . "{temp_socle_dir}"')
+        run_cmd(f'git clone "{BASE_DIR}" "{temp_socle_dir}"')
         run_cmd(f"git checkout -B {BRANCH_SOCLE}", cwd=temp_socle_dir)
         run_cmd("git rm -rf .", cwd=temp_socle_dir, check=False)
 
