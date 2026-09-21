@@ -1,7 +1,6 @@
 # Ignorer Fichier temporaire
 *~
 
-# Ignorer les fichiers pour contruire la version de production
-build.sh
-Outiiil.zip
-./prod
+# Ignorer les fichiers pour construire la version de production
+Outiiil*.zip
+dist/

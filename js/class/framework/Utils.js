@@ -403,7 +403,7 @@ class Utils {
 
     /**
      * Découvre et met en cache toutes les classes définies dans les fichiers de l'extension
-     * listés dans le champ `js` du manifest.json.
+     * listés dans le fichier scripts/bundle_sources.json.
      *
      * @static
      * @async
@@ -415,8 +415,15 @@ class Utils {
             return classesCache;
         }
 
-        const jsFiles = (manifest.content_scripts?.flatMap(cs => cs.js || []) || [])
-            .filter(file => file.includes('js/class/'));
+        let jsFiles = [];
+        try {
+            const bundleSourcesUrl = Utils.getExtensionURL('scripts/bundle_sources.json');
+            const response = await fetch(bundleSourcesUrl);
+            const bundleSources = await response.json();
+            jsFiles = (bundleSources.js || []).filter(file => file.includes('js/class/'));
+        } catch (e) {
+            console.warn('[Utils.decouvrirClasses] Impossible de charger scripts/bundle_sources.json :', e);
+        }
 
         const classesMap = new Map();
         const processed = new Set();
@@ -437,7 +444,7 @@ class Utils {
                 const baseName = file.split('/').pop().replace(/\.js$/, '');
 
                 try {
-                    const url = chrome.runtime.getURL(file);
+                    const url = Utils.getExtensionURL(file);
                     const response = await fetch(url);
                     const content = await response.text();
 
@@ -476,6 +483,24 @@ class Utils {
 
         window.classesCache = classesMap;
         return classesMap;
+    }
+
+    /**
+     * Résout l'URL absolue d'une ressource de l'extension.
+     *
+     * @static
+     * @method getExtensionURL
+     * @param {String} path
+     * @return {String}
+     */
+    static getExtensionURL(path) {
+        if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getURL === 'function') {
+            return chrome.runtime.getURL(path);
+        }
+        const base = (typeof document !== 'undefined' && document.documentElement && document.documentElement.getAttribute('data-outiiil-base-url'))
+            || (typeof window !== 'undefined' && window.OUTIIIL_BASE_URL)
+            || '';
+        return base + (path.startsWith('/') ? path.slice(1) : path);
     }
 }
 

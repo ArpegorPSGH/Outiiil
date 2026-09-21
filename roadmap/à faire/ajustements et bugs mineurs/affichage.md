@@ -24,6 +24,7 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Mettre le message de copie tableau en français
 - Message du popup de blocage de changement de page en cours de transaction incorrect
 - Les fonctionnalités de la page alliance ne s'affichent plus après un changement de rang de joueur
+- Ajouter un nom complet aux fonctionnalités, qui sera utilisé dans le toast de blocage de fonctionnalité pour version obsolète
 
 ## Plan d'Implémentation
 

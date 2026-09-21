@@ -12,12 +12,31 @@
 
     // si l'utilisateur est identifié
     if ($(".boite_connexion_titre:first").text() != "Connexion") {
-        // Récupération de la version depuis manifest.json
-        const manifestURL = chrome.runtime.getURL('manifest.json');
-        const manifestResponse = await fetch(manifestURL);
-        const manifest = await manifestResponse.json();
-        window.manifest = manifest;
-        window.VERSION = manifest.version;
+        // Récupération de la version : manifest.json en mode dev, dist/version.json en mode production
+        const isDevMode = document.documentElement.getAttribute('data-outiiil-dev-mode') === 'true';
+        let versionRetenue = "1.0.0";
+
+        if (isDevMode) {
+            try {
+                const manifestURL = Utils.getExtensionURL('manifest.json');
+                const manifestResponse = await fetch(manifestURL);
+                if (manifestResponse.ok) {
+                    const manifest = await manifestResponse.json();
+                    window.manifest = manifest;
+                    versionRetenue = manifest.version || versionRetenue;
+                }
+            } catch (e) { }
+        } else {
+            try {
+                const distVersionURL = Utils.getExtensionURL('dist/version.json');
+                const distVersionResponse = await fetch(distVersionURL);
+                if (distVersionResponse.ok) {
+                    const distVersionData = await distVersionResponse.json();
+                    versionRetenue = distVersionData.version || versionRetenue;
+                }
+            } catch (e) { }
+        }
+        window.VERSION = versionRetenue;
 
         // Modification du theme jquery humanity
         $("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
@@ -183,7 +202,7 @@ async function initialiserFrameworkGlobal() {
 
     // 1b. Créer la "carte des types" des variables globales
     window.carteDesTypes = new Map();
-    const initURL = chrome.runtime.getURL('js/main.js');
+    const initURL = Utils.getExtensionURL('js/main.js');
     const initResponse = await fetch(initURL);
     const initContent = await initResponse.text();
 
@@ -277,83 +296,5 @@ async function initialiserFrameworkGlobal() {
     window.transaction = null;
     // window.transaction2 = null;
     // window.transaction3 = null;
-
-    // Déclenchement asynchrone de la vérification de mise à jour au chargement de page
-    function afficherNotificationManuelle() {
-        const releaseUrl = 'https://github.com/ArpegorPSGH/Outiiil/releases/latest';
-        $.toast({
-            heading: 'Mise à jour Outiiil',
-            text: `La mise à jour automatique a échoué.<br/>Veuillez télécharger et installer manuellement la nouvelle version.<br/><a href="${releaseUrl}" target="_blank" style="display:inline-block; margin-top:8px; padding:4px 8px; background:#4CAF50; color:white; border-radius:3px; text-decoration:none; font-weight:bold;">Télécharger la nouvelle version</a>`,
-            icon: 'error',
-            loader: false,
-            position: 'top-right',
-            hideAfter: 15000
-        });
-    }
-
-    chrome.runtime.sendMessage({ action: "requestUpdateCheck" }, (response) => {
-        if (chrome.runtime.lastError) {
-            console.log("Mise à jour Outiiil : canal fermé ou extension en cours de rechargement.");
-            return;
-        }
-        if (response && (response.status === 'not_available' || response.status === 'error')) {
-            const isWindows = navigator.platform.indexOf('Win') > -1;
-            const scriptPath = isWindows ? 'scripts/autoriser_maj_windows.bat' : 'scripts/autoriser_maj_unix.sh';
-            const aEteExecute = localStorage.getItem("outiiil_script_maj_execute") === "true";
-
-            if (!aEteExecute) {
-                // Étape 1 : Proposer d'exécuter le script de modification des autorisations sur l'hôte
-                $.toast({
-                    heading: 'Mise à jour Outiiil',
-                    text: `La mise à jour automatique nécessite d'autoriser l'hôte.<br/><button id="outiiil-btn-script-maj" type="button" style="display:inline-block; margin-top:8px; padding:4px 8px; background:#2196F3; color:white; border:none; border-radius:3px; cursor:pointer; font-weight:bold;">Autoriser la mise à jour</button>`,
-                    icon: 'warning',
-                    loader: false,
-                    position: 'top-right',
-                    hideAfter: 15000
-                });
-
-                $(document).one('click', '#outiiil-btn-script-maj', (e) => {
-                    e.preventDefault();
-                    localStorage.setItem("outiiil_script_maj_execute", "true");
-                    chrome.runtime.sendMessage({ action: "executerScriptAutorisation", scriptPath: scriptPath }, (res) => {
-                        if (res && res.success) {
-                            $.toast({
-                                heading: 'Mise à jour Outiiil',
-                                text: "Le script a été lancé. Validation en cours...",
-                                icon: 'info',
-                                loader: false,
-                                position: 'top-right',
-                                hideAfter: 5000
-                            });
-
-                            // Retenter une vérification de mise à jour après l'exécution du script
-                            setTimeout(() => {
-                                chrome.runtime.sendMessage({ action: "requestUpdateCheck", force: true }, (retryResponse) => {
-                                    if (chrome.runtime.lastError) {
-                                        console.log("Mise à jour Outiiil : canal fermé ou extension en cours de rechargement.");
-                                        return;
-                                    }
-                                    if (retryResponse && (retryResponse.status === 'not_available' || retryResponse.status === 'error')) {
-                                        afficherNotificationManuelle();
-                                    } else if (retryResponse && (retryResponse.status === 'no_update' || retryResponse.status === 'throttled')) {
-                                        localStorage.removeItem("outiiil_script_maj_execute");
-                                    }
-                                });
-                            }, 5000);
-                        } else {
-                            console.error("Erreur lors de l'exécution du script d'autorisation :", res ? res.error : "inconnue");
-                            afficherNotificationManuelle();
-                        }
-                    });
-                });
-            } else {
-                // Étape 2 : Le script hôte a déjà été exécuté auparavant et la mise à jour échoue toujours
-                afficherNotificationManuelle();
-            }
-        } else if (response && (response.status === 'throttled' || response.status === 'no_update' || response.status === 'throttled_locally')) {
-            // Si la vérification a réussi ou qu'aucune mise à jour n'est en attente bloquée, réinitialiser le flag
-            localStorage.removeItem("outiiil_script_maj_execute");
-        }
-    });
 
 }

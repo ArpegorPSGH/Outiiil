@@ -435,13 +435,13 @@ Utils.register(class GestionnaireVersions {
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
                 $.toast({
-                    heading: 'Version obsolète',
-                    text: "Votre extension Outiiil utilise une version plus ancienne que celle attendue pour cet élément du forum.",
+                    heading: 'Mise à jour requise',
+                    text: "Votre version d'Outiiil est obsolète pour cet objet du forum. Veuillez actualiser la page (F5) pour appliquer la dernière mise à jour.",
                     icon: 'warning',
                     loader: true,
                     loaderBg: '#9EC600',
                     position: 'top-right',
-                    hideAfter: 5000
+                    hideAfter: 8000
                 });
                 return false; // Arrêter l'exécution actuelle car la version est incompatible
             }
@@ -540,13 +540,13 @@ Utils.register(class GestionnaireVersions {
             if (compVersion < 0 || compFormatHistory < 0) {
                 console.warn(`[GestionnaireVersions.verifierCompatibiliteParametre] Extension obsolète. Le paramètre ${parametre.constructor.name} nécessite une mise à jour.`);
                 $.toast({
-                    heading: 'Version obsolète',
-                    text: "Votre extension Outiiil utilise une version de paramètre plus ancienne que celle sur le forum.",
+                    heading: 'Mise à jour requise',
+                    text: "Votre version d'Outiiil est obsolète pour ce paramètre du forum. Veuillez actualiser la page (F5) pour appliquer la dernière mise à jour.",
                     icon: 'warning',
                     loader: true,
                     loaderBg: '#9EC600',
                     position: 'top-right',
-                    hideAfter: 5000
+                    hideAfter: 8000
                 });
                 return false;
             }

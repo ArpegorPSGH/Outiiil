@@ -171,19 +171,19 @@ const IMG_VACANCES = "<img src='images/icone/4rondbleu.gif' alt='Vacances' title
 const IMG_BANNI = "<img src='images/icone/5rondgris.gif' alt='Banni' title='Banni'/>";
 const IMG_COLONISE = "<img src='images/icone/attention.gif' alt='Colonisé' title='Colonisé'/>";
 // Image pour l'extension
-const IMG_CHANGE = chrome.runtime.getURL("images/change.png");
-const IMG_ACTUALISER = chrome.runtime.getURL("images/actualize_on_01.png");
-const IMG_CRAYON = chrome.runtime.getURL("images/crayon.gif");
-const IMG_CROIX = chrome.runtime.getURL("images/croix.png");
-const IMG_COPIER = chrome.runtime.getURL("images/copy.png");
-const IMG_HISTORIQUE = chrome.runtime.getURL("images/historique.png");
-const IMG_LIVRAISON = chrome.runtime.getURL("images/livraison.png");
-const IMG_RADAR = chrome.runtime.getURL("images/radar.png");
-const IMG_SPRITE_MENU = chrome.runtime.getURL("images/sprite_menu.png");
-const IMG_UTILITY = chrome.runtime.getURL("images/utility.png");
-const IMG_DOWN = chrome.runtime.getURL("images/down.png");
-const IMG_UP = chrome.runtime.getURL("images/up.png");
-const IMG_OUTIIIL = chrome.runtime.getURL("images/outiiil.png");
+const IMG_CHANGE = Utils.getExtensionURL("images/change.png");
+const IMG_ACTUALISER = Utils.getExtensionURL("images/actualize_on_01.png");
+const IMG_CRAYON = Utils.getExtensionURL("images/crayon.gif");
+const IMG_CROIX = Utils.getExtensionURL("images/croix.png");
+const IMG_COPIER = Utils.getExtensionURL("images/copy.png");
+const IMG_HISTORIQUE = Utils.getExtensionURL("images/historique.png");
+const IMG_LIVRAISON = Utils.getExtensionURL("images/livraison.png");
+const IMG_RADAR = Utils.getExtensionURL("images/radar.png");
+const IMG_SPRITE_MENU = Utils.getExtensionURL("images/sprite_menu.png");
+const IMG_UTILITY = Utils.getExtensionURL("images/utility.png");
+const IMG_DOWN = Utils.getExtensionURL("images/down.png");
+const IMG_UP = Utils.getExtensionURL("images/up.png");
+const IMG_OUTIIIL = Utils.getExtensionURL("images/outiiil.png");
 
 const TOAST_ERROR = { heading: "Erreur", hideAfter: 3500, showHideTransition: "slide", position: { top: 30, right: 100 }, icon: "error" };
 const TOAST_SUCCESS = { heading: "Succès", hideAfter: 3500, showHideTransition: "slide", position: { top: 30, right: 100 }, icon: "success" };
@@ -236,6 +236,3 @@ const LOGGER_PROFONDEUR_MAX = 5;
 
 // Longueur maximale d'un string posté par le logger
 const MAX_STR_LEN = 1000;
-
-// Intervalle minimum entre deux vérifications de mise à jour
-const DELAI_MIN_VERIFICATION_MS = 60 * 1000; // 1 minute
