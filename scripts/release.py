@@ -27,6 +27,10 @@ MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
 LOADER_PATH = os.path.join(BASE_DIR, "js", "loader.js")
 DIST_DIR = os.path.join(BASE_DIR, "dist")
 
+# Noms configurables des branches de distribution
+BRANCH_GH_PAGES = "gh-pages"
+BRANCH_SOCLE = "socle"
+
 def run_cmd(cmd, cwd=BASE_DIR, check=True):
     """Exécute une commande système et retourne sa sortie textuelle."""
     res = subprocess.run(cmd, cwd=cwd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8", errors="replace")
@@ -81,17 +85,17 @@ def main():
         sys.exit(1)
 
     # 4. Publication sur la branche gh-pages
-    print(f"[*] Déploiement du bundle sur la branche 'gh-pages'...")
+    print(f"[*] Déploiement du bundle sur la branche '{BRANCH_GH_PAGES}'...")
     with tempfile.TemporaryDirectory() as temp_gh_dir:
         # Clone local léger de la branche gh-pages ou création orpheline
         remote_branches = run_cmd("git branch -r", check=False)
-        has_remote_gh = "origin/gh-pages" in remote_branches
+        has_remote_gh = f"origin/{BRANCH_GH_PAGES}" in remote_branches
 
-        run_cmd(f'git clone --single-branch --branch gh-pages . "{temp_gh_dir}"', check=False)
+        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} . "{temp_gh_dir}"', check=False)
         if not os.path.exists(os.path.join(temp_gh_dir, ".git")):
-            # Si gh-pages n'existe pas encore localement ou sur origin
+            # Si la branche n'existe pas encore localement ou sur origin
             run_cmd(f'git clone . "{temp_gh_dir}"')
-            run_cmd("git checkout --orphan gh-pages", cwd=temp_gh_dir)
+            run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
         # Copier le contenu de dist/ à la racine du clone gh-pages (ou sous dist/)
@@ -105,16 +109,16 @@ def main():
         status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
         if status_gh:
             run_cmd(f'git commit -m "Release {version} (dist update)"', cwd=temp_gh_dir)
-            run_cmd(f'git push origin gh-pages', cwd=temp_gh_dir, check=False)
-            print("  -> Branche gh-pages mise à jour et poussée.")
+            run_cmd(f'git push origin {BRANCH_GH_PAGES}', cwd=temp_gh_dir, check=False)
+            print(f"  -> Branche {BRANCH_GH_PAGES} mise à jour et poussée.")
         else:
-            print("  -> Aucun changement détecté pour gh-pages.")
+            print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
     # 5. Préparation de la branche socle
-    print(f"[*] Préparation de la branche 'socle' pour la version {version}...")
+    print(f"[*] Préparation de la branche '{BRANCH_SOCLE}' pour la version {version}...")
     with tempfile.TemporaryDirectory() as temp_socle_dir:
         run_cmd(f'git clone . "{temp_socle_dir}"')
-        run_cmd("git checkout -B socle", cwd=temp_socle_dir)
+        run_cmd(f"git checkout -B {BRANCH_SOCLE}", cwd=temp_socle_dir)
         run_cmd("git rm -rf .", cwd=temp_socle_dir, check=False)
 
         # Recréer l'arborescence minimale du socle
@@ -149,8 +153,8 @@ def main():
         status_socle = run_cmd("git status --porcelain", cwd=temp_socle_dir)
         if status_socle:
             run_cmd(f'git commit -m "Socle minimal Release {version}"', cwd=temp_socle_dir)
-            run_cmd("git push origin socle", cwd=temp_socle_dir, check=False)
-            print("  -> Branche socle mise à jour et poussée.")
+            run_cmd(f"git push origin {BRANCH_SOCLE}", cwd=temp_socle_dir, check=False)
+            print(f"  -> Branche {BRANCH_SOCLE} mise à jour et poussée.")
 
         # Tag de release
         run_cmd(f'git tag -a {tag_name} -m "Release {version}"', cwd=temp_socle_dir, check=False)
@@ -174,10 +178,10 @@ def main():
 
     print("========================================")
     print(f" Release {version} terminée avec succès ! ")
-    print(f" - gh-pages : code dynamique déployé")
-    print(f" - socle    : socle minimal prêt")
-    print(f" - archive  : {zip_filename}")
-    print(f" - branche  : reste sur {branche_origine} en mode DEV")
+    print(f" - {BRANCH_GH_PAGES:<10} : code dynamique déployé")
+    print(f" - {BRANCH_SOCLE:<10} : socle minimal prêt")
+    print(f" - archive    : {zip_filename}")
+    print(f" - branche    : reste sur {branche_origine} en mode DEV")
     print("========================================")
 
 if __name__ == "__main__":
