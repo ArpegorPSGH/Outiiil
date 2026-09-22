@@ -117,11 +117,12 @@ def main():
     remote_url = run_cmd("git remote get-url origin")
 
     with tempfile.TemporaryDirectory() as temp_gh_dir:
-        res_clone = run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_gh_dir}"', check=False)
+        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_gh_dir}"')
         if not os.path.exists(os.path.join(temp_gh_dir, ".git")):
             # Si la branche n'existe pas encore sur origin, on la crée (orphan)
             run_cmd(f'git clone "{remote_url}" "{temp_gh_dir}"')
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
+            # Sur une branche orpheline fraîche, il n'y a rien à supprimer : seul échec toléré du script
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
         # Copier le contenu de dist/ sous dist/ de gh-pages
@@ -140,9 +141,9 @@ def main():
         else:
             print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
-        # Création et push du tag sur ce commit
-        run_cmd(f'git tag -a {tag_name} -m "Release {version}"', cwd=temp_gh_dir)
-        run_cmd(f"git push origin {tag_name}", cwd=temp_gh_dir)
+        # Création (ou re-création en force) et push du tag sur ce commit
+        run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_gh_dir)
+        run_cmd(f"git push -f origin {tag_name}", cwd=temp_gh_dir)
         print(f"  -> Tag Git {tag_name} créé et poussé.")
 
     # 6. Publication de la Release GitHub via gh CLI
@@ -150,7 +151,7 @@ def main():
     gh_available = shutil.which("gh") is not None
     if gh_available:
         cmd_gh = f'gh release create {tag_name} "{zip_dest_path}" --title "Outiiil {version}" --target {BRANCH_GH_PAGES} --notes "Mise à jour dynamique Outiiil v{version}"'
-        res_gh = run_cmd(cmd_gh, check=False)
+        res_gh = run_cmd(cmd_gh)
         print(f"  -> Release GitHub créée avec succès via gh CLI : {res_gh}")
     else:
         print(f"  -> GitHub CLI (gh) non détecté. Vous pouvez créer la release manuellement sur GitHub en y joignant {zip_filename}.")
