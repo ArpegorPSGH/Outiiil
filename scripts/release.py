@@ -113,12 +113,14 @@ def main():
 
     # 5. Déploiement sur gh-pages avec tag Git
     print(f"[*] Déploiement du bundle sur la branche '{BRANCH_GH_PAGES}'...")
+    # URL du dépôt distant réel (GitHub), pour pousser vers origin et non vers le dépôt local
+    remote_url = run_cmd("git remote get-url origin")
+
     with tempfile.TemporaryDirectory() as temp_gh_dir:
-        remote_branches = run_cmd("git branch -r", check=False)
-        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{BASE_DIR}" "{temp_gh_dir}"', check=False)
+        res_clone = run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_gh_dir}"', check=False)
         if not os.path.exists(os.path.join(temp_gh_dir, ".git")):
-            # Si la branche n'existe pas encore localement ou sur origin
-            run_cmd(f'git clone "{BASE_DIR}" "{temp_gh_dir}"')
+            # Si la branche n'existe pas encore sur origin, on la crée (orphan)
+            run_cmd(f'git clone "{remote_url}" "{temp_gh_dir}"')
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
@@ -133,14 +135,14 @@ def main():
         status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
         if status_gh:
             run_cmd(f'git commit -m "Release {version} (dist update)"', cwd=temp_gh_dir)
-            run_cmd(f"git push origin {BRANCH_GH_PAGES}", cwd=temp_gh_dir, check=False)
+            run_cmd(f"git push origin {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             print(f"  -> Branche {BRANCH_GH_PAGES} mise à jour et poussée.")
         else:
             print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
         # Création et push du tag sur ce commit
-        run_cmd(f'git tag -a {tag_name} -m "Release {version}"', cwd=temp_gh_dir, check=False)
-        run_cmd(f"git push origin {tag_name}", cwd=temp_gh_dir, check=False)
+        run_cmd(f'git tag -a {tag_name} -m "Release {version}"', cwd=temp_gh_dir)
+        run_cmd(f"git push origin {tag_name}", cwd=temp_gh_dir)
         print(f"  -> Tag Git {tag_name} créé et poussé.")
 
     # 6. Publication de la Release GitHub via gh CLI
