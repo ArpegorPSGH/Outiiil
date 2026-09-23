@@ -11,7 +11,8 @@
  *   Stratégie Stale-While-Revalidate :
  *   1. Injecte immédiatement le bundle CSS et JS depuis chrome.storage.local (ou dist/bundle.* initial si premier démarrage).
  *   2. Vérifie en arrière-plan (fetch asynchrone) la disponibilité d'une nouvelle version sur GitHub Pages (branche gh-pages).
- *   3. Si une nouvelle version existe, télécharge le nouveau bundle et met à jour le cache local pour la navigation suivante.
+ *   3. Si une nouvelle version existe, télécharge le nouveau bundle ainsi que les images listées dans version.json
+ *      et met à jour le cache local pour la navigation suivante.
  */
 
 (async function () {
@@ -25,11 +26,82 @@
     const STORAGE_KEY_JS = 'outiiil_cached_bundle_js';
     const STORAGE_KEY_CSS = 'outiiil_cached_bundle_css';
     const STORAGE_KEY_VERSION = 'outiiil_cached_version';
+    const STORAGE_KEY_IMAGES = 'outiiil_cached_images';
+    const ATTR_BASE_URL = 'data-outiiil-base-url';
 
     // Exposer les métadonnées de l'extension via des attributs data sur la balise html
     const extensionBaseUrl = chrome.runtime.getURL('');
-    document.documentElement.setAttribute('data-outiiil-base-url', extensionBaseUrl);
+    document.documentElement.setAttribute(ATTR_BASE_URL, extensionBaseUrl);
     document.documentElement.setAttribute('data-outiiil-dev-mode', DEV_MODE ? 'true' : 'false');
+
+    /**
+     * Expose au bundle (contexte de la page) les images mises à jour présentes dans le cache :
+     *  - URLs blob générées depuis les contenus cachés si disponibles,
+     *  - rien sinon (le bundle retombe sur les images embarquées dans l'extension/zip).
+     * L'injection se fait par script inline car le bundle s'exécute dans le contexte de la page,
+     * inaccessible depuis le monde isolé du content script.
+     */
+    async function appliquerImagesDepuisCache() {
+        const images = await new Promise((resolve) => chrome.storage.local.get([STORAGE_KEY_IMAGES], (cache) => resolve(cache[STORAGE_KEY_IMAGES] || null)));
+        if (!images || Object.keys(images).length === 0) return;
+        const blobs = {};
+        for (const [chemin, dataUrl] of Object.entries(images)) {
+            try {
+                const mime = chemin.toLowerCase().endsWith('.gif') ? 'image/gif'
+                    : chemin.toLowerCase().endsWith('.jpg') || chemin.toLowerCase().endsWith('.jpeg') ? 'image/jpeg'
+                        : 'image/png';
+                const octets = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
+                blobs[chemin] = URL.createObjectURL(new Blob([octets], { type: mime }));
+            } catch (e) {
+                console.warn('[Outiiil Loader] Image en cache illisible : ' + chemin, e);
+            }
+        }
+        const script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.setAttribute('data-source', 'outiiil-loader');
+        script.textContent = 'window.OUTIIIL_DYNAMIC_IMAGES = ' + JSON.stringify(blobs) + ';';
+        (document.head || document.documentElement).appendChild(script);
+    }
+
+    /**
+     * Télécharge et met en cache toutes les images listées dans version.json.
+     */
+    async function mettreAJourImagesEnCache(listeImages) {
+        if (!Array.isArray(listeImages) || listeImages.length === 0) return;
+        const dataUrls = {};
+        const echecs = [];
+        await Promise.all(listeImages.map(async (chemin) => {
+            try {
+                const res = await fetch(BASE_UPDATE_URL + chemin + '?_t=' + Date.now(), { cache: 'no-store' });
+                if (!res.ok) {
+                    echecs.push(chemin);
+                    return;
+                }
+                const blob = await res.blob();
+                const dataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = () => resolve(null);
+                    reader.readAsDataURL(blob);
+                });
+                if (dataUrl) dataUrls[chemin] = dataUrl;
+                else echecs.push(chemin);
+            } catch (e) {
+                echecs.push(chemin);
+            }
+        }));
+        if (echecs.length) {
+            console.warn('[Outiiil Loader] Images non mises à jour (conserve les précédentes) :', echecs.join(', '));
+        }
+        if (Object.keys(dataUrls).length === 0) return;
+        // Fusion : nouvelles valeurs par-dessus les anciennes
+        const precedentes = await new Promise((resolve) => chrome.storage.local.get([STORAGE_KEY_IMAGES], (c) => resolve(c[STORAGE_KEY_IMAGES] || {})));
+        const fusion = Object.assign({}, precedentes, dataUrls);
+        chrome.storage.local.set({ [STORAGE_KEY_IMAGES]: fusion }, () => {
+            console.log(`[Outiiil Loader] ${Object.keys(dataUrls).length} image(s) mises à jour dans le cache.`);
+            appliquerImagesDepuisCache();
+        });
+    }
 
     /**
      * Injecte une chaîne de style CSS dans la page.
@@ -153,6 +225,11 @@
                     dataToSave[STORAGE_KEY_CSS] = newCss;
                     dataToSave[STORAGE_KEY_VERSION] = remoteVersion;
 
+                    // Rapatriement des images du serveur (liste fournie par version.json)
+                    if (Array.isArray(remoteInfo.images)) {
+                        await mettreAJourImagesEnCache(remoteInfo.images);
+                    }
+
                     chrome.storage.local.set(dataToSave, () => {
                         console.log(`[Outiiil Loader] Mise à jour vers ${remoteVersion} enregistrée dans le cache.`);
                         if (window.$ && window.$.toast) {
@@ -235,13 +312,18 @@
                 }
             }
 
-            // 2. Injection immédiate du CSS et du JS
+            // 2. Exposition des images mises à jour (avant injection : les IMG_* du bundle y font référence)
+            await appliquerImagesDepuisCache();
+
+            // 3. Injection immédiate du CSS et du JS
             if (cssToApply) {
                 injecterCSS(cssToApply);
             }
             if (jsToRun) {
                 injecterJS(jsToRun);
             }
+
+            // 4. Lancer la vérification de mise à jour en tâche de fond (non bloquante)
 
             // 3. Lancer la vérification de mise à jour en tâche de fond (non bloquante)
             setTimeout(() => {

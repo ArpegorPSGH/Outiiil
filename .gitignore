@@ -4,3 +4,4 @@
 # Ignorer les fichiers pour construire la version de production
 Outiiil*.zip
 dist/
+*.pyc

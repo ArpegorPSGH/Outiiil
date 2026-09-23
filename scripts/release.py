@@ -7,7 +7,7 @@ Workflow :
  1. Vérifie que le répertoire de travail Git est propre.
  2. Récupère la version actuelle depuis manifest.json.
  3. Compile le dossier `dist/` complet (bundle.js, bundle.css, version.json, images/).
- 4. Génère l'archive zip de distribution du socle minimal (`Outiiil-vX.Y.zip`).
+ 4. Génère l'archive zip de distribution du socle (`Outiiil-vX.Y.zip` : manifest, loader, dist/, images/).
  5. Déploie le contenu de `dist/` sur la branche distante `gh-pages` et tague le commit avec le numéro de version.
  6. Crée la Release sur GitHub (via GitHub CLI `gh` si présent) en y attachant le zip.
  7. Nettoie le dossier `dist/` local et garantit que la branche de travail reste sur `dev`.
@@ -25,6 +25,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
 LOADER_PATH = os.path.join(BASE_DIR, "js", "loader.js")
 DIST_DIR = os.path.join(BASE_DIR, "dist")
+IMAGES_DIR = os.path.join(BASE_DIR, "images")
 
 # Nom de la branche de distribution GitHub Pages
 BRANCH_GH_PAGES = "gh-pages"
@@ -83,7 +84,7 @@ def main():
         print("Erreur : La compilation de dist/ a échoué.", file=sys.stderr)
         sys.exit(1)
 
-    # 4. Génération de l'archive zip minimale (manifest + loader en prod + dist)
+    # 4. Génération de l'archive zip (manifest + loader en prod + dist + images racine)
     zip_filename = f"Outiiil-v{version}.zip"
     zip_dest_path = os.path.join(BASE_DIR, zip_filename)
     print(f"[*] Génération de l'archive de release : {zip_filename}...")
@@ -102,6 +103,12 @@ def main():
 
         # dist/
         shutil.copytree(DIST_DIR, os.path.join(temp_zip_dir, "dist"))
+
+        # images/ à la racine (référencées par le manifest et le bundle)
+        if not os.path.exists(IMAGES_DIR):
+            print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
+            sys.exit(1)
+        shutil.copytree(IMAGES_DIR, os.path.join(temp_zip_dir, "images"))
 
         # Création du zip
         with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:

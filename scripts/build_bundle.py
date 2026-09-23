@@ -79,12 +79,20 @@ def build_dist():
             shutil.rmtree(IMAGES_DIST_DIR)
         shutil.copytree(IMAGES_SRC_DIR, IMAGES_DIST_DIR)
 
-    # Génération du fichier version.json
+    # Génération du fichier version.json (avec la liste des images servies dynamiquement)
+    liste_images = []
+    if os.path.exists(IMAGES_DIST_DIR):
+        for racine, _, fichiers in os.walk(IMAGES_DIST_DIR):
+            for fichier in fichiers:
+                chemin_complet = os.path.join(racine, fichier)
+                liste_images.append(os.path.relpath(chemin_complet, DIST_DIR).replace(os.sep, "/"))
+
     version_json_path = os.path.join(DIST_DIR, "version.json")
     version_data = {
         "version": version,
         "js": "bundle.js",
         "css": "bundle.css",
+        "images": liste_images,
         "timestamp": os.path.getmtime(js_bundle_path)
     }
     with open(version_json_path, "w", encoding="utf-8") as f_ver:
@@ -94,7 +102,7 @@ def build_dist():
     print(f" - bundle.js ({os.path.getsize(js_bundle_path) // 1024} Ko)")
     print(f" - bundle.css ({os.path.getsize(css_bundle_path) // 1024} Ko)")
     print(f" - images/ ({len(os.listdir(IMAGES_DIST_DIR)) if os.path.exists(IMAGES_DIST_DIR) else 0} dossiers/fichiers)")
-    print(f" - version.json (Version: {version})")
+    print(f" - version.json (Version: {version}, {len(liste_images)} images listées)")
     return version
 
 if __name__ == "__main__":
