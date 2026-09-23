@@ -1,6 +1,30 @@
 {
-  "version": "3.23",
+  "version": "3.22",
   "js": "bundle.js",
   "css": "bundle.css",
-  "timestamp": 1790183608.0
+  "images": [
+    "images/accepter.png",
+    "images/actualize_off_01.png",
+    "images/actualize_on_01.png",
+    "images/change.png",
+    "images/copy.png",
+    "images/crayon.gif",
+    "images/croix.png",
+    "images/down.png",
+    "images/historique.png",
+    "images/livraison.png",
+    "images/nonXP.png",
+    "images/outiiil.png",
+    "images/radar.png",
+    "images/refuser.png",
+    "images/sauvegarder.png",
+    "images/sprite_menu.png",
+    "images/up.png",
+    "images/utilitaire.png",
+    "images/utility.png",
+    "images/icons/gear_128.png",
+    "images/icons/gear_48.png",
+    "images/icons/gear_96.png"
+  ],
+  "timestamp": 1790190450.0
 }

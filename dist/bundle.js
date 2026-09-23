@@ -128917,6 +128917,8 @@ class Utils {
 
     /**
      * Résout l'URL absolue d'une ressource de l'extension.
+     * Les images (images/...) sont résolues en priorité vers le cache local mis à jour
+     * dynamiquement (URLs blob exposées par le loader), avec repli sur l'extension (zip).
      *
      * @static
      * @method getExtensionURL
@@ -128924,13 +128926,19 @@ class Utils {
      * @return {String}
      */
     static getExtensionURL(path) {
+        const normalise = path.startsWith('/') ? path.slice(1) : path;
+        // Images servies dynamiquement (mises à jour via gh-pages)
+        if (normalise.startsWith('images/') && typeof window !== 'undefined' && window.OUTIIIL_DYNAMIC_IMAGES) {
+            const url = window.OUTIIIL_DYNAMIC_IMAGES[normalise];
+            if (url) return url;
+        }
         if (typeof chrome !== 'undefined' && chrome.runtime && typeof chrome.runtime.getURL === 'function') {
-            return chrome.runtime.getURL(path);
+            return chrome.runtime.getURL(normalise);
         }
         const base = (typeof document !== 'undefined' && document.documentElement && document.documentElement.getAttribute('data-outiiil-base-url'))
             || (typeof window !== 'undefined' && window.OUTIIIL_BASE_URL)
             || '';
-        return base + (path.startsWith('/') ? path.slice(1) : path);
+        return base + normalise;
     }
 }
 
@@ -144157,7 +144165,7 @@ Utils.register(class Recensement extends ObjetForum {
  * @extends {ObjetForum}
  */
 Utils.register(class Joueur extends ObjetForum {
-    static VERSION_LOGIQUE = '2.0';
+    static VERSION_LOGIQUE = '1.0';
     static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre', visibilite: 'caché' }];
     static PARAMETRES_OBJET = [
         [
