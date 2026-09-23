@@ -12,7 +12,7 @@
  * @extends {ObjetForum}
  */
 Utils.register(class Joueur extends ObjetForum {
-    static VERSION_LOGIQUE = '1.0';
+    static VERSION_LOGIQUE = '2.0';
     static LOCATION_HISTORY = [{ section: 'Membres Outiiil', lieu: 'titre', visibilite: 'caché' }];
     static PARAMETRES_OBJET = [
         [

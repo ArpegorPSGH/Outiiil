@@ -49,7 +49,7 @@ Un script unique de release prend en charge le cycle complet :
 
 ## Tests à effectuer
 - [x] Vérifier que les modifications de fichiers sources en local sont prises en compte immédiatement en dev (F5).
-- Vérifier que le script de release publie correctement sur `gh-pages` et met à jour `socle`.
+- [x] Vérifier que le script de release publie correctement sur `gh-pages`.
 - Vérifier que les clients en `DEV_MODE: false` détectent et appliquent automatiquement la mise à jour poussée sur `gh-pages`.
 - Vérifier que le numéro de version s'incrémente bien
 - Vérifier le comportement bloquant et le message adapté en cas d'incompatibilité de données forum.

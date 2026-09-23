@@ -1,0 +1,3 @@
+- Nettoyer la branche socle, elle est obsolète.
+- Supprimer les commits de test du script sur gh-pages
+- Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
