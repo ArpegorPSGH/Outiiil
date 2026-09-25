@@ -2,3 +2,4 @@
 - Supprimer les commits de test du script sur gh-pages
 - Supprimer les anciennes releases
 - Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
+- Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+

@@ -56,10 +56,15 @@
                 console.warn('[Outiiil Loader] Image en cache illisible : ' + chemin, e);
             }
         }
+        const blob = new Blob([
+            'window.OUTIIIL_DYNAMIC_IMAGES = ' + JSON.stringify(blobs) + ';'
+        ], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
         const script = document.createElement('script');
         script.type = 'text/javascript';
         script.setAttribute('data-source', 'outiiil-loader');
-        script.textContent = 'window.OUTIIIL_DYNAMIC_IMAGES = ' + JSON.stringify(blobs) + ';';
+        script.src = blobUrl;
+        script.onload = () => URL.revokeObjectURL(blobUrl);
         (document.head || document.documentElement).appendChild(script);
     }
 
@@ -131,10 +136,13 @@
      */
     function injecterJS(jsContent) {
         if (!jsContent) return;
+        const blob = new Blob([jsContent], { type: 'application/javascript' });
+        const blobUrl = URL.createObjectURL(blob);
         const script = document.createElement('script');
         script.type = 'text/javascript';
         script.setAttribute('data-source', 'outiiil-bundle');
-        script.textContent = jsContent;
+        script.src = blobUrl;
+        script.onload = () => URL.revokeObjectURL(blobUrl);
         (document.head || document.documentElement).appendChild(script);
     }
 
