@@ -56,16 +56,12 @@
                 console.warn('[Outiiil Loader] Image en cache illisible : ' + chemin, e);
             }
         }
-        const blob = new Blob([
-            'window.OUTIIIL_DYNAMIC_IMAGES = ' + JSON.stringify(blobs) + ';'
-        ], { type: 'application/javascript' });
-        const blobUrl = URL.createObjectURL(blob);
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.setAttribute('data-source', 'outiiil-loader');
-        script.src = blobUrl;
-        script.onload = () => URL.revokeObjectURL(blobUrl);
-        (document.head || document.documentElement).appendChild(script);
+        await chrome.scripting.executeScript({
+            func: function(b) {
+                window.OUTIIIL_DYNAMIC_IMAGES = b;
+            },
+            args: [blobs]
+        });
     }
 
     /**
@@ -134,16 +130,14 @@
     /**
      * Injecte et exécute un script JavaScript dans le contexte actuel.
      */
-    function injecterJS(jsContent) {
+    async function injecterJS(jsContent) {
         if (!jsContent) return;
-        const blob = new Blob([jsContent], { type: 'application/javascript' });
-        const blobUrl = URL.createObjectURL(blob);
-        const script = document.createElement('script');
-        script.type = 'text/javascript';
-        script.setAttribute('data-source', 'outiiil-bundle');
-        script.src = blobUrl;
-        script.onload = () => URL.revokeObjectURL(blobUrl);
-        (document.head || document.documentElement).appendChild(script);
+        await chrome.scripting.executeScript({
+            func: function(code) {
+                eval(code);
+            },
+            args: [jsContent]
+        });
     }
 
     /**
@@ -328,7 +322,7 @@
                 injecterCSS(cssToApply);
             }
             if (jsToRun) {
-                injecterJS(jsToRun);
+                await injecterJS(jsToRun);
             }
 
             // 4. Lancer la vérification de mise à jour en tâche de fond (non bloquante)
