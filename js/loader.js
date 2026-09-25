@@ -56,10 +56,9 @@
                 console.warn('[Outiiil Loader] Image en cache illisible : ' + chemin, e);
             }
         }
-        await chrome.scripting.executeScript({
-            func: function(b) {
-                window.OUTIIIL_DYNAMIC_IMAGES = b;
-            },
+        await chrome.runtime.sendMessage({
+            type: 'EXECUTE_SCRIPT',
+            funcName: 'setImages',
             args: [blobs]
         });
     }
@@ -101,7 +100,7 @@
         chrome.storage.local.set({ [STORAGE_KEY_IMAGES]: fusion }, () => {
             console.log(`[Outiiil Loader] ${Object.keys(dataUrls).length} image(s) mises à jour dans le cache.`);
             appliquerImagesDepuisCache();
-        });
+         });
     }
 
     /**
@@ -132,10 +131,9 @@
      */
     async function injecterJS(jsContent) {
         if (!jsContent) return;
-        await chrome.scripting.executeScript({
-            func: function(code) {
-                eval(code);
-            },
+        await chrome.runtime.sendMessage({
+            type: 'EXECUTE_SCRIPT',
+            funcName: 'executeCode',
             args: [jsContent]
         });
     }
@@ -270,10 +268,10 @@
 
                 // 2. Injection séquentielle des scripts JS locaux
                 for (const jsFile of sources.js || []) {
-                    await injecterScriptSrc(chrome.runtime.getURL(jsFile));
-                }
-                console.log('[Outiiil Loader] Tous les modules locaux de développement ont été injectés avec succès.');
-                return;
+await injecterScriptSrc(chrome.runtime.getURL(jsFile));
+        }
+        console.log('[Outiiil Loader] Tous les modules locaux de développement ont été injectés avec succès.');
+        return;
             } else {
                 console.warn('[Outiiil Loader] bundle_sources.json non trouvé, repli sur le bundle local.');
             }

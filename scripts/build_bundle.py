@@ -88,6 +88,7 @@ def build_dist():
                 liste_images.append(os.path.relpath(chemin_complet, DIST_DIR).replace(os.sep, "/"))
 
     version_json_path = os.path.join(DIST_DIR, "version.json")
+
     version_data = {
         "version": version,
         "js": "bundle.js",
@@ -103,6 +104,17 @@ def build_dist():
     print(f" - bundle.css ({os.path.getsize(css_bundle_path) // 1024} Ko)")
     print(f" - images/ ({len(os.listdir(IMAGES_DIST_DIR)) if os.path.exists(IMAGES_DIST_DIR) else 0} dossiers/fichiers)")
     print(f" - version.json (Version: {version}, {len(liste_images)} images listées)")
+
+    bg_dir = os.path.join(DIST_DIR, "js")
+    if os.path.exists(bg_dir):
+        shutil.rmtree(bg_dir)
+    os.makedirs(bg_dir, exist_ok=True)
+    for bg_file in ["background.js"]:
+        src = os.path.join(BASE_DIR, "js", bg_file)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(bg_dir, bg_file))
+            print(f" - js/{bg_file}")
+
     return version
 
 if __name__ == "__main__":

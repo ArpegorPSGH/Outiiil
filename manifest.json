@@ -16,6 +16,9 @@
 		"http://outiiil.fr/",
 		"https://arpegorpsgh.github.io/*"
 	],
+	"background": {
+		"service_worker": "js/background.js"
+	},
 	"permissions": [
 		"storage",
 		"scripting"
