@@ -90,8 +90,19 @@ def main():
     print(f"[*] Génération de l'archive de release : {zip_filename}...")
 
     with tempfile.TemporaryDirectory() as temp_zip_dir:
-        # manifest.json
-        shutil.copyfile(MANIFEST_PATH, os.path.join(temp_zip_dir, "manifest.json"))
+        # manifest.json avec chemins d'icônes mis à jour vers dist/images/
+        with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+            manifest_data = json.load(f)
+        # Mettre à jour les chemins des icônes pour qu'ils pointent vers dist/images/
+        if "icons" in manifest_data:
+            for key, path in manifest_data["icons"].items():
+                if path.startswith("images/"):
+                    manifest_data["icons"][key] = "dist/" + path
+        if "action" in manifest_data and "default_icon" in manifest_data["action"]:
+            if manifest_data["action"]["default_icon"].startswith("images/"):
+                manifest_data["action"]["default_icon"] = "dist/" + manifest_data["action"]["default_icon"]
+        with open(os.path.join(temp_zip_dir, "manifest.json"), "w", encoding="utf-8") as f:
+            json.dump(manifest_data, f, indent=2, ensure_ascii=False)
 
         # js/loader.js avec DEV_MODE = false
         os.makedirs(os.path.join(temp_zip_dir, "js"), exist_ok=True)
@@ -114,7 +125,7 @@ def main():
             if os.path.exists(src):
                 shutil.copy2(src, os.path.join(dist_target, fname))
 
-        # images/ dans dist/ (pour mise à jour dynamique sans mise à jour d'extension)
+        # images/ dans dist/ (pour mise à jour dynamique sans mise à jour d'extension + icônes du manifest)
         if not os.path.exists(IMAGES_DIR):
             print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
             sys.exit(1)
