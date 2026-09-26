@@ -105,16 +105,6 @@ def build_dist():
     print(f" - images/ ({len(os.listdir(IMAGES_DIST_DIR)) if os.path.exists(IMAGES_DIST_DIR) else 0} dossiers/fichiers)")
     print(f" - version.json (Version: {version}, {len(liste_images)} images listées)")
 
-    bg_dir = os.path.join(DIST_DIR, "js")
-    if os.path.exists(bg_dir):
-        shutil.rmtree(bg_dir)
-    os.makedirs(bg_dir, exist_ok=True)
-    for bg_file in ["background.js"]:
-        src = os.path.join(BASE_DIR, "js", bg_file)
-        if os.path.exists(src):
-            shutil.copy2(src, os.path.join(bg_dir, bg_file))
-            print(f" - js/{bg_file}")
-
     return version
 
 if __name__ == "__main__":

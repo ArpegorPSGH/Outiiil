@@ -84,7 +84,7 @@ def main():
         print("Erreur : La compilation de dist/ a échoué.", file=sys.stderr)
         sys.exit(1)
 
-    # 4. Génération de l'archive zip (manifest + loader en prod + dist + images racine)
+    # 4. Génération de l'archive zip (manifest + loader en prod + js/background.js + dist/* + dist/images/)
     zip_filename = f"Outiiil-v{version}.zip"
     zip_dest_path = os.path.join(BASE_DIR, zip_filename)
     print(f"[*] Génération de l'archive de release : {zip_filename}...")
@@ -101,14 +101,24 @@ def main():
         with open(os.path.join(temp_zip_dir, "js", "loader.js"), "w", encoding="utf-8") as f_loader_out:
             f_loader_out.write(loader_code_prod)
 
-        # dist/
-        shutil.copytree(DIST_DIR, os.path.join(temp_zip_dir, "dist"))
+        # js/background.js (copié directement, pas via dist/)
+        bg_src = os.path.join(BASE_DIR, "js", "background.js")
+        if os.path.exists(bg_src):
+            shutil.copy2(bg_src, os.path.join(temp_zip_dir, "js", "background.js"))
 
-        # images/ à la racine (référencées par le manifest et le bundle)
+        # dist/ : bundle.js, bundle.css, version.json, images/
+        dist_target = os.path.join(temp_zip_dir, "dist")
+        os.makedirs(dist_target, exist_ok=True)
+        for fname in ["bundle.js", "bundle.css", "version.json"]:
+            src = os.path.join(DIST_DIR, fname)
+            if os.path.exists(src):
+                shutil.copy2(src, os.path.join(dist_target, fname))
+
+        # images/ dans dist/ (pour mise à jour dynamique sans mise à jour d'extension)
         if not os.path.exists(IMAGES_DIR):
             print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
             sys.exit(1)
-        shutil.copytree(IMAGES_DIR, os.path.join(temp_zip_dir, "images"))
+        shutil.copytree(IMAGES_DIR, os.path.join(dist_target, "images"))
 
         # Création du zip
         with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:
