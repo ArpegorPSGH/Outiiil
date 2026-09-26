@@ -9,38 +9,29 @@
  * 
  * - En mode production (DEV_MODE = false) :
  *   Stratégie Stale-While-Revalidate :
- *   1. Injecte immédiatement le bundle CSS et JS depuis chrome.storage.local (ou dist/bundle.* initial si premier démarrage).
- *   2. Vérifie en arrière-plan (fetch asynchrone) la disponibilité d'une nouvelle version sur GitHub Pages (branche gh-pages).
- *   3. Si une nouvelle version existe, télécharge le nouveau bundle ainsi que les images listées dans version.json
+ *   1. Injecte immédiatement le bundle CSS et JS depuis dist/ (embarqué dans l'extension).
+ *   2. Vérifie en arrière-plan (fetch asynchrone) la disponibilité d'une nouvelle configuration sur GitHub Pages (branche gh-pages).
+ *   3. Si une nouvelle configuration existe, télécharge le JSON de configuration et les images listées
  *      et met à jour le cache local pour la navigation suivante.
+ *   4. Pour les mises à jour de logique/comportement : l'utilisateur doit recharger l'extension.
  */
 
 (async function () {
     'use strict';
 
-    // Flag de mode développement (activé sur la branche dev, basculé à false lors d'une release)
     const DEV_MODE = true;
 
     const BASE_UPDATE_URL = 'https://arpegorpsgh.github.io/Outiiil/dist/';
     const VERSION_URL = BASE_UPDATE_URL + 'version.json?_t=' + Date.now();
-    const STORAGE_KEY_JS = 'outiiil_cached_bundle_js';
-    const STORAGE_KEY_CSS = 'outiiil_cached_bundle_css';
+    const STORAGE_KEY_CONFIG = 'outiiil_cached_config';
     const STORAGE_KEY_VERSION = 'outiiil_cached_version';
     const STORAGE_KEY_IMAGES = 'outiiil_cached_images';
     const ATTR_BASE_URL = 'data-outiiil-base-url';
 
-    // Exposer les métadonnées de l'extension via des attributs data sur la balise html
     const extensionBaseUrl = chrome.runtime.getURL('');
     document.documentElement.setAttribute(ATTR_BASE_URL, extensionBaseUrl);
     document.documentElement.setAttribute('data-outiiil-dev-mode', DEV_MODE ? 'true' : 'false');
 
-    /**
-     * Expose au bundle (contexte de la page) les images mises à jour présentes dans le cache :
-     *  - URLs blob générées depuis les contenus cachés si disponibles,
-     *  - rien sinon (le bundle retombe sur les images embarquées dans l'extension/zip).
-     * L'injection se fait par script inline car le bundle s'exécute dans le contexte de la page,
-     * inaccessible depuis le monde isolé du content script.
-     */
     async function appliquerImagesDepuisCache() {
         const images = await new Promise((resolve) => chrome.storage.local.get([STORAGE_KEY_IMAGES], (cache) => resolve(cache[STORAGE_KEY_IMAGES] || null)));
         if (!images || Object.keys(images).length === 0) return;
@@ -63,9 +54,6 @@
         });
     }
 
-    /**
-     * Télécharge et met en cache toutes les images listées dans version.json.
-     */
     async function mettreAJourImagesEnCache(listeImages) {
         if (!Array.isArray(listeImages) || listeImages.length === 0) return;
         const dataUrls = {};
@@ -94,18 +82,14 @@
             console.warn('[Outiiil Loader] Images non mises à jour (conserve les précédentes) :', echecs.join(', '));
         }
         if (Object.keys(dataUrls).length === 0) return;
-        // Fusion : nouvelles valeurs par-dessus les anciennes
         const precedentes = await new Promise((resolve) => chrome.storage.local.get([STORAGE_KEY_IMAGES], (c) => resolve(c[STORAGE_KEY_IMAGES] || {})));
         const fusion = Object.assign({}, precedentes, dataUrls);
         chrome.storage.local.set({ [STORAGE_KEY_IMAGES]: fusion }, () => {
             console.log(`[Outiiil Loader] ${Object.keys(dataUrls).length} image(s) mises à jour dans le cache.`);
             appliquerImagesDepuisCache();
-         });
+        });
     }
 
-    /**
-     * Injecte une chaîne de style CSS dans la page.
-     */
     function injecterCSS(cssContent) {
         if (!cssContent) return;
         const style = document.createElement('style');
@@ -115,9 +99,6 @@
         (document.head || document.documentElement).appendChild(style);
     }
 
-    /**
-     * Injecte une feuille de style externe via balise link.
-     */
     function injecterLienCSS(url) {
         const link = document.createElement('link');
         link.rel = 'stylesheet';
@@ -126,21 +107,6 @@
         (document.head || document.documentElement).appendChild(link);
     }
 
-    /**
-     * Injecte et exécute un script JavaScript dans le contexte actuel.
-     */
-    async function injecterJS(jsContent) {
-        if (!jsContent) return;
-        await chrome.runtime.sendMessage({
-            type: 'EXECUTE_SCRIPT',
-            funcName: 'executeCode',
-            args: [jsContent]
-        });
-    }
-
-    /**
-     * Injecte un script externe via balise script src.
-     */
     function injecterScriptSrc(url) {
         return new Promise((resolve, reject) => {
             const script = document.createElement('script');
@@ -153,33 +119,6 @@
         });
     }
 
-    /**
-     * Charge le bundle initial local (embarqué dans l'extension) pour amorcer l'extension si le cache est vide.
-     */
-    async function chargerBundleLocalFallback() {
-        try {
-            const cssUrl = chrome.runtime.getURL('dist/bundle.css');
-            const jsUrl = chrome.runtime.getURL('dist/bundle.js');
-
-            const [cssRes, jsRes] = await Promise.all([
-                fetch(cssUrl),
-                fetch(jsUrl)
-            ]);
-
-            const cssContent = await cssRes.text();
-            const jsContent = await jsRes.text();
-
-            return { css: cssContent, js: jsContent };
-        } catch (e) {
-            console.error('[Outiiil Loader] Impossible de charger le bundle local de secours :', e);
-            return null;
-        }
-    }
-
-    /**
-     * Compare deux numéros de version sémantique (ex: "3.23" vs "3.24").
-     * Retourne > 0 si v1 > v2, < 0 si v1 < v2, 0 si égales.
-     */
     function comparerVersions(v1, v2) {
         if (!v1 || !v2) return 0;
         const parts1 = v1.toString().split('.').map(n => parseInt(n, 10) || 0);
@@ -194,10 +133,7 @@
         return 0;
     }
 
-    /**
-     * Vérification asynchrone et téléchargement en arrière-plan d'une nouvelle version.
-     */
-    async function verifierEtMettreAJourEnArrierePlan(versionActuelle) {
+    async function verifierEtMettreAJourConfig(versionActuelle) {
         try {
             const response = await fetch(VERSION_URL, { cache: 'no-store' });
             if (!response.ok) {
@@ -209,39 +145,46 @@
             const remoteVersion = remoteInfo.version;
 
             if (comparerVersions(remoteVersion, versionActuelle) > 0) {
-                console.log(`[Outiiil Loader] Nouvelle version détectée : ${remoteVersion} (Actuelle: ${versionActuelle}). Téléchargement...`);
+                console.log(`[Outiiil Loader] Nouvelle configuration détectée : ${remoteVersion} (Actuelle: ${versionActuelle}). Téléchargement...`);
 
-                const [jsRes, cssRes] = await Promise.all([
-                    fetch(BASE_UPDATE_URL + remoteInfo.js + '?_t=' + Date.now()),
-                    fetch(BASE_UPDATE_URL + remoteInfo.css + '?_t=' + Date.now())
-                ]);
+                // Télécharger la configuration (JSON) au lieu du bundle JS
+                if (remoteInfo.configUrl) {
+                    const configRes = await fetch(BASE_UPDATE_URL + remoteInfo.configUrl + '?_t=' + Date.now());
+                    if (configRes.ok) {
+                        const newConfig = await configRes.json();
+                        const dataToSave = {};
+                        dataToSave[STORAGE_KEY_CONFIG] = JSON.stringify(newConfig);
+                        dataToSave[STORAGE_KEY_VERSION] = remoteVersion;
 
-                if (jsRes.ok && cssRes.ok) {
-                    const newJs = await jsRes.text();
-                    const newCss = await cssRes.text();
-
-                    const dataToSave = {};
-                    dataToSave[STORAGE_KEY_JS] = newJs;
-                    dataToSave[STORAGE_KEY_CSS] = newCss;
-                    dataToSave[STORAGE_KEY_VERSION] = remoteVersion;
-
-                    // Rapatriement des images du serveur (liste fournie par version.json)
-                    if (Array.isArray(remoteInfo.images)) {
-                        await mettreAJourImagesEnCache(remoteInfo.images);
-                    }
-
-                    chrome.storage.local.set(dataToSave, () => {
-                        console.log(`[Outiiil Loader] Mise à jour vers ${remoteVersion} enregistrée dans le cache.`);
-                        if (window.$ && window.$.toast) {
-                            window.$.toast({
-                                heading: 'Mise à jour Outiiil prête',
-                                text: `La version ${remoteVersion} est téléchargée et sera active au prochain changement de page.`,
-                                icon: 'info',
-                                position: 'top-right',
-                                hideAfter: 6000
-                            });
+                        if (Array.isArray(remoteInfo.images)) {
+                            await mettreAJourImagesEnCache(remoteInfo.images);
                         }
-                    });
+
+                        chrome.storage.local.set(dataToSave, () => {
+                            console.log(`[Outiiil Loader] Configuration ${remoteVersion} enregistrée dans le cache.`);
+                            if (window.$ && window.$.toast) {
+                                window.$.toast({
+                                    heading: 'Configuration Outiiil mise à jour',
+                                    text: `La version ${remoteVersion} est téléchargée et sera active au prochain changement de page.`,
+                                    icon: 'info',
+                                    position: 'top-right',
+                                    hideAfter: 6000
+                                });
+                            }
+                        });
+                    }
+                } else {
+                    // Pas de configUrl = mise à jour de logique (bundle.js) => nécessite rechargement
+                    console.log('[Outiiil Loader] Mise à jour du bundle détectée. Rechargement de l\'extension requis.');
+                    if (window.$ && window.$.toast) {
+                        window.$.toast({
+                            heading: 'Mise à jour Outiiil disponible',
+                            text: `La version ${remoteVersion} contient des changements de logique. Rechargez l'extension pour l'appliquer.`,
+                            icon: 'warning',
+                            position: 'top-right',
+                            hideAfter: 10000
+                        });
+                    }
                 }
             } else {
                 console.log(`[Outiiil Loader] L'extension est à jour (${versionActuelle}).`);
@@ -255,23 +198,20 @@
     if (DEV_MODE) {
         console.log('%c[Outiiil Loader] MODE DÉVELOPPEMENT ACTIF - Chargement direct des sources locales', 'color: #2196F3; font-weight: bold;');
         try {
-            // Lecture de bundle_sources.json pour obtenir la liste ordonnée des fichiers sources
             const sourcesUrl = chrome.runtime.getURL('scripts/bundle_sources.json');
             const sourcesRes = await fetch(sourcesUrl);
             if (sourcesRes.ok) {
                 const sources = await sourcesRes.json();
 
-                // 1. Injection des feuilles de style CSS locales
                 for (const cssFile of sources.css || []) {
                     injecterLienCSS(chrome.runtime.getURL(cssFile));
                 }
 
-                // 2. Injection séquentielle des scripts JS locaux
                 for (const jsFile of sources.js || []) {
-await injecterScriptSrc(chrome.runtime.getURL(jsFile));
-        }
-        console.log('[Outiiil Loader] Tous les modules locaux de développement ont été injectés avec succès.');
-        return;
+                    await injecterScriptSrc(chrome.runtime.getURL(jsFile));
+                }
+                console.log('[Outiiil Loader] Tous les modules locaux de développement ont été injectés avec succès.');
+                return;
             } else {
                 console.warn('[Outiiil Loader] bundle_sources.json non trouvé, repli sur le bundle local.');
             }
@@ -282,52 +222,43 @@ await injecterScriptSrc(chrome.runtime.getURL(jsFile));
 
     // --- MODE PRODUCTION (STALE-WHILE-REVALIDATE) ---
     try {
-        // 1. Récupération des données depuis le stockage local (très rapide, < 10ms)
-        chrome.storage.local.get([STORAGE_KEY_JS, STORAGE_KEY_CSS, STORAGE_KEY_VERSION], async (cache) => {
-            let jsToRun = cache[STORAGE_KEY_JS];
-            let cssToApply = cache[STORAGE_KEY_CSS];
+        // 1. Injection immédiate du bundle local (embarqué dans l'extension)
+        const cssUrl = chrome.runtime.getURL('dist/bundle.css');
+        const jsUrl = chrome.runtime.getURL('dist/bundle.js');
+
+        const [cssRes, jsRes] = await Promise.all([
+            fetch(cssUrl),
+            fetch(jsUrl)
+        ]);
+
+        if (cssRes.ok) {
+            const cssContent = await cssRes.text();
+            injecterCSS(cssContent);
+        }
+
+        if (jsRes.ok) {
+            await injecterScriptSrc(jsUrl);
+        }
+
+        // 2. Exposition des images mises à jour
+        await appliquerImagesDepuisCache();
+
+        // 3. Récupérer la version active depuis le storage ou version.json
+        chrome.storage.local.get([STORAGE_KEY_VERSION], async (cache) => {
             let versionActive = cache[STORAGE_KEY_VERSION];
-
-            // Si le cache est vide (premier lancement), charger le fallback distribué avec l'extension
-            if (!jsToRun || !cssToApply) {
-                console.log('[Outiiil Loader] Initialisation du cache local depuis le bundle local...');
-                const localBundle = await chargerBundleLocalFallback();
-                if (localBundle) {
-                    jsToRun = localBundle.js;
-                    cssToApply = localBundle.css;
-                    // En production, la version initiale provient de version.json (avec repli sur manifest si absent)
-                    try {
-                        const verRes = await fetch(chrome.runtime.getURL('dist/version.json'));
-                        if (verRes.ok) {
-                            const verData = await verRes.json();
-                            versionActive = verData.version;
-                        }
-                    } catch (e) { }
-
-                    const initialData = {};
-                    initialData[STORAGE_KEY_JS] = jsToRun;
-                    initialData[STORAGE_KEY_CSS] = cssToApply;
-                    initialData[STORAGE_KEY_VERSION] = versionActive;
-                    chrome.storage.local.set(initialData);
-                }
+            if (!versionActive) {
+                try {
+                    const verRes = await fetch(chrome.runtime.getURL('dist/version.json'));
+                    if (verRes.ok) {
+                        const verData = await verRes.json();
+                        versionActive = verData.version;
+                    }
+                } catch (e) { }
             }
 
-            // 2. Exposition des images mises à jour (avant injection : les IMG_* du bundle y font référence)
-            await appliquerImagesDepuisCache();
-
-            // 3. Injection immédiate du CSS et du JS
-            if (cssToApply) {
-                injecterCSS(cssToApply);
-            }
-            if (jsToRun) {
-                await injecterJS(jsToRun);
-            }
-
-            // 4. Lancer la vérification de mise à jour en tâche de fond (non bloquante)
-
-            // 3. Lancer la vérification de mise à jour en tâche de fond (non bloquante)
+            // 4. Lancer la vérification de mise à jour de CONFIG en tâche de fond
             setTimeout(() => {
-                verifierEtMettreAJourEnArrierePlan(versionActive || '0.0.0');
+                verifierEtMettreAJourConfig(versionActive || '0.0.0');
             }, 1000);
         });
     } catch (err) {

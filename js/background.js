@@ -5,18 +5,14 @@ function setImages(blobs) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'EXECUTE_SCRIPT') {
         if (message.funcName === 'executeCode') {
-            // Use data URL to execute code in isolated world - bypasses CSP eval restrictions
-            function executeViaDataUrl(code) {
-                const url = 'data:text/javascript,' + encodeURIComponent(code);
-                const script = document.createElement('script');
-                script.src = url;
-                (document.head || document.documentElement).appendChild(script);
-            }
+            // Try code parameter (Chrome 108+)
             chrome.scripting.executeScript({
                 target: { tabId: sender.tab.id },
-                func: executeViaDataUrl,
-                args: message.args
-            }).then(() => sendResponse(true)).catch(sendResponse);
+                code: message.args[0]
+            }).then(() => sendResponse(true)).catch((err) => {
+                console.error('[Background] executeScript(code) failed:', err);
+                sendResponse({ error: err.message });
+            });
         } else if (message.funcName === 'setImages') {
             chrome.scripting.executeScript({
                 target: { tabId: sender.tab.id },

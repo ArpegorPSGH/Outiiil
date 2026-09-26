@@ -87,12 +87,17 @@ def build_dist():
                 chemin_complet = os.path.join(racine, fichier)
                 liste_images.append(os.path.relpath(chemin_complet, DIST_DIR).replace(os.sep, "/"))
 
+    # Chercher un fichier config.json pour les mises à jour de données (optionnel)
+    config_url = None
+    config_path = os.path.join(BASE_DIR, "dist", "config.json")
+    if os.path.exists(config_path):
+        config_url = "config.json"
+
     version_json_path = os.path.join(DIST_DIR, "version.json")
 
     version_data = {
         "version": version,
-        "js": "bundle.js",
-        "css": "bundle.css",
+        "configUrl": config_url,
         "images": liste_images,
         "timestamp": os.path.getmtime(js_bundle_path)
     }
@@ -103,7 +108,7 @@ def build_dist():
     print(f" - bundle.js ({os.path.getsize(js_bundle_path) // 1024} Ko)")
     print(f" - bundle.css ({os.path.getsize(css_bundle_path) // 1024} Ko)")
     print(f" - images/ ({len(os.listdir(IMAGES_DIST_DIR)) if os.path.exists(IMAGES_DIST_DIR) else 0} dossiers/fichiers)")
-    print(f" - version.json (Version: {version}, {len(liste_images)} images listées)")
+    print(f" - version.json (Version: {version}, {len(liste_images)} images listées, configUrl: {config_url})")
 
     return version
 
