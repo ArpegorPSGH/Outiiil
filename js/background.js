@@ -5,10 +5,17 @@ function setImages(blobs) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'EXECUTE_SCRIPT') {
         if (message.funcName === 'executeCode') {
-            // Use code parameter (string) - works in isolated world without eval violation
+            // Use data URL to execute code in isolated world - bypasses CSP eval restrictions
+            function executeViaDataUrl(code) {
+                const url = 'data:text/javascript,' + encodeURIComponent(code);
+                const script = document.createElement('script');
+                script.src = url;
+                (document.head || document.documentElement).appendChild(script);
+            }
             chrome.scripting.executeScript({
                 target: { tabId: sender.tab.id },
-                code: message.args[0]
+                func: executeViaDataUrl,
+                args: message.args
             }).then(() => sendResponse(true)).catch(sendResponse);
         } else if (message.funcName === 'setImages') {
             chrome.scripting.executeScript({
