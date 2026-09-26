@@ -1,8 +1,3 @@
-function executeCode(code) {
-    // Execute directly in isolated world - new Function() is allowed in extension CSP
-    new Function(code)();
-}
-
 function setImages(blobs) {
     window.OUTIIIL_DYNAMIC_IMAGES = blobs;
 }
@@ -10,10 +5,10 @@ function setImages(blobs) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'EXECUTE_SCRIPT') {
         if (message.funcName === 'executeCode') {
+            // Use code parameter (string) - works in isolated world without eval violation
             chrome.scripting.executeScript({
                 target: { tabId: sender.tab.id },
-                func: executeCode,
-                args: message.args
+                code: message.args[0]
             }).then(() => sendResponse(true)).catch(sendResponse);
         } else if (message.funcName === 'setImages') {
             chrome.scripting.executeScript({
