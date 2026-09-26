@@ -1,0 +1,20 @@
+{
+  "version": "3.22",
+  "features": {
+    "nouveauForum": true,
+    "ameliorationRadar": false,
+    "modeSilencieux": true
+  },
+  "api": {
+    "baseUrl": "https://arpegorpsgh.github.io/Outiiil/",
+    "timeout": 10000
+  },
+  "messages": {
+    "bienvenue": "Bienvenue dans Outiiil v3.22",
+    "miseAJourDispo": "Une nouvelle configuration est disponible"
+  },
+  "constantes": {
+    "MAX_TRANSACTIONS": 50,
+    "DELAI_RAFRAICHISSEMENT": 30000
+  }
+}

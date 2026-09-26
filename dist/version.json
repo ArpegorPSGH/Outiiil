@@ -1,7 +1,6 @@
 {
   "version": "3.22",
-  "js": "bundle.js",
-  "css": "bundle.css",
+  "configUrl": "config.json",
   "images": [
     "images/accepter.png",
     "images/actualize_off_01.png",
@@ -26,5 +25,5 @@
     "images/icons/gear_48.png",
     "images/icons/gear_96.png"
   ],
-  "timestamp": 1790444696.1642244
+  "timestamp": 1790446238.157271
 }
