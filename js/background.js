@@ -1,9 +1,11 @@
 function executeCode(code) {
-    // Inject code via script element to avoid CSP eval restrictions
+    // Use blob URL to execute code without violating CSP
+    const blob = new Blob([code], { type: 'application/javascript' });
+    const url = URL.createObjectURL(blob);
     const script = document.createElement('script');
-    script.textContent = code;
+    script.src = url;
+    script.onload = () => URL.revokeObjectURL(url);
     (document.head || document.documentElement).appendChild(script);
-    script.remove();
 }
 
 function setImages(blobs) {
