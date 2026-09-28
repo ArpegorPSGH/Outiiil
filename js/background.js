@@ -424,8 +424,8 @@ async function checkAndDownloadRuntime() {
 
         // Verify SHA-256
         if (remoteInfo.sha256) {
-            if (computed !== remoteInfo.sha256) {
-                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed + ' (version=' + remoteVersion + ', bytes=' + combined.length + ')';
+            if (computedHash !== remoteInfo.sha256) {
+                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computedHash + ' (version=' + remoteVersion + ', bytes=' + combined.length + ')';
                 console.warn('[Outiiil Background] ' + msg);
                 const storedCode = await getStorage(STORAGE_KEY_CODE);
                 const storedCss = await getStorage(STORAGE_KEY_CSS);
