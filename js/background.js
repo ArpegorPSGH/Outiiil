@@ -383,8 +383,15 @@ async function checkAndDownloadRuntime() {
         if (remoteInfo.sha256) {
             const computed = await sha256(runtimeCode);
             if (computed !== remoteInfo.sha256) {
-                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed;
-                console.error('[Outiiil Background] ' + msg + ' (version=' + remoteVersion + ')');
+                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed + ' (version=' + remoteVersion + ', bytes=' + runtimeCode.length + ')';
+                console.warn('[Outiiil Background] ' + msg);
+                const storedCode = await getStorage(STORAGE_KEY_CODE);
+                const storedCss = await getStorage(STORAGE_KEY_CSS);
+                if (storedCode) {
+                    console.warn('[Outiiil Background] Falling back to cached runtime because remote runtime looks inconsistent.');
+                    await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
+                    return { ok: true, version: storedVersion, dev: false, fromCache: true, fallback: msg };
+                }
                 throw new Error(msg);
             }
             console.log('[Outiiil Background] SHA-256 verified for v' + remoteVersion);
