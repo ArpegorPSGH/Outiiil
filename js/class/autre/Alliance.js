@@ -164,14 +164,14 @@ Utils.register(class Alliance {
     * @method getDescription
     */
     getDescription() {
-        return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php?alliance=" + this._tag });
+        return $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php?alliance=" + this._tag });
     }
     /**
     *
     */
     getHistorique(id) {
         // Récuperation des données
-        $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/team/" + this._tag, (data) => {
+        $j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/team/" + this._tag, (data) => {
             // Creation du graphique
             let donnees = JSON.parse(data);
             let chart = new Highcharts.Chart({
@@ -192,7 +192,7 @@ Utils.register(class Alliance {
                     crosshairs: [true],
                     formatter: function () {
                         let s = Highcharts.dateFormat("%A %e %b", this.x);
-                        $.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this.y).format() + "</b>"; });
+                        $j.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this.y).format() + "</b>"; });
                         return s;
                     },
                     shared: true,
@@ -224,16 +224,16 @@ Utils.register(class Alliance {
                 ]
             });
 
-            $("span[id^=o_selectHisto]").click((e) => {
-                let chart = $("#o_chartAlliance").highcharts(), histo = $(e.currentTarget).attr("data");
-                $("span[id^=o_selectHisto]").removeClass("active");
-                $(e.currentTarget).addClass("active");
+            $j("span[id^=o_selectHisto]").click((e) => {
+                let chart = $j("#o_chartAlliance").highcharts(), histo = $j(e.currentTarget).attr("data");
+                $j("span[id^=o_selectHisto]").removeClass("active");
+                $j(e.currentTarget).addClass("active");
                 if (histo == "all")
                     chart.xAxis[0].update({ min: moment("2016-01-01").valueOf() });
                 else
                     chart.xAxis[0].update({ min: moment().subtract(histo, "days").valueOf() });
-                $("#o_bouton_range span.active").addClass("ligne_paire");
-                $("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
+                $j("#o_bouton_range span.active").addClass("ligne_paire");
+                $j("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
             });
         });
         return this;
@@ -242,24 +242,24 @@ Utils.register(class Alliance {
     *
     */
     getLigneRadar(radar, id, indice) {
-        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
+        $j(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
         // event
-        $("#o_maj_" + this._tag).click(async (e) => {
+        $j("#o_maj_" + this._tag).click(async (e) => {
             e.preventDefault(); // Empêche le rechargement de la page
             console.log(`[Alliance.getLigneRadar] Clic sur le bouton de rafraîchissement pour alliance: ${this._tag}`);
-            let oldTerrain = numeral($("#o_terrain_" + this._tag).text()).value();
-            $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
+            let oldTerrain = numeral($j("#o_terrain_" + this._tag).text()).value();
+            $j({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $j(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
             await this.getDescription().then(async (data) => {
                 this._terrain = 0;
-                $(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => { this._terrain += numeral($(elt).find("td:eq(4)").text()).value(); });
+                $j(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => { this._terrain += numeral($j(elt).find("td:eq(4)").text()).value(); });
                 let diff = this._terrain - oldTerrain;
                 if (diff) {
-                    $("#o_terrain_" + this._tag).text(numeral(this._terrain).format())
+                    $j("#o_terrain_" + this._tag).text(numeral(this._terrain).format())
                         .effect("highlight", { color: (diff > 0 ? "#458D58" : "#8D4545") }, 1000)
                         .attr("title", numeral(diff).format())
                         .tooltip({
                             position: { my: "left+10 center", at: "right center" },
-                            content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $("#o_terrain_" + this._tag).attr("title") : $("#o_terrain_" + this._tag).attr("title")} cm²</span>`,
+                            content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $j("#o_terrain_" + this._tag).attr("title") : $j("#o_terrain_" + this._tag).attr("title")} cm²</span>`,
                             hide: { effect: "fade", duration: 10 },
                             tooltipClass: "warning-tooltip ui-tooltip-right"
                         }).tooltip("open");
@@ -267,7 +267,7 @@ Utils.register(class Alliance {
                 }
             }).catch(error => {
                 console.error(`[Alliance.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${this._tag}:`, error);
-                $.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement de l'alliance ${this._tag}.` });
+                $j.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement de l'alliance ${this._tag}.` });
             });
             console.log(`[Alliance.getLigneRadar] Fin du clic sur le bouton de rafraîchissement pour alliance: ${this._tag}.`);
             return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
@@ -278,7 +278,7 @@ Utils.register(class Alliance {
     *
     */
     static rechercher(elt) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php",
             data: {

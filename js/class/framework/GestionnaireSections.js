@@ -87,7 +87,7 @@ Utils.register(class GestionnaireSections {
         try {
             let html;
             try {
-                const data = await $.ajax({
+                const data = await $j.ajax({
                     type: "post",
                     url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                     dataType: "text",
@@ -109,7 +109,7 @@ Utils.register(class GestionnaireSections {
                 return false;
             }
 
-            const element = $("<div/>").html(html);
+            const element = $j("<div/>").html(html);
             const allForumSpans = element.find("span[class^='forum']");
 
             // Récupérer les visibilités réelles via la zone admin (options du forum)
@@ -117,7 +117,7 @@ Utils.register(class GestionnaireSections {
             const droitsFourmizzz = await monProfilJoueur.lire('Droits Fourmizzz');
             if (droitsFourmizzz['Administrer le forum']) {
                 try {
-                    const data = await $.ajax({
+                    const data = await $j.ajax({
                         type: "post",
                         url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                         data: {
@@ -126,8 +126,8 @@ Utils.register(class GestionnaireSections {
                             "xajaxr": moment().valueOf()
                         }
                     });
-                    $(data).find("cmd").each(function () {
-                        const txt = $(this).text();
+                    $j(data).find("cmd").each(function () {
+                        const txt = $j(this).text();
                         if (txt.includes("Sections du Forum") || txt.includes("id=\"cat_forum\"")) {
                             optionsHtml = txt;
                         }
@@ -139,9 +139,9 @@ Utils.register(class GestionnaireSections {
 
             const categoriesOptions = {};
             if (optionsHtml) {
-                const $options = $("<div/>").html(optionsHtml);
+                const $options = $j("<div/>").html(optionsHtml);
                 $options.find("form[id^='cat']").each(function () {
-                    const $form = $(this);
+                    const $form = $j(this);
                     const idCat = $form.attr("id").replace("cat", "");
                     const nomSection = $form.find("input[name='nom']").val();
                     const actualVisibility = $form.find("select[name='type']").val();
@@ -166,7 +166,7 @@ Utils.register(class GestionnaireSections {
 
                 if (storedId) {
                     const currentSectionElement = allForumSpans.filter(function () {
-                        const classMatch = $(this).attr("class").match(/\d+/);
+                        const classMatch = $j(this).attr("class").match(/\d+/);
                         return classMatch && classMatch[0] == storedId;
                     });
 
@@ -193,7 +193,7 @@ Utils.register(class GestionnaireSections {
 
                 if (!sectionActuelleValide) {
                     const exactMatchElement = allForumSpans.filter(function () {
-                        return $(this).text().trim() === nomSection;
+                        return $j(this).text().trim() === nomSection;
                     });
 
                     if (exactMatchElement.length) {
@@ -244,7 +244,7 @@ Utils.register(class GestionnaireSections {
             }
 
             if (idsUpdated) {
-                $.toast({ ...TOAST_SUCCESS, text: "IDs des sections forum Outiiil mis à jour." });
+                $j.toast({ ...TOAST_SUCCESS, text: "IDs des sections forum Outiiil mis à jour." });
             }
             return true;
         } finally {

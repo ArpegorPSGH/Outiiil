@@ -36,14 +36,14 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
 
             if (tagAllianceColIndex === -1) {
                 // Créer la colonne "Tag Alliance" juste après "Pseudo"
-                $('<th>Tag Alliance</th>').insertAfter($(`#tabMembresAlliance thead tr th:eq(${pseudoColIndex})`));
+                $j('<th>Tag Alliance</th>').insertAfter($j(`#tabMembresAlliance thead tr th:eq(${pseudoColIndex})`));
                 tagAllianceColIndex = pseudoColIndex + 1;
                 console.log(`[${this.constructor.name}] Colonne 'Tag Alliance' créée.`);
             }
 
             // Peupler la colonne pour tous les joueurs déjà dans le tableau
-            const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-                const row = $(elt);
+            const promises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const row = $j(elt);
                 const pseudo = row.find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
                 const joueur = tousLesMembresMap.get(pseudo);
 
@@ -55,19 +55,19 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
                     }
                 }
                 const tagCell = `<td align="center">${tag}</td>`;
-                $(tagCell).insertAfter(row.find(`td:eq(${pseudoColIndex})`));
+                $j(tagCell).insertAfter(row.find(`td:eq(${pseudoColIndex})`));
             }).get();
             await Promise.all(promises);
 
             // Ajouter les lignes des joueurs extérieurs
             const headers = [];
-            $("#tabMembresAlliance thead tr th").each(function () {
-                headers.push($(this).text().trim());
+            $j("#tabMembresAlliance thead tr th").each(function () {
+                headers.push($j(this).text().trim());
             });
 
             for (const membre of membresExterieurs) {
                 const $corps = await membre.afficherCorps(headers);
-                $("#tabMembresAlliance tbody").append($corps);
+                $j("#tabMembresAlliance tbody").append($corps);
                 const pseudo = await membre.lire('Pseudo');
                 console.log(`[${this.constructor.name}] Ligne ajoutée pour le joueur ${pseudo}.`);
             }

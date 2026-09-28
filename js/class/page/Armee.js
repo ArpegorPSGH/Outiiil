@@ -54,24 +54,24 @@ Utils.register(class PageArmee extends Page {
         * @property nbAttaque
         * @type Integer
         */
-        this._nbAttaque = $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length - 1;
+        this._nbAttaque = $j("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length - 1;
     }
 
     async afficherAttaquesRestantes() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         // Affichage du nombre d'attaque restante
-        $("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(recherche[6] + 1 - this._nbAttaque)}.</p>`);
+        $j("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(recherche[6] + 1 - this._nbAttaque)}.</p>`);
     }
 
     async afficherTotalUnite() {
         // Affichage du nombre total d'unité
-        $("h3:first").append(` (${numeral(this._armeeTdc.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeLoge.getSommeUnite()).format()})</p>`);
+        $j("h3:first").append(` (${numeral(this._armeeTdc.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeLoge.getSommeUnite()).format()})</p>`);
     }
 
     async boutonAntisonde() {
         // Bouton antisonde
-        $(".simulateur:eq(0) tr:eq(0)").after(`<tr><td colspan="10" class='right'><button id='o_replaceArmee' class='o_button f_success'>Replacer l'armée</button></td></tr>`);
-        $("#o_replaceArmee").click(() => {
+        $j(".simulateur:eq(0) tr:eq(0)").after(`<tr><td colspan="10" class='right'><button id='o_replaceArmee' class='o_button f_success'>Replacer l'armée</button></td></tr>`);
+        $j("#o_replaceArmee").click(() => {
             if (this._armeeLoge.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeTdc.getSommeUnite()) {
                 let premiereUnite = this.#indicePremiereUnite();
                 let nbUniteDispo = this._armeeLoge.unite[premiereUnite] + this._armeeDome.unite[premiereUnite] + this._armeeTdc.unite[premiereUnite];
@@ -81,22 +81,22 @@ Utils.register(class PageArmee extends Page {
                     if (!this.#estPlacePourAntiSonde(premiereUnite, monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur, monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur))
                         this.#placerAntisondeSuffisant(premiereUnite, nbUniteDispo);
                     else
-                        $.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
+                        $j.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
                 } else {
                     if (!this.#estPlacePourAntiSonde(premiereUnite, 1, nbUniteDispo * 0.3))
                         this.#placerAntisondeInsuffisant(premiereUnite, nbUniteDispo);
                     else
-                        $.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
+                        $j.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
                 }
             } else
-                $.toast({ ...TOAST_ERROR, text: "Aucune unité n'est transférable." });
+                $j.toast({ ...TOAST_ERROR, text: "Aucune unité n'est transférable." });
             return false;
         });
     }
 
     async afficherHoF() {
         // Affichage du temps Hof de votre armée
-        $(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(await monProfilJoueur.getTDP()) + this._armeeDome.getTemps(await monProfilJoueur.getTDP()) + this._armeeLoge.getTemps(await monProfilJoueur.getTDP())) + "</span></td></tr>");
+        $j(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(await monProfilJoueur.getTDP()) + this._armeeDome.getTemps(await monProfilJoueur.getTDP()) + this._armeeLoge.getTemps(await monProfilJoueur.getTDP())) + "</span></td></tr>");
     }
     /**
     * Initialise l'armée en terrain de chasse.
@@ -105,8 +105,8 @@ Utils.register(class PageArmee extends Page {
     */
     recupereArmeeTdc() {
         let unites = {};
-        $(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
-            let unite = $(elt).find(".pas_sur_telephone").text(), nbr = numeral($(elt).find("td:nth-child(3) span").text()).value();
+        $j(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
+            let unite = $j(elt).find(".pas_sur_telephone").text(), nbr = numeral($j(elt).find("td:nth-child(3) span").text()).value();
             if (unite && nbr) unites[unite] = nbr;
         });
         this._armeeTdc = new Armee({ unite: unites });
@@ -118,10 +118,10 @@ Utils.register(class PageArmee extends Page {
     */
     recupereArmeeDome() {
         let unites = {};
-        $(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
-            let unite = $(elt).find(".pas_sur_telephone").text();
-            $(elt).find("td").slice(3, ($(elt).find("td").length - 2)).each((i2, elt2) => {
-                let nbr = numeral($(elt2).text()).value();
+        $j(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
+            let unite = $j(elt).find(".pas_sur_telephone").text();
+            $j(elt).find("td").slice(3, ($j(elt).find("td").length - 2)).each((i2, elt2) => {
+                let nbr = numeral($j(elt2).text()).value();
                 if (unite && nbr) unites[unite] = nbr;
             });
         });
@@ -134,8 +134,8 @@ Utils.register(class PageArmee extends Page {
     */
     recupereArmeeLoge() {
         let unites = {};
-        $(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
-            let unite = $(elt).find('.pas_sur_telephone').text(), nbr = numeral($(elt).find("td:nth-last-child(2)").text()).value();
+        $j(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
+            let unite = $j(elt).find('.pas_sur_telephone').text(), nbr = numeral($j(elt).find("td:nth-last-child(2)").text()).value();
             if (unite && nbr) unites[unite] = nbr;
         });
         this._armeeLoge = new Armee({ unite: unites });
@@ -176,19 +176,19 @@ Utils.register(class PageArmee extends Page {
     * @private
     */
     #placerAntisondeSuffisant(indUnite, nbTroupeDispo) {
-        let securite = $("#t").attr("name") + "=" + $("#t").val();
-        $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
+        let securite = $j("#t").attr("name") + "=" + $j("#t").val();
+        $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
             // si on a pas assez de troupes on prend un nombre au hasard
             let nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur - monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9);
             if (nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
             // on place l'antisonde en dome
-            $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
+            $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
                 nbTroupeDispo -= nbTroupes;
                 nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur - monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur * 0.9);
                 // si on a pas assez de troupes on prend un nombre au hasard
                 if (nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
-                $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
+                $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
                     location = "/Armee.php";
                 });
             });
@@ -199,12 +199,12 @@ Utils.register(class PageArmee extends Page {
     * @private
     */
     #placerAntisondeInsuffisant(indUnite, nbTroupeDispo) {
-        let securite = $("#t").attr("name") + "=" + $("#t").val();
-        $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
+        let securite = $j("#t").attr("name") + "=" + $j("#t").val();
+        $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
             // on place l'antisonde en dome
-            $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + Math.round(nbTroupeDispo * 0.3) + "&" + securite, (data) => {
-                $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=1&" + securite, (data) => {
+            $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + Math.round(nbTroupeDispo * 0.3) + "&" + securite, (data) => {
+                $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=1&" + securite, (data) => {
                     location = "/Armee.php";
                 });
             });
@@ -219,17 +219,17 @@ Utils.register(class PageArmee extends Page {
     async plus() {
         if (Utils.comptePlus) return;
         // Affiche les fléches de deplacement des unités
-        $(".simulateur td").each((i, elt) => {
-            if (/^[0-9,]+$/.test($(elt).text().replace(/ /g, ''))) {
-                let info = $(elt).find('span').attr('id').replace(/\(|\)/g, '');
+        $j(".simulateur td").each((i, elt) => {
+            if (/^[0-9,]+$/.test($j(elt).text().replace(/ /g, ''))) {
+                let info = $j(elt).find('span').attr('id').replace(/\(|\)/g, '');
                 let nbUnit = info.split(',')[0], nomUnit = info.split(',')[1].replace(/\'/g, ''), lieuDep = info.split(',')[2];
                 if (lieuDep != 3) {
                     let lien = "Armee.php?Transferer&nbTroupes=" + nbUnit + "&ChoixUnite=" + nomUnit + "&LieuOrigine=" + lieuDep + "&LieuDestination=" + (~~(lieuDep) + 1) + "&" + $("#t").attr('name') + "=" + $("#t").attr('value');
                     $(elt).next().html(`<a href="${lien}" class='cursor'><img width='9' height='15' src='http://img2.fourmizzz.fr/images/bouton/fleche-champs-droite.gif'/></a>`);
                 }
                 if (lieuDep != 1) {
-                    let lien = "Armee.php?Transferer&nbTroupes=" + nbUnit + "&ChoixUnite=" + nomUnit + "&LieuOrigine=" + lieuDep + "&LieuDestination=" + (~~(lieuDep) - 1) + "&" + $("#t").attr('name') + "=" + $("#t").attr('value');
-                    $(elt).prev().html(`<a href="${lien}" class='cursor'><img width='9' height='15' src='http://img2.fourmizzz.fr/images/bouton/fleche-champs-gauche.gif'/></a>`);
+                    let lien = "Armee.php?Transferer&nbTroupes=" + nbUnit + "&ChoixUnite=" + nomUnit + "&LieuOrigine=" + lieuDep + "&LieuDestination=" + (~~(lieuDep) - 1) + "&" + $j("#t").attr('name') + "=" + $j("#t").attr('value');
+                    $j(elt).prev().html(`<a href="${lien}" class='cursor'><img width='9' height='15' src='http://img2.fourmizzz.fr/images/bouton/fleche-champs-gauche.gif'/></a>`);
                 }
             }
         });
@@ -240,13 +240,13 @@ Utils.register(class PageArmee extends Page {
         this.#afficherLigneConsommation();
         // Sauvegarde des attaques en cours
         let listeAttaque = new Array();
-        $("span[id^='attaque_']").each((i, elt) => {
-            if ($(elt).prev().find("a").length) { // attaque normale
-                listeAttaque.push({ "cible": $(elt).prev().text(), "exp": moment().add($(elt).next().text().split(",")[0].split("(")[1], 's') });
+        $j("span[id^='attaque_']").each((i, elt) => {
+            if ($j(elt).prev().find("a").length) { // attaque normale
+                listeAttaque.push({ "cible": $j(elt).prev().text(), "exp": moment().add($j(elt).next().text().split(",")[0].split("(")[1], 's') });
                 // Affichage du retour
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
             } else // renfort
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
         // Verification si les données sont deja enregistré
         this.#saveAttaque(listeAttaque);
@@ -263,8 +263,8 @@ Utils.register(class PageArmee extends Page {
         let line = `<tr align='center' class='vie cursor'>
 			 <td>Vie (AB)</td>
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeTdc.getTotalVie(bouclier)).format()}</td>
-			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeDome.getTotalVie(bouclier, LIEU.DOME, ~~($('span:contains("Dôme")').text().replace(/\D/g, '')))).format()}</td>
-			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeLoge.getTotalVie(bouclier, LIEU.LOGE, ~~($('span:contains("Loge")').text().replace(/\D/g, '')))).format()}</td>
+			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeDome.getTotalVie(bouclier, LIEU.DOME, ~~($j('span:contains("Dôme")').text().replace(/\D/g, '')))).format()}</td>
+			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeLoge.getTotalVie(bouclier, LIEU.LOGE, ~~($j('span:contains("Loge")').text().replace(/\D/g, '')))).format()}</td>
 			 </tr>
 			 <tr align='center' class='vie cursor' style='display:none;'>
 			 <td>Vie (HB)</td>
@@ -272,8 +272,8 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeDome.getBaseVie()).format()}</td>
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeLoge.getBaseVie()).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
-        $(".vie").click(() => { $(".vie").toggle(); });
+        $j(".simulateur tr[align=center]:last").after(line);
+        $j(".vie").click(() => { $j(".vie").toggle(); });
     }
     /**
     * Affiche les informations supplémentaires sur l'attaque des armées.
@@ -296,8 +296,8 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_ATT} ${numeral(this._armeeDome.getBaseAtt()).format()}</td>
 			 <td colspan=3>${IMG_ATT} ${numeral(this._armeeLoge.getBaseAtt()).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
-        $(".att").click(() => { $(".att").toggle(); });
+        $j(".simulateur tr[align=center]:last").after(line);
+        $j(".att").click(() => { $j(".att").toggle(); });
     }
     /**
     * Affiche les informations supplémentaires sur la defense des armées.
@@ -320,8 +320,8 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_DEF} ${numeral(this._armeeDome.getBaseDef()).format()}</td>
 			 <td colspan=3>${IMG_DEF} ${numeral(this._armeeLoge.getBaseDef()).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
-        $(".def").click(() => { $(".def").toggle(); });
+        $j(".simulateur tr[align=center]:last").after(line);
+        $j(".def").click(() => { $j(".def").toggle(); });
     }
     /**
     * Affiche les informations supplémentaires sur la consommation des armées.
@@ -336,14 +336,14 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_POMME} ${numeral(this._armeeDome.getConsommation(2)).format()}</td>
 			 <td colspan=3>${IMG_POMME} ${numeral(this._armeeLoge.getConsommation(3)).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
+        $j(".simulateur tr[align=center]:last").after(line);
     }
     /**
     */
     async afficherStatistique() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let bouclier = recherche[1], armes = recherche[2];
-        $(".simulateur:first").after(`<br/><div id="o_statArmee" class="simulateur">
+        $j(".simulateur:first").after(`<br/><div id="o_statArmee" class="simulateur">
             <h3>Statistiques</h3>
             <table class="centre o_maxWidth" cellspacing=0>
                 <tr class="ligne_paire gras"><td></td><td colspan="2">Non XP</td><td colspan="2">Total</td></tr>
@@ -353,7 +353,7 @@ Utils.register(class PageArmee extends Page {
                 <tr class="ligne_paire"><td class="left">${IMG_DEF} Défense</td><td>${numeral(this._armeeTdc.getNonXpBaseDef() + this._armeeDome.getNonXpBaseDef() + this._armeeLoge.getNonXpBaseDef()).format()}</td><td>${numeral(this._armeeTdc.getNonXpTotalDef(armes) + this._armeeDome.getNonXpTotalDef(armes) + this._armeeLoge.getNonXpTotalDef(armes)).format()}</td><td>${numeral(this._armeeTdc.getBaseDef() + this._armeeDome.getBaseDef() + this._armeeLoge.getBaseDef()).format()}</td><td>${numeral(this._armeeTdc.getTotalDef(armes) + this._armeeDome.getTotalDef(armes) + this._armeeLoge.getTotalDef(armes)).format()}</td></tr>
             </table>
         </div>`);
-        $("#o_statArmee").width($(".simulateur:first").width());
+        $j("#o_statArmee").width($j(".simulateur:first").width());
     }
     /**
     * Verifie les attaques en cours avec ce qui est sauvegarder.
@@ -362,7 +362,7 @@ Utils.register(class PageArmee extends Page {
     * @method #saveAttaque
     */
     #saveAttaque(listeAttaque) {
-        if (!boiteComptePlus.hasOwnProperty("attaque") || boiteComptePlus.attaque.length != listeAttaque.length || boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (!boiteComptePlus.hasOwnProperty("attaque") || boiteComptePlus.attaque.length != listeAttaque.length || boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.attaque = listeAttaque;
             boiteComptePlus.startAttaque = moment();
             boiteComptePlus.sauvegarder().majAttaque();

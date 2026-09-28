@@ -687,7 +687,7 @@ Utils.register(class Logger {
                     }
                     logger.posterLogs(errorObj).then(postes => {
                         if (postes) {
-                            $.toast({ ...TOAST_INFO, text: "Erreur technique transmise automatiquement." });
+                            $j.toast({ ...TOAST_INFO, text: "Erreur technique transmise automatiquement." });
                         }
                     }).catch(e => {
                         if (console._error) {

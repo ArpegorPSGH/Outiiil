@@ -54,39 +54,39 @@ Utils.register(class Dock {
     * @method afficher
     */
     async afficher() {
-        $("body").append(this._html);
-        $(".o_toolbarDroite .o_toolbarItem").tooltip({
+        $j("body").append(this._html);
+        $j(".o_toolbarDroite .o_toolbarItem").tooltip({
             tooltipClass: "warning-tooltip",
-            content: function () { return $(this).prop("title"); },
+            content: function () { return $j(this).prop("title"); },
             position: { my: "left+10 center", at: "right center" },
             hide: { effect: "fade", duration: 10 }
         });
-        $(".o_toolbarBas .o_toolbarItem").tooltip({
+        $j(".o_toolbarBas .o_toolbarItem").tooltip({
             tooltipClass: "warning-tooltip",
-            content: function () { return $(this).prop("title"); },
+            content: function () { return $j(this).prop("title"); },
             position: { my: "center top", at: "center bottom+10" },
             hide: { effect: "fade", duration: 10 }
         });
         // selon la pref on cache l'element
         if (monProfilUtilisateur.parametre["dockVisible"].valeur == "0") {
-            $(document).mousemove((e) => {
+            $j(document).mousemove((e) => {
                 if (monProfilUtilisateur.parametre["dockPosition"].valeur == "1") { // boite en bas
-                    if ($(window).height() - e.pageY < 60)
-                        $("#o_toolbarOutiiil").slideDown(500);
+                    if ($j(window).height() - e.pageY < 60)
+                        $j("#o_toolbarOutiiil").slideDown(500);
                     else
-                        $("#o_toolbarOutiiil").slideUp(500);
+                        $j("#o_toolbarOutiiil").slideUp(500);
                 } else { // boite à droite
-                    if ($(window).width() - e.pageX < 60)
-                        $("#o_toolbarOutiiil").show("slide", { direction: "right" }, 500);
+                    if ($j(window).width() - e.pageX < 60)
+                        $j("#o_toolbarOutiiil").show("slide", { direction: "right" }, 500);
                     else
-                        $("#o_toolbarOutiiil").hide("slide", { direction: "right" }, 500);
+                        $j("#o_toolbarOutiiil").hide("slide", { direction: "right" }, 500);
                 }
             });
         }
         // evenement sur le clic d'un item de la boite d'outil
-        $(".o_toolbarItem").click(async (e) => {
+        $j(".o_toolbarItem").click(async (e) => {
             // affichage de la boite
-            switch ($(e.currentTarget).find("span").attr("id")) {
+            switch ($j(e.currentTarget).find("span").attr("id")) {
                 case "o_itemPonte":
                     await this._boitePonte.afficher();
                     break;

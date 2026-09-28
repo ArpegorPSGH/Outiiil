@@ -59,7 +59,7 @@ Utils.register(class Joueur extends ObjetForum {
         }
 
         try {
-            const html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + pseudo });
+            const html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + pseudo });
             return await this.chargerDonneesMembreDepuisPage(html);
         } catch (error) {
             console.error(`[Joueur] Erreur AJAX lors de la récupération du profil pour: ${pseudo}`, error);
@@ -79,20 +79,20 @@ Utils.register(class Joueur extends ObjetForum {
             return false;
         }
 
-        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(html).find(".boite_membre a[href^='carte2.php?']").text();
-        await this.ecrire('Id', parseInt($(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10));
+        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $j(html).find(".boite_membre a[href^='carte2.php?']").text();
+        await this.ecrire('Id', parseInt($j(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10));
         await this.ecrire('X', ~~(ligne.replace(regexp, "$1")));
         await this.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
-        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.lire('Activité'));
-        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.lire('Activité'));
-        await this.ecrire('Terrain de Chasse', numeral($(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value());
-        await this.ecrire('Fourmilière', numeral($(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value());
-        await this.ecrire('Technologie', numeral($(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value());
+        await this.ecrire('Activité', $j(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.lire('Activité'));
+        await this.ecrire('Activité', $j(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.lire('Activité'));
+        await this.ecrire('Terrain de Chasse', numeral($j(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value());
+        await this.ecrire('Fourmilière', numeral($j(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value());
+        await this.ecrire('Technologie', numeral($j(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value());
 
-        const etatText = $(html).find("table:eq(0)").text();
+        const etatText = $j(html).find("table:eq(0)").text();
         await this.ecrire('Colonisé', etatText.includes("Etat : Fourmilière soumise par "));
 
-        const allianceRow = $(html).find("table:eq(0) tr:contains('Alliance :')");
+        const allianceRow = $j(html).find("table:eq(0) tr:contains('Alliance :')");
         if (allianceRow.length > 0) {
             let allianceTag = allianceRow.find("td:eq(1)").text().trim();
             await this.ecrire('Tag Alliance', (allianceTag === "-") ? "" : allianceTag);
@@ -218,7 +218,7 @@ Utils.register(class Joueur extends ObjetForum {
         const pseudo = await this.lire('Pseudo');
         if (!pseudo) return false;
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?Membres",
                 dataType: "text",
@@ -234,14 +234,14 @@ Utils.register(class Joueur extends ObjetForum {
             const allianceCmd = xmlDoc.querySelector("cmd[t='alliance']");
             const htmlContent = allianceCmd.textContent;
 
-            const doc = $("<div/>").html(htmlContent);
+            const doc = $j("<div/>").html(htmlContent);
             const table = doc.find("#tabMembresAlliance");
             let pseudoIdx = -1;
             let rangIdx = -1;
             table.find("tr").each((idx, tr) => {
-                const ths = $(tr).find("th, td");
+                const ths = $j(tr).find("th, td");
                 ths.each((cIdx, cell) => {
-                    const text = $(cell).text().trim();
+                    const text = $j(cell).text().trim();
                     if (text === "Pseudo") pseudoIdx = cIdx;
                     if (text === "Rang") rangIdx = cIdx;
                 });
@@ -251,10 +251,10 @@ Utils.register(class Joueur extends ObjetForum {
             if (rangIdx === -1) rangIdx = 2;
             let rangTrouve = null;
             table.find("tbody tr, tr").each((idx, tr) => {
-                const tds = $(tr).find("td");
-                const cellPseudo = $(tds[pseudoIdx]).text().trim();
+                const tds = $j(tr).find("td");
+                const cellPseudo = $j(tds[pseudoIdx]).text().trim();
                 if (cellPseudo === pseudo) {
-                    rangTrouve = $(tds[rangIdx]).text().trim();
+                    rangTrouve = $j(tds[rangIdx]).text().trim();
                     return false;
                 }
             });
@@ -272,7 +272,7 @@ Utils.register(class Joueur extends ObjetForum {
         const rang = await this.lire('Rang');
         if (!rang) return false;
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?Options",
                 dataType: "text",
@@ -288,14 +288,14 @@ Utils.register(class Joueur extends ObjetForum {
             const allianceCmd = xmlDoc.querySelector("cmd[t='alliance']");
             const htmlContent = allianceCmd.textContent;
 
-            const doc = $("<div/>").html(htmlContent);
+            const doc = $j("<div/>").html(htmlContent);
             const table = doc.find("#AffichageRang table");
             const headerTr = table.find("tr").eq(2);
             const headerCells = headerTr.find("td, th");
             let droitsActuels = await this.lire('Droits Fourmizzz');
             const colMap = {};
             headerCells.each((cIdx, cell) => {
-                const text = $(cell).text().trim().toLowerCase();
+                const text = $j(cell).text().trim().toLowerCase();
                 for (const key of Object.keys(droitsActuels)) {
                     if (Utils.normaliser(text) === Utils.normaliser(key)) {
                         colMap[key] = cIdx;
@@ -304,11 +304,11 @@ Utils.register(class Joueur extends ObjetForum {
             });
             let targetTr = null;
             table.find("tr").each((idx, tr) => {
-                const strong = $(tr).find("td strong").first();
+                const strong = $j(tr).find("td strong").first();
                 if (strong.length) {
                     const trRang = strong.text().trim();
                     if (trRang === rang.trim()) {
-                        targetTr = $(tr);
+                        targetTr = $j(tr);
                         return false;
                     }
                 }
@@ -317,7 +317,7 @@ Utils.register(class Joueur extends ObjetForum {
                 const tds = targetTr.find("td");
                 for (const key in colMap) {
                     const colIdx = colMap[key];
-                    const td = $(tds[colIdx]);
+                    const td = $j(tds[colIdx]);
                     const img = td.find("img");
                     if (img.length) {
                         droitsActuels[key] = true;
@@ -340,7 +340,7 @@ Utils.register(class Joueur extends ObjetForum {
      * @returns {Promise<boolean>} Vrai si le chargement a réussi.
      */
     async chargerJoueurCourant() {
-        const pseudo = $("#pseudo").text();
+        const pseudo = $j("#pseudo").text();
         if (!pseudo) {
             console.error('[Joueur] Impossible de trouver le pseudo du joueur courant sur la page.');
             return false;
@@ -500,7 +500,7 @@ Utils.register(class Joueur extends ObjetForum {
             const levels = await this.lire('Niveaux Constructions');
             if (levels.every((elt) => elt == -1)) {
                 try {
-                    html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
+                    html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
                 } catch (error) {
                     console.error(`[Joueur] Erreur AJAX lors de la récupération des constructions.`, error);
                     return false;
@@ -510,9 +510,9 @@ Utils.register(class Joueur extends ObjetForum {
             }
         }
 
-        let parsed = $("<div/>").append(html);
+        let parsed = $j("<div/>").append(html);
         const levels = await this.lire('Niveaux Constructions');
-        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         await this.ecrire('Niveaux Constructions', levels);
         console.log(`[Joueur.chargerConstruction] Niveaux de construction chargés pour ${await this.lire('Pseudo')}:`, levels);
 
@@ -550,7 +550,7 @@ Utils.register(class Joueur extends ObjetForum {
             const levels = await this.lire('Niveaux Recherches');
             if (levels.every((elt) => elt == -1)) {
                 try {
-                    html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
+                    html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
                 } catch (error) {
                     console.error(`[Joueur] Erreur AJAX lors de la récupération des recherches.`, error);
                     return false;
@@ -560,9 +560,9 @@ Utils.register(class Joueur extends ObjetForum {
             }
         }
 
-        let parsed = $("<div/>").append(html);
+        let parsed = $j("<div/>").append(html);
         const levels = await this.lire('Niveaux Recherches');
-        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         await this.ecrire('Niveaux Recherches', levels);
         console.log(`[Joueur.chargerRecherche] Niveaux de recherche chargés pour ${await this.lire('Pseudo')}:`, levels);
 
@@ -590,7 +590,7 @@ Utils.register(class Joueur extends ObjetForum {
     *
     */
     getHistorique(id) {
-        $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/player/" + $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], (data) => {
+        $j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/player/" + $j("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], (data) => {
             // Creation du graphique
             let histoAlliance = new Array(), histoDate = new Array(), donnees = JSON.parse(data);
             let chart = new Highcharts.Chart({
@@ -615,7 +615,7 @@ Utils.register(class Joueur extends ObjetForum {
                     crosshairs: [true],
                     formatter: function () {
                         let s = Highcharts.dateFormat("%A %e %b", this._x);
-                        $.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this._y).format() + "</b>"; });
+                        $j.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this._y).format() + "</b>"; });
                         return s;
                     },
                     shared: true,
@@ -648,17 +648,17 @@ Utils.register(class Joueur extends ObjetForum {
                     { name: "Vacance", color: "#013ADF", visible: false }
                 ]
             });
-            $("span[id^=o_selectHisto]").click((e) => {
-                let chart = $("#o_chartJoueur").highcharts(), histo = $(e.currentTarget).attr("data");
-                $("span[id^=o_selectHisto]").removeClass("active");
-                $(e.currentTarget).addClass("active");
+            $j("span[id^=o_selectHisto]").click((e) => {
+                let chart = $j("#o_chartJoueur").highcharts(), histo = $j(e.currentTarget).attr("data");
+                $j("span[id^=o_selectHisto]").removeClass("active");
+                $j(e.currentTarget).addClass("active");
                 if (histo == "all")
                     chart.xAxis[0].update({ min: moment("2016-01-01").valueOf() });
                 else
                     chart.xAxis[0].update({ min: moment().subtract(histo, "days").valueOf() });
                 // Style
-                $("#o_bouton_range span.active").addClass("ligne_paire");
-                $("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
+                $j("#o_bouton_range span.active").addClass("ligne_paire");
+                $j("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
             });
             // ajout d'un tableau pour l'historique des alliance
             if (histoDate.length) {
@@ -678,8 +678,8 @@ Utils.register(class Joueur extends ObjetForum {
                 }
                 if (nbJour != 1)
                     html += `<tr><td class='left'>${fDate.format("DD/MM/YYYY")} -> ${cDate.format("DD/MM/YYYY")} (${(nbJour > 1 ? nbJour + " jours" : nbJour + " jour")})</td><td class='centre'>${cTeam != "0" ? `<a href='/classementAlliance.php?alliance=${cTeam}'>${cTeam}` : "Sans alliance"}</a></td></tr>`;
-                $("#" + id).after("<table id='o_historiqueAlliance' cellspacing=0><thead><tr class='gras even'><th>Date</th><th>Alliance</th></tr></thead><tbody>" + html + "</tbody></table>");
-                $("#o_historiqueAlliance tr:even").addClass("ligne_paire");
+                $j("#" + id).after("<table id='o_historiqueAlliance' cellspacing=0><thead><tr class='gras even'><th>Date</th><th>Alliance</th></tr></thead><tbody>" + html + "</tbody></table>");
+                $j("#o_historiqueAlliance tr:even").addClass("ligne_paire");
             }
         });
     }
@@ -691,14 +691,14 @@ Utils.register(class Joueur extends ObjetForum {
         const pseudo = (typeof pseudoParam === 'object' && pseudoParam !== null && pseudoParam.hasOwnProperty('valeur')) ? pseudoParam.valeur : pseudoParam;
         let enVacances = await this.lire('Activité') === 'vacances';
         let cellTerrain = await this.estAttaquable() ? `<a class="gras ${enVacances ? "blue_light" : ""} href="/ennemie.php?Attaquer=${await this.lire('Id')}&lieu=1">${numeral(await this.lire('Terrain de Chasse')).format()}</a>` : `<span ${enVacances ? `class="blue_light" title="En vacances"` : ""}>${numeral(await this.lire('Terrain de Chasse')).format()}</span>`;
-        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${await this.lire('Id')}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td id="o_nom_${await this.lire('Id')}" class="left" title=""><a class="gras ${enVacances ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${await this.lire('Id')}" class="right reduce" title="">${cellTerrain}</td></tr>`);
+        $j(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${await this.lire('Id')}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td id="o_nom_${await this.lire('Id')}" class="left" title=""><a class="gras ${enVacances ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${await this.lire('Id')}" class="right reduce" title="">${cellTerrain}</td></tr>`);
         // event
-        $("#o_maj_" + await this.lire('Id')).click(async (e) => {
+        $j("#o_maj_" + await this.lire('Id')).click(async (e) => {
             console.log(`[Joueur.getLigneRadar] Clic sur le bouton de rafraîchissement pour joueur: ${pseudo}, ID: ${await this.lire('Id')}`);
             e.preventDefault(); // Empêche le rechargement de la page
             try {
-                let oldTerrain = numeral($("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
-                $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
+                let oldTerrain = numeral($j("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
+                $j({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $j(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
 
                 if (await this.chargerDonneesMembre()) {
                     console.log(`[Joueur.getLigneRadar] chargerDonneesMembre réussi pour ${pseudo}. Nouveau terrain: ${await this.lire('Terrain de Chasse')}, Nouvel état: ${await this.lire('Activité')}`);
@@ -709,22 +709,22 @@ Utils.register(class Joueur extends ObjetForum {
                     // si le joueur est sortie de MV ou si il a mis le MV
                     if (oldEtat != await this.lire('Activité')) {
                         console.log(`[Joueur.getLigneRadar] Changement de statut pour ${pseudo}. Ancien état: ${oldEtat}, Nouvel état: ${await this.lire('Activité')}`);
-                        $("#o_terrain_" + await this.lire('Id')).html(cellTerrain);
+                        $j("#o_terrain_" + await this.lire('Id')).html(cellTerrain);
                         if (enVacances)
-                            $("#o_nom_" + await this.lire('Id') + " a").addClass("blue_light");
+                            $j("#o_nom_" + await this.lire('Id') + " a").addClass("blue_light");
                         else
-                            $("#o_nom_" + await this.lire('Id') + " a").removeClass("blue_light");
+                            $j("#o_nom_" + await this.lire('Id') + " a").removeClass("blue_light");
                         bSave = true;
                     }
                     if (diff) {
                         console.log(`[Joueur.getLigneRadar] Différence de terrain pour ${pseudo}. Diff: ${diff}`);
-                        $("#o_terrain_" + await this.lire('Id'))
+                        $j("#o_terrain_" + await this.lire('Id'))
                             .html(cellTerrain)
                             .effect("highlight", { color: (diff > 0 ? "#458D58" : "#8D4545") }, 1000)
                             .attr("title", numeral(diff).format())
                             .tooltip({
                                 position: { my: "left+10 center", at: "right center" },
-                                content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $("#o_terrain_" + await this.lire('Id')).attr("title") : $("#o_terrain_" + await this.lire('Id')).attr("title")} cm²</span>`,
+                                content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $j("#o_terrain_" + await this.lire('Id')).attr("title") : $j("#o_terrain_" + await this.lire('Id')).attr("title")} cm²</span>`,
                                 hide: { effect: "fade", duration: 10 },
                                 tooltipClass: "warning-tooltip ui-tooltip-right"
                             }).tooltip("open");
@@ -733,21 +733,21 @@ Utils.register(class Joueur extends ObjetForum {
                     bSave && await radar.sauvegarder();
                 } else {
                     console.warn(`[Joueur.getLigneRadar] chargerProfil a échoué pour ${pseudo}.`);
-                    $.toast({ ...TOAST_WARNING, text: `Le joueur ${pseudo} n'existe plus.` });
+                    $j.toast({ ...TOAST_WARNING, text: `Le joueur ${pseudo} n'existe plus.` });
                     await radar.supprimeJoueur(this);
                     await radar.sauvegarder();
                     await radar.actualiser();
                 }
             } catch (error) {
                 console.error(`[Joueur.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${pseudo}:`, error);
-                $.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement du joueur ${pseudo}.` });
+                $j.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement du joueur ${pseudo}.` });
             }
             return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
         });
         // tooltip vacance...
-        $("#o_terrain_" + await this.lire('Id')).tooltip({ position: { my: "left+10 center", at: "right center" }, tooltipClass: "warning-tooltip" });
+        $j("#o_terrain_" + await this.lire('Id')).tooltip({ position: { my: "left+10 center", at: "right center" }, tooltipClass: "warning-tooltip" });
         // creation du tooltip sur les joueurs pour avoir le temps de trajet
-        $("#o_nom_" + await this.lire('Id')).tooltip({
+        $j("#o_nom_" + await this.lire('Id')).tooltip({
             position: { my: "left+10 bottom", at: "right center" },
             content: async (callback) => {
                 if (radar.joueurs.hasOwnProperty(pseudo)) {
@@ -768,7 +768,7 @@ Utils.register(class Joueur extends ObjetForum {
     *
     */
     static rechercher(elt) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php",
             data: {

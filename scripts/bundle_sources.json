@@ -5,8 +5,11 @@
         "css/datatables.css"
     ],
     "js": [
+        "js/browserAPI.js",
+        "js/runtime_init.js",
         "js/lib/acorn.js",
         "js/lib/jquery_3.2.1.js",
+        "js/lib/jquery-alias.js",
         "js/lib/jquery-ui_1.12.1.js",
         "js/lib/jquery-datetimepicker_1.6.3.js",
         "js/lib/jquery-toast_1.3.1.js",

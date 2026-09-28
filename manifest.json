@@ -13,6 +13,7 @@
 	"author": "Arpegor",
 	"host_permissions": [
 		"http://*.fourmizzz.fr/*",
+		"https://*.fourmizzz.fr/*",
 		"http://outiiil.fr/",
 		"https://arpegorpsgh.github.io/*"
 	],
@@ -21,15 +22,19 @@
 	},
 	"permissions": [
 		"storage",
-		"scripting"
+		"scripting",
+		"userScripts",
+		"tabs",
+		"webNavigation"
 	],
 	"content_scripts": [
 		{
 			"matches": [
-				"http://*.fourmizzz.fr/*"
+				"http://*.fourmizzz.fr/*",
+				"https://*.fourmizzz.fr/*"
 			],
 			"js": [
-				"js/loader.js"
+				"js/bridge.js"
 			],
 			"run_at": "document_start"
 		}
@@ -45,8 +50,15 @@
 				"manifest.json"
 			],
 			"matches": [
-				"http://*.fourmizzz.fr/*"
+				"http://*.fourmizzz.fr/*",
+				"https://*.fourmizzz.fr/*"
 			]
 		}
-	]
+	],
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "outiiil@arpegorpsgh.github.io",
+			"strict_min_version": "121.0"
+		}
+	}
 }

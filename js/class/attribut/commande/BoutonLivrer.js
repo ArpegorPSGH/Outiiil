@@ -13,7 +13,7 @@ Utils.register(class BoutonLivrer extends AttributObjet {
         const apres = !dateApres || moment().isSameOrAfter(moment(dateApres));
 
         if (apres && etat == ETAT_COMMANDE["En cours"]) {
-            const $btn = $(`<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`);
+            const $btn = $j(`<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`);
             $btn.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 const constructions = await monProfilJoueur.lire('Niveaux Constructions');
                 const transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (constructions[11] / 2)));
@@ -23,18 +23,18 @@ Utils.register(class BoutonLivrer extends AttributObjet {
                 let materialsToPrefill = Math.min(materiauxRestants, transportCapacity);
                 let nourishmentToPrefill = Math.min(nourritureRestante, transportCapacity - materialsToPrefill);
 
-                $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
-                $("#nbMateriaux").val(materialsToPrefill);
-                $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
-                $("#nbNourriture").val(nourishmentToPrefill);
+                $j("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
+                $j("#nbMateriaux").val(materialsToPrefill);
+                $j("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
+                $j("#nbNourriture").val(nourishmentToPrefill);
 
                 const workersToPrefill = Math.ceil((materialsToPrefill + nourishmentToPrefill) / (10 + (constructions[11] / 2)));
-                $("#nbOuvriere").val(workersToPrefill);
-                $("#input_nbOuvriere").val(numeral(workersToPrefill).format());
+                $j("#nbOuvriere").val(workersToPrefill);
+                $j("#input_nbOuvriere").val(numeral(workersToPrefill).format());
 
-                $("#pseudo_convoi").val(await this.objetParent.lire('Demandeur'));
-                $("#o_idCommande").val(this.objetParent.idSujet);
-                $("html").animate({ scrollTop: 0 }, 600);
+                $j("#pseudo_convoi").val(await this.objetParent.lire('Demandeur'));
+                $j("#o_idCommande").val(this.objetParent.idSujet);
+                $j("html").animate({ scrollTop: 0 }, 600);
                 return false;
             });
             return $btn;

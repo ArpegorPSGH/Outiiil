@@ -96,7 +96,7 @@ Utils.register(class BoiteRadar {
         let newOrdre = serie.split("&"), item = new Array(), lien = "";
         for (let i = 0; i < newOrdre.length; i++) {
             item = newOrdre[i].split("=");
-            lien = $("#o_item_" + item[1]).find("a:eq(1)");
+            lien = $j("#o_item_" + item[1]).find("a:eq(1)");
             // si l'item correspond à un joueur
             if (lien.attr("href").includes("Membre.php"))
                 await this._joueurs[lien.text()].ecrire('Ordre Radar', i);
@@ -169,14 +169,14 @@ Utils.register(class BoiteRadar {
         // si il y a des joueurs ou des alliances surveillés on affiche la boite
         if (Object.keys(this._joueurs).length || Object.keys(this._alliances).length) {
             // Modification de la boite compte plus pour faire apparaitre la boite radar
-            $("#boiteComptePlus .titre_colonne_cliquable").replaceWith(() => { return `<div class='titre_colonne_cliquable'>${IMG_FLECHE} <span class='titre_compte_plus'>Outiiil ${VERSION.substring(0, 2)}<span class='reduce'>${VERSION.substring(2)}</span></span> ${IMG_FLECHE}</div>`; });
+            $j("#boiteComptePlus .titre_colonne_cliquable").replaceWith(() => { return `<div class='titre_colonne_cliquable'>${IMG_FLECHE} <span class='titre_compte_plus'>Outiiil ${VERSION.substring(0, 2)}<span class='reduce'>${VERSION.substring(2)}</span></span> ${IMG_FLECHE}</div>`; });
             // Event sur le titre si on utilise le radar
-            $("#boiteComptePlus .titre_colonne_cliquable").click((e) => {
-                if ($(e.currentTarget).next().find("table:visible").attr("id"))
+            $j("#boiteComptePlus .titre_colonne_cliquable").click((e) => {
+                if ($j(e.currentTarget).next().find("table:visible").attr("id"))
                     localStorage.setItem("outiiil_boiteActive", "C");
                 else
                     localStorage.setItem("outiiil_boiteActive", "R");
-                $("#boiteComptePlus .contenu_boite_compte_plus table").toggle();
+                $j("#boiteComptePlus .contenu_boite_compte_plus table").toggle();
             });
             // Remplissage de la boite
             await this.actualiser();
@@ -191,19 +191,19 @@ Utils.register(class BoiteRadar {
     async actualiser() {
         let affiche = localStorage.getItem("outiiil_boiteActive"), html = `<table id='o_radar' ${!affiche || affiche == "C" ? `style="display:none"` : ""}><tbody></tbody></table>`;
         // on remplace le contenu ou l'ajoute
-        if ($("#o_radar").length)
-            $("#o_radar").replaceWith(html);
+        if ($j("#o_radar").length)
+            $j("#o_radar").replaceWith(html);
         else {
-            $("#boiteComptePlus .contenu_boite_compte_plus table").after(html);
-            $("#o_radar tbody").sortable({
+            $j("#boiteComptePlus .contenu_boite_compte_plus table").after(html);
+            $j("#o_radar tbody").sortable({
                 placeholder: "o_radarPlaceholder",
                 update: (e, ui) => {
-                    this.#calculeOrdre($("#o_radar tbody").sortable("serialize"));
+                    this.#calculeOrdre($j("#o_radar tbody").sortable("serialize"));
                 }
             });
         }
         // Event pour mettre à jour les données d'un joueur ou une alliance
-        $("#o_radar").off();
+        $j("#o_radar").off();
         // affichage des elements
         let j = 1;
         let elements = [];

@@ -314,7 +314,7 @@ Utils.register(class BoiteComptePlus {
         let visible = localStorage.getItem("outiiil_boiteActive");
         if (!Utils.comptePlus) {
             // Ajout du contenue
-            $("#boiteComptePlus").replaceWith("<div id='boiteComptePlus' class='boite_compte_plus'><div class='titre_colonne_cliquable'><span class='titre_compte_plus'>Outiiil " + VERSION.substring(0, 2) + "<span class='reduce'>" + VERSION.substring(2) + "</span></span></div><div class='contenu_boite_compte_plus'><table " + (visible == null || visible == "C" ? "" : "style='display:none'") + ">"
+            $j("#boiteComptePlus").replaceWith("<div id='boiteComptePlus' class='boite_compte_plus'><div class='titre_colonne_cliquable'><span class='titre_compte_plus'>Outiiil " + VERSION.substring(0, 2) + "<span class='reduce'>" + VERSION.substring(2) + "</span></span></div><div class='contenu_boite_compte_plus'><table " + (visible == null || visible == "C" ? "" : "style='display:none'") + ">"
                 // Ligne ponte
                 + "<tr class='lien' title='Aller sur Reine'><td><a href='Reine.php'><div style='position:relative;height:27px;padding-left:5px;'><div class='mini_icone_ponte'/><div id='o_resteUnite' class='o_labelBoite'></div><div id='o_tempsUnite' class='o_labelTempsBoite'></div><div id='o_progressUnite'/></div></a></td></tr>"
                 // Ligne construction
@@ -334,14 +334,14 @@ Utils.register(class BoiteComptePlus {
             await this.majPonte()
             this.majConstruction().majRecherche().majAttaque().majConvoi().majChasse();
             // Formatage du title
-            $("#boiteComptePlus table tr").tooltip({
+            $j("#boiteComptePlus table tr").tooltip({
                 tooltipClass: "warning-tooltip",
-                content: function () { return $(this).prop("title"); },
+                content: function () { return $j(this).prop("title"); },
                 position: { my: "left+10 center", at: "right center" },
                 hide: { effect: "fade", duration: 10 }
             });
             // autocomplete sur le chams de recherche
-            $("#recherche").autocomplete({
+            $j("#recherche").autocomplete({
                 source: (request, response) => {
                     // requete pour autocomplete
                     Joueur.rechercher(request.term).then((data) => { response(Utils.extraitRecherche(data)); });
@@ -355,11 +355,11 @@ Utils.register(class BoiteComptePlus {
             // Button code removed from here
 
         } else
-            visible == null || visible == "C" ? "" : $("#boiteComptePlus .contenu_boite_compte_plus table:eq(0)").css('display', 'none');
+            visible == null || visible == "C" ? "" : $j("#boiteComptePlus .contenu_boite_compte_plus table:eq(0)").css('display', 'none');
         // effet highlight si du terrain est decouvert
-        let tooltipConso = $("<div/>").append($("#tableau_boite_info").next().text().split("content:")[1].split("})")[0]);
+        let tooltipConso = $j("<div/>").append($j("#tableau_boite_info").next().text().split("content:")[1].split("})")[0]);
         if (Utils.terrain * 48 != numeral(tooltipConso.find("td:eq(7)").text()).value() + numeral(tooltipConso.find("td:eq(8)").text()).value() && Utils.ouvrieres > Utils.terrain)
-            $("#boite_info_tdc .jauge").addClass("highlight_error");
+            $j("#boite_info_tdc .jauge").addClass("highlight_error");
     }
     /**
     * Met à jour les pontes si elles ne correspondent pas.
@@ -368,8 +368,8 @@ Utils.register(class BoiteComptePlus {
     */
     async majPonte() {
         if (this._ponte.length) {
-            $("#o_resteUnite").text(this._ponte[0].unite).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressUnite").progressbar({ value: (moment().valueOf() - moment(this._startPonte).valueOf()) * 100 / (moment(this._ponte[0].exp).valueOf() - moment(this._startPonte).valueOf()) });
+            $j("#o_resteUnite").text(this._ponte[0].unite).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressUnite").progressbar({ value: (moment().valueOf() - moment(this._startPonte).valueOf()) * 100 / (moment(this._ponte[0].exp).valueOf() - moment(this._startPonte).valueOf()) });
             // Ajout du title
             let table = "<table>", tmpExp = moment(this._ponte[0].exp), nombreU, tempsU;
             for (let i = 0; i < this._ponte.length; i++) {
@@ -379,16 +379,16 @@ Utils.register(class BoiteComptePlus {
                 table += `<tr><td class='gras right'>${(nombreU < 1000 ? nombreU : numeral(nombreU).format("0[.]00a"))}</td><td>${this._ponte[i].unite}</td><td>${moment(this._ponte[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             }
             table += "</table>";
-            $("#boiteComptePlus table tr:eq(0)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(0)").attr("title", table);
             // Si il reste moins d'une heure (on voit les secondes) on met dynamise
             let tempsR = moment(this._ponte[0].exp).diff(moment()) / 1000;
-            $("#o_tempsUnite").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsUnite").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsUnite");
-            if (tempsR <= 600) $("#o_progressUnite").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressUnite").addClass("highlight_success");
         } else {
-            $("#o_resteUnite").html("<span class='red_light'>Aucune ponte</span>");
-            $("#o_tempsUnite").text("");
-            $("#o_progressUnite").progressbar({ value: 0 });
+            $j("#o_resteUnite").html("<span class='red_light'>Aucune ponte</span>");
+            $j("#o_tempsUnite").text("");
+            $j("#o_progressUnite").progressbar({ value: 0 });
         }
         return this;
     }
@@ -399,12 +399,12 @@ Utils.register(class BoiteComptePlus {
     */
     majConstruction() {
         if (this._construction) {
-            $("#o_resteConstruction").text(this._construction).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressConstruction").progressbar({ value: (moment().valueOf() - moment(this._startConstruction).valueOf()) * 100 / (moment(this._expConstruction).valueOf() - moment(this._startConstruction).valueOf()) });
+            $j("#o_resteConstruction").text(this._construction).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressConstruction").progressbar({ value: (moment().valueOf() - moment(this._startConstruction).valueOf()) * 100 / (moment(this._expConstruction).valueOf() - moment(this._startConstruction).valueOf()) });
             let tempsR = moment(this._expConstruction).diff(moment()) / 1000;
-            $("#o_resteConstruction").after(`<div id='o_tempsConstruction' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
+            $j("#o_resteConstruction").after(`<div id='o_tempsConstruction' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsConstruction");
-            if (tempsR <= 600) $("#o_progressConstruction").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressConstruction").addClass("highlight_success");
         }
         return this;
     }
@@ -415,12 +415,12 @@ Utils.register(class BoiteComptePlus {
     */
     majRecherche() {
         if (this._recherche) {
-            $("#o_resteRecherche").text(this._recherche).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressRecherche").progressbar({ value: (moment().valueOf() - moment(this._startRecherche).valueOf()) * 100 / (moment(this._expRecherche).valueOf() - moment(this._startRecherche).valueOf()) });
+            $j("#o_resteRecherche").text(this._recherche).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressRecherche").progressbar({ value: (moment().valueOf() - moment(this._startRecherche).valueOf()) * 100 / (moment(this._expRecherche).valueOf() - moment(this._startRecherche).valueOf()) });
             let tempsR = moment(this._expRecherche).diff(moment()) / 1000;
-            $("#o_resteRecherche").after(`<div id='o_tempsRecherche' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
+            $j("#o_resteRecherche").after(`<div id='o_tempsRecherche' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsRecherche");
-            if (tempsR <= 600) $("#o_progressRecherche").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressRecherche").addClass("highlight_success");
         }
         return this;
     }
@@ -431,22 +431,22 @@ Utils.register(class BoiteComptePlus {
     */
     majAttaque() {
         if (this._attaque.length) {
-            $("#o_resteAttaque").text(this._attaque[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressAttaque").progressbar({ value: (moment().valueOf() - moment(this._startAttaque).valueOf()) * 100 / (moment(this._attaque[0].exp).valueOf() - moment(this._startAttaque).valueOf()) });
+            $j("#o_resteAttaque").text(this._attaque[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressAttaque").progressbar({ value: (moment().valueOf() - moment(this._startAttaque).valueOf()) * 100 / (moment(this._attaque[0].exp).valueOf() - moment(this._startAttaque).valueOf()) });
             // Ajout du title
             let table = "<table>";
             for (let i = 0, l = this._attaque.length; i < l; i++)
                 table += `<tr><td class='gras'>${this._attaque[i].cible}</td><td>&nbsp;</td><td>Retour le ${moment(this._attaque[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             table += "</table>";
-            $("#boiteComptePlus table tr:eq(4)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(4)").attr("title", table);
             let tempsR = moment(this._attaque[0].exp).diff(moment()) / 1000;
-            $("#o_tempsAttaque").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsAttaque").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsAttaque");
-            if (tempsR <= 600) $("#o_progressAttaque").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressAttaque").addClass("highlight_success");
         } else {
-            $("#o_resteAttaque").text("Aucune attaque");
-            $("#o_tempsAttaque").text("");
-            $("#o_progressAttaque").progressbar({ value: 0 });
+            $j("#o_resteAttaque").text("Aucune attaque");
+            $j("#o_tempsAttaque").text("");
+            $j("#o_progressAttaque").progressbar({ value: 0 });
         }
         return this;
     }
@@ -457,22 +457,22 @@ Utils.register(class BoiteComptePlus {
     */
     majConvoi() {
         if (this._convoi.length) {
-            $("#o_resteConvoi").text(this._convoi[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressConvoi").progressbar({ value: (moment().valueOf() - moment(this._startConvoi).valueOf()) * 100 / (moment(this._convoi[0].exp).valueOf() - moment(this._startConvoi).valueOf()) });
+            $j("#o_resteConvoi").text(this._convoi[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressConvoi").progressbar({ value: (moment().valueOf() - moment(this._startConvoi).valueOf()) * 100 / (moment(this._convoi[0].exp).valueOf() - moment(this._startConvoi).valueOf()) });
             // Ajout du title
             let table = "<table id='o_titleConvoi'>";
             for (let i = 0, l = this._convoi.length; i < l; i++)
                 table += `<tr><td>${this._convoi[i].sens ? "<img src='" + IMG_DOWN + "' alt='reception'/>" : "<img src='" + IMG_UP + "' alt='livraison'/>"}</td><td class='gras'>${this._convoi[i].cible}</td><td>&nbsp;</td><td class="right">${numeral(this._convoi[i].nou).format("0[.]00a")} <img alt="nourritures" src="images/icone/icone_pomme.png" height="17"></td><td class="right">${numeral(this._convoi[i].mat).format("0[.]00a")} <img alt="materiaux" src="images/icone/icone_bois.png" height="17"/></td><td>Retour le ${moment(this._convoi[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             table += "</table>";
-            $("#boiteComptePlus table tr:eq(5)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(5)").attr("title", table);
             let tempsR = moment(this._convoi[0].exp).diff(moment()) / 1000;
-            $("#o_tempsConvoi").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsConvoi").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsConvoi");
-            if (tempsR <= 600) $("#o_progressConvoi").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressConvoi").addClass("highlight_success");
         } else {
-            $("#o_resteConvoi").text("Aucune convoi");
-            $("#o_tempsConvoi").text("");
-            $("#o_progressConvoi").progressbar({ value: 0 });
+            $j("#o_resteConvoi").text("Aucune convoi");
+            $j("#o_tempsConvoi").text("");
+            $j("#o_progressConvoi").progressbar({ value: 0 });
         }
         return this;
     }
@@ -490,18 +490,18 @@ Utils.register(class BoiteComptePlus {
                 table += `<tr><td><span class="gras">${numeral(this._chasse[i].quantite).format()}</span> cm²</td><td>Retour le ${moment(this._chasse[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             }
             table += "</table>";
-            $("#o_resteChasse").text(numeral(total).format() + " cm²").css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressChasse").progressbar({ value: (moment().valueOf() - moment(this._startChasse).valueOf()) * 100 / (moment(this._chasse[0].exp).valueOf() - moment(this._startChasse).valueOf()) });
+            $j("#o_resteChasse").text(numeral(total).format() + " cm²").css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressChasse").progressbar({ value: (moment().valueOf() - moment(this._startChasse).valueOf()) * 100 / (moment(this._chasse[0].exp).valueOf() - moment(this._startChasse).valueOf()) });
             // Ajout du title
-            $("#boiteComptePlus table tr:eq(3)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(3)").attr("title", table);
             let tempsR = moment(this._chasse[0].exp).diff(moment()) / 1000;
-            $("#o_tempsChasse").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsChasse").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsChasse");
-            if (tempsR <= 600) $("#o_progressChasse").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressChasse").addClass("highlight_success");
         } else {
-            $("#o_resteChasse").text("Aucune chasse");
-            $("#o_tempsChasse").text("");
-            $("#o_progressChasse").progressbar({ value: 0 });
+            $j("#o_resteChasse").text("Aucune chasse");
+            $j("#o_tempsChasse").text("");
+            $j("#o_progressChasse").progressbar({ value: 0 });
         }
         return this;
     }

@@ -25,7 +25,7 @@ Utils.register(class BoiteMap extends Boite {
                 let donnees = JSON.parse(data);
                 if (donnees.error == "0") await this.#afficherMap(donnees.message);
             }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la map." });
+                $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la map." });
             });
             this.css().event();
         }
@@ -53,7 +53,7 @@ Utils.register(class BoiteMap extends Boite {
     *
     */
     #getMap() {
-        return $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map");
+        return $j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map");
     }
     /**
     * @private

@@ -12,8 +12,8 @@ Utils.register(class Options extends AttributObjet {
         const pseudoActuel = await monProfilJoueur.lire('Pseudo');
 
         if (demandeur == pseudoActuel) {
-            const $modifier = $(`<a id='o_modifierCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a>`);
-            const $supprimer = $(`<a id='o_supprimerCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>`);
+            const $modifier = $j(`<a id='o_modifierCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a>`);
+            const $supprimer = $j(`<a id='o_supprimerCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>`);
 
             $modifier.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 let boiteCommande = new BoiteCommande(this.objetParent, this.objetParent.fonctionnaliteCreatrice.page);
@@ -25,7 +25,7 @@ Utils.register(class Options extends AttributObjet {
                 if (confirm("Supprimer cette commande ?")) {
                     await this.objetParent.ecrire('État', ETAT_COMMANDE.Supprimée);
                     await this.objetParent.enregistrerSurForum();
-                    $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
+                    $j.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
                     if (this.objetParent.fonctionnaliteCreatrice && typeof this.objetParent.fonctionnaliteCreatrice.actualiserCommandes === 'function') {
                         await this.objetParent.fonctionnaliteCreatrice.actualiserCommandes();
                     }
@@ -33,7 +33,7 @@ Utils.register(class Options extends AttributObjet {
                 return false;
             });
 
-            return $('<span></span>').append($modifier, " ", $supprimer);
+            return $j('<span></span>').append($modifier, " ", $supprimer);
         }
         return "";
     }

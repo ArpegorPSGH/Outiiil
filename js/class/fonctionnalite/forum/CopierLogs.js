@@ -21,16 +21,16 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const elementActive = $("#alliance").find("span[class^='forum'][class$='ligne_paire']");
+        const elementActive = $j("#alliance").find("span[class^='forum'][class$='ligne_paire']");
         const estSurLogsOutiiil = elementActive.html() === "Logs Outiiil";
 
         if (estSurLogsOutiiil) {
-            if ($("#form_cat").length && !$("#o_copierLogs").length) {
-                $("#form_cat td:last")
+            if ($j("#form_cat").length && !$j("#o_copierLogs").length) {
+                $j("#form_cat td:last")
                     .prepend(`<img class="cursor" id="o_copierLogs" src="${IMG_COPIER}" height="16" alt="copier" title="Copier les logs sélectionnés dans le presse-papier"/>`);
 
-                $("#o_copierLogs").click(async (e) => {
-                    const sujetsCoches = $("#form_cat tr:gt(0) input[name='topic[]']:checked");
+                $j("#o_copierLogs").click(async (e) => {
+                    const sujetsCoches = $j("#form_cat tr:gt(0) input[name='topic[]']:checked");
 
                     if (!sujetsCoches.length) {
                         return;
@@ -40,7 +40,7 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
                         let contenuGlobal = "";
 
                         for (let i = 0; i < sujetsCoches.length; i++) {
-                            const idSujet = parseInt($(sujetsCoches[i]).val(), 10);
+                            const idSujet = parseInt($j(sujetsCoches[i]).val(), 10);
                             if (!idSujet) continue;
 
                             const { titre, messages } = await AccesForum.consulterSujetAvecMessagesEtIds(idSujet);
@@ -59,7 +59,7 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             await navigator.clipboard.writeText(contenuGlobal);
                         } else {
-                            const $temp = $("<textarea>")
+                            const $temp = $j("<textarea>")
                                 .val(contenuGlobal)
                                 .appendTo("body")
                                 .select();
@@ -67,13 +67,13 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
                             $temp.remove();
                         }
 
-                        $.toast({
+                        $j.toast({
                             ...TOAST_SUCCESS,
                             text: sujetsCoches.length > 1 ? "Les logs ont été copiés dans le presse-papier." : "Le log a été copié dans le presse-papier."
                         });
                     } catch (error) {
                         console.error("[CopierLogs] Erreur lors de la copie des logs :", error);
-                        $.toast({
+                        $j.toast({
                             ...TOAST_ERROR,
                             text: "Une erreur est survenue lors de la copie des logs."
                         });

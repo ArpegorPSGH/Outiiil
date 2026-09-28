@@ -20,9 +20,9 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
+        const dtButtonsContainer = $j("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
-            const bouton = $(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
+            const bouton = $j(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
             bouton.onActionSecurisee('click', this, this.actualiserAlliance.bind(this));
             dtButtonsContainer.prepend(bouton);
         }
@@ -65,10 +65,10 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
                 await fonctionnaliteModifierGrade.init();
             }
 
-            $.toast({ ...TOAST_SUCCESS, text: "L'alliance a été mise à jour avec succès." });
+            $j.toast({ ...TOAST_SUCCESS, text: "L'alliance a été mise à jour avec succès." });
         } catch (error) {
             console.error("Erreur lors de l'actualisation de l'alliance:", error);
-            $.toast({ ...TOAST_ERROR, heading: "Erreur Actualisation", text: `${error.message || 'Une erreur est survenue.'}` });
+            $j.toast({ ...TOAST_ERROR, heading: "Erreur Actualisation", text: `${error.message || 'Une erreur est survenue.'}` });
         }
     }
 });

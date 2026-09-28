@@ -65,7 +65,7 @@ Utils.register(class Transaction {
             if (!estLienInterneVide && !ouvreDansNouvelOnglet) {
                 e.preventDefault();
                 e.stopPropagation();
-                $.toast({
+                $j.toast({
                     ...TOAST_WARNING,
                     text: "Navigation bloquée : une transaction est en cours."
                 });
@@ -81,7 +81,7 @@ Utils.register(class Transaction {
         if (this.#vientDeLaTransaction()) return;
         e.preventDefault();
         e.stopPropagation();
-        $.toast({
+        $j.toast({
             ...TOAST_WARNING,
             text: "Action bloquée : attendez la fin de la transaction pour soumettre des formulaires."
         });
@@ -106,9 +106,9 @@ Utils.register(class Transaction {
     async run(callback) {
         try {
             // Active les bloqueurs pour cette transaction
-            window.addEventListener('beforeunload', this.#bloquerFermetureEtRafraichissement);
-            document.addEventListener('click', this.#intercepterClicsDestructeurs, true);
-            document.addEventListener('submit', this.#intercepterSoumissionsFormulaire, true);
+            window.addEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
+            document.addEventListener('click', this.intercepterClicsDestructeurs, true);
+            document.addEventListener('submit', this.intercepterSoumissionsFormulaire, true);
 
             const resultat = await callback();
 
@@ -119,7 +119,7 @@ Utils.register(class Transaction {
                 // }
                 const etatCollision = await this.verifierEtatForum();
                 if (etatCollision === 'COLLISION_TOTAL') {
-                    $.toast({
+                    $j.toast({
                         ...TOAST_ERROR,
                         heading: "Collision totale détectée",
                         text: "Les modifications forum ont été entièrement altérées ou supprimées par un tiers, invalidant l'opération. La page va être rechargée.",
@@ -132,7 +132,7 @@ Utils.register(class Transaction {
                     setTimeout(() => location.href = location.href, tempsRestant);
                     return;
                 } else if (etatCollision === 'COLLISION_INCOHERENT') {
-                    $.toast({
+                    $j.toast({
                         ...TOAST_ERROR,
                         heading: "Collision partielle détectée",
                         text: "Une collision partielle a été détectée, invalidant l'opération. Annulation des opérations effectuées et rechargement de la page.",
@@ -163,7 +163,7 @@ Utils.register(class Transaction {
                 console.error(`[${this.constructor.name}][executerTransaction] Échec critique lors du rollback de la transaction:`, rollbackError);
             }
             await this.executerActionsApresAnnuler();
-            $.toast({
+            $j.toast({
                 ...TOAST_ERROR,
                 text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée.",
                 hideAfter: 3000
@@ -174,9 +174,9 @@ Utils.register(class Transaction {
             setTimeout(() => location.href = location.href, tempsRestant);
             throw error;
         } finally {
-            window.removeEventListener('beforeunload', this.#bloquerFermetureEtRafraichissement);
-            document.removeEventListener('click', this.#intercepterClicsDestructeurs, true);
-            document.removeEventListener('submit', this.#intercepterSoumissionsFormulaire, true);
+            window.removeEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
+            document.removeEventListener('click', this.intercepterClicsDestructeurs, true);
+            document.removeEventListener('submit', this.intercepterSoumissionsFormulaire, true);
         }
     }
 
@@ -356,7 +356,7 @@ Utils.register(class Transaction {
             for (const convoi of convoisCrees) {
                 const idConvoi = await convoi.lire('Id Convoi');
                 if (convoisPageIds.includes(idConvoi)) {
-                    const $link = $(`a[href*="commerce.php?annuler=${idConvoi}"]`);
+                    const $link = $j(`a[href*="commerce.php?annuler=${idConvoi}"]`);
                     console.log(`[Transaction] Clic sur le lien d'annulation pour le convoi ID ${idConvoi}`);
                     $link.get(0).click();
                 }

@@ -60,7 +60,7 @@ Utils.register(class FonctionnaliteAlliance {
                 return await callback();
             }
 
-            $.toast({
+            $j.toast({
                 ...TOAST_WARNING,
                 text: "Une opération est déjà en cours, veuillez patienter."
             });

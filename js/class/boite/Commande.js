@@ -49,30 +49,30 @@ Utils.register(class BoiteCommande extends Boite {
     */
     async event() {
         super.event();
-        $("input[name='o_dateCommande'], input[name='o_dateApres']").datepicker({ ...DATEPICKER_OPTION, minDate: new Date(), dateFormat: "dd-mm-yy" });
+        $j("input[name='o_dateCommande'], input[name='o_dateApres']").datepicker({ ...DATEPICKER_OPTION, minDate: new Date(), dateFormat: "dd-mm-yy" });
 
         // Autocomplete des champs en fonction de l'évolution (uniquement pour les nouvelles commandes)
         if (this._estNouvelle) {
-            $("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").change(async (e) => {
+            $j("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").change(async (e) => {
                 let qte = await Utils.calculQuantite(parseInt(e.currentTarget.value));
-                $("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
-                $("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
+                $j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
+                $j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
             });
         }
 
-        $("#o_form" + await this._commande.idSujet + " input[name^='o_quantite']").on("input", (e) => {
-            return $(e.currentTarget).val(numeral($(e.currentTarget).val()).format());
+        $j("#o_form" + await this._commande.idSujet + " input[name^='o_quantite']").on("input", (e) => {
+            return $j(e.currentTarget).val(numeral($j(e.currentTarget).val()).format());
         });
 
-        $("#o_commander" + await this._commande.idSujet).onActionSecurisee('click', this._commande.fonctionnaliteCreatrice, async (e) => {
+        $j("#o_commander" + await this._commande.idSujet).onActionSecurisee('click', this._commande.fonctionnaliteCreatrice, async (e) => {
             e.preventDefault();
 
             // Récupérer les valeurs du formulaire
-            const evolution = parseInt($("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").val());
-            const nourritureDemandee = numeral($("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val()).value();
-            const materiauxDemandes = numeral($("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val()).value();
-            const dateSouhaiteeStr = $("#o_form" + await this._commande.idSujet + " input[name='o_dateCommande']").val();
-            const dateApresStr = $("#o_form" + await this._commande.idSujet + " input[name='o_dateApres']").val();
+            const evolution = parseInt($j("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").val());
+            const nourritureDemandee = numeral($j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val()).value();
+            const materiauxDemandes = numeral($j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val()).value();
+            const dateSouhaiteeStr = $j("#o_form" + await this._commande.idSujet + " input[name='o_dateCommande']").val();
+            const dateApresStr = $j("#o_form" + await this._commande.idSujet + " input[name='o_dateApres']").val();
 
             // Mettre à jour les paramètres de la commande
             await this._commande.ecrire({
@@ -98,9 +98,9 @@ Utils.register(class BoiteCommande extends Boite {
                     // Enregistrer sur le forum via le framework
                     await this._commande.enregistrerSurForum();
                     if (this._estNouvelle) {
-                        $.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
+                        $j.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
                     } else {
-                        $.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour avec succès." });
+                        $j.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour avec succès." });
                     }
 
                     // Actualiser l'affichage via GererCommandes
@@ -112,14 +112,14 @@ Utils.register(class BoiteCommande extends Boite {
                     this.masquer();
                 } catch (error) {
                     console.error("[BoiteCommande] Erreur lors de l'enregistrement:", error);
-                    $.toast({
+                    $j.toast({
                         ...TOAST_ERROR,
                         text: `Une erreur est survenue lors de ${this._estNouvelle ? "l'ajout" : "la mise à jour"} de la commande.`
                     });
                     throw error;
                 }
             } else {
-                $.toast({ ...TOAST_ERROR, text: message });
+                $j.toast({ ...TOAST_ERROR, text: message });
             }
             return false;
 
@@ -155,7 +155,7 @@ Utils.register(class BoiteCommande extends Boite {
             select += `<option value="${i}" ${i == evolution ? "selected" : ""}>${EVOLUTION[i]}</option>`;
         }
 
-        $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.idSujet}">
+        $j("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.idSujet}">
             <div class="group"><select name="o_evolution" class="o_input" required>${select}</select><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Evolution</label></div>
             <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${nourritureDemandee}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
             <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${materiauxDemandes}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>

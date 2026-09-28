@@ -57,9 +57,9 @@ Utils.register(class Membres extends Page {
         const allHeaderTexts = [];
         const headerIndices = [];
         let currentIdx = 0;
-        $("#tabMembresAlliance thead th").each((i, th) => {
-            const text = $(th).text().trim().replace(/\s+/g, ' ');
-            const colspan = parseInt($(th).attr('colspan') || 1);
+        $j("#tabMembresAlliance thead th").each((i, th) => {
+            const text = $j(th).text().trim().replace(/\s+/g, ' ');
+            const colspan = parseInt($j(th).attr('colspan') || 1);
             allHeaderTexts.push(text);
             headerIndices.push(currentIdx);
             currentIdx += colspan;
@@ -104,28 +104,28 @@ Utils.register(class Membres extends Page {
      */
     async init() {
         // Attendre que le tableau des membres soit présent dans le DOM
-        if ($("#tabMembresAlliance").length) {
+        if ($j("#tabMembresAlliance").length) {
             // Nettoyage complet : on enlève thead, tfoot et l'ancienne ligne d'en-tête de Fourmizzz (tr class='alt')
-            $("#tabMembresAlliance thead").remove();
-            $("#tabMembresAlliance tfoot").remove();
-            $("#tabMembresAlliance tr.alt:first").remove(); // Préférer supprimer par classe pour cibler l'en-tête original
+            $j("#tabMembresAlliance thead").remove();
+            $j("#tabMembresAlliance tfoot").remove();
+            $j("#tabMembresAlliance tr.alt:first").remove(); // Préférer supprimer par classe pour cibler l'en-tête original
 
             // Ajouter le thead avec les en-têtes de base (12 colonnes couvertes via 11 <th>)
-            $("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
+            $j("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
             await super.init();
         } else {
             // Observer le DOM pour l'apparition du tableau
             let observer = new MutationObserver(async (mutationsList) => {
-                if ($("#tabMembresAlliance").length) {
-                    $("#tabMembresAlliance thead").remove();
-                    $("#tabMembresAlliance tfoot").remove();
-                    $("#tabMembresAlliance tr.alt:first").remove();
-                    $("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
+                if ($j("#tabMembresAlliance").length) {
+                    $j("#tabMembresAlliance thead").remove();
+                    $j("#tabMembresAlliance tfoot").remove();
+                    $j("#tabMembresAlliance tr.alt:first").remove();
+                    $j("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
                     await super.init();
                     observer.disconnect();
                 }
             });
-            observer.observe($("#alliance")[0], { childList: true, subtree: true });
+            observer.observe($j("#alliance")[0], { childList: true, subtree: true });
         }
     }
 
@@ -142,9 +142,9 @@ Utils.register(class Membres extends Page {
         const pseudoColIndex = this.getColonneIndex('Pseudo');
         const etatColIndex = this.getColonneIndex('État');
 
-        const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-            const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().trim().split(' ')[0];
-            const etatImage = $(elt).find(`td:eq(${etatColIndex}) img`).attr('src');
+        const promises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+            const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text().trim().split(' ')[0];
+            const etatImage = $j(elt).find(`td:eq(${etatColIndex}) img`).attr('src');
 
             // Créer une instance de Joueur ou mettre à jour une existante
             let joueur = this._alliance.joueurs[pseudo];
@@ -177,15 +177,15 @@ Utils.register(class Membres extends Page {
         await this.synchroniserJoueursDepuisDOM();
 
         // Insérer les en-têtes pour TdT et Retour après la colonne "Fourmilière" dans le thead
-        const thFourmiliere = $("#tabMembresAlliance thead tr th:contains('Fourmilière')");
+        const thFourmiliere = $j("#tabMembresAlliance thead tr th:contains('Fourmilière')");
         thFourmiliere.after(`<th class="dt-head-center">TdT</th><th class="dt-head-center">Retour</th>`);
 
 
         const pseudoColIndex = this.getColonneIndex('Pseudo');
         const fourmiliereColIndex = this.getColonneIndex('Fourmilière');
 
-        const itemsPromises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-            const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
+        const itemsPromises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+            const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
             const joueur = this._alliance.joueurs[pseudo];
 
             if (joueur) {
@@ -193,11 +193,11 @@ Utils.register(class Membres extends Page {
                 const tempsParcours = await monProfilJoueur.getTempsParcours2(joueur);
                 const tdtDisplay = Utils.intToTime(tempsParcours);
                 const retourDisplay = Utils.roundMinute(tempsParcours).format("D MMM à HH[h]mm");
-                $(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">${tdtDisplay}</td><td align="center">${retourDisplay}</td>`);
+                $j(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">${tdtDisplay}</td><td align="center">${retourDisplay}</td>`);
             } else {
                 // Si le joueur n'est pas trouvé dans l'alliance (cas inattendu après synchronisation),
                 // ajouter des valeurs par défaut pour éviter les erreurs d'affichage.
-                $(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">N/C</td><td align="center">N/C</td>`);
+                $j(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">N/C</td><td align="center">N/C</td>`);
             }
         }).get();
 
@@ -214,16 +214,16 @@ Utils.register(class Membres extends Page {
             const pseudoColIndex = this.getColonneIndex('Pseudo');
             const TerrainColIndex = this.getColonneIndex('Terrain de Chasse');
 
-            const indicatorsPromises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-                const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text();
+            const indicatorsPromises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text();
                 const joueur = this._alliance.joueurs[pseudo];
 
                 if (joueur && !await joueur.estJoueurCourant()) {
                     if (await joueur.estAttaquable()) {
-                        $(elt).find(`td:eq(${TerrainColIndex + 1})`).html(IMG_ATT);
+                        $j(elt).find(`td:eq(${TerrainColIndex + 1})`).html(IMG_ATT);
                     }
                     if (await joueur.estAttaquant()) {
-                        $(elt).find(`td:eq(${TerrainColIndex - 1})`).html(IMG_DEF);
+                        $j(elt).find(`td:eq(${TerrainColIndex - 1})`).html(IMG_DEF);
                     }
                 }
             }).get();
@@ -251,10 +251,10 @@ Utils.register(class Membres extends Page {
         // Calculer le nombre de colonnes actuel du tableau en se basant sur la première ligne du tbody.
         // Cela garantit que toutes les colonnes ajoutées dynamiquement sont prises en compte.
         let colspanValue = 0;
-        const firstRow = $("#tabMembresAlliance tbody tr:first");
+        const firstRow = $j("#tabMembresAlliance tbody tr:first");
         colspanValue = firstRow.find("td").length;
 
-        $("#tabMembresAlliance").append(`
+        $j("#tabMembresAlliance").append(`
             <tfoot class='${nbJoueurs % 2 ? "ligne_paire" : ""}'>
                 <tr style='display: none;'>
                     ${Array(colspanValue).fill('<th></th>').join('')}
@@ -273,15 +273,15 @@ Utils.register(class Membres extends Page {
         // Ces éléments sont généralement dans un simulateur ou une section dédiée,
         // il faudra adapter le sélecteur si l'emplacement change.
         // Pour l'instant, on utilise les sélecteurs de l'ancien code pour les images d'état.
-        $(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(1)").append(` (${comptesParEtat['actif'] || 0})`);
-        $(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(3)").append(` (${comptesParEtat['vacances'] || 0})`);
+        $j(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(1)").append(` (${comptesParEtat['actif'] || 0})`);
+        $j(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(3)").append(` (${comptesParEtat['vacances'] || 0})`);
         // Les autres états ('banni', 'inactif', 'colonise') nécessitent une adaptation des sélecteurs
         // ou l'ajout de nouveaux éléments HTML pour les afficher.
         // Pour l'exemple, je me base sur les images existantes.
-        $(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(1)").append(` (${comptesParEtat['inactif_3_jours'] || 0})`); // Exemple
-        $(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(3)").append(` (${comptesParEtat['banni'] || 0})`); // Exemple
-        $(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(1)").append(` (${comptesParEtat['inactif_10_jours'] || 0})`); // Exemple
-        $(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(3)").append(` (${comptesParEtat['colonise'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(1)").append(` (${comptesParEtat['inactif_3_jours'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(3)").append(` (${comptesParEtat['banni'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(1)").append(` (${comptesParEtat['inactif_10_jours'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(3)").append(` (${comptesParEtat['colonise'] || 0})`); // Exemple
     }
 
     /**
@@ -292,10 +292,10 @@ Utils.register(class Membres extends Page {
     async ajouterBoutonsDataTable() {
         const allHeaderTexts = [];
         const colspans = [];
-        $("#tabMembresAlliance thead th").each((i, th) => {
-            const text = $(th).text().trim().replace(/\s+/g, ' ');
+        $j("#tabMembresAlliance thead th").each((i, th) => {
+            const text = $j(th).text().trim().replace(/\s+/g, ' ');
             allHeaderTexts.push(text);
-            colspans.push(parseInt($(th).attr('colspan') || 1));
+            colspans.push(parseInt($j(th).attr('colspan') || 1));
         });
 
         const proprietes = Joueur.recupererProprietesAffichage(allHeaderTexts);
@@ -329,7 +329,7 @@ Utils.register(class Membres extends Page {
         const terrainIndex = this.getColonneIndex('Terrain de Chasse');
 
         // Initialiser DataTable
-        $("#tabMembresAlliance").DataTable({
+        $j("#tabMembresAlliance").DataTable({
             bPaginate: false,
             bDestroy: true,
             dom: "Bfrti",

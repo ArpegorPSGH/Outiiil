@@ -9,11 +9,25 @@
 * @class Main
 */
 !async function () {
+    // Save jQuery reference immediately (before page scripts can overwrite $ after DOMContentLoaded)
+    var $j = window.jQuery;
+    window.$j = $j;
+
+    // Ensure the DOM is ready before running game logic
+    // In userScript world: MAIN, the script runs at document_start before DOM is ready
+    function domReady() {
+        if (document.readyState === 'loading') {
+            return new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+        }
+        return Promise.resolve();
+    }
+
+    await domReady();
 
     // si l'utilisateur est identifié
-    if ($(".boite_connexion_titre:first").text() != "Connexion") {
-        // Récupération de la version : manifest.json en mode dev, dist/version.json en mode production
-        const isDevMode = document.documentElement.getAttribute('data-outiiil-dev-mode') === 'true';
+    if ($j(".boite_connexion_titre:first").text() != "Connexion") {
+        // Wait for dev mode info from bridge before proceeding
+        const isDevMode = (await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false))) === true;
         let versionRetenue = "1.0.0";
 
         if (isDevMode) {
@@ -39,45 +53,49 @@
         window.VERSION = versionRetenue;
 
         // Modification du theme jquery humanity
-        $("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
+        $j("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
         // Chargement du language francais
         numeral.locale("fr");
         moment.locale("fr");
 
         Highcharts.setOptions({ lang: { months: MOIS_FR, shortMonths: MOIS_RAC_FR, weekdays: JOUR_FR, decimalPoint: ',', thousandsSep: ' ' } });
         // Ajout du tri pour les nombres
-        $.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return d ? parseInt(d.replace(/\s/g, '')) : 0; };
-        $.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix() : 0; };
-        $.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix() : 0; };
-        $.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return d ? Utils.timeToInt(d) : 0; };
+        try {
+            $j.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return d ? parseInt(d.replace(/\s/g, '')) : 0; };
+            $j.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix() : 0; };
+            $j.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix() : 0; };
+            $j.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return d ? Utils.timeToInt(d) : 0; };
 
-        // Configuration globale de DataTables (Français)
-        $.extend(true, $.fn.dataTable.defaults, {
-            bInfo: false,
-            bAutoWidth: false,
-            responsive: true,
-            language: {
-                zeroRecords: "Aucun résultat trouvé",
-                info: "Page _PAGE_ de _PAGES_",
-                infoEmpty: "Aucun enregistrement disponible",
-                infoFiltered: "(filtré de _MAX_ enregistrements au total)",
-                search: "Rechercher : ",
-                paginate: {
-                    first: "Premier",
-                    last: "Dernier",
-                    next: "Suivant",
-                    previous: "Précédent"
-                },
-                buttons: {
-                    colvis: "Colonnes",
-                    copy: "Copier",
-                    csv: "CSV",
-                    excel: "Excel",
-                    pdf: "PDF",
-                    print: "Imprimer"
+            // Configuration globale de DataTables (Français)
+            $j.extend(true, $j.fn.dataTable.defaults, {
+                bInfo: false,
+                bAutoWidth: false,
+                responsive: true,
+                language: {
+                    zeroRecords: "Aucun résultat trouvé",
+                    info: "Page _PAGE_ de _PAGES_",
+                    infoEmpty: "Aucun enregistrement disponible",
+                    infoFiltered: "(filtré de _MAX_ enregistrements au total)",
+                    search: "Rechercher : ",
+                    paginate: {
+                        first: "Premier",
+                        last: "Dernier",
+                        next: "Suivant",
+                        previous: "Précédent"
+                    },
+                    buttons: {
+                        colvis: "Colonnes",
+                        copy: "Copier",
+                        csv: "CSV",
+                        excel: "Excel",
+                        pdf: "PDF",
+                        print: "Imprimer"
+                    }
                 }
-            }
-        });
+            });
+        } catch (e) {
+            console.warn('[Outiiil] DataTables initialization skipped:', e.message);
+        }
 
         await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
@@ -199,45 +217,59 @@ async function initialiserFrameworkGlobal() {
     console.log("Registre des classes 'FonctionnaliteAlliance':", registreClasses.FonctionnaliteAlliance);
     console.log("Registre des classes 'Page':", registreClasses.Page);
 
-
     // 1b. Créer la "carte des types" des variables globales
     window.carteDesTypes = new Map();
-    const initURL = Utils.getExtensionURL('js/main.js');
-    const initResponse = await fetch(initURL);
-    const initContent = await initResponse.text();
+    const isDevMode = await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false));
 
-    try {
-        const ast = acorn.parse(initContent, { ecmaVersion: 2020 });
+    async function analyserASTPourCarteDesTypes(sourceCode) {
+        try {
+            const ast = acorn.parse(sourceCode, { ecmaVersion: 2020 });
 
-        // Simple AST traversal to find assignments to 'global'
-        function traverse(node) {
-            if (!node) return;
+            function traverse(node) {
+                if (!node) return;
 
-            if (node.type === 'AssignmentExpression' &&
-                node.left.type === 'MemberExpression' &&
-                node.left.object.type === 'Identifier' &&
-                node.left.object.name === 'window' &&
-                node.right.type === 'NewExpression') {
+                if (node.type === 'AssignmentExpression' &&
+                    node.left.type === 'MemberExpression' &&
+                    node.left.object.type === 'Identifier' &&
+                    node.left.object.name === 'window' &&
+                    node.right.type === 'NewExpression') {
 
-                const globalVarName = `window.${node.left.property.name}`;
-                const className = node.right.callee.name;
-                carteDesTypes.set(globalVarName, className);
-            }
+                    const globalVarName = `window.${node.left.property.name}`;
+                    const className = node.right.callee.name;
+                    carteDesTypes.set(globalVarName, className);
+                }
 
-            for (const key in node) {
-                if (node[key] && typeof node[key] === 'object') {
-                    if (Array.isArray(node[key])) {
-                        node[key].forEach(traverse);
-                    } else {
-                        traverse(node[key]);
+                for (const key in node) {
+                    if (node[key] && typeof node[key] === 'object') {
+                        if (Array.isArray(node[key])) {
+                            node[key].forEach(traverse);
+                        } else {
+                            traverse(node[key]);
+                        }
                     }
                 }
             }
-        }
 
-        traverse(ast);
-    } catch (error) {
-        console.error("Erreur lors de l'analyse AST de init.js:", error);
+            traverse(ast);
+        } catch (error) {
+            console.error("Erreur lors de l'analyse AST:", error);
+        }
+    }
+
+    if (isDevMode) {
+        const initURL = Utils.getExtensionURL('js/main.js');
+        const initResponse = await fetch(initURL);
+        const initContent = await initResponse.text();
+        await analyserASTPourCarteDesTypes(initContent);
+    } else {
+        // In production, the runtime is injected via userScripts.register() (world: MAIN),
+        // so there is no <script> tag in the DOM. Instead, fetch the runtime.js from dist/
+        const runtimeURL = Utils.getExtensionURL('dist/runtime.js');
+        const runtimeResponse = await fetch(runtimeURL);
+        if (runtimeResponse.ok) {
+            const runtimeContent = await runtimeResponse.text();
+            await analyserASTPourCarteDesTypes(runtimeContent);
+        }
     }
 
     console.log("Carte des types des variables globales:", carteDesTypes);

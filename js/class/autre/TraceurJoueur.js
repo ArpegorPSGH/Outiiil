@@ -19,7 +19,7 @@ Utils.register(class TraceurJoueur extends Traceur {
     * @private
     */
     #getClassement(numeroPage) {
-        return $.ajax({
+        return $j.ajax({
             type: "get",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classement2.php",
             data: {
@@ -35,7 +35,7 @@ Utils.register(class TraceurJoueur extends Traceur {
     * @private
     */
     #getInformation() {
-        return $.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/player`);
+        return $j.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/player`);
     }
     /**
     *
@@ -55,26 +55,26 @@ Utils.register(class TraceurJoueur extends Traceur {
                 Promise.all(promiseClassement).then((values) => {
                     this._data = {};
                     for (let i = 0; i < values.length; i++) {
-                        $("<div/>").append(values[i]["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
-                            let cellule1 = $(elt).find("td:eq(1)").text(), pseudo = cellule1.split(" (")[0], alliance = "";
+                        $j("<div/>").append(values[i]["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
+                            let cellule1 = $j(elt).find("td:eq(1)").text(), pseudo = cellule1.split(" (")[0], alliance = "";
                             // si le joueur à une alliance on extrait le tag
                             if (cellule1.includes("("))
                                 alliance = cellule1.split(" (")[1].split(")")[0];
                             // on enregistre un tablea avec [alliance, terrain, construction, recherche, trophée]
-                            this._data[pseudo] = alliance + ";" + numeral($(elt).find("td:eq(2)").text()).value() + ";" + ~~$(elt).find("td:eq(3)").text() + ";" + ~~$(elt).find("td:eq(4)").text() + ";" + numeral($(elt).find("td:eq(5)").text()).value();
+                            this._data[pseudo] = alliance + ";" + numeral($j(elt).find("td:eq(2)").text()).value() + ";" + ~~$j(elt).find("td:eq(3)").text() + ";" + ~~$j(elt).find("td:eq(4)").text() + ";" + numeral($j(elt).find("td:eq(5)").text()).value();
                         });
                     }
                     // on poste les données sur l'utilitaire
                     this.envoyerData().then((data) => {
                         let donnees = JSON.parse(data);
                         if (donnees.error == "0") {
-                            $.toast({ ...TOAST_INFO, text: "Traceur joueur mis à jour" });
+                            $j.toast({ ...TOAST_INFO, text: "Traceur joueur mis à jour" });
                             // lancement de la boucle
                             setTimeout(() => { this.tracer(); }, this._intervalle * 60000);
                         } else
-                            $.toast({ ...TOAST_ERROR, text: donnees.message });
+                            $j.toast({ ...TOAST_ERROR, text: donnees.message });
                     }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
+                        $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
                     });
                 });
             } else {
@@ -87,8 +87,8 @@ Utils.register(class TraceurJoueur extends Traceur {
     *
     */
     afficher(id) {
-        $(id).append(`<table id='o_infosTraceurJoueur'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Pseudo</th><th>Evènement</th></tr></thead></table>`);
-        $("#o_infosTraceurJoueur").DataTable({
+        $j(id).append(`<table id='o_infosTraceurJoueur'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Pseudo</th><th>Evènement</th></tr></thead></table>`);
+        $j("#o_infosTraceurJoueur").DataTable({
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             order: [[0, "desc"]],
@@ -97,10 +97,10 @@ Utils.register(class TraceurJoueur extends Traceur {
                 zeroRecords: "Aucune information trouvée"
             },
             rowCallback: (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
+                $j(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback: (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+                $j(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         this.#getInformation().then((data) => {
@@ -109,10 +109,10 @@ Utils.register(class TraceurJoueur extends Traceur {
                 for (let line of donnees.message.split("\n")) {
                     if (line) {
                         info = line.split(", ");
-                        rows.push($(`<tr><td>${info[0]}</td><td>${this.parseAlliance(this.parseJoueur(info[1]))}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
+                        rows.push($j(`<tr><td>${info[0]}</td><td>${this.parseAlliance(this.parseJoueur(info[1]))}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
                     }
                 }
-                $("#o_infosTraceurJoueur").DataTable().clear().rows.add(rows).draw();
+                $j("#o_infosTraceurJoueur").DataTable().clear().rows.add(rows).draw();
             }
         }, (jqXHR, textStatus, errorThrown) => {
             return false;

@@ -1,3 +1,6 @@
+- Mettre à jour doc et roadmap
+- N'utiliser qu'une seule des deux manières d'enregistrement dans Utils.register
+- mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle, avec un message invitant à une réinstallation de la nouvelle version
 - Nettoyer la branche socle, elle est obsolète.
 - Supprimer les commits de test du script sur gh-pages
 - Supprimer les anciennes releases

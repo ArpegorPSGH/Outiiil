@@ -35,7 +35,7 @@ Utils.register(class Ressource extends Page {
     */
     async initData() {
         const recherches = await monProfilJoueur.lire('Niveaux Recherches');
-        this._nbChasse = recherches[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
+        this._nbChasse = recherches[5] + 2 - $j("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
         this._armee = await monProfilJoueur.lire('Armée');
     }
     /**
@@ -44,11 +44,11 @@ Utils.register(class Ressource extends Page {
     * @method lanceur
     */
     async lanceur() {
-        if (!$("#boite_tdc").length) {
+        if (!$j("#boite_tdc").length) {
             console.error("[Ressources] Element #boite_tdc introuvable.");
             return;
         }
-        $("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
+        $j("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
             <table id='o_lanceurChasse' class='o_maxWidth o_marginT15' cellspacing=0>
 			<tr class='ligne_paire'><td>Terrain à l'arrivée</td><td><input value='${Utils.terrain > 1000000 ? 1000000 : Utils.terrain}' size='21' id='o_chasseTDCDep'/></td><td></td></tr>
 			<tr><td>Nombre de chasse</td><td><input value='0' size='21' id='o_chasseNbr'/></td><td><input id='o_chasseNbrAuto' type='checkbox' checked='checked' name='optionAuto'/><label for='o_chasseNbrAuto'>Auto</label></td></tr>
@@ -70,71 +70,71 @@ Utils.register(class Ressource extends Page {
 			<tr><td>Difficulté</td><td>:</td><td id='o_chasseRefDiff'></td></tr>
 			<tr class='ligne_paire'><td>Perte estimé</td><td>:</td><td id='o_chassePerte'></td></tr>
 			</table></div>`);
-        $("#o_chasseTDCDep").spinner({ min: 0, numberFormat: "i" });
-        $("#o_chasseJSN").spinner({ min: 0, max: this._armee.nbrJSN, numberFormat: "i" });
-        $("#o_chasseTDCRep").spinner({ min: 1, numberFormat: "i", disabled: true });
-        $("#o_chasseNbr").spinner({ min: 1, max: this._nbChasse, numberFormat: "i", disabled: true });
-        $("#o_chasseDiff, #o_chasseInt").outerWidth($("#o_chasseTDCDep").parent().width() + 4);
-        $("#o_chasseDiff, #o_chasseInt").outerHeight($("#o_chasseTDCDep").parent().height());
-        $("#o_chasseDiff").css("color", "green");
+        $j("#o_chasseTDCDep").spinner({ min: 0, numberFormat: "i" });
+        $j("#o_chasseJSN").spinner({ min: 0, max: this._armee.nbrJSN, numberFormat: "i" });
+        $j("#o_chasseTDCRep").spinner({ min: 1, numberFormat: "i", disabled: true });
+        $j("#o_chasseNbr").spinner({ min: 1, max: this._nbChasse, numberFormat: "i", disabled: true });
+        $j("#o_chasseDiff, #o_chasseInt").outerWidth($j("#o_chasseTDCDep").parent().width() + 4);
+        $j("#o_chasseDiff, #o_chasseInt").outerHeight($j("#o_chasseTDCDep").parent().height());
+        $j("#o_chasseDiff").css("color", "green");
         // Completion des valeurs
         await this.#preparerChasse();
         // Event
-        $("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
+        $j("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
             await this.#preparerChasse();
         });
-        $("#o_chasseNbrAuto").click(async (e) => {
-            if (!$(e.currentTarget).is(':checked'))
-                $("#o_chasseNbr").spinner("enable");
+        $j("#o_chasseNbrAuto").click(async (e) => {
+            if (!$j(e.currentTarget).is(':checked'))
+                $j("#o_chasseNbr").spinner("enable");
             else {
-                $("#o_chasseNbr").spinner("disable");
+                $j("#o_chasseNbr").spinner("disable");
                 await this.#preparerChasse();
             }
         });
-        $("#o_chasseTDCRepAuto").click(async (e) => {
-            if (!$(e.currentTarget).is(':checked'))
-                $("#o_chasseTDCRep").spinner("enable");
+        $j("#o_chasseTDCRepAuto").click(async (e) => {
+            if (!$j(e.currentTarget).is(':checked'))
+                $j("#o_chasseTDCRep").spinner("enable");
             else {
-                $("#o_chasseTDCRep").spinner("disable");
+                $j("#o_chasseTDCRep").spinner("disable");
                 await this.#preparerChasse();
             }
         });
-        $("#o_chasseDiff").change(async (e) => {
+        $j("#o_chasseDiff").change(async (e) => {
             let value = parseFloat(e.currentTarget.value);
             switch (true) {
                 case value <= 4:
-                    $(e.currentTarget).css("color", "black");
+                    $j(e.currentTarget).css("color", "black");
                     break;
                 case value > 4 && value <= 6:
-                    $(e.currentTarget).css("color", "red");
+                    $j(e.currentTarget).css("color", "red");
                     break;
                 case value > 6 && value <= 7.5:
-                    $(e.currentTarget).css("color", "orange");
+                    $j(e.currentTarget).css("color", "orange");
                     break;
                 default:
-                    $(e.currentTarget).css("color", "green");
+                    $j(e.currentTarget).css("color", "green");
                     break;
             }
             await this.#preparerChasse();
         });
-        $("#o_chasseJSN").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
+        $j("#o_chasseJSN").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
             this._armee.setJSN(nombre);
             await this.#preparerChasse();
         });
         // Lancement des chasses
-        $("#o_chasseEnvoyer").click((e) => {
+        $j("#o_chasseEnvoyer").click((e) => {
             if (this._armee.getSommeUnite()) {
-                let terrainChasse = $("#o_chasseTDCRep").spinner("value"), nbChasse = $("#o_chasseNbr").spinner("value"), intervalle = $("#o_chasseInt").val() * 1000;
-                $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php" }).then((data) => {
-                    let parsed = $("<div/>").append(data);
+                let terrainChasse = $j("#o_chasseTDCRep").spinner("value"), nbChasse = $j("#o_chasseNbr").spinner("value"), intervalle = $j("#o_chasseInt").val() * 1000;
+                $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php" }).then((data) => {
+                    let parsed = $j("<div/>").append(data);
                     this._armee.envoyerChasse(terrainChasse, nbChasse, 0, intervalle, parsed.find("#t:last").attr("name") + "=" + parsed.find("#t:last").attr("value"));
                 });
             } else
-                $.toast({ ...TOAST_ERROR, text: "Vous n'avez pas d'armée à envoyer." });
+                $j.toast({ ...TOAST_ERROR, text: "Vous n'avez pas d'armée à envoyer." });
             return false;
         });
         return this;
@@ -146,12 +146,12 @@ Utils.register(class Ressource extends Page {
     * @method #preparerChasse
     */
     async #preparerChasse() {
-        let tdcDep = $("#o_chasseTDCDep").spinner("value"),
-            diffChasse = $("#o_chasseDiff").val(),
-            nbChasse = $("#o_chasseNbr").spinner("value"),
-            fixNB = nbChasse && !$("#o_chasseNbrAuto").is(':checked') ? nbChasse : 0,
-            terrainChasse = $("#o_chasseTDCRep").spinner("value"),
-            fixHF = terrainChasse && !$("#o_chasseTDCRepAuto").is(':checked') ? terrainChasse : 0;
+        let tdcDep = $j("#o_chasseTDCDep").spinner("value"),
+            diffChasse = $j("#o_chasseDiff").val(),
+            nbChasse = $j("#o_chasseNbr").spinner("value"),
+            fixNB = nbChasse && !$j("#o_chasseNbrAuto").is(':checked') ? nbChasse : 0,
+            terrainChasse = $j("#o_chasseTDCRep").spinner("value"),
+            fixHF = terrainChasse && !$j("#o_chasseTDCRepAuto").is(':checked') ? terrainChasse : 0;
         // Si une chasse peut être calculer
         if (tdcDep) {
             let simu = await this._armee.simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, this._nbChasse);
@@ -188,8 +188,8 @@ Utils.register(class Ressource extends Page {
             for (let j = 0; ++j < 15; simulation += (this._armee.unite[j] ? "<td class='small' nowrap>" + (repartition[i][j] ? numeral(repartition[i][j]).format() : "") + "</td>" : ""));
             simulation += `</tr>`;
         }
-        $("#o_simulationChasse").html(simulation);
-        $("#o_simulationChasse tr:even").addClass("ligne_paire");
+        $j("#o_simulationChasse").html(simulation);
+        $j("#o_simulationChasse tr:even").addClass("ligne_paire");
     }
     /**
     * Affiche le compte rendu de la simulation.
@@ -204,13 +204,13 @@ Utils.register(class Ressource extends Page {
     */
     async #majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte) {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-        $("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
+        $j("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
         let temps = Math.round((Utils.terrain + terrainChasse) * Math.pow(0.9, recherches[5]));
-        $("#o_chasseTemps").text(Utils.intToTime(temps));
-        $("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
-        $("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
-        $("#o_chasseRefDiff").text(ratio.toFixed(1) + " ~ " + ratioRef);
-        $("#o_chassePerte").text(numeral(Math.round(iTabPerte["AVG"])).format() + " JSN (max : " + numeral(Math.round(iTabPerte["MAX"])).format() + ")");
+        $j("#o_chasseTemps").text(Utils.intToTime(temps));
+        $j("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
+        $j("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
+        $j("#o_chasseRefDiff").text(ratio.toFixed(1) + " ~ " + ratioRef);
+        $j("#o_chassePerte").text(numeral(Math.round(iTabPerte["AVG"])).format() + " JSN (max : " + numeral(Math.round(iTabPerte["MAX"])).format() + ")");
     }
     /**
     * Ajoute les boutons "max", sauvegarde la chasse en cours.
@@ -220,26 +220,26 @@ Utils.register(class Ressource extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Ajout des boutons pour l'affectation max
-        $("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
-        $("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
+        $j("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
+        $j("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
         // Affichage du retour des chasses
         let listeChasse = new Array();
-        $("span[id^=chasse_]").each((i, elt) => {
-            listeChasse.push({ quantite: numeral($(elt).parent().text().split("conquérir")[1].split("cm²")[0]).value(), exp: moment().add($(elt).parent().next().text().split("reste(")[1].split(",")[0], 's') });
-            $(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
+        $j("span[id^=chasse_]").each((i, elt) => {
+            listeChasse.push({ quantite: numeral($j(elt).parent().text().split("conquérir")[1].split("cm²")[0]).value(), exp: moment().add($j(elt).parent().next().text().split("reste(")[1].split(",")[0], 's') });
+            $j(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($j(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
         });
         // Sauvegarde de la chasse en cours
         this.#saveChasse(listeChasse);
         let affection = parseInt(monProfilUtilisateur.parametre["affectationRessource"].valeur);
         // Ajout de la pref pour l'affectation auto
-        $("#ChangeRessource").parent().parent().before(`<tr>
+        $j("#ChangeRessource").parent().parent().before(`<tr>
             <td><span class="text"><img src="images/icone/favicon.gif" height="16"> Affectation des ouvrières lors de la consultation de la page : </span></td>
             <td style="white-space:nowrap;"><label><input type="radio" name="choixOuvriere" value="nourriture" ${affection == 2 ? 'checked="checked"' : ''}><img alt="nourritures" src="images/icone/icone_pomme.png" height="18" title="Nourriture"></label>
             <label><input type="radio" name="choixOuvriere" value="materiaux" ${affection == 1 ? 'checked="checked"' : ''}> <img alt="materiaux" src="images/icone/icone_bois.png" height="17" title="Materiaux"></label>
             <label><input type="radio" name="choixOuvriere" value="rien" ${affection == 0 ? 'checked="checked"' : ''}> <img alt="rien" src="http:images/croix.gif" height="23" title="Pas d'affectation automatique"></label>
         </td></tr>`);
-        $("input[name=choixOuvriere]").change(() => {
-            switch ($("input[name=choixOuvriere]:checked").val()) {
+        $j("input[name=choixOuvriere]").change(() => {
+            switch ($j("input[name=choixOuvriere]:checked").val()) {
                 case "nourriture":
                     monProfilUtilisateur.parametre["affectationRessource"].valeur = 2;
                     break;
@@ -255,20 +255,20 @@ Utils.register(class Ressource extends Page {
         });
         // Affectation des ouvriéres inutilisé si on a la pref
         if (affection) {
-            let RecolteMateriaux = numeral($("#RecolteMateriaux").val()).value(), RecolteNourriture = numeral($("#RecolteNourriture").val()).value();
+            let RecolteMateriaux = numeral($j("#RecolteMateriaux").val()).value(), RecolteNourriture = numeral($j("#RecolteNourriture").val()).value();
             // si on ne couvre pas le terrain et qu'on a assez d'ouvriére
             if ((RecolteMateriaux + RecolteNourriture < Utils.terrain) && (RecolteMateriaux + RecolteNourriture < Utils.ouvrieres)) {
                 switch (affection) {
                     case 1:
-                        $("#RecolteMateriaux").val(Math.min(Utils.ouvrieres - RecolteNourriture, Utils.terrain - RecolteNourriture));
+                        $j("#RecolteMateriaux").val(Math.min(Utils.ouvrieres - RecolteNourriture, Utils.terrain - RecolteNourriture));
                         break;
                     case 2:
-                        $("#RecolteNourriture").val(Math.min(Utils.ouvrieres - RecolteMateriaux, Utils.terrain - RecolteMateriaux));
+                        $j("#RecolteNourriture").val(Math.min(Utils.ouvrieres - RecolteMateriaux, Utils.terrain - RecolteMateriaux));
                         break;
                     default:
                         break;
                 }
-                $("#ChangeRessource").click();
+                $j("#ChangeRessource").click();
             }
         }
     }

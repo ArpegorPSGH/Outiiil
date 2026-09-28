@@ -29,7 +29,7 @@ Utils.register(class BoiteCombat extends Boite {
     */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_tabsCombat").tabs({ disabled: [2], activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
+            $j("#o_tabsCombat").tabs({ disabled: [2], activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
             this.#analyser()
             await this.#simuler()
             this.#calculatrice().css().event();
@@ -44,16 +44,16 @@ Utils.register(class BoiteCombat extends Boite {
     */
     css() {
         super.css();
-        $("#o_resultatCombat tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor, #o_calculatriceCombat tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
+        $j("#o_resultatCombat tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor, #o_calculatriceCombat tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
+        $j(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
     // /**
@@ -73,7 +73,7 @@ Utils.register(class BoiteCombat extends Boite {
     * @method #analyser
     */
     #analyser() {
-        $("#o_tabsCombat1").append("<textarea id='o_rcCombat' class='o_maxWidth' placeholder='Rapport de combat...'></textarea><div class='o_marginT15' style='max-height:200px;overflow:auto'><table id='o_resultatCombat' class='o_maxWidth'></table></div>");
+        $j("#o_tabsCombat1").append("<textarea id='o_rcCombat' class='o_maxWidth' placeholder='Rapport de combat...'></textarea><div class='o_marginT15' style='max-height:200px;overflow:auto'><table id='o_resultatCombat' class='o_maxWidth'></table></div>");
         return this.#eventAnalyser();
     }
     /**
@@ -81,13 +81,13 @@ Utils.register(class BoiteCombat extends Boite {
     */
     #eventAnalyser() {
         // event Analyse
-        $("#o_rcCombat").on("input", async (e) => {
+        $j("#o_rcCombat").on("input", async (e) => {
             let combat = new Combat({ RC: e.currentTarget.value });
             if (await combat.analyse()) {
-                $("#o_resultatCombat").html(await combat.toHTMLBoite());
+                $j("#o_resultatCombat").html(await combat.toHTMLBoite());
                 this.css();
             } else
-                $.toast({ ...TOAST_WARNING, text: "Le rapport de combat ne peut pas être analysé." });
+                $j.toast({ ...TOAST_WARNING, text: "Le rapport de combat ne peut pas être analysé." });
         });
         return this;
     }
@@ -138,21 +138,21 @@ Utils.register(class BoiteCombat extends Boite {
                 </table>
             </td></tr>
             </table>`;
-        $("#o_tabsCombat2").append(html);
+        $j("#o_tabsCombat2").append(html);
         // spinner
-        $("#o_simulateurArmee input").spinner({ min: 0, numberFormat: "i" });
-        $("#o_bouclier1, #o_armes1, #o_bouclier2, #o_armes2, #o_etable1, #o_etable2").spinner({ min: 0, max: 50, numberFormat: "d2" });
-        $("#o_logeNiveau, #o_domeNiveau").spinner({ min: 0, max: 50, numberFormat: "d2" });
-        $("#o_positionJoueur").slider({
+        $j("#o_simulateurArmee input").spinner({ min: 0, numberFormat: "i" });
+        $j("#o_bouclier1, #o_armes1, #o_bouclier2, #o_armes2, #o_etable1, #o_etable2").spinner({ min: 0, max: 50, numberFormat: "d2" });
+        $j("#o_logeNiveau, #o_domeNiveau").spinner({ min: 0, max: 50, numberFormat: "d2" });
+        $j("#o_positionJoueur").slider({
             min: 0,
             max: 1,
             change: (e, ui) => {
                 if (ui.value) { // si != 0 alors on est defenseur
-                    $("#o_positionAtt").removeClass("gras");
-                    $("#o_positionDef").addClass("gras");
+                    $j("#o_positionAtt").removeClass("gras");
+                    $j("#o_positionDef").addClass("gras");
                 } else { // sinon on est attaquant
-                    $("#o_positionDef").removeClass("gras");
-                    $("#o_positionAtt").addClass("gras");
+                    $j("#o_positionDef").removeClass("gras");
+                    $j("#o_positionAtt").addClass("gras");
                 }
             }
         });
@@ -162,17 +162,17 @@ Utils.register(class BoiteCombat extends Boite {
     * @private
     */
     async #eventSimulateur() {
-        $("#o_simulateurArmee input").on("input spin", (e, ui) => {
+        $j("#o_simulateurArmee input").on("input spin", (e, ui) => {
             let nombre = numeral(ui ? ui.value : e.currentTarget.value).value();
-            let name = $(e.currentTarget).attr("name"), armee = new Armee();
+            let name = $j(e.currentTarget).attr("name"), armee = new Armee();
             // si le name contient 1 c'est l'attaquant sinon la defense
             if (name.includes("1_"))
                 this.#actualiserStatistique(name, nombre);
             else
                 this.#actualiserStatistique("", 0, name, nombre);
-            $(e.currentTarget).spinner("value", nombre);
+            $j(e.currentTarget).spinner("value", nombre);
         });
-        $("#o_placementAtt").click((e) => {
+        $j("#o_placementAtt").click((e) => {
             if (this._armee)
                 this.#placerArmee(1).#actualiserStatistique();
             else {
@@ -184,7 +184,7 @@ Utils.register(class BoiteCombat extends Boite {
             }
             return false;
         });
-        $("#o_placementDef").click((e) => {
+        $j("#o_placementDef").click((e) => {
             if (this._armee)
                 this.#placerArmee(0).#actualiserStatistique();
             else {
@@ -196,47 +196,47 @@ Utils.register(class BoiteCombat extends Boite {
             }
             return false;
         });
-        $("#o_switchArmee").click((e) => {
+        $j("#o_switchArmee").click((e) => {
             this.#permuterArmee().#actualiserStatistique();
             return false;
         });
-        $("#o_copierAtt").click((e) => { this.#copierCollerArmee("ATT"); });
-        $("#o_copierDef").click((e) => { this.#copierCollerArmee("DEF"); });
+        $j("#o_copierAtt").click((e) => { this.#copierCollerArmee("ATT"); });
+        $j("#o_copierDef").click((e) => { this.#copierCollerArmee("DEF"); });
         // event sur les bonus joueurs
-        $("#o_bonusAtt").click(async (e) => {
+        $j("#o_bonusAtt").click(async (e) => {
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            $("#o_armes1").spinner("value", $("#o_armes1").spinner("value") == recherches[2] ? 0 : recherches[2]);
-            $("#o_bouclier1").spinner("value", $("#o_bouclier1").spinner("value") == recherches[1] ? 0 : recherches[1]);
-            $("#o_etable1").spinner("value", $("#o_etable1").spinner("value") == constructions[12] ? 0 : constructions[12]);
+            $j("#o_armes1").spinner("value", $j("#o_armes1").spinner("value") == recherches[2] ? 0 : recherches[2]);
+            $j("#o_bouclier1").spinner("value", $j("#o_bouclier1").spinner("value") == recherches[1] ? 0 : recherches[1]);
+            $j("#o_etable1").spinner("value", $j("#o_etable1").spinner("value") == constructions[12] ? 0 : constructions[12]);
             this.#actualiserStatistique();
             return false;
         });
-        $("#o_bonusDef").click(async (e) => {
+        $j("#o_bonusDef").click(async (e) => {
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            $("#o_armes2").spinner("value", $("#o_armes2").spinner("value") == recherches[2] ? 0 : recherches[2]);
-            $("#o_bouclier2").spinner("value", $("#o_bouclier2").spinner("value") == recherches[1] ? 0 : recherches[1]);
-            $("#o_etable2").spinner("value", $("#o_etable2").spinner("value") == constructions[12] ? 0 : constructions[12]);
+            $j("#o_armes2").spinner("value", $j("#o_armes2").spinner("value") == recherches[2] ? 0 : recherches[2]);
+            $j("#o_bouclier2").spinner("value", $j("#o_bouclier2").spinner("value") == recherches[1] ? 0 : recherches[1]);
+            $j("#o_etable2").spinner("value", $j("#o_etable2").spinner("value") == constructions[12] ? 0 : constructions[12]);
             this.#actualiserStatistique();
             return false;
         });
-        $("#o_bouclier1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_armes1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_bouclier2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_armes2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_bouclier1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_armes1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_bouclier2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_armes2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
         // event bonus lieu
-        $("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.#actualiserStatistique(); });
-        $("#o_bonusLieu").click(async (e) => {
+        $j("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.#actualiserStatistique(); });
+        $j("#o_bonusLieu").click(async (e) => {
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            $("#o_domeNiveau").spinner("value", $("#o_domeNiveau").spinner("value") == constructions[9] ? 0 : constructions[9]);
-            $("#o_logeNiveau").spinner("value", $("#o_logeNiveau").spinner("value") == constructions[10] ? 0 : constructions[10]);
+            $j("#o_domeNiveau").spinner("value", $j("#o_domeNiveau").spinner("value") == constructions[9] ? 0 : constructions[9]);
+            $j("#o_logeNiveau").spinner("value", $j("#o_logeNiveau").spinner("value") == constructions[10] ? 0 : constructions[10]);
             this.#actualiserStatistique();
             return false;
         });
-        $("#o_domeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_logeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_simuler").click(async (e) => {
+        $j("#o_domeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_logeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_simuler").click(async (e) => {
             await this.#lancerSimulation();
             return false;
         });
@@ -248,23 +248,23 @@ Utils.register(class BoiteCombat extends Boite {
     async #lancerSimulation() {
         let uniteATT = {}, uniteDef = {};
         // données attaquant
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { uniteATT[NOM_UNITE[i + 1]] = $(elt).spinner("value"); });
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { uniteATT[NOM_UNITE[i + 1]] = $j(elt).spinner("value"); });
         // données defenseur
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { uniteDef[NOM_UNITE[i + 1]] = $(elt).spinner("value"); });
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { uniteDef[NOM_UNITE[i + 1]] = $j(elt).spinner("value"); });
         // preparation du combat
-        let combat = new Combat({ id: moment().valueOf(), lieu: $("input[name='o_lieu']:checked").val(), attaquant: new Armee({ unite: uniteATT }), defenseur: new Armee({ unite: uniteDef }), pointDeVue: $("#o_positionJoueur").slider("value") });
+        let combat = new Combat({ id: moment().valueOf(), lieu: $j("input[name='o_lieu']:checked").val(), attaquant: new Armee({ unite: uniteATT }), defenseur: new Armee({ unite: uniteDef }), pointDeVue: $j("#o_positionJoueur").slider("value") });
         // modification des niveaux des joueurs
         let recherchesAttaquant = await combat.attaquant.lire('Niveaux Recherches');
         let recherchesDefenseur = await combat.defenseur.lire('Niveaux Recherches');
-        recherchesAttaquant[1] = $("#o_bouclier1").spinner("value");
-        recherchesAttaquant[2] = $("#o_armes1").spinner("value");
-        recherchesDefenseur[1] = $("#o_bouclier2").spinner("value");
-        recherchesDefenseur[2] = $("#o_armes2").spinner("value");
+        recherchesAttaquant[1] = $j("#o_bouclier1").spinner("value");
+        recherchesAttaquant[2] = $j("#o_armes1").spinner("value");
+        recherchesDefenseur[1] = $j("#o_bouclier2").spinner("value");
+        recherchesDefenseur[2] = $j("#o_armes2").spinner("value");
         await combat.attaquant.ecrire("Niveaux Recherches", recherchesAttaquant);
         await combat.defenseur.ecrire("Niveaux Recherches", recherchesDefenseur);
         let constructionsDefenseur = await combat.defenseur.lire('Niveaux Constructions');
-        constructionsDefenseur[9] = $("#o_domeNiveau").spinner("value");
-        constructionsDefenseur[10] = $("#o_logeNiveau").spinner("value");
+        constructionsDefenseur[9] = $j("#o_domeNiveau").spinner("value");
+        constructionsDefenseur[10] = $j("#o_logeNiveau").spinner("value");
         await combat.defenseur.ecrire("Niveaux Constructions", constructionsDefenseur);
         // lancement du combat
         if (combat.armee1.getSommeUnite() && combat.armee2.getSommeUnite()) {
@@ -272,33 +272,33 @@ Utils.register(class BoiteCombat extends Boite {
             combat.genererRC();
             // affichage des armées retours dans le formulaire
             for (let i = 1; i <= 14; i++) {
-                $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
-                $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
+                $j("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
+                $j("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
             }
             this.#actualiserStatistique();
             // ajout de l'event pour switch les armées avant et aprés combat
-            $("#o_switchAvantApres").off().click((e) => {
+            $j("#o_switchAvantApres").off().click((e) => {
                 let armeeAttTmp = new Array(), armeeDefTmp = new Array();
                 for (let i = 1; i <= 14; i++) {
-                    armeeAttTmp.push($("input[name='o_unite1_" + i + "']").spinner("value"));
-                    armeeDefTmp.push($("input[name='o_unite2_" + i + "']").spinner("value"));
+                    armeeAttTmp.push($j("input[name='o_unite1_" + i + "']").spinner("value"));
+                    armeeDefTmp.push($j("input[name='o_unite2_" + i + "']").spinner("value"));
                 }
                 // si dans le formulaire on a l'armée aprés on plalce l'armée avant sinon l'armée aprés
                 if (combat.armee1Ap.unite.slice(1).every((elt, i) => { return elt == armeeAttTmp[i]; }) && combat.armee2Ap.unite.slice(1).every((elt, i) => { return elt == armeeDefTmp[i]; })) {
                     for (let i = 1; i <= 14; i++) {
-                        $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1.unite[i]);
-                        $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2.unite[i]);
+                        $j("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1.unite[i]);
+                        $j("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2.unite[i]);
                     }
                 } else {
                     for (let i = 1; i <= 14; i++) {
-                        $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
-                        $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
+                        $j("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
+                        $j("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
                     }
                 }
                 this.#actualiserStatistique();
             }).parent().show();
         } else
-            $.toast({ ...TOAST_ERROR, text: "Le combat ne peut pas etre simulé : aucune unité." });
+            $j.toast({ ...TOAST_ERROR, text: "Le combat ne peut pas etre simulé : aucune unité." });
         return this;
     }
     /**
@@ -308,22 +308,22 @@ Utils.register(class BoiteCombat extends Boite {
         let armeeTmp = new Array();
         if (position) {
             // on prepare un tableau des unités pour savoir si on renseigne l'armée ou on vide des champs
-            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value"));
+            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value"));
             if (this._armee.unite.slice(1).every((elt, i) => { return elt == armeeTmp[i]; })) {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", 0);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", 0);
             } else {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", this._armee.unite[i]);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", this._armee.unite[i]);
             }
         } else {
-            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value"));
+            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value"));
             if (this._armee.unite.slice(1).every((elt, i) => { return elt == armeeTmp[i]; })) {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", 0);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", 0);
             } else {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", this._armee.unite[i]);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", this._armee.unite[i]);
             }
         }
         return this;
@@ -334,59 +334,59 @@ Utils.register(class BoiteCombat extends Boite {
     #permuterArmee() {
         // switch des armées
         for (let i = 0; i < 14; i++) {
-            let valueTmp = $("input[name='o_unite1_" + (i + 1) + "']").spinner("value");
-            $("input[name='o_unite1_" + (i + 1) + "']").spinner("value", $("input[name='o_unite2_" + (i + 1) + "']").spinner("value"));
-            $("input[name='o_unite2_" + (i + 1) + "']").spinner("value", valueTmp);
+            let valueTmp = $j("input[name='o_unite1_" + (i + 1) + "']").spinner("value");
+            $j("input[name='o_unite1_" + (i + 1) + "']").spinner("value", $j("input[name='o_unite2_" + (i + 1) + "']").spinner("value"));
+            $j("input[name='o_unite2_" + (i + 1) + "']").spinner("value", valueTmp);
         }
         // switch des bonus
-        let tmpBonusArme = $("#o_armes1").spinner("value"), tmpBonusBouclier = $("#o_bouclier1").spinner("value");
-        $("#o_armes1").spinner("value", $("#o_armes2").spinner("value"));
-        $("#o_bouclier1").spinner("value", $("#o_bouclier2").spinner("value"));
-        $("#o_armes2").spinner("value", tmpBonusArme);
-        $("#o_bouclier2").spinner("value", tmpBonusBouclier);
+        let tmpBonusArme = $j("#o_armes1").spinner("value"), tmpBonusBouclier = $j("#o_bouclier1").spinner("value");
+        $j("#o_armes1").spinner("value", $j("#o_armes2").spinner("value"));
+        $j("#o_bouclier1").spinner("value", $j("#o_bouclier2").spinner("value"));
+        $j("#o_armes2").spinner("value", tmpBonusArme);
+        $j("#o_bouclier2").spinner("value", tmpBonusBouclier);
         // switch de la position
-        let tmpPosition = $("#o_positionJoueur").slider("option", "value");
-        $("#o_positionJoueur").slider("option", "value", 1 - tmpPosition);
+        let tmpPosition = $j("#o_positionJoueur").slider("option", "value");
+        $j("#o_positionJoueur").slider("option", "value", 1 - tmpPosition);
         return this;
     }
     /**
     * @private
     */
     #actualiserStatistique(nameAtt = "", valueAtt = 0, nameDef = "", valueDef = 0, bouclier1 = -1, armes1 = -1, bouclier2 = -1, armes2 = -1, niveauDome = -1, niveauLoge = -1) {
-        let armesAtt = armes1 != -1 ? armes1 : $("#o_armes1").spinner("value"), bouclierAtt = bouclier1 != -1 ? bouclier1 : $("#o_bouclier1").spinner("value");
-        let armesDef = armes2 != -1 ? armes2 : $("#o_armes2").spinner("value"), bouclierDef = bouclier2 != -1 ? bouclier2 : $("#o_bouclier2").spinner("value");
-        let lieu = parseInt($("#o_simulateurNiveau input[name='o_lieu']:checked").val()), bonusLieu = 0;
+        let armesAtt = armes1 != -1 ? armes1 : $j("#o_armes1").spinner("value"), bouclierAtt = bouclier1 != -1 ? bouclier1 : $j("#o_bouclier1").spinner("value");
+        let armesDef = armes2 != -1 ? armes2 : $j("#o_armes2").spinner("value"), bouclierDef = bouclier2 != -1 ? bouclier2 : $j("#o_bouclier2").spinner("value");
+        let lieu = parseInt($j("#o_simulateurNiveau input[name='o_lieu']:checked").val()), bonusLieu = 0;
         switch (lieu) {
             case LIEU.DOME:
-                bonusLieu = niveauDome != -1 ? niveauDome : $("#o_domeNiveau").spinner("value");
+                bonusLieu = niveauDome != -1 ? niveauDome : $j("#o_domeNiveau").spinner("value");
                 break;
             case LIEU.LOGE:
-                bonusLieu = niveauLoge != -1 ? niveauLoge : $("#o_logeNiveau").spinner("value");
+                bonusLieu = niveauLoge != -1 ? niveauLoge : $j("#o_logeNiveau").spinner("value");
                 break;
             default:
                 break;
         }
         let armee = new Armee();
         // données attaquant
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { armee.unite[i + 1] = $(elt).attr("name") == nameAtt ? valueAtt : $(elt).spinner("value"); });
-        $("#o_vieAtt").text(numeral(armee.getTotalVie(bouclierAtt)).format());
-        $("#o_degatAtt").text(numeral(armee.getTotalAtt(armesAtt)).format());
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { armee.unite[i + 1] = $j(elt).attr("name") == nameAtt ? valueAtt : $j(elt).spinner("value"); });
+        $j("#o_vieAtt").text(numeral(armee.getTotalVie(bouclierAtt)).format());
+        $j("#o_degatAtt").text(numeral(armee.getTotalAtt(armesAtt)).format());
         // données defenseur
         armee = new Armee();
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { armee.unite[i + 1] = $(elt).attr("name") == nameDef ? valueDef : $(elt).spinner("value"); });
-        $("#o_vieDef").text(numeral(armee.getTotalVie(bouclierDef, lieu, bonusLieu)).format());
-        $("#o_degatDef").text(numeral(armee.getTotalDef(armesDef)).format());
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { armee.unite[i + 1] = $j(elt).attr("name") == nameDef ? valueDef : $j(elt).spinner("value"); });
+        $j("#o_vieDef").text(numeral(armee.getTotalVie(bouclierDef, lieu, bonusLieu)).format());
+        $j("#o_degatDef").text(numeral(armee.getTotalDef(armesDef)).format());
         return this;
     }
     /**
     * @private
     */
     #copierCollerArmee(position) {
-        if ($("#o_divccarmee").length) {
-            $("#o_divccarmee").show();
-            $("#o_camp").val(position);
+        if ($j("#o_divccarmee").length) {
+            $j("#o_divccarmee").show();
+            $j("#o_camp").val(position);
         } else {
-            $("body").append(`<div class="voile" id="o_divccarmee">
+            $j("body").append(`<div class="voile" id="o_divccarmee">
                 <div class="message_voile">
                     <input type="hidden" id="o_camp" value="${position}"/>Importer une Armée
                     <textarea id="o_textAreaArmee" name="textAreaArmee" rows="9" cols="50" style="width:100%;"></textarea>
@@ -407,22 +407,22 @@ Utils.register(class BoiteCombat extends Boite {
                 </div>
             </div>`);
             // event
-            $("#o_annulerCopie").click((e) => {
-                $("#o_divccarmee").hide();
-                $("#o_textAreaArmee").val("");
+            $j("#o_annulerCopie").click((e) => {
+                $j("#o_divccarmee").hide();
+                $j("#o_textAreaArmee").val("");
                 return false;
             });
-            $("#o_afficherAide").click((e) => {
-                $("#o_aideCopierArmee").is(":visible") ? $("#o_aideCopierArmee").hide() : $("#o_aideCopierArmee").show();
+            $j("#o_afficherAide").click((e) => {
+                $j("#o_aideCopierArmee").is(":visible") ? $j("#o_aideCopierArmee").hide() : $j("#o_aideCopierArmee").show();
                 return false;
             });
-            $("#o_importerArmee").click((e) => {
-                let armee = new Armee(), camp = $("#o_camp").val() == "ATT" ? 1 : 2;
-                armee.parseArmee($("#o_textAreaArmee").val());
+            $j("#o_importerArmee").click((e) => {
+                let armee = new Armee(), camp = $j("#o_camp").val() == "ATT" ? 1 : 2;
+                armee.parseArmee($j("#o_textAreaArmee").val());
                 for (let i = 1; i < armee.unite.length; i++)
-                    $("input[name='o_unite" + camp + "_" + i + "']").spinner("value", armee.unite[i]);
-                $("#o_divccarmee").hide();
-                $("#o_textAreaArmee").val("");
+                    $j("input[name='o_unite" + camp + "_" + i + "']").spinner("value", armee.unite[i]);
+                $j("#o_divccarmee").hide();
+                $j("#o_textAreaArmee").val("");
                 this.#actualiserStatistique();
                 return false;
             });
@@ -442,34 +442,34 @@ Utils.register(class BoiteCombat extends Boite {
             <tr><td>Dernier mouvement</td><td><input id="o_dernierMvt" placeholder="JJ-MM-AAAA HH:mm"/></td><td></td><td><button id="o_calculerTemps">Calculer</button></td></tr>
             <tr class="reduce"><td colspan="4"><em>Le temps maximal d'un trajet est de <span id="o_indicationTemps">${this.#calculerLimiteTemps(0)}</span>.</em></td></tr>
             </table>`;
-        $("#o_tabsCombat4").append(html);
+        $j("#o_tabsCombat4").append(html);
         return this.#eventCalculatrice();
     }
     /**
     * @private
     */
     #eventCalculatrice() {
-        $("#o_placementJ").click(async () => {
+        $j("#o_placementJ").click(async () => {
             // si les infos sont deja renseigné on vide
-            if ($("#o_pseudoTemps").val() == await monProfilJoueur.lire('Pseudo')) {
-                $("#o_pseudoTemps").val("");
-                $("#o_vaTemps").val(0);
-                $("#o_indicationTemps").text(this.#calculerLimiteTemps(0));
+            if ($j("#o_pseudoTemps").val() == await monProfilJoueur.lire('Pseudo')) {
+                $j("#o_pseudoTemps").val("");
+                $j("#o_vaTemps").val(0);
+                $j("#o_indicationTemps").text(this.#calculerLimiteTemps(0));
             } else {
                 let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-                $("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
-                $("#o_vaTemps").val(recherches[6]);
-                $("#o_indicationTemps").text(this.#calculerLimiteTemps(recherches[6]));
+                $j("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
+                $j("#o_vaTemps").val(recherches[6]);
+                $j("#o_indicationTemps").text(this.#calculerLimiteTemps(recherches[6]));
             }
         });
-        $("#o_pseudoTemps").autocomplete({
+        $j("#o_pseudoTemps").autocomplete({
             source: (request, response) => {
                 Joueur.rechercher(request.term).then((data) => { response(Utils.extraitRecherche(data, true, false)); });
             },
             position: { my: "left top-5", at: "left bottom" },
             minLength: 3
         });
-        $("#o_cibleJoueurTemps").autocomplete({
+        $j("#o_cibleJoueurTemps").autocomplete({
             source: (request, response) => { Alliance.rechercher(request.term.split(/,\s*/g).pop()).then((data) => { response(Utils.extraitRecherche(data, true, false)); }); },
             position: { my: "left top-6", at: "left bottom" },
             minLength: 2,
@@ -483,7 +483,7 @@ Utils.register(class BoiteCombat extends Boite {
                 return false;
             }
         });
-        $("#o_cibleTagTemps").autocomplete({
+        $j("#o_cibleTagTemps").autocomplete({
             source: (request, response) => { Alliance.rechercher(request.term.split(/,\s*/g).pop()).then((data) => { response(Utils.extraitRecherche(data, false)); }); },
             position: { my: "left top-6", at: "left bottom" },
             minLength: 0,
@@ -498,37 +498,37 @@ Utils.register(class BoiteCombat extends Boite {
             }
         }).data("ui-autocomplete")._renderItem = (ul, item) => {
             let style = '';
-            return $("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
+            return $j("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
         };
-        $("#o_dernierMvt").datetimepicker({
+        $j("#o_dernierMvt").datetimepicker({
             ...DATEPICKER_OPTION, dateFormat: "dd-mm-yy", timeFormat: "HH:mm", timeText: "Horaire", hourText: "Heure", minuteText: "Minute"
         });
-        $("#o_vaTemps").on("input", (e) => { $("#o_indicationTemps").text(this.#calculerLimiteTemps($(e.currentTarget).val())); });
-        $("#o_calculerTemps").click(async () => {
-            let ref = new Joueur(null, { donneesInitiales: { Pseudo: $("#o_pseudoTemps").val() } });
+        $j("#o_vaTemps").on("input", (e) => { $j("#o_indicationTemps").text(this.#calculerLimiteTemps($j(e.currentTarget).val())); });
+        $j("#o_calculerTemps").click(async () => {
+            let ref = new Joueur(null, { donneesInitiales: { Pseudo: $j("#o_pseudoTemps").val() } });
             let recherches = await ref.lire('Niveaux Recherches');
-            recherches[6] = $("#o_vaTemps").val();
+            recherches[6] = $j("#o_vaTemps").val();
             await ref.ecrire("Niveaux Recherches", recherches);
             // si pas de referentiel on ne peut rien calculer
             if (! await ref.lire('Pseudo')) {
-                $.toast({ ...TOAST_ERROR, text: "Le joueur 1 n'est pas renseigné." });
+                $j.toast({ ...TOAST_ERROR, text: "Le joueur 1 n'est pas renseigné." });
                 return false;
             }
             // preparation des joueurs
             let joueurs = new Array(), alliances = new Array();
-            for (let i = 0, tmp = $("#o_cibleJoueurTemps").val().split(", "); i < tmp.length; i++)
+            for (let i = 0, tmp = $j("#o_cibleJoueurTemps").val().split(", "); i < tmp.length; i++)
                 if (tmp[i])
                     joueurs.push(new Joueur(null, { donneesInitiales: { Pseudo: tmp[i] } }));
             // preparation des alliances
-            for (let i = 0, tmp = $("#o_cibleTagTemps").val().split(", "); i < tmp.length; i++)
+            for (let i = 0, tmp = $j("#o_cibleTagTemps").val().split(", "); i < tmp.length; i++)
                 if (tmp[i])
                     alliances.push(new Alliance({ tag: tmp[i] }));
 
             if (!joueurs.length && !alliances.length) {
-                $.toast({ ...TOAST_ERROR, text: "Vous n'avez pas renseigné de joueur ni d'alliance pour lancer le calcul." });
+                $j.toast({ ...TOAST_ERROR, text: "Vous n'avez pas renseigné de joueur ni d'alliance pour lancer le calcul." });
             } else {
-                if (!$("#o_infosTemps").length) this.#afficherTemps();
-                await this.#calculerTemps(ref, joueurs, alliances, $("#o_dernierMvt").val());
+                if (!$j("#o_infosTemps").length) this.#afficherTemps();
+                await this.#calculerTemps(ref, joueurs, alliances, $j("#o_dernierMvt").val());
             }
             return false;
         });
@@ -548,7 +548,7 @@ Utils.register(class BoiteCombat extends Boite {
             // promise pour recupérer les joueurs et leurs coordonnées
             let promise = new Array();
             // promise pour recup les coordonnées
-            if (!Object.keys(this._coordonnees).length) promise.push($.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map"));
+            if (!Object.keys(this._coordonnees).length) promise.push($j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map"));
             // promise qui recup le profil du ref
             if (! await ref.estJoueurCourant()) promise.push(ref.chargerDonneesMembre());
             // promise pour recup les joueurs et les descriptions d'alliance
@@ -573,17 +573,17 @@ Utils.register(class BoiteCombat extends Boite {
             // on calcule les temps de trajet vers les joueurs
             for (let i = 0; i < joueurs.length; i++) {
                 let tempsP = await ref.getTempsParcours2(joueurs[i]);
-                rows.push($(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].lire('Terrain de Chasse')).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
+                rows.push($j(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].lire('Terrain de Chasse')).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
             }
             // on recup les pseudos des alliances
             for (let i = 0; i < alliances.length; i++) {
-                const lignes = $(values[i + ind + joueurs.length])
+                const lignes = $j(values[i + ind + joueurs.length])
                     .find("#tabMembresAlliance tr:gt(0)")
                     .toArray(); // transforme en vrai tableau
 
                 for (const elt of lignes) {
-                    let pseudo = $(elt).find("td:eq(2)").text();
-                    let terrain = numeral($(elt).find("td:eq(4)").text()).value();
+                    let pseudo = $j(elt).find("td:eq(2)").text();
+                    let terrain = numeral($j(elt).find("td:eq(4)").text()).value();
 
                     if (this._coordonnees.hasOwnProperty(pseudo)) {
                         let tempsP = await ref.getTempsParcours(
@@ -592,7 +592,7 @@ Utils.register(class BoiteCombat extends Boite {
                         );
 
                         rows.push(
-                            $(`<tr>
+                            $j(`<tr>
                             <td>${pseudo}</td>
                             <td>${numeral(terrain).format()}</td>
                             <td>${Utils.intToTime(tempsP)}</td>
@@ -608,10 +608,10 @@ Utils.register(class BoiteCombat extends Boite {
                 }
             }
             // affichage du tableau des distances
-            $("#o_infosTemps").DataTable().clear().rows.add(rows).draw();
+            $j("#o_infosTemps").DataTable().clear().rows.add(rows).draw();
         } catch (error) {
             console.error("[BoiteCombat] Erreur lors du calcul du temps de trajet:", error);
-            $.toast({ ...TOAST_ERROR, text: "Erreur lors du calcul des temps. Consultez la console." });
+            $j.toast({ ...TOAST_ERROR, text: "Erreur lors du calcul des temps. Consultez la console." });
         }
         return this;
     }
@@ -619,8 +619,8 @@ Utils.register(class BoiteCombat extends Boite {
     * @private
     */
     #afficherTemps() {
-        $("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
-        $("#o_infosTemps").DataTable({
+        $j("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
+        $j("#o_infosTemps").DataTable({
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             pageLength: 15,
@@ -634,10 +634,10 @@ Utils.register(class BoiteCombat extends Boite {
                 { type: "time-unformat", targets: 2 },
             ],
             rowCallback: (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
+                $j(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback: (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+                $j(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         return this;

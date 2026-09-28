@@ -38,7 +38,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Affiche le tableau des commandes.
      */
     async afficherTableauCommandes() {
-        if ($("#o_tableListeCommande").length === 0) {
+        if ($j("#o_tableListeCommande").length === 0) {
             const en_tete_html = await Commande.afficherEntete();
             const nbColonnes = Commande.COLONNES_DEFAUT.length;
 
@@ -46,7 +46,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 <thead class="ligne_paire">${en_tete_html}</thead>
                 <tfoot><tr class='gras'><td colspan='${nbColonnes}' id='o_footerCommande'></td></tr></tfoot></table></div><br/>`;
 
-            $("#centre .Bas").before(contenu);
+            $j("#centre .Bas").before(contenu);
 
             // Générer la configuration DataTables à partir des propriétés de l'objet Commande
             const proprietes = Commande.recupererProprietesAffichage();
@@ -61,7 +61,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             // Trouver l'index de la colonne d'échéance pour le tri par défaut
             const indexEcheance = Object.keys(proprietes).indexOf('Date Souhaitée');
 
-            $("#o_tableListeCommande").DataTable({
+            $j("#o_tableListeCommande").DataTable({
                 bPaginate: false,
                 dom: "Bfrti",
                 buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
@@ -73,8 +73,8 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 columnDefs: columnDefs
             });
 
-            $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
-            $("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
+            $j("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
+            $j("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
                 // $("#o_ajouterCommande").on('click', async (e) => {
                 // await commandeTest.enregistrerSurForum();
 
@@ -174,8 +174,8 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         }
 
         // Optimisation : Utiliser l'API DataTables sans détruire/recréer la table
-        if ($.fn.DataTable.isDataTable('#o_tableListeCommande')) {
-            const table = $("#o_tableListeCommande").DataTable();
+        if ($j.fn.DataTable.isDataTable('#o_tableListeCommande')) {
+            const table = $j("#o_tableListeCommande").DataTable();
 
             // Effacer les données actuelles sans redessiner
             table.clear();
@@ -183,49 +183,49 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             if (tableRows.length > 0) {
                 // Ajouter les nouvelles lignes via l'API pour qu'elles soient indexées et affichées
                 // On regroupe les éléments DOM dans un seul objet jQuery pour DataTables
-                table.rows.add($(tableRows.map($tr => $tr[0])));
+                table.rows.add($j(tableRows.map($tr => $tr[0])));
             }
 
             // Redessiner la table avec les nouvelles données
             table.draw();
         } else {
             // Si la DataTable n'existe pas encore, juste mettre à jour le HTML
-            $("#o_tableListeCommande tbody").empty().append(tableRows);
+            $j("#o_tableListeCommande tbody").empty().append(tableRows);
         }
         let texteFooter = `${tableRows.length} commande(s)`;
         if (!(estRestreint && auMoinsUneCommandeEtrangere)) {
             texteFooter += ` : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !`;
         }
 
-        $("#o_footerCommande").html(texteFooter);
-        $("#o_footerCommande").parent().toggleClass("ligne_paire", tableRows.length % 2 !== 0);
+        $j("#o_footerCommande").html(texteFooter);
+        $j("#o_footerCommande").parent().toggleClass("ligne_paire", tableRows.length % 2 !== 0);
     }
 
     /**
      * Configure le formulaire de convoi.
      */
     formulaireConvoi() {
-        $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>")
+        $j("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>")
             .after(` <button id='o_resetConvoi'>Effacer</button>`)
             .onActionSecurisee('click', this, async (e) => {
-                const idCommande = $("#o_idCommande").val();
+                const idCommande = $j("#o_idCommande").val();
                 if (idCommande == -1) return true;
 
-                const materiaux = numeral($("#nbMateriaux").val()).value();
-                const nourriture = numeral($("#nbNourriture").val()).value();
+                const materiaux = numeral($j("#nbMateriaux").val()).value();
+                const nourriture = numeral($j("#nbNourriture").val()).value();
 
                 if (materiaux === 0 && nourriture === 0) {
-                    $.toast({ ...TOAST_ERROR, text: "Impossible de lancer un convoi vide." });
+                    $j.toast({ ...TOAST_ERROR, text: "Impossible de lancer un convoi vide." });
                     e.preventDefault();
                     return false;
                 }
 
                 const commande = this.commandes.find(c => c.idSujet == idCommande);
-                const destinataireConvoi = $("#pseudo_convoi").val();
+                const destinataireConvoi = $j("#pseudo_convoi").val();
                 const demandeur = await commande.lire('Demandeur');
 
                 if (commande && demandeur !== destinataireConvoi) {
-                    $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
+                    $j.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
                     e.preventDefault();
                     return false;
                 }
@@ -258,7 +258,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                         'Id Commande': numeral(idCommande).value(),
                         'Date Départ': moment().toISOString(),
                         'Date Arrivée': dateArriveeCalculee.toISOString(),
-                        'Ouvrières': numeral($("#nbOuvriere").val()).value()
+                        'Ouvrières': numeral($j("#nbOuvriere").val()).value()
                     }
                 });
 
@@ -267,9 +267,9 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 return false;
             });
 
-        $("#o_resetConvoi").click((e) => {
+        $j("#o_resetConvoi").click((e) => {
             e.preventDefault();
-            $("#pseudo_convoi, #input_nbNourriture, #input_nbMateriaux, #input_nbOuvriere, #o_idCommande").val("");
+            $j("#pseudo_convoi, #input_nbNourriture, #input_nbMateriaux, #input_nbOuvriere, #o_idCommande").val("");
             return false;
         });
     }
@@ -280,16 +280,16 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      */
     getConvoisEnCoursDePage() {
         const convois = [];
-        $("#centre > strong").each((i, elt) => {
-            const texte = $(elt).text();
+        $j("#centre > strong").each((i, elt) => {
+            const texte = $j(elt).text();
             // Nettoyage pour extraire les nombres
             const matches = texte.replace(/\s/g, '').split("dans")[0].match(/\d+/g);
 
             if (matches && matches.length >= 2) {
-                const urlAnnuler = $(elt).nextAll("a[href*='commerce.php?annuler=']").first().attr('href');
+                const urlAnnuler = $j(elt).nextAll("a[href*='commerce.php?annuler=']").first().attr('href');
                 const matchId = urlAnnuler ? urlAnnuler.match(/annuler=(\d+)/) : null;
                 const idAnnulation = matchId ? numeral(matchId[1]).value() : null;
-                const pseudo = $(elt).find("a").first().text();
+                const pseudo = $j(elt).find("a").first().text();
                 const tempsRestantText = texte.split("dans")?.[1]?.trim();
                 const tempsRestant = Utils.timeToInt(tempsRestantText);
 
@@ -309,8 +309,8 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Attache les listeners pour l'annulation de convoi.
      */
     _attacherListenersAnnulationConvoi() {
-        $("a[href*='commerce.php?annuler=']").onActionSecurisee('click', this, (e) => {
-            const match = $(e.currentTarget).attr('href').match(/annuler=(\d+)/);
+        $j("a[href*='commerce.php?annuler=']").onActionSecurisee('click', this, (e) => {
+            const match = $j(e.currentTarget).attr('href').match(/annuler=(\d+)/);
             if (match) {
                 localStorage.setItem('outiiil_convoi_annulation_pending_id', match[1]);
                 localStorage.setItem('outiiil_convoi_annulation_pending_timestamp', moment().toISOString());
@@ -375,17 +375,17 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     await convoiDataObj.ecrire('Id Convoi', leBonConvoi.idAnnulation);
 
                     await commande.ajouterConvoi(convoiDataObj);
-                    $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
+                    $j.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
 
                     // Passer la prochaine commande en cours si nécessaire
                     await this.#activerProchaineCommandeSiBesoin();
                     await this.actualiserCommandes();
                 } else {
-                    $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
+                    $j.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
                 }
             });
         } catch (error) {
-            $.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
+            $j.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
             console.error(error);
             throw error;
         }
@@ -421,7 +421,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 }
 
                 if (!convoiTraite) {
-                    $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
+                    $j.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
                 }
             });
         } catch (error) {
@@ -454,7 +454,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         if (!foundActive && cmdSuivante) {
             await cmdSuivante.ecrire('État', ETAT_COMMANDE["En cours"]);
             await cmdSuivante.enregistrerSurForum();
-            $.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours." });
+            $j.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours." });
         }
     }
 

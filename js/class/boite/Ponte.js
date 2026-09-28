@@ -20,7 +20,7 @@ Utils.register(class BoitePonte extends Boite {
 	* @method afficher
 	*/
 	async afficher() {
-		if (!$("#" + this._id).length) {
+		if (!$j("#" + this._id).length) {
 			let tdp = await monProfilJoueur.getTDP();
 			let recherches = await monProfilJoueur.lire('Niveaux Recherches');
 			let constructions = await monProfilJoueur.lire('Niveaux Constructions');
@@ -44,9 +44,9 @@ Utils.register(class BoitePonte extends Boite {
 		}
 		if (await super.afficher()) {
 			// Formatage des spinners
-			$("input[name^='o_nombre'], input[name^='o_jour']").spinner({ min: 0, numberFormat: "i" });
-			$("input[name^='o_heure'], input[name^='o_minute'], input[name^='o_seconde']").spinner({ min: 0, numberFormat: "d2" });
-			$("#o_niveauTDP").spinner({ min: 0, max: 150 });
+			$j("input[name^='o_nombre'], input[name^='o_jour']").spinner({ min: 0, numberFormat: "i" });
+			$j("input[name^='o_heure'], input[name^='o_minute'], input[name^='o_seconde']").spinner({ min: 0, numberFormat: "d2" });
+			$j("#o_niveauTDP").spinner({ min: 0, max: 150 });
 			this.css().event();
 		}
 		return this;
@@ -58,7 +58,7 @@ Utils.register(class BoitePonte extends Boite {
 	*/
 	css() {
 		super.css();
-		$("#o_ponteContent table tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+		$j("#o_ponteContent table tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
 		return this;
 	}
 	/**
@@ -68,70 +68,70 @@ Utils.register(class BoitePonte extends Boite {
 	*/
 	event() {
 		super.event();
-		$("input[name^='o_nombre']").on("input spin", (e, ui) => {
+		$j("input[name^='o_nombre']").on("input spin", (e, ui) => {
 			let nombre = numeral(ui ? ui.value : e.currentTarget.value).value();
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_nombre", ""));
-			this.#majTemps(unite, nombre * (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($("#o_niveauTDP").spinner("value")))));
-			$(e.currentTarget).spinner("value", nombre);
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_nombre", ""));
+			this.#majTemps(unite, nombre * (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($j("#o_niveauTDP").spinner("value")))));
+			$j(e.currentTarget).spinner("value", nombre);
 		});
-		$("input[name^='o_seconde']").on("input spin", (e, ui) => {
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_seconde", ""));
-			let seconde = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_seconde']").on("input spin", (e, ui) => {
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_seconde", ""));
+			let seconde = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			if (seconde >= 60) {
-				$(e.currentTarget).spinner("value", seconde - 60);
-				$("input[name='o_minute" + unite + "']").spinner("stepUp");
+				$j(e.currentTarget).spinner("value", seconde - 60);
+				$j("input[name='o_minute" + unite + "']").spinner("stepUp");
 				return false;
 			}
 			// mise à jour du nombre
 			this.#majNombre(unite, -1, -1, -1, seconde);
 		});
-		$("input[name^='o_minute']").on("input spin", (e, ui) => {
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_minute", ""));
-			let minute = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_minute']").on("input spin", (e, ui) => {
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_minute", ""));
+			let minute = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			if (minute >= 60) {
-				$(e.currentTarget).spinner("value", minute - 60);
-				$("input[name='o_heure" + unite + "']").spinner("stepUp");
+				$j(e.currentTarget).spinner("value", minute - 60);
+				$j("input[name='o_heure" + unite + "']").spinner("stepUp");
 				return false;
 			}
 			// mise à jour du nombre
 			this.#majNombre(unite, -1, -1, minute, -1);
 		});
-		$("input[name^='o_heure']").on("input spin", (e, ui) => {
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_heure", ""));
-			let heure = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_heure']").on("input spin", (e, ui) => {
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_heure", ""));
+			let heure = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			if (heure >= 24) {
-				$(e.currentTarget).spinner("value", heure - 24);
-				$("input[name='o_jour" + unite + "']").spinner("stepUp");
+				$j(e.currentTarget).spinner("value", heure - 24);
+				$j("input[name='o_jour" + unite + "']").spinner("stepUp");
 				return false;
 			}
 			// mise à jour du nombre
 			this.#majNombre(unite, -1, heure, -1, -1);
 		});
-		$("input[name^='o_jour']").on("input spin", (e, ui) => {
-			let jour = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_jour']").on("input spin", (e, ui) => {
+			let jour = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			// mise à jour du nombre
-			this.#majNombre(parseInt($(e.currentTarget).attr("name").replace("o_jour", "")), jour, -1, -1, -1);
-			$(e.currentTarget).spinner("value", jour);
+			this.#majNombre(parseInt($j(e.currentTarget).attr("name").replace("o_jour", "")), jour, -1, -1, -1);
+			$j(e.currentTarget).spinner("value", jour);
 		});
 		// event sur le temps de ponte
-		$("#o_niveauTDP").on("input spin", (e, ui) => {
-			let tdp = ui ? ui.value : $(e.currentTarget).spinner("value");
-			$("input[name^='o_nombre']").each((i, elt) => { // Pour chaque unité on met à jour le temps
-				let unite = parseInt($(elt).attr("name").replace("o_nombre", ""));
-				$(elt).parent().parent().prev().text(BoitePonte.#arrondiTemps(TEMPS_UNITE[unite] * Math.pow(0.9, tdp)));
-				let nombre = $(elt).spinner("value");
+		$j("#o_niveauTDP").on("input spin", (e, ui) => {
+			let tdp = ui ? ui.value : $j(e.currentTarget).spinner("value");
+			$j("input[name^='o_nombre']").each((i, elt) => { // Pour chaque unité on met à jour le temps
+				let unite = parseInt($j(elt).attr("name").replace("o_nombre", ""));
+				$j(elt).parent().parent().prev().text(BoitePonte.#arrondiTemps(TEMPS_UNITE[unite] * Math.pow(0.9, tdp)));
+				let nombre = $j(elt).spinner("value");
 				// mise à jour du temps
 				if (nombre) this.#majTemps(unite, nombre * (TEMPS_UNITE[unite] * Math.pow(0.9, tdp)));
 			});
 		});
 		// Lancer les pontes
-		$("img[id^=o_lancer]").click((e) => {
-			let unite = ~~($(e.currentTarget).attr("id").replace("o_lancer", "")), nombre = $("input[name='o_nombre" + unite + "']").spinner("value"), securite = "";
+		$j("img[id^=o_lancer]").click((e) => {
+			let unite = ~~($j(e.currentTarget).attr("id").replace("o_lancer", "")), nombre = $j("input[name='o_nombre" + unite + "']").spinner("value"), securite = "";
 			let correspondanceFzzz = new Array("", 1, 2, 3, 4, 5, 6, -1, 7, 8, 9, 10, -1, 11, 12);
 			if (nombre) {
 				// on recup un jeton
-				$.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Reine.php" }).then((data) => {
-					let parsed = $("<div/>").append(data);
+				$j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Reine.php" }).then((data) => {
+					let parsed = $j("<div/>").append(data);
 					securite = parsed.find("#t").attr("name") + "=" + parsed.find("#t").attr("value");
 					// on prepare et on lance la ponte
 					let donnees = {};
@@ -141,13 +141,13 @@ Utils.register(class BoitePonte extends Boite {
 					donnees["input_cout_nombre" + (unite ? correspondanceFzzz[unite] : "")] = nombre;
 					donnees["nombre_de_ponte"] = nombre;
 					donnees["" + securite.split("=")[0]] = securite.split("=")[1];
-					$.post("http://" + Utils.serveur + ".fourmizzz.fr/Reine.php", donnees, (data) => {
-						let parsed = $('<div/>').append(data);
-						$("#boiteInfo").fadeOut("slow").html(parsed.find("#boiteInfo").html()).fadeIn("slow");
+					$j.post("http://" + Utils.serveur + ".fourmizzz.fr/Reine.php", donnees, (data) => {
+						let parsed = $j('<div/>').append(data);
+						$j("#boiteInfo").fadeOut("slow").html(parsed.find("#boiteInfo").html()).fadeIn("slow");
 						if (Utils.comptePlus)
-							$("#boiteComptePlus").fadeOut("slow").html(parsed.find("#boiteComptePlus").html()).fadeIn("slow");
-						$.toast({ ...TOAST_SUCCESS, text: "La ponte a été correctement lancée." });
-						$("input[name='o_nombre" + unite + "']").spinner("value", 0);
+							$j("#boiteComptePlus").fadeOut("slow").html(parsed.find("#boiteComptePlus").html()).fadeIn("slow");
+						$j.toast({ ...TOAST_SUCCESS, text: "La ponte a été correctement lancée." });
+						$j("input[name='o_nombre" + unite + "']").spinner("value", 0);
 					});
 				});
 			}
@@ -167,12 +167,12 @@ Utils.register(class BoitePonte extends Boite {
 	* @param {Integer} seconde
 	*/
 	#majNombre(unite, jour, heure, minute, seconde) {
-		let nbJour = (jour < 0) ? $("input[name='o_jour" + unite + "']").spinner("value") : jour;
-		let nbHeure = (heure < 0) ? $("input[name='o_heure" + unite + "']").spinner("value") : heure;
-		let nbMinute = (minute < 0) ? $("input[name='o_minute" + unite + "']").spinner("value") : minute;
-		let nbSeconde = (seconde < 0) ? $("input[name='o_seconde" + unite + "']").spinner("value") : seconde;
+		let nbJour = (jour < 0) ? $j("input[name='o_jour" + unite + "']").spinner("value") : jour;
+		let nbHeure = (heure < 0) ? $j("input[name='o_heure" + unite + "']").spinner("value") : heure;
+		let nbMinute = (minute < 0) ? $j("input[name='o_minute" + unite + "']").spinner("value") : minute;
+		let nbSeconde = (seconde < 0) ? $j("input[name='o_seconde" + unite + "']").spinner("value") : seconde;
 		let temps = nbJour * 86400 + nbHeure * 3600 + nbMinute * 60 + nbSeconde;
-		$("input[name='o_nombre" + unite + "']").spinner("value", Math.round(temps / (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($("#o_niveauTDP").val())))));
+		$j("input[name='o_nombre" + unite + "']").spinner("value", Math.round(temps / (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($j("#o_niveauTDP").val())))));
 		return this;
 	}
 	/**
@@ -185,16 +185,16 @@ Utils.register(class BoitePonte extends Boite {
 	*/
 	#majTemps(i, temps) {
 		// on compte les jours
-		$("input[name='o_jour" + i + "']").spinner("value", (temps - temps % 86400) / 86400);
+		$j("input[name='o_jour" + i + "']").spinner("value", (temps - temps % 86400) / 86400);
 		temps %= 86400;
 		// on compte les heures restantes
-		$("input[name='o_heure" + i + "']").spinner("value", (temps - temps % 3600) / 3600);
+		$j("input[name='o_heure" + i + "']").spinner("value", (temps - temps % 3600) / 3600);
 		temps %= 3600;
 		// on compte les minutes restantes
-		$("input[name='o_minute" + i + "']").spinner("value", (temps - temps % 60) / 60);
+		$j("input[name='o_minute" + i + "']").spinner("value", (temps - temps % 60) / 60);
 		temps = Math.round(temps % 60);
 		// il ne reste que les secondes
-		$("input[name='o_seconde" + i + "']").spinner("value", temps);
+		$j("input[name='o_seconde" + i + "']").spinner("value", temps);
 		return this;
 	}
 	/**

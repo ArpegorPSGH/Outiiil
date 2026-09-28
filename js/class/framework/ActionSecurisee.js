@@ -34,23 +34,23 @@ Utils.register(class ActionSecurisee {
 
                 // Si la transaction s'est déroulée avec succès
                 // Cas 1 : Si c'est un bouton de soumission ou un élément d'un formulaire qui doit soumettre le formulaire parent
-                const $form = $(element).closest('form');
-                if ($form.length > 0 && ($(element).is(':submit') || $(element).attr('type') === 'submit' || $(element).is('button:not([type])') || $(element).is("input[name='convoi']"))) {
+                const $form = $j(element).closest('form');
+                if ($form.length > 0 && ($j(element).is(':submit') || $j(element).attr('type') === 'submit' || $j(element).is('button:not([type])') || $j(element).is("input[name='convoi']"))) {
                     console.log("[ActionSecurisee] Soumission du formulaire après la fin de la transaction.");
 
                     // Si le bouton de soumission cliqué a un name et une valeur, on les ajoute sous forme d'input caché pour que le serveur les reçoive !
-                    const name = $(element).attr('name');
-                    const value = $(element).attr('value') || $(element).text() || '';
+                    const name = $j(element).attr('name');
+                    const value = $j(element).attr('value') || $j(element).text() || '';
                     if (name) {
                         $form.find(`input[type='hidden'][name='${name}']`).remove();
-                        $form.append($(`<input type="hidden" name="${name}" />`).val(value));
+                        $form.append($j(`<input type="hidden" name="${name}" />`).val(value));
                     }
 
                     $form.get(0).submit();
                 }
                 // Cas 2 : Si c'est un lien <a> qui doit naviguer vers son href
-                else if (evenement === 'click' && $(element).is('a')) {
-                    const href = $(element).attr('href');
+                else if (evenement === 'click' && $j(element).is('a')) {
+                    const href = $j(element).attr('href');
                     if (href && href !== '#' && !href.startsWith('javascript:')) {
                         console.log("[ActionSecurisee] Navigation vers le lien après la transaction :", href);
                         await logger.attendreFinPosteLogs();
@@ -68,7 +68,7 @@ Utils.register(class ActionSecurisee {
         const stack = new Error().stack || "";
         const isNested = (stack.match(/onActionSecuriseeHandler/g) || []).length >= 2;
         if (ActionSecurisee.actionEnCours && !isNested) {
-            $.toast({
+            $j.toast({
                 ...TOAST_INFO,
                 heading: "Action en cours",
                 text: "Une action sécurisée est déjà en cours. Veuillez patienter.",
@@ -100,7 +100,7 @@ Utils.register(class ActionSecurisee {
             const conditionsOk = await fonctionnalite.verifierConditionsInitiales(true);
             if (!conditionsOk) {
                 const debutGestionErreur = moment();
-                $.toast({
+                $j.toast({
                     ...TOAST_INFO,
                     heading: "Action bloquée",
                     text: "Vos droits, votre appartenance à l'alliance ou la configuration du forum ont été modifiés. La page va être rechargée.",
@@ -120,7 +120,7 @@ Utils.register(class ActionSecurisee {
             const empreinteFinale = await fonctionnalite._prendreEmpreinteGlobale(signatures);
             if (empreinteInitiale !== empreinteFinale) {
                 const debutGestionErreur = moment();
-                $.toast({
+                $j.toast({
                     ...TOAST_INFO,
                     heading: "Données obsolètes",
                     text: "Les données ont été modifiées par un autre utilisateur. L'affichage va être actualisé.",
@@ -134,12 +134,12 @@ Utils.register(class ActionSecurisee {
             }
 
             // 8. Tout est OK, on redéclenche l'événement avec le flag isSecured
-            $(element).trigger(evenement, [{ isSecured: true }]);
+            $j(element).trigger(evenement, [{ isSecured: true }]);
 
         } catch (error) {
             console.error("[onActionSecurisee] Erreur lors de la sécurisation de l'action:", error);
             const debutGestionErreur = moment();
-            $.toast({
+            $j.toast({
                 ...TOAST_ERROR,
                 heading: "Erreur de synchronisation",
                 text: "Une erreur est survenue lors de la vérification des données. La page va être rechargée par sécurité.",
@@ -159,7 +159,7 @@ Utils.register(class ActionSecurisee {
  * @param {FonctionnaliteAlliance} fonctionnalite - L'instance de la fonctionnalité parente.
  * @param {Function} callback - La fonction à exécuter si les données sont à jour.
  */
-$.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
+$j.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
     return this.on(evenement, function onActionSecuriseeHandler(e, data) {
         return ActionSecurisee.traiter(this, evenement, fonctionnalite, callback, e, data);
     });

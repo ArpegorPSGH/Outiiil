@@ -4,13 +4,15 @@ scripts/release.py
 Orchestrateur de release automatisé pour Outiiil.
 
 Workflow :
- 1. Vérifie que le répertoire de travail Git est propre.
- 2. Récupère la version actuelle depuis manifest.json.
- 3. Compile le dossier `dist/` complet (bundle.js, bundle.css, version.json, images/).
- 4. Génère l'archive zip de distribution du socle (`Outiiil-vX.Y.zip` : manifest, loader, dist/, images/).
- 5. Déploie le contenu de `dist/` sur la branche distante `gh-pages` et tague le commit avec le numéro de version.
- 6. Crée la Release sur GitHub (via GitHub CLI `gh` si présent) en y attachant le zip.
- 7. Nettoie le dossier `dist/` local et garantit que la branche de travail reste sur `dev`.
+  1. Vérifie que le répertoire de travail Git est propre.
+  2. Récupère la version actuelle depuis manifest.json.
+  3. Compile le dossier `dist/` complet (runtime.js, runtime.css, version.json, images/).
+  4. Génère l'archive zip de distribution du socle (`Outiiil-vX.Y.zip` :
+     manifest.json, js/background.js, js/bridge.js, dist/).
+  5. Déploie le contenu de `dist/` sur la branche distante `gh-pages`.
+  6. Met à jour la branche `socle` avec le socle minimal.
+  7. Crée/étiquette le tag Git et crée la Release GitHub (via gh CLI si présent).
+  8. Nettoie le dossier `dist/` local.
 """
 
 import json
@@ -23,12 +25,12 @@ import zipfile
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
-LOADER_PATH = os.path.join(BASE_DIR, "js", "loader.js")
+BACKGROUND_PATH = os.path.join(BASE_DIR, "js", "background.js")
+BRIDGE_PATH = os.path.join(BASE_DIR, "js", "bridge.js")
 DIST_DIR = os.path.join(BASE_DIR, "dist")
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
-
-# Nom de la branche de distribution GitHub Pages
 BRANCH_GH_PAGES = "gh-pages"
+BRANCH_SOCLE = "socle"
 
 def run_cmd(cmd, cwd=BASE_DIR, check=True):
     """Exécute une commande système et retourne sa sortie textuelle."""
@@ -75,8 +77,8 @@ def main():
     print(f"[*] Version cible pour la release : {version}")
     tag_name = version
 
-    # 3. Compilation du bundle dans dist/
-    print("[*] Compilation du bundle...")
+    # 3. Compilation du runtime dans dist/
+    print("[*] Compilation du runtime...")
     build_script = os.path.join(BASE_DIR, "scripts", "build_bundle.py")
     run_cmd(f'python "{build_script}"')
 
@@ -84,48 +86,49 @@ def main():
         print("Erreur : La compilation de dist/ a échoué.", file=sys.stderr)
         sys.exit(1)
 
-    # 4. Génération de l'archive zip (manifest + loader en prod + js/background.js + dist/* + dist/images/)
+    # 4. Génération de l'archive zip (manifest + background.js + bridge.js + dist/* + dist/images/)
     zip_filename = f"Outiiil-v{version}.zip"
     zip_dest_path = os.path.join(BASE_DIR, zip_filename)
     print(f"[*] Génération de l'archive de release : {zip_filename}...")
 
     with tempfile.TemporaryDirectory() as temp_zip_dir:
-        # manifest.json avec chemins d'icônes mis à jour vers dist/images/
+        # manifest.json
         with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
-            manifest_data = json.load(f)
-        # Mettre à jour les chemins des icônes pour qu'ils pointent vers dist/images/
-        if "icons" in manifest_data:
-            for key, path in manifest_data["icons"].items():
+            manifest = json.load(f)
+        # Mettre à jour les chemins des icônes vers dist/images/
+        if "icons" in manifest:
+            for key, path in manifest["icons"].items():
                 if path.startswith("images/"):
-                    manifest_data["icons"][key] = "dist/" + path
-        if "action" in manifest_data and "default_icon" in manifest_data["action"]:
-            if manifest_data["action"]["default_icon"].startswith("images/"):
-                manifest_data["action"]["default_icon"] = "dist/" + manifest_data["action"]["default_icon"]
+                    manifest["icons"][key] = "dist/" + path
+        if "action" in manifest and "default_icon" in manifest["action"]:
+            if manifest["action"]["default_icon"].startswith("images/"):
+                manifest["action"]["default_icon"] = "dist/" + manifest["action"]["default_icon"]
         with open(os.path.join(temp_zip_dir, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump(manifest_data, f, indent=2, ensure_ascii=False)
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-        # js/loader.js avec DEV_MODE = false
+        # js/background.js avec DEV_MODE = false
         os.makedirs(os.path.join(temp_zip_dir, "js"), exist_ok=True)
-        with open(LOADER_PATH, "r", encoding="utf-8") as f_loader:
-            loader_code = f_loader.read()
-        loader_code_prod = loader_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
-        with open(os.path.join(temp_zip_dir, "js", "loader.js"), "w", encoding="utf-8") as f_loader_out:
-            f_loader_out.write(loader_code_prod)
+        with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
+            bg_code = f.read()
+        bg_code_prod = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
+        with open(os.path.join(temp_zip_dir, "js", "background.js"), "w", encoding="utf-8") as f:
+            f.write(bg_code_prod)
 
-        # js/background.js (copié directement, pas via dist/)
-        bg_src = os.path.join(BASE_DIR, "js", "background.js")
-        if os.path.exists(bg_src):
-            shutil.copy2(bg_src, os.path.join(temp_zip_dir, "js", "background.js"))
+        # js/bridge.js (copié directement)
+        with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
+            bridge_code = f.read()
+        with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
+            f.write(bridge_code)
 
-        # dist/ : bundle.js, bundle.css, version.json, images/
+        # dist/ : runtime.js, runtime.css, version.json, images/
         dist_target = os.path.join(temp_zip_dir, "dist")
         os.makedirs(dist_target, exist_ok=True)
-        for fname in ["bundle.js", "bundle.css", "version.json"]:
+        for fname in ["runtime.js", "runtime.css", "version.json"]:
             src = os.path.join(DIST_DIR, fname)
             if os.path.exists(src):
                 shutil.copy2(src, os.path.join(dist_target, fname))
 
-        # images/ dans dist/ (pour mise à jour dynamique sans mise à jour d'extension + icônes du manifest)
+        # images/ dans dist/
         if not os.path.exists(IMAGES_DIR):
             print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
             sys.exit(1)
@@ -140,17 +143,14 @@ def main():
                     zipf.write(full_path, rel_path)
 
     # 5. Déploiement sur gh-pages avec tag Git
-    print(f"[*] Déploiement du bundle sur la branche '{BRANCH_GH_PAGES}'...")
-    # URL du dépôt distant réel (GitHub), pour pousser vers origin et non vers le dépôt local
+    print(f"[*] Déploiement du runtime sur la branche '{BRANCH_GH_PAGES}'...")
     remote_url = run_cmd("git remote get-url origin")
 
     with tempfile.TemporaryDirectory() as temp_gh_dir:
         run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_gh_dir}"')
         if not os.path.exists(os.path.join(temp_gh_dir, ".git")):
-            # Si la branche n'existe pas encore sur origin, on la crée (orphan)
             run_cmd(f'git clone "{remote_url}" "{temp_gh_dir}"')
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
-            # Sur une branche orpheline fraîche, il n'y a rien à supprimer : seul échec toléré du script
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
         # Copier le contenu de dist/ sous dist/ de gh-pages
@@ -163,18 +163,69 @@ def main():
         run_cmd("git add -A", cwd=temp_gh_dir)
         status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
         if status_gh:
-            run_cmd(f'git commit -m "Release {version} (dist update)"', cwd=temp_gh_dir)
+            run_cmd(f'git commit -m "Release {version} (runtime update)"', cwd=temp_gh_dir)
             run_cmd(f"git push origin {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             print(f"  -> Branche {BRANCH_GH_PAGES} mise à jour et poussée.")
         else:
             print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
-        # Création (ou re-création en force) et push du tag sur ce commit
+        # Création (ou re-création en force) et push du tag
         run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_gh_dir)
         run_cmd(f"git push -f origin {tag_name}", cwd=temp_gh_dir)
         print(f"  -> Tag Git {tag_name} créé et poussé.")
 
-    # 6. Publication de la Release GitHub via gh CLI
+    # 6. Mise à jour de la branche socle
+    print(f"[*] Mise à jour de la branche '{BRANCH_SOCLE}'...")
+    with tempfile.TemporaryDirectory() as temp_socle_dir:
+        try:
+            run_cmd(f'git clone --single-branch --branch {BRANCH_SOCLE} "{remote_url}" "{temp_socle_dir}"')
+        except SystemExit:
+            print(f"  -> La branche {BRANCH_SOCLE} n'existe pas encore, création...")
+            run_cmd(f'git clone "{remote_url}" "{temp_socle_dir}"')
+            run_cmd(f"git checkout --orphan {BRANCH_SOCLE}", cwd=temp_socle_dir)
+            run_cmd("git rm -rf .", cwd=temp_socle_dir, check=False)
+
+        # Copier le socle minimal
+        shutil.copy2(MANIFEST_PATH, os.path.join(temp_socle_dir, "manifest.json"))
+
+        # background.js avec DEV_MODE = false
+        os.makedirs(os.path.join(temp_socle_dir, "js"), exist_ok=True)
+        with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
+            bg_code = f.read()
+        bg_code_prod = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
+        with open(os.path.join(temp_socle_dir, "js", "background.js"), "w", encoding="utf-8") as f:
+            f.write(bg_code_prod)
+
+        # bridge.js
+        with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
+            bridge_code = f.read()
+        with open(os.path.join(temp_socle_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
+            f.write(bridge_code)
+
+        # dist/ complet
+        if os.path.exists(DIST_DIR):
+            shutil.copytree(DIST_DIR, os.path.join(temp_socle_dir, "dist"))
+
+        # images/
+        if os.path.exists(IMAGES_DIR):
+            shutil.copytree(IMAGES_DIR, os.path.join(temp_socle_dir, "images"))
+
+        # scripts/ (bundle_sources.json needed for DEV_MODE source loading in background.js)
+        scripts_src = os.path.join(BASE_DIR, "scripts")
+        if os.path.exists(scripts_src):
+            shutil.copytree(scripts_src, os.path.join(temp_socle_dir, "scripts"))
+
+        # Commit et push
+        run_cmd("git add -A", cwd=temp_socle_dir)
+        status_socle = run_cmd("git status --porcelain", cwd=temp_socle_dir)
+        if status_socle:
+            run_cmd(f'git commit -m "Update socle for v{version}"', cwd=temp_socle_dir)
+            run_cmd(f"git push -f origin {BRANCH_SOCLE}", cwd=temp_socle_dir)
+            print(f"  -> Branche {BRANCH_SOCLE} mise à jour et poussée.")
+        else:
+            print(f"  -> Aucun changement détecté pour {BRANCH_SOCLE}.")
+
+    # 7. Publication de la Release GitHub
     print(f"[*] Publication de la release GitHub pour le tag {tag_name}...")
     gh_available = shutil.which("gh") is not None
     if gh_available:
@@ -184,16 +235,17 @@ def main():
     else:
         print(f"  -> GitHub CLI (gh) non détecté. Vous pouvez créer la release manuellement sur GitHub en y joignant {zip_filename}.")
 
-    # 7. Nettoyage local du dossier dist/
+    # 8. Nettoyage local du dossier dist/
     if os.path.exists(DIST_DIR):
         shutil.rmtree(DIST_DIR)
         print("[*] Nettoyage local du dossier dist/ effectué.")
 
     print("========================================")
     print(f" Release {version} terminée avec succès ! ")
-    print(f" - {BRANCH_GH_PAGES:<10} : code déployé + tag {tag_name}")
-    print(f" - artefact   : {zip_filename}")
-    print(f" - branche    : reste sur {branche_origine} en mode DEV")
+    print(f" - {BRANCH_GH_PAGES:<12}: runtime déployé + tag {tag_name}")
+    print(f" - {BRANCH_SOCLE:<12}: socle minimal mis à jour")
+    print(f" - artefact    : {zip_filename}")
+    print(f" - branche     : reste sur {branche_origine} en mode DEV")
     print("========================================")
 
 if __name__ == "__main__":

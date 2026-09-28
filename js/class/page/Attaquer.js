@@ -29,7 +29,7 @@ Utils.register(class Attaquer extends Page {
         /**
         *
         */
-        this._cible = new Joueur(null, { donneesInitiales: { Pseudo: $("input[name=pseudoCible]").val() } });
+        this._cible = new Joueur(null, { donneesInitiales: { Pseudo: $j("input[name=pseudoCible]").val() } });
         /**
         * Armee.
         */
@@ -37,15 +37,15 @@ Utils.register(class Attaquer extends Page {
     }
 
     async chargerDonnees() {
-        if ($("#tabChoixArmee").length) {
+        if ($j("#tabChoixArmee").length) {
             // récupération de l'armée
             this._armee = new Armee({ unite: this.#extraitArmee() });
             this.#majStatistique(this._armee);
             // ajoute event
-            $("input[id^=unite]").on("input", (e) => { this.#majStatistique(); });
+            $j("input[id^=unite]").on("input", (e) => { this.#majStatistique(); });
 
             const niveauRecherche = await monProfilJoueur.lire('Niveaux Recherches');
-            this._nbAttaque = niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
+            this._nbAttaque = niveauRecherche[6] + 2 - $j("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
 
             // on recupére le profil du joueur pour les coordonnées
             await this._cible.chargerDonneesMembre();
@@ -56,7 +56,7 @@ Utils.register(class Attaquer extends Page {
     */
     #extraitArmee() {
         let unites = {};
-        $("input[id^='unite']").each((i, elt) => { unites[$(elt).parent().parent().find("td:first").text()] = numeral($(elt).val()).value(); });
+        $j("input[id^='unite']").each((i, elt) => { unites[$j(elt).parent().parent().find("td:first").text()] = numeral($j(elt).val()).value(); });
         return unites;
     }
     /**
@@ -74,38 +74,38 @@ Utils.register(class Attaquer extends Page {
             <tr><td>${IMG_DEF}</td><td>${numeral(tmp.getBaseDef()).format()}</td><td>${numeral(tmp.getTotalDef(recherche[2])).format()}</td></tr>
             <tr><td><img alt="Nombre" src="images/icone/fourmi.png" height="18"/></td><td colspan="2" class="centre">${numeral(tmp.getSommeUnite()).format()}</td></tr>
             </table>`;
-        $("#formulaireChoixArmee fieldset:eq(1)").tooltip({
+        $j("#formulaireChoixArmee fieldset:eq(1)").tooltip({
             position: { my: "left+10", at: "right center" },
             content: html,
             items: "fieldset",
             hide: { effect: "fade", duration: 10 },
             tooltipClass: "ui-tooltip-right ui-tooltip-brown ui-tooltip-lightBrown"
         }).tooltip("open");
-        $("#formulaireChoixArmee fieldset:eq(1)").on("mouseout focusout", (e) => { e.stopImmediatePropagation(); });
+        $j("#formulaireChoixArmee fieldset:eq(1)").on("mouseout focusout", (e) => { e.stopImmediatePropagation(); });
     }
     /**
     *
     */
     async ajouterOption() {
         // on deplace le bouton standarf à droite
-        $("input[name='ChoixArmee']").unwrap().wrap("<div id='o_btnLancer' class='right'></div>");
+        $j("input[name='ChoixArmee']").unwrap().wrap("<div id='o_btnLancer' class='right'></div>");
         // Ajout du bouton pour la synchro simple
         // Ajout du temps de trajet
-        $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(await monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
-        $("#o_synchro").click((e) => {
+        $j("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(await monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
+        $j("#o_synchro").click((e) => {
             e.preventDefault();
             this.#lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
         // Bouton de sonde
-        $("#o_sonder").click((e) => {
+        $j("#o_sonder").click((e) => {
             let premiereUnite = true;
             e.preventDefault();
             // on prepare le formulaire pour la sonde
-            $("#lieu").val(3);
+            $j("#lieu").val(3);
             for (let i = 1; i < 15; i++)
-                if ($("#unite" + i).length) {
-                    $("#unite" + i).val(premiereUnite ? monProfilUtilisateur.parametre["uniteSonde"].valeur : 0);
+                if ($j("#unite" + i).length) {
+                    $j("#unite" + i).val(premiereUnite ? monProfilUtilisateur.parametre["uniteSonde"].valeur : 0);
                     premiereUnite = false;
                 }
             // une sonde est forcement synchro
@@ -119,9 +119,9 @@ Utils.register(class Attaquer extends Page {
     */
     #lancerSynchro(attente) {
         // Affichage du compte à rebours
-        $("#formulaireChoixArmee fieldset:eq(1)").append(`<p class="centre">Synchronisation en cours, veuillez attendre : <span id='o_decSyncA'></span>.</p>`);
+        $j("#formulaireChoixArmee fieldset:eq(1)").append(`<p class="centre">Synchronisation en cours, veuillez attendre : <span id='o_decSyncA'></span>.</p>`);
         Utils.decreaseTime(attente, "o_decSyncA");
-        setTimeout(() => { $("input[name='ChoixArmee']").click(); }, attente * 1000);
+        setTimeout(() => { $j("input[name='ChoixArmee']").click(); }, attente * 1000);
     }
     /**
     * Formulaire de lancement de flood.
@@ -130,7 +130,7 @@ Utils.register(class Attaquer extends Page {
     */
     async formulaireFlood() {
         let methode = monProfilUtilisateur.parametre["methodeFlood"].valeur;
-        $(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
+        $j(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
             <table id='o_simulationFlood' class='o_maxWidth' cellspacing=0>
 			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${await this._cible.lire('Pseudo')} (${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
 			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${await this._cible.lire('Terrain de Chasse')}' size='12' id='o_floodTDCB'/></td></tr>
@@ -140,38 +140,38 @@ Utils.register(class Attaquer extends Page {
             <button id='o_lanceFlood' class='o_marginT15 o_button f_success'>Flooder</button>
             <p class="reduce left">* : place les unités restantes sur l'attaque selectionnée.</p>
             </fieldset>`);
-        $("#o_floodTDCA, #o_floodTDCB, #o_floodAntiSonde, input[id^='o_attaque']").spinner({ min: 0, numberFormat: "i" });
-        $("#o_simulationFlood tr:even").addClass("ligne_paire");
+        $j("#o_floodTDCA, #o_floodTDCB, #o_floodAntiSonde, input[id^='o_attaque']").spinner({ min: 0, numberFormat: "i" });
+        $j("#o_simulationFlood tr:even").addClass("ligne_paire");
         for (let i = 1; i < Math.min(4, this._nbAttaque); i++) await this.#ajouterAttaque();
         // Si la methode par defaut est par standard on prepare
         if (methode)
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
         // event
-        $("#o_methodeFlood").change(async (e) => {
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+        $j("#o_methodeFlood").change(async (e) => {
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
             if (e.currentTarget.value == "1") // en optimisee on peut ni ajouter ni supprimer d'attaques
-                $("#o_ajouteAttaque, #o_supprimeAttaque").hide();
+                $j("#o_ajouteAttaque, #o_supprimeAttaque").hide();
             else
-                $("#o_ajouteAttaque, #o_supprimeAttaque").show();
+                $j("#o_ajouteAttaque, #o_supprimeAttaque").show();
         });
-        $("#o_floodTDCA").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
-            await this.#preparerFlood(ui ? ui.value : $(e.currentTarget).spinner("value"), $("#o_floodTDCB").spinner("value"));
+        $j("#o_floodTDCA").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
+            await this.#preparerFlood(ui ? ui.value : $j(e.currentTarget).spinner("value"), $j("#o_floodTDCB").spinner("value"));
         });
-        $("#o_floodTDCB").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), ui ? ui.value : $(e.currentTarget).spinner("value"));
+        $j("#o_floodTDCB").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), ui ? ui.value : $j(e.currentTarget).spinner("value"));
         });
-        $("#o_floodAntiSonde").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+        $j("#o_floodAntiSonde").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
         });
-        $("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.lire('Id'), 0, $("#t:last").attr("name") + "=" + $("#t:last").attr("value")); });
-        $("#o_ajouteAttaque").click(async (e) => { await this.#ajouterAttaque(); });
-        $("#o_supprimeAttaque").click((e) => { this.#supprimerAttaque(); });
+        $j("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.lire('Id'), 0, $j("#t:last").attr("name") + "=" + $j("#t:last").attr("value")); });
+        $j("#o_ajouteAttaque").click(async (e) => { await this.#ajouterAttaque(); });
+        $j("#o_supprimeAttaque").click((e) => { this.#supprimerAttaque(); });
     }
     /**
 * Lance une simulation si les données saisies sont correctes.
@@ -182,20 +182,20 @@ Utils.register(class Attaquer extends Page {
     async #preparerFlood(tdcAtt, tdcCible, bRecup = false) {
         // Si la cible est à porter
         if (tdcCible >= (tdcAtt * 0.5) && tdcCible <= (tdcAtt * 3)) {
-            let methode = $("#o_methodeFlood").val();
+            let methode = $j("#o_methodeFlood").val();
             // on recup les attaques manuellement
             let attaques = new Array();
             // on push au moins l'antisonde quelque soit le cas !
-            attaques.push($("#o_floodAntiSonde").spinner("value"));
+            attaques.push($j("#o_floodAntiSonde").spinner("value"));
             if (bRecup || methode == "0") {
                 for (let i = 1; i < this._nbAttaque; i++)
-                    if ($("#o_attaque" + i).length)
-                        attaques.push($("#o_attaque" + i).spinner("value"));
+                    if ($j("#o_attaque" + i).length)
+                        attaques.push($j("#o_attaque" + i).spinner("value"));
             }
             // si attaques n'est pas vide c'est qu'on parametre soit meme les floods
             // si la methode est uniforme ou degressive on utilise que le nbAttaque dans le tableau
-            let indSupp = $("input[name='o_suppAttaque']:checked").length ? $("input[name='o_suppAttaque']:checked").attr("id").replace("o_suppAttaque", "") : -1;
-            let simulation = this._armee.simulerFlood(tdcAtt, tdcCible, methode, attaques, $("#o_attaque1").spinner("value"), (methode == "2" || methode == "3") ? Math.min($("input[id^='o_attaque']").length, this._nbAttaque) : this._nbAttaque, indSupp);
+            let indSupp = $j("input[name='o_suppAttaque']:checked").length ? $j("input[name='o_suppAttaque']:checked").attr("id").replace("o_suppAttaque", "") : -1;
+            let simulation = this._armee.simulerFlood(tdcAtt, tdcCible, methode, attaques, $j("#o_attaque1").spinner("value"), (methode == "2" || methode == "3") ? Math.min($j("input[id^='o_attaque']").length, this._nbAttaque) : this._nbAttaque, indSupp);
             // mise a jour de l'antisonde
             let priseMax = Math.floor(tdcCible * 0.2), pourcent = 0;
             if (simulation[0]) {
@@ -203,14 +203,14 @@ Utils.register(class Attaquer extends Page {
                 pourcent = Math.round(priseMax * 100 / tdcCible);
                 tdcAtt += priseMax;
                 tdcCible -= priseMax;
-                $("#o_pourcentAttaque" + 0).text(pourcent);
-                $("#o_simulationFlood tr:eq(2) td:eq(3)").text(numeral(tdcAtt).format());
-                $("#o_simulationFlood tr:eq(2) td:eq(4)").text(numeral(tdcCible).format());
+                $j("#o_pourcentAttaque" + 0).text(pourcent);
+                $j("#o_simulationFlood tr:eq(2) td:eq(3)").text(numeral(tdcAtt).format());
+                $j("#o_simulationFlood tr:eq(2) td:eq(4)").text(numeral(tdcCible).format());
             }
             // mise à jour des attaques
             for (let i = 1; i < simulation.length; i++) {
-                if (!$("#o_attaque" + i).length) await this.#ajouterAttaque();
-                $("#o_attaque" + i).spinner("value", simulation[i]);
+                if (!$j("#o_attaque" + i).length) await this.#ajouterAttaque();
+                $j("#o_attaque" + i).spinner("value", simulation[i]);
                 // Calcule des terrains
                 if (tdcCible >= (tdcAtt * 0.5)) {
                     priseMax = Math.floor(tdcCible * 0.2);
@@ -219,12 +219,12 @@ Utils.register(class Attaquer extends Page {
                     tdcAtt += priseMax;
                     tdcCible -= priseMax;
                 }
-                $("#o_pourcentAttaque" + i).text(pourcent);
-                $("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(3)").text(numeral(tdcAtt).format());
-                $("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(4)").text(numeral(tdcCible).format());
+                $j("#o_pourcentAttaque" + i).text(pourcent);
+                $j("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(3)").text(numeral(tdcAtt).format());
+                $j("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(4)").text(numeral(tdcCible).format());
             }
             // supprime les attaques en trop si besoin
-            for (let i = simulation.length; i < $("#o_simulationFlood tr").length - 3; i++)
+            for (let i = simulation.length; i < $j("#o_simulationFlood tr").length - 3; i++)
                 this.#supprimerAttaque();
         }
     }
@@ -233,27 +233,27 @@ Utils.register(class Attaquer extends Page {
     * @private
     */
     async #ajouterAttaque() {
-        let nbAttaque = $("input[id^='o_attaque']").length + 1;
+        let nbAttaque = $j("input[id^='o_attaque']").length + 1;
         // si le nombre d'attaque depasse la VA
         if (nbAttaque >= this._nbAttaque)
-            $.toast({ ...TOAST_WARNING, text: "Votre vitesse d'attaque ne vous permet d'envoyer plus d'attaques" });
+            $j.toast({ ...TOAST_WARNING, text: "Votre vitesse d'attaque ne vous permet d'envoyer plus d'attaques" });
         else {
-            $("#o_simulationFlood tr:last").before(`<tr class='ligne_paire'><td>Attaque ${nbAttaque} (<span id="o_pourcentAttaque${nbAttaque}">0</span>%)</td><td><input value='0' size='12' id='o_attaque${nbAttaque}'/></td><td><input type="checkbox" id="o_suppAttaque${nbAttaque}" name="o_suppAttaque"/></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.lire('Terrain de Chasse')).format()}</td></tr>`);
-            $("#o_attaque" + nbAttaque).spinner({ min: 0, numberFormat: "i" });
-            $("#o_simulationFlood tr").removeClass("ligne_paire");
-            $("#o_simulationFlood tr:even").addClass("ligne_paire");
+            $j("#o_simulationFlood tr:last").before(`<tr class='ligne_paire'><td>Attaque ${nbAttaque} (<span id="o_pourcentAttaque${nbAttaque}">0</span>%)</td><td><input value='0' size='12' id='o_attaque${nbAttaque}'/></td><td><input type="checkbox" id="o_suppAttaque${nbAttaque}" name="o_suppAttaque"/></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.lire('Terrain de Chasse')).format()}</td></tr>`);
+            $j("#o_attaque" + nbAttaque).spinner({ min: 0, numberFormat: "i" });
+            $j("#o_simulationFlood tr").removeClass("ligne_paire");
+            $j("#o_simulationFlood tr:even").addClass("ligne_paire");
             // Event
-            $("#o_attaque" + nbAttaque).on("input spin", async (e, ui) => {
-                await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"), true);
+            $j("#o_attaque" + nbAttaque).on("input spin", async (e, ui) => {
+                await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"), true);
             });
-            $("input[name='o_suppAttaque']").on("change", async (e) => {
+            $j("input[name='o_suppAttaque']").on("change", async (e) => {
                 // une seule checkbox peut etre cocher
-                $("input[name='o_suppAttaque']").not(e.currentTarget).prop("checked", false);
-                await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+                $j("input[name='o_suppAttaque']").not(e.currentTarget).prop("checked", false);
+                await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
             });
             // si la methode est uniforme ou degressive on utilise autocomplete la valeur de l'attaque
-            let methode = $("#o_methodeFlood").val();
-            if (methode == "2" || methode == "3") await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            let methode = $j("#o_methodeFlood").val();
+            if (methode == "2" || methode == "3") await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
         }
     }
     /**
@@ -261,14 +261,14 @@ Utils.register(class Attaquer extends Page {
     */
     #supprimerAttaque() {
         // si le nombre d'attaque est de 0
-        let nbAttaque = $("input[id^='o_attaque']").length + 1;
+        let nbAttaque = $j("input[id^='o_attaque']").length + 1;
         if (nbAttaque == 1)
-            $.toast({ ...TOAST_WARNING, text: "Vous ne pouvez plus supprimer d'attaque" });
+            $j.toast({ ...TOAST_WARNING, text: "Vous ne pouvez plus supprimer d'attaque" });
         else {
-            $("#o_attaque" + (nbAttaque - 1)).off();
-            $("#o_simulationFlood tr:eq(" + (nbAttaque + 1) + ")").remove();
-            $("#o_simulationFlood tr").removeClass("ligne_paire");
-            $("#o_simulationFlood tr:even").addClass("ligne_paire");
+            $j("#o_attaque" + (nbAttaque - 1)).off();
+            $j("#o_simulationFlood tr:eq(" + (nbAttaque + 1) + ")").remove();
+            $j("#o_simulationFlood tr").removeClass("ligne_paire");
+            $j("#o_simulationFlood tr:even").addClass("ligne_paire");
         }
     }
     /**
@@ -280,13 +280,13 @@ Utils.register(class Attaquer extends Page {
         if (Utils.comptePlus) return;
         // Sauvegarde des attaques en cours
         let listeAttaque = new Array();
-        $("span[id^='attaque_']").each((i, elt) => {
-            if ($(elt).prev().find("a").length) { // attaque normale
-                listeAttaque.push({ "cible": $(elt).prev().text(), "exp": moment().add($(elt).next().text().split(",")[0].split("(")[1], 's') });
+        $j("span[id^='attaque_']").each((i, elt) => {
+            if ($j(elt).prev().find("a").length) { // attaque normale
+                listeAttaque.push({ "cible": $j(elt).prev().text(), "exp": moment().add($j(elt).next().text().split(",")[0].split("(")[1], 's') });
                 // Affichage du retour
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
             } else // renfort
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
         this.#saveAttaque(listeAttaque);
     }
@@ -301,7 +301,7 @@ Utils.register(class Attaquer extends Page {
         dataEvo.attaque = listeAttaque;
         dataEvo.startAttaque = moment();
         localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
-        if (!Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (!Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.attaque = dataEvo.attaque;
             boiteComptePlus.startAttaque = dataEvo.startAttaque;
             boiteComptePlus.majAttaque();

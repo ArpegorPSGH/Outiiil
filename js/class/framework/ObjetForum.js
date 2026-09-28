@@ -742,7 +742,7 @@ Utils.register(class ObjetForum {
         const proprietes = this.constructor.recupererProprietesAffichage(ordreAffichage);
 
         // 3. Construction du corps jQuery
-        const $tr = $('<tr>');
+        const $tr = $j('<tr>');
 
         ordreAffichage.forEach(nomParametre => {
             const valeur = donnees[nomParametre];
@@ -764,7 +764,7 @@ Utils.register(class ObjetForum {
             };
 
             const ajouterCellule = (val, nom) => {
-                const $td = $('<td>');
+                const $td = $j('<td>');
                 const contenu = formaterValeur(val, nom);
                 if (contenu instanceof jQuery || contenu instanceof Element) {
                     $td.append(contenu);

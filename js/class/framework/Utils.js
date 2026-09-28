@@ -23,7 +23,7 @@ class Utils {
     *
     */
     static get alliance() {
-        return $("#tag_alliance").text();
+        return $j("#tag_alliance").text();
     }
     /**
     * Renvoie si le joueur à du compte plus.
@@ -33,7 +33,7 @@ class Utils {
     * @return {Boolean} Vrai si le joueur a du compte plus, faux sinon.
     */
     static get comptePlus() {
-        return $("#menuComptePlus a.boutonStatJoueur").length && $("#menuComptePlus a.boutonStatJoueur").text() == "Stat" ? true : false;
+        return $j("#menuComptePlus a.boutonStatJoueur").length && $j("#menuComptePlus a.boutonStatJoueur").text() == "Stat" ? true : false;
     }
     /**
     * Renvoie le terrain du joueur en cm².
@@ -43,7 +43,7 @@ class Utils {
     * @return {Integer} le de nombre de cm².
     */
     static get terrain() {
-        return parseInt($("#quantite_tdc").text());
+        return parseInt($j("#quantite_tdc").text());
     }
     /**
     * Renvoie le nombre d'ouvrières.
@@ -53,7 +53,7 @@ class Utils {
     * @return {Integer} le nombre d'ouvriére.
     */
     static get ouvrieres() {
-        return parseInt($("#nb_ouvrieres").text());
+        return parseInt($j("#nb_ouvrieres").text());
     }
     /**
     * Renvoie le nombre de nourritures en stock dans l'entrepot.
@@ -63,7 +63,7 @@ class Utils {
     * @return {Integer} le quantité de nourritures.
     */
     static get nourriture() {
-        return parseInt($("#nb_nourriture").text());
+        return parseInt($j("#nb_nourriture").text());
     }
     /**
     * Renvoie le nombre de materiaux en stock dans l'entrepot.
@@ -73,7 +73,7 @@ class Utils {
     * @return {Integer} le quantité de materiaux.
     */
     static get materiaux() {
-        return parseInt($("#nb_materiaux").text());
+        return parseInt($j("#nb_materiaux").text());
     }
     /**
     * Calcul des quantités de ressources commandées - fdthierry
@@ -164,7 +164,7 @@ class Utils {
     * @return L'affichage du contenue de l'id est decrementé d'une seconde.
     */
     static decreaseTime(time, id) {
-        $("#" + id).text(this.intToTime(time));
+        $j("#" + id).text(this.intToTime(time));
         if (time > 0)
             setTimeout(() => { Utils.decreaseTime(time - 1, id); }, 1000);
     }
@@ -180,8 +180,8 @@ class Utils {
     */
     static incrementTime(time, id, idRound = "") {
         let retour = moment().add(time, 's');
-        $("#" + id).text(retour.format("D MMM à HH[h]mm[m]ss[s]"));
-        if (idRound && retour.seconds() % 60 == 0) $("#" + idRound).text(Utils.roundMinute(time).format("D MMM à HH[h]mm"));
+        $j("#" + id).text(retour.format("D MMM à HH[h]mm[m]ss[s]"));
+        if (idRound && retour.seconds() % 60 == 0) $j("#" + idRound).text(Utils.roundMinute(time).format("D MMM à HH[h]mm"));
         setTimeout(() => { Utils.incrementTime(time, id, idRound); }, 1000);
     }
     /**
@@ -226,14 +226,14 @@ class Utils {
     static extraitRecherche(data, joueur = true, alliance = true) {
         let element = new Array(), cptJ = alliance ? 3 : 6, cptA = joueur ? 3 : 6;
         // si la recherche renvoi ne renvoi qu'un resultat on tombe sur un profil de joueur
-        if ($(data).find("h2").length) {
-            let pseudo = $(data).find("h2").text();
+        if ($j(data).find("h2").length) {
+            let pseudo = $j(data).find("h2").text();
             element.push({ value: pseudo, value_avec_html: pseudo, url: "Membre.php?Pseudo=" + pseudo });
         } else {
-            $(data).find(".simulateur:eq(0) tr").each((i, elt) => {
+            $j(data).find(".simulateur:eq(0) tr").each((i, elt) => {
                 // les joueurs et les alli ont 6 cellules
-                if ($(elt).find("td").length == 6) {
-                    let cellule = $(elt).find("td:eq(1) a"), lien = cellule.attr("href"), nom = cellule.text();
+                if ($j(elt).find("td").length == 6) {
+                    let cellule = $j(elt).find("td:eq(1) a"), lien = cellule.attr("href"), nom = cellule.text();
                     // c'est un joueur si on trouve un lien de profil cellule 2
                     if (joueur && lien.includes("Membre.php") && cptJ) {
                         element.push({ value: nom, value_avec_html: nom, url: "Membre.php?Pseudo=" + nom });
@@ -241,7 +241,7 @@ class Utils {
                     }
                     // c'est une alliance
                     if (alliance && lien.includes("classementAlliance.php") && cptA) {
-                        let tag = $(elt).find("td:eq(0)").text();
+                        let tag = $j(elt).find("td:eq(0)").text();
                         element.push({ value: nom, value_avec_html: `<span style="white-space:nowrap;"><strong>${tag}</strong> ${nom}</span>`, tag: tag, url: "classementAlliance.php?alliance=" + tag });
                         cptA--;
                     }
@@ -280,7 +280,7 @@ class Utils {
     }
 
     /**
-     * Adds a class to the window object.
+     * Adds a class to the window object and to the global class registry.
      *
      * @static
      * @method register
@@ -289,6 +289,10 @@ class Utils {
     static register(classObject) {
         if (classObject && classObject.name) {
             window[classObject.name] = classObject;
+            if (!window.classRegistry) {
+                window.classRegistry = new Map();
+            }
+            window.classRegistry.set(classObject.name, classObject);
         }
     }
 
@@ -402,87 +406,27 @@ class Utils {
     }
 
     /**
-     * Découvre et met en cache toutes les classes définies dans les fichiers de l'extension
-     * listés dans le fichier scripts/bundle_sources.json.
+     * Retourne le registre global des classes enregistrées via Utils.register().
      *
      * @static
-     * @async
      * @method decouvrirClasses
      * @return {Promise<Map<string, Function>>} Une promesse résolue avec la Map des classes (nomClasse => Constructeur).
      */
     static async decouvrirClasses() {
-        if (window.classesCache) {
-            return classesCache;
+        if (!window.classRegistry) {
+            window.classRegistry = new Map();
         }
-
-        let jsFiles = [];
-        try {
-            const bundleSourcesUrl = Utils.getExtensionURL('scripts/bundle_sources.json');
-            const response = await fetch(bundleSourcesUrl);
-            const bundleSources = await response.json();
-            jsFiles = (bundleSources.js || []).filter(file => file.includes('js/class/'));
-        } catch (e) {
-            console.warn('[Utils.decouvrirClasses] Impossible de charger scripts/bundle_sources.json :', e);
-        }
-
-        const classesMap = new Map();
-        const processed = new Set();
-        const reservedWords = new Set([
-            'extends', 'implements', 'interface', 'package', 'private', 'protected', 'public', 'static',
-            'yield', 'to', 'from', 'of', 'in', 'as', 'is', 'if', 'else', 'for', 'while', 'do', 'return',
-            'function', 'class', 'const', 'let', 'var', 'default', 'import', 'export', 'try', 'catch',
-            'finally', 'throw', 'new', 'this', 'super', 'typeof', 'instanceof', 'void', 'delete',
-            'null', 'true', 'false', 'undefined'
-        ]);
+        // Filtrer les classes exclues
         const excludedClasses = new Set([
             'ObjetForumDroits'
         ]);
-
-        for (const file of jsFiles) {
-            try {
-                const candidates = new Set();
-                const baseName = file.split('/').pop().replace(/\.js$/, '');
-
-                try {
-                    const url = Utils.getExtensionURL(file);
-                    const response = await fetch(url);
-                    const content = await response.text();
-
-                    // Nettoyer les commentaires et les chaînes de caractères pour éviter les faux positifs
-                    const cleanContent = content
-                        .replace(/\/\*[\s\S]*?\*\//g, '')
-                        .replace(/\/\/.*/g, '')
-                        .replace(/(["'])(?:(?=(\\?))\2[\s\S])*?\1|`(?:\\.|[^`])*`/g, '');
-
-                    for (const match of cleanContent.matchAll(/\bclass\s+([A-Za-z0-9_$]+)/g)) {
-                        const name = match[1];
-                        if (!reservedWords.has(name) && !excludedClasses.has(name)) {
-                            candidates.add(name);
-                        }
-                    }
-                } catch (e) { }
-
-                for (const key of candidates) {
-                    if (processed.has(key)) continue;
-                    processed.add(key);
-
-                    try {
-                        let ClassConstructor = window[key] || globalThis[key];
-
-                        if (ClassConstructor && (typeof ClassConstructor === 'function' || typeof ClassConstructor === 'object')) {
-                            classesMap.set(key, ClassConstructor);
-                        }
-                    } catch (error) {
-                        // Ignorer les propriétés inaccessibles
-                    }
-                }
-            } catch (e) {
-                // Ignorer
+        const filtered = new Map();
+        for (const [key, value] of window.classRegistry) {
+            if (!excludedClasses.has(key)) {
+                filtered.set(key, value);
             }
         }
-
-        window.classesCache = classesMap;
-        return classesMap;
+        return filtered;
     }
 
     /**
