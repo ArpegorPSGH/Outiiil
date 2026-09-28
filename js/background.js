@@ -380,13 +380,19 @@ async function checkAndDownloadRuntime() {
             throw new Error('Failed to download runtime.js: ' + runtimeRes.status);
         }
 
-        const runtimeCode = await runtimeRes.text();
-        const cssCode = cssRes.ok ? await cssRes.text() : '';
+        const runtimeBuffer = await runtimeRes.arrayBuffer();
+        const runtimeCode = new TextDecoder().decode(runtimeBuffer);
+        let cssBuffer = new ArrayBuffer(0);
+        let cssCode = '';
+        if (cssRes.ok) {
+            cssBuffer = await cssRes.arrayBuffer();
+            cssCode = new TextDecoder().decode(cssBuffer);
+        }
 
         // Rebuild the dist hash from remote files in a stable order
         const remoteBlobs = new Map();
-        remoteBlobs.set(runtimeFile, new Uint8Array(await runtimeRes.arrayBuffer()));
-        if (cssRes.ok) remoteBlobs.set(cssFile, new Uint8Array(await cssRes.arrayBuffer()));
+        remoteBlobs.set(runtimeFile, new Uint8Array(runtimeBuffer));
+        if (cssRes.ok) remoteBlobs.set(cssFile, new Uint8Array(cssBuffer));
         for (let i = 0; i < imageFiles.length; i++) {
             const path = imageFiles[i];
             const res = imageResponses[i];

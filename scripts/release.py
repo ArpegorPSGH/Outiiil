@@ -89,6 +89,35 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10,
                 for rel_path in remote_entries:
                     print(f"  - {rel_path}")
 
+                # Diagnostic par fichier : comparer le hash local et distant de chaque fichier
+                print(f"[*] Diagnostic par fichier (hash local vs distant):")
+                mismatches = []
+                for rel_path in remote_entries:
+                    local_path = os.path.join(DIST_DIR, rel_path)
+                    local_hash = hashlib.sha256()
+                    if os.path.exists(local_path):
+                        with open(local_path, "rb") as f:
+                            local_hash.update(f.read())
+                        local_hash = local_hash.hexdigest()
+                    else:
+                        local_hash = "MANQUANT"
+                    
+                    try:
+                        with urllib.request.urlopen(base_update_url + rel_path, timeout=30) as resp:
+                            remote_bytes = resp.read()
+                        remote_hash = hashlib.sha256(remote_bytes).hexdigest()
+                    except Exception as e:
+                        remote_hash = "ERREUR: " + str(e)
+                    
+                    match = local_hash == remote_hash
+                    symbol = "✓" if match else "✗"
+                    print(f"  {symbol} {rel_path}: local={local_hash[:16]}..., distant={remote_hash[:16] if isinstance(remote_hash, str) else remote_hash}")
+                    if not match:
+                        mismatches.append(rel_path)
+                
+                if mismatches:
+                    print(f"[!] Fichiers différents entre local et distant: {', '.join(mismatches)}")
+
                 remote_blobs = {}
                 for rel_path in remote_entries:
                     with urllib.request.urlopen(base_update_url + rel_path, timeout=30) as resp:
