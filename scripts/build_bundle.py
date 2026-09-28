@@ -55,7 +55,7 @@ def build_dist():
     # --- Concaténation JS → runtime.js ---
     js_runtime_path = os.path.join(DIST_DIR, "runtime.js")
     print(f"[Outiiil Builder] Concaténation de {len(js_files)} fichiers JS → runtime.js...")
-    with open(js_runtime_path, "w", encoding="utf-8") as out_js:
+    with open(js_runtime_path, "w", encoding="utf-8", newline="\n") as out_js:
         for rel_path in js_files:
             abs_path = os.path.join(BASE_DIR, rel_path)
             if os.path.exists(abs_path):
@@ -74,7 +74,7 @@ def build_dist():
     # --- Concaténation CSS → runtime.css ---
     css_runtime_path = os.path.join(DIST_DIR, "runtime.css")
     print(f"[Outiiil Builder] Concaténation de {len(css_files)} fichiers CSS → runtime.css...")
-    with open(css_runtime_path, "w", encoding="utf-8") as out_css:
+    with open(css_runtime_path, "w", encoding="utf-8", newline="\n") as out_css:
         for rel_path in css_files:
             abs_path = os.path.join(BASE_DIR, rel_path)
             if os.path.exists(abs_path):
