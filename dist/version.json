@@ -1,6 +1,8 @@
 {
   "version": "3.22",
-  "configUrl": "config.json",
+  "sha256": "6902cdd75a1f68b3264e0b325d7c229ae8493855753dfdb7fa91d0a521662d04",
+  "runtime": "runtime.js",
+  "css": "runtime.css",
   "images": [
     "images/accepter.png",
     "images/actualize_off_01.png",
@@ -25,5 +27,5 @@
     "images/icons/gear_48.png",
     "images/icons/gear_96.png"
   ],
-  "timestamp": 1790446238.157271
+  "timestamp": 1790577728.0
 }

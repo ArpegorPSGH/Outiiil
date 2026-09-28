@@ -1,3 +1,297 @@
+// Source: js/browserAPI.js
+/*
+ * browserAPI.js
+ * Abstraction layer placed at the top of the dynamic runtime (user script in MAIN world).
+ * Provides window.browserAPI that proxies any chrome.* / browser.* call through
+ * a generic RPC channel (window.postMessage -> bridge content script -> background).
+ *
+ * Message protocol:
+ *   Request:  { type: 'OUTIIIL_RPC_REQUEST', target: 'outiiil', id, path, args }
+ *   Response: { type: 'OUTIIIL_RPC_RESPONSE', target: 'outiiil', id, ok, result }
+ *   Event:    { type: 'OUTIIIL_RPC_EVENT',   target: 'outiiil', cbId, payload }
+ *   Ready:    { type: 'OUTIIIL_BRIDGE_READY', target: 'outiiil' }
+ */
+
+(function () {
+    'use strict';
+
+    const OUTIIIL_TARGET = 'outiiil';
+    const REQUEST_TYPE = 'OUTIIIL_RPC_REQUEST';
+    const RESPONSE_TYPE = 'OUTIIIL_RPC_RESPONSE';
+    const EVENT_TYPE = 'OUTIIIL_RPC_EVENT';
+    const BRIDGE_READY_TYPE = 'OUTIIIL_BRIDGE_READY';
+    const DEV_MODE_TYPE = 'OUTIIIL_DEV_MODE';
+    const RPC_TIMEOUT_MS = 15000;
+
+    let msgId = 0;
+    const pendingRequests = new Map();
+    const eventCallbacks = new Map();
+    let bridgeReady = false;
+    let devMode = false;
+    let devModeResolved = false;
+
+    function nextId() {
+        return Date.now().toString(36) + '_' + (msgId++);
+    }
+
+    function isEventNamespace(namespace) {
+        const lastPart = namespace.split('.').pop();
+        return lastPart && lastPart.startsWith('on');
+    }
+
+    function handleMessage(event) {
+        const data = event.data;
+        if (!data || data.target !== OUTIIIL_TARGET) return;
+
+        if (data.type === BRIDGE_READY_TYPE) {
+            bridgeReady = true;
+        }
+
+        if (data.type === DEV_MODE_TYPE) {
+            devMode = data.devMode === true;
+            devModeResolved = true;
+            document.documentElement.setAttribute('data-outiiil-dev-mode', devMode ? 'true' : 'false');
+        }
+
+        if (data.type === RESPONSE_TYPE) {
+            const p = pendingRequests.get(data.id);
+            if (!p) return;
+            clearTimeout(p.timeout);
+            pendingRequests.delete(data.id);
+            if (data.ok) {
+                p.resolve(data.result);
+            } else {
+                p.reject(new Error(data.error || 'RPC error: ' + data.path));
+            }
+        }
+
+        if (data.type === EVENT_TYPE) {
+            const cb = eventCallbacks.get(data.cbId);
+            if (cb) cb(data.payload);
+        }
+    }
+
+    function start() {
+        window.addEventListener('message', handleMessage);
+    }
+
+    function callApi(path, args) {
+        const id = nextId();
+        const fullPath = typeof path === 'string' ? path : path.join('.');
+
+        return new Promise((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                if (pendingRequests.has(id)) {
+                    pendingRequests.delete(id);
+                    reject(new Error('RPC timeout: ' + fullPath));
+                }
+            }, RPC_TIMEOUT_MS);
+
+            pendingRequests.set(id, { resolve, reject, timeout, path: fullPath });
+
+            window.postMessage({
+                type: REQUEST_TYPE,
+                target: OUTIIIL_TARGET,
+                id: id,
+                path: fullPath,
+                args: args || []
+            }, '*');
+        });
+    }
+
+    function registerEventListener(path, callback) {
+        var parts = path.split('.');
+        if (!isEventNamespace(parts.slice(0, -1).join('.'))) {
+            return Promise.resolve(false);
+        }
+        var cbId = 'listener_' + nextId();
+        eventCallbacks.set(cbId, callback);
+        return callApi(path, [cbId]);
+    }
+
+    function unregisterEventListener(path, callback) {
+        var cbId = null;
+        for (var [id, cb] of eventCallbacks.entries()) {
+            if (cb === callback) {
+                cbId = id;
+                eventCallbacks.delete(id);
+                break;
+            }
+        }
+        if (!cbId) return Promise.resolve(false);
+        return callApi(path, [cbId]);
+    }
+
+    // Create a deep proxy that turns any property chain into an RPC call.
+    // e.g. browserAPI.tabs.query(...)  ->  rpcCall('tabs.query', args)
+    function createProxy(path) {
+        function makeCallable(fullPath) {
+            var fn = function () {
+                var args = Array.prototype.slice.call(arguments);
+                return callApi(fullPath, args);
+            };
+            fn._outiiilPath = fullPath;
+            return fn;
+        }
+
+        var proxyHandler = {
+            get: function (target, prop) {
+                if (prop === 'then' || prop === Symbol.toPrimitive ||
+                    prop === Symbol.toStringTag || prop === 'length' ||
+                    prop === 'name' || prop === 'prototype' ||
+                    prop === 'arguments' || prop === 'caller' || prop === '_outiiilPath') {
+                    return undefined;
+                }
+
+                var propStr = String(prop);
+                var newPath = path ? path + '.' + propStr : propStr;
+
+                // For event namespaces (e.g. webNavigation.onCompleted), return an event object
+                if (isEventNamespace(newPath)) {
+                    return {
+                        addListener: function (callback) {
+                            return registerEventListener(newPath + '.addListener', callback);
+                        },
+                        removeListener: function (callback) {
+                            return unregisterEventListener(newPath + '.removeListener', callback);
+                        },
+                        hasListener: function () {
+                            return callApi(newPath + '.hasListener', []);
+                        }
+                    };
+                }
+
+                // For regular functions, return a callable proxy
+                // Create a new proxy with a handler that captures the current newPath
+                return createProxy(newPath);
+            }
+        };
+
+        return new Proxy(makeCallable(path), proxyHandler);
+    }
+
+    window.browserAPI = createProxy('');
+    window.browserAPI._callApi = callApi;
+    window.browserAPI._ready = new Promise(function (resolve) {
+        if (bridgeReady) {
+            resolve();
+        } else {
+            var handler = function (event) {
+                if (event.data && event.data.type === BRIDGE_READY_TYPE && event.data.target === OUTIIIL_TARGET) {
+                    resolve();
+                    window.removeEventListener('message', handler);
+                }
+            };
+            window.addEventListener('message', handler);
+            setTimeout(resolve, 500);
+        }
+    });
+
+    window.browserAPI._devModeReady = new Promise(function (resolve) {
+        if (devModeResolved) {
+            resolve(devMode);
+        } else {
+            var handler = function (event) {
+                if (event.data && event.data.type === DEV_MODE_TYPE && event.data.target === OUTIIIL_TARGET) {
+                    resolve(event.data.devMode === true);
+                    window.removeEventListener('message', handler);
+                }
+            };
+            window.addEventListener('message', handler);
+            setTimeout(function () { resolve(false); }, 500);
+        }
+    });
+
+    start();
+})();
+
+;
+// Source: js/runtime_init.js
+/*
+ * runtime_init.js
+ * Initialization code for the dynamic runtime (user script in MAIN world).
+ * Handles:
+ *   - Waiting for browserAPI to become ready
+ *   - Loading cached images from chrome.storage.local via browserAPI
+ *   - Setting up window.OUTIIIL_DYNAMIC_IMAGES with blob URLs
+ *   - Exposing the extension version on window.VERSION
+ *
+ * This file is prepended to the runtime bundle before the game logic.
+ */
+
+(function () {
+    'use strict';
+
+    const STORAGE_KEY_IMAGES = 'outiiil_cached_images';
+    const STORAGE_KEY_VERSION = 'outiiil_runtime_version';
+    const STORAGE_KEY_BROWSER_API = 'outiiil_browser_api_code';
+
+    function getMimeType(path) {
+        var lower = path.toLowerCase();
+        if (lower.endsWith('.gif')) return 'image/gif';
+        if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+        if (lower.endsWith('.svg')) return 'image/svg+xml';
+        return 'image/png';
+    }
+
+    async function applyImagesFromCache() {
+        try {
+            var cached = await window.browserAPI.storage.local.get([STORAGE_KEY_IMAGES]);
+            var images = cached[STORAGE_KEY_IMAGES];
+            if (!images || Object.keys(images).length === 0) return;
+
+            var blobs = {};
+            for (var [path, dataUrl] of Object.entries(images)) {
+                try {
+                    var mime = getMimeType(path);
+                    var octets = Uint8Array.from(atob(dataUrl.split(',')[1]), c => c.charCodeAt(0));
+                    blobs[path] = URL.createObjectURL(new Blob([octets], { type: mime }));
+                } catch (e) {
+                    console.warn('[Outiiil] Image cache error for:', path, e);
+                }
+            }
+            window.OUTIIIL_DYNAMIC_IMAGES = blobs;
+            console.log('[Outiiil] Dynamic images loaded:', Object.keys(blobs).length);
+        } catch (e) {
+            console.warn('[Outiiil] Failed to load cached images:', e);
+        }
+    }
+
+    async function initRuntime() {
+        // Wait for the bridge to be ready
+        try {
+            await window.browserAPI._ready;
+        } catch (e) {
+            console.warn('[Outiiil] Browser API not ready, continuing with limited functionality:', e);
+        }
+
+        // Load cached images
+        await applyImagesFromCache();
+
+        // Try to get version info from background
+        try {
+            var info = await window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
+            if (info && info.version) {
+                window.VERSION = info.version;
+            }
+        } catch (e) {
+            // Fallback: try reading version from storage
+            try {
+                var stored = await window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                if (stored[STORAGE_KEY_VERSION]) {
+                    window.VERSION = stored[STORAGE_KEY_VERSION];
+                }
+            } catch (e2) {
+                // Ignore - main.js handles version detection
+            }
+        }
+    }
+
+    // Start initialization (non-blocking)
+    initRuntime();
+})();
+
+;
 // Source: js/lib/acorn.js
 (function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
@@ -16516,6 +16810,10 @@ if ( !noGlobal ) {
 
 return jQuery;
 } );
+
+;
+// Source: js/lib/jquery-alias.js
+window.$j = jQuery;
 
 ;
 // Source: js/lib/jquery-ui_1.12.1.js
@@ -128453,7 +128751,7 @@ class Utils {
     *
     */
     static get alliance() {
-        return $("#tag_alliance").text();
+        return $j("#tag_alliance").text();
     }
     /**
     * Renvoie si le joueur à du compte plus.
@@ -128463,7 +128761,7 @@ class Utils {
     * @return {Boolean} Vrai si le joueur a du compte plus, faux sinon.
     */
     static get comptePlus() {
-        return $("#menuComptePlus a.boutonStatJoueur").length && $("#menuComptePlus a.boutonStatJoueur").text() == "Stat" ? true : false;
+        return $j("#menuComptePlus a.boutonStatJoueur").length && $j("#menuComptePlus a.boutonStatJoueur").text() == "Stat" ? true : false;
     }
     /**
     * Renvoie le terrain du joueur en cm².
@@ -128473,7 +128771,7 @@ class Utils {
     * @return {Integer} le de nombre de cm².
     */
     static get terrain() {
-        return parseInt($("#quantite_tdc").text());
+        return parseInt($j("#quantite_tdc").text());
     }
     /**
     * Renvoie le nombre d'ouvrières.
@@ -128483,7 +128781,7 @@ class Utils {
     * @return {Integer} le nombre d'ouvriére.
     */
     static get ouvrieres() {
-        return parseInt($("#nb_ouvrieres").text());
+        return parseInt($j("#nb_ouvrieres").text());
     }
     /**
     * Renvoie le nombre de nourritures en stock dans l'entrepot.
@@ -128493,7 +128791,7 @@ class Utils {
     * @return {Integer} le quantité de nourritures.
     */
     static get nourriture() {
-        return parseInt($("#nb_nourriture").text());
+        return parseInt($j("#nb_nourriture").text());
     }
     /**
     * Renvoie le nombre de materiaux en stock dans l'entrepot.
@@ -128503,7 +128801,7 @@ class Utils {
     * @return {Integer} le quantité de materiaux.
     */
     static get materiaux() {
-        return parseInt($("#nb_materiaux").text());
+        return parseInt($j("#nb_materiaux").text());
     }
     /**
     * Calcul des quantités de ressources commandées - fdthierry
@@ -128594,7 +128892,7 @@ class Utils {
     * @return L'affichage du contenue de l'id est decrementé d'une seconde.
     */
     static decreaseTime(time, id) {
-        $("#" + id).text(this.intToTime(time));
+        $j("#" + id).text(this.intToTime(time));
         if (time > 0)
             setTimeout(() => { Utils.decreaseTime(time - 1, id); }, 1000);
     }
@@ -128610,8 +128908,8 @@ class Utils {
     */
     static incrementTime(time, id, idRound = "") {
         let retour = moment().add(time, 's');
-        $("#" + id).text(retour.format("D MMM à HH[h]mm[m]ss[s]"));
-        if (idRound && retour.seconds() % 60 == 0) $("#" + idRound).text(Utils.roundMinute(time).format("D MMM à HH[h]mm"));
+        $j("#" + id).text(retour.format("D MMM à HH[h]mm[m]ss[s]"));
+        if (idRound && retour.seconds() % 60 == 0) $j("#" + idRound).text(Utils.roundMinute(time).format("D MMM à HH[h]mm"));
         setTimeout(() => { Utils.incrementTime(time, id, idRound); }, 1000);
     }
     /**
@@ -128656,14 +128954,14 @@ class Utils {
     static extraitRecherche(data, joueur = true, alliance = true) {
         let element = new Array(), cptJ = alliance ? 3 : 6, cptA = joueur ? 3 : 6;
         // si la recherche renvoi ne renvoi qu'un resultat on tombe sur un profil de joueur
-        if ($(data).find("h2").length) {
-            let pseudo = $(data).find("h2").text();
+        if ($j(data).find("h2").length) {
+            let pseudo = $j(data).find("h2").text();
             element.push({ value: pseudo, value_avec_html: pseudo, url: "Membre.php?Pseudo=" + pseudo });
         } else {
-            $(data).find(".simulateur:eq(0) tr").each((i, elt) => {
+            $j(data).find(".simulateur:eq(0) tr").each((i, elt) => {
                 // les joueurs et les alli ont 6 cellules
-                if ($(elt).find("td").length == 6) {
-                    let cellule = $(elt).find("td:eq(1) a"), lien = cellule.attr("href"), nom = cellule.text();
+                if ($j(elt).find("td").length == 6) {
+                    let cellule = $j(elt).find("td:eq(1) a"), lien = cellule.attr("href"), nom = cellule.text();
                     // c'est un joueur si on trouve un lien de profil cellule 2
                     if (joueur && lien.includes("Membre.php") && cptJ) {
                         element.push({ value: nom, value_avec_html: nom, url: "Membre.php?Pseudo=" + nom });
@@ -128671,7 +128969,7 @@ class Utils {
                     }
                     // c'est une alliance
                     if (alliance && lien.includes("classementAlliance.php") && cptA) {
-                        let tag = $(elt).find("td:eq(0)").text();
+                        let tag = $j(elt).find("td:eq(0)").text();
                         element.push({ value: nom, value_avec_html: `<span style="white-space:nowrap;"><strong>${tag}</strong> ${nom}</span>`, tag: tag, url: "classementAlliance.php?alliance=" + tag });
                         cptA--;
                     }
@@ -129818,7 +130116,7 @@ Utils.register(class Logger {
                     }
                     logger.posterLogs(errorObj).then(postes => {
                         if (postes) {
-                            $.toast({ ...TOAST_INFO, text: "Erreur technique transmise automatiquement." });
+                            $j.toast({ ...TOAST_INFO, text: "Erreur technique transmise automatiquement." });
                         }
                     }).catch(e => {
                         if (console._error) {
@@ -132532,7 +132830,7 @@ Utils.register(class AccesForum {
     * @private
     */
     static #creerSection(nomSection) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132552,7 +132850,7 @@ Utils.register(class AccesForum {
     static async creerSectionEtRetournerId(nomSection) {
         try {
             const data = await AccesForum.#creerSection(nomSection);
-            const response = $("<div/>").append($(data).find("cmd:eq(1)").html());
+            const response = $j("<div/>").append($j(data).find("cmd:eq(1)").html());
             const elementSection = response.find(`input[value='${nomSection}']`);
 
             if (elementSection.length) {
@@ -132572,7 +132870,7 @@ Utils.register(class AccesForum {
     * Modifie une section forum.
     */
     static modifierSection(id, nomSection, categorie = "cache") {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132593,7 +132891,7 @@ Utils.register(class AccesForum {
     static #consulterSection(id) {
         const timerName = `consulterSection-${id}`;
         // console.time(timerName);
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132625,14 +132923,14 @@ Utils.register(class AccesForum {
     static async recupererSujetsSection(idSection) {
         try {
             const dataSection = await AccesForum.#consulterSection(idSection);
-            const responseSection = $(dataSection).find("cmd:eq(1)").text();
+            const responseSection = $j(dataSection).find("cmd:eq(1)").text();
 
             if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error(`[AccesForum][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
                 return { sujets: [], titreSection: null };
             }
 
-            const htmlDoc = $("<div/>").append(responseSection);
+            const htmlDoc = $j("<div/>").append(responseSection);
 
             // Extraction du titre de la section (présent dans le <span> du 2ème <th> du tableau)
             const sectionTitleElement = htmlDoc.find('table.tab_triable tr.alt th:nth-child(2) span:first-child');
@@ -132642,12 +132940,12 @@ Utils.register(class AccesForum {
             const sujets = [];
 
             sujetElements.each((i, elt) => {
-                const titreSujet = $(elt).find("td:eq(1)").text();
-                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
+                const titreSujet = $j(elt).find("td:eq(1)").text();
+                const dateDerniereActiviteText = $j(elt).find("td:eq(2)").text().trim();
                 const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
                 const datePartToParse = dateMatch ? dateMatch[1] : '';
                 let id = null;
-                const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                const onclickAttr = $j(elt).find("a.topic_forum").attr("onclick");
                 if (onclickAttr) {
                     const match = onclickAttr.match(/\d+/);
                     if (match) {
@@ -132677,7 +132975,7 @@ Utils.register(class AccesForum {
     * @private
     */
     static #creerSujet(id, nomSujet, contenu = " ", type = "normal") {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132700,21 +132998,21 @@ Utils.register(class AccesForum {
     static async creerSujetEtRetournerId(id, nomSujet, contenu = " ", type = "normal") {
         try {
             const data = await AccesForum.#creerSujet(id, nomSujet, contenu, type);
-            const response = $(data).find("cmd:eq(1)").text();
+            const response = $j(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error("[AccesForum][creerSujetEtRetournerId] Impossible de récupérer le contenu de la section après la création du sujet.");
                 return null;
             }
 
-            const sujetElements = $("<div/>").append(response).find("#form_cat tr:gt(0)");
+            const sujetElements = $j("<div/>").append(response).find("#form_cat tr:gt(0)");
             let idSujet = null;
 
             sujetElements.each((i, elt) => {
-                const titreSujet = $(elt).find("td:eq(1)").text();
+                const titreSujet = $j(elt).find("td:eq(1)").text();
                 // Use startsWith for a more robust comparison
                 if (titreSujet.startsWith(nomSujet)) {
-                    const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                    const onclickAttr = $j(elt).find("a.topic_forum").attr("onclick");
                     if (onclickAttr) {
                         const match = onclickAttr.match(/\d+/);
                         if (match) {
@@ -132743,7 +133041,7 @@ Utils.register(class AccesForum {
      * @param {number} idSujet - ID du sujet.
      */
     static async modifierSujet(idSujet, nomSujet, contenu = " ") {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132766,7 +133064,7 @@ Utils.register(class AccesForum {
     static #consulterSujet(id) {
         const timerName = `#consulterSujet-${id}`;
         // console.time(timerName);
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132788,26 +133086,26 @@ Utils.register(class AccesForum {
     static async consulterSujetAvecMessagesEtIds(idSujet) {
         try {
             const dataSujet = await AccesForum.#consulterSujet(idSujet);
-            const response = $(dataSujet).find("cmd:eq(1)").text();
+            const response = $j(dataSujet).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error("[AccesForum][consulterSujetAvecMessagesEtIds] Impossible de récupérer le contenu du sujet.");
                 return { titre: null, messages: null };
             }
 
-            const sujetHtml = $("<div/>").append(response);
+            const sujetHtml = $j("<div/>").append(response);
             const titre = sujetHtml.find("h2").text();
             const messageElements = sujetHtml.find(".messageForum");
             const messages = [];
 
             messageElements.each((i, elt) => {
-                const messageContent = $(elt).text();
+                const messageContent = $j(elt).text();
                 // Filtrer les messages qui ne contiennent que des espaces ou caractères invisibles
                 if (messageContent.trim().length === 0) {
                     return true;
                 }
 
-                const editLink = $(elt).find("a[onclick*='xajax_editMessage']");
+                const editLink = $j(elt).find("a[onclick*='xajax_editMessage']");
                 let messageId = null;
 
                 if (editLink.length > 0) {
@@ -132836,7 +133134,7 @@ Utils.register(class AccesForum {
      */
     static async transfererSujet(idSujet, idSectionDestination, idSectionSource) {
         try {
-            $.ajax({
+            $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -132864,7 +133162,7 @@ Utils.register(class AccesForum {
      */
     static async supprimerSujet(idSujet, idSection) {
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -132882,7 +133180,7 @@ Utils.register(class AccesForum {
                 if (typeof data === "string") {
                     responseText = data;
                 } else {
-                    responseText = $(data).find("cmd").text() || $(data).text() || "";
+                    responseText = $j(data).find("cmd").text() || $j(data).text() || "";
                 }
             }
 
@@ -132902,7 +133200,7 @@ Utils.register(class AccesForum {
     * Envoie un message.
     */
     static #envoyerMessage(idSujet, message) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -132923,19 +133221,19 @@ Utils.register(class AccesForum {
     static async envoyerMessageEtRetournerId(idSujet, message) {
         try {
             const data = await AccesForum.#envoyerMessage(idSujet, message);
-            const response = $(data).find("cmd:eq(1)").text();
+            const response = $j(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error("[AccesForum][envoyerMessageEtRetournerId] Impossible de récupérer le contenu du sujet après l'envoi du message.");
                 return null;
             }
 
-            const messageElements = $("<div/>").append(response).find(".messageForum");
+            const messageElements = $j("<div/>").append(response).find(".messageForum");
             let idMessage = null;
 
             if (messageElements.length > 0) {
                 const lastMessageElement = messageElements.last();
-                const editLink = $(lastMessageElement).find("a[onclick*='xajax_editMessage']");
+                const editLink = $j(lastMessageElement).find("a[onclick*='xajax_editMessage']");
                 if (editLink.length > 0) {
                     const onclickAttr = editLink.attr('onclick');
                     const match = onclickAttr.match(/xajax_editMessage\((\d+)\)/);
@@ -132961,7 +133259,7 @@ Utils.register(class AccesForum {
      */
     static async modifierMessage(idMessage, nouveauContenu) {
         try {
-            $.ajax({
+            $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -132985,7 +133283,7 @@ Utils.register(class AccesForum {
  */
     static async supprimerMessage(idMessage) {
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -133000,7 +133298,7 @@ Utils.register(class AccesForum {
                 if (typeof data === "string") {
                     responseText = data;
                 } else {
-                    responseText = $(data).find("cmd").text() || $(data).text() || "";
+                    responseText = $j(data).find("cmd").text() || $j(data).text() || "";
                 }
             }
 
@@ -133057,23 +133355,23 @@ Utils.register(class ActionSecurisee {
 
                 // Si la transaction s'est déroulée avec succès
                 // Cas 1 : Si c'est un bouton de soumission ou un élément d'un formulaire qui doit soumettre le formulaire parent
-                const $form = $(element).closest('form');
-                if ($form.length > 0 && ($(element).is(':submit') || $(element).attr('type') === 'submit' || $(element).is('button:not([type])') || $(element).is("input[name='convoi']"))) {
+                const $form = $j(element).closest('form');
+                if ($form.length > 0 && ($j(element).is(':submit') || $j(element).attr('type') === 'submit' || $j(element).is('button:not([type])') || $j(element).is("input[name='convoi']"))) {
                     console.log("[ActionSecurisee] Soumission du formulaire après la fin de la transaction.");
 
                     // Si le bouton de soumission cliqué a un name et une valeur, on les ajoute sous forme d'input caché pour que le serveur les reçoive !
-                    const name = $(element).attr('name');
-                    const value = $(element).attr('value') || $(element).text() || '';
+                    const name = $j(element).attr('name');
+                    const value = $j(element).attr('value') || $j(element).text() || '';
                     if (name) {
                         $form.find(`input[type='hidden'][name='${name}']`).remove();
-                        $form.append($(`<input type="hidden" name="${name}" />`).val(value));
+                        $form.append($j(`<input type="hidden" name="${name}" />`).val(value));
                     }
 
                     $form.get(0).submit();
                 }
                 // Cas 2 : Si c'est un lien <a> qui doit naviguer vers son href
-                else if (evenement === 'click' && $(element).is('a')) {
-                    const href = $(element).attr('href');
+                else if (evenement === 'click' && $j(element).is('a')) {
+                    const href = $j(element).attr('href');
                     if (href && href !== '#' && !href.startsWith('javascript:')) {
                         console.log("[ActionSecurisee] Navigation vers le lien après la transaction :", href);
                         await logger.attendreFinPosteLogs();
@@ -133091,7 +133389,7 @@ Utils.register(class ActionSecurisee {
         const stack = new Error().stack || "";
         const isNested = (stack.match(/onActionSecuriseeHandler/g) || []).length >= 2;
         if (ActionSecurisee.actionEnCours && !isNested) {
-            $.toast({
+            $j.toast({
                 ...TOAST_INFO,
                 heading: "Action en cours",
                 text: "Une action sécurisée est déjà en cours. Veuillez patienter.",
@@ -133123,7 +133421,7 @@ Utils.register(class ActionSecurisee {
             const conditionsOk = await fonctionnalite.verifierConditionsInitiales(true);
             if (!conditionsOk) {
                 const debutGestionErreur = moment();
-                $.toast({
+                $j.toast({
                     ...TOAST_INFO,
                     heading: "Action bloquée",
                     text: "Vos droits, votre appartenance à l'alliance ou la configuration du forum ont été modifiés. La page va être rechargée.",
@@ -133143,7 +133441,7 @@ Utils.register(class ActionSecurisee {
             const empreinteFinale = await fonctionnalite._prendreEmpreinteGlobale(signatures);
             if (empreinteInitiale !== empreinteFinale) {
                 const debutGestionErreur = moment();
-                $.toast({
+                $j.toast({
                     ...TOAST_INFO,
                     heading: "Données obsolètes",
                     text: "Les données ont été modifiées par un autre utilisateur. L'affichage va être actualisé.",
@@ -133157,12 +133455,12 @@ Utils.register(class ActionSecurisee {
             }
 
             // 8. Tout est OK, on redéclenche l'événement avec le flag isSecured
-            $(element).trigger(evenement, [{ isSecured: true }]);
+            $j(element).trigger(evenement, [{ isSecured: true }]);
 
         } catch (error) {
             console.error("[onActionSecurisee] Erreur lors de la sécurisation de l'action:", error);
             const debutGestionErreur = moment();
-            $.toast({
+            $j.toast({
                 ...TOAST_ERROR,
                 heading: "Erreur de synchronisation",
                 text: "Une erreur est survenue lors de la vérification des données. La page va être rechargée par sécurité.",
@@ -133182,7 +133480,7 @@ Utils.register(class ActionSecurisee {
  * @param {FonctionnaliteAlliance} fonctionnalite - L'instance de la fonctionnalité parente.
  * @param {Function} callback - La fonction à exécuter si les données sont à jour.
  */
-$.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
+$j.fn.onActionSecurisee = function (evenement, fonctionnalite, callback) {
     return this.on(evenement, function onActionSecuriseeHandler(e, data) {
         return ActionSecurisee.traiter(this, evenement, fonctionnalite, callback, e, data);
     });
@@ -133233,7 +133531,7 @@ Utils.register(class Boite {
     * @method desctructor
     */
     destructor() {
-        $("#" + this._id).remove();
+        $j("#" + this._id).remove();
     }
     /**
     * Affiche la boite.
@@ -133242,15 +133540,15 @@ Utils.register(class Boite {
     */
     async afficher() {
         let bCreate = false;
-        if (!$("#" + this._id).length) {
-            $("body").append(`<div id='${this._id}' class='o_content'><span class='o_titre'>${this._titre}</span><div id="${this._id}Close" class='o_close'><b/><b/><b/><b/></div>${this._content}</div>`);
-            $("#" + this._id)
+        if (!$j("#" + this._id).length) {
+            $j("body").append(`<div id='${this._id}' class='o_content'><span class='o_titre'>${this._titre}</span><div id="${this._id}Close" class='o_close'><b/><b/><b/><b/></div>${this._content}</div>`);
+            $j("#" + this._id)
                 .css({ top: (Math.random() * 100 + 50) + "px", left: (Math.random() * 250 + 100) + "px" })
                 .draggable({ handle: ".o_titre", stack: "div" });
             bCreate = true;
         }
-        $("#" + this._id).show(EFFET[monProfilUtilisateur.parametre["boiteShow"].valeur].toLowerCase(), () => {
-            $(".o_content").css({
+        $j("#" + this._id).show(EFFET[monProfilUtilisateur.parametre["boiteShow"].valeur].toLowerCase(), () => {
+            $j(".o_content").css({
                 "background-color": monProfilUtilisateur.parametre["couleur1"].valeur,
                 "border-color": monProfilUtilisateur.parametre["couleur3"].valeur
             });
@@ -133264,7 +133562,7 @@ Utils.register(class Boite {
     * @private
     */
     masquer() {
-        $("#" + this._id).hide(EFFET[monProfilUtilisateur.parametre["boiteHide"].valeur].toLowerCase());
+        $j("#" + this._id).hide(EFFET[monProfilUtilisateur.parametre["boiteHide"].valeur].toLowerCase());
         return this;
     }
     /**
@@ -133273,21 +133571,21 @@ Utils.register(class Boite {
     * @method css
     */
     css() {
-        $(".o_titre").css("color", monProfilUtilisateur.parametre["couleurTitre"].valeur);
-        $(".o_content").css({
+        $j(".o_titre").css("color", monProfilUtilisateur.parametre["couleurTitre"].valeur);
+        $j(".o_content").css({
             "background-color": monProfilUtilisateur.parametre["couleur1"].valeur,
             "border-color": monProfilUtilisateur.parametre["couleur3"].valeur
         });
-        $(".o_close b:nth-child(1)").css("border-top-color", monProfilUtilisateur.parametre["couleur1"].valeur);
-        $(".o_close b:nth-child(2)").css("border-left-color", monProfilUtilisateur.parametre["couleur1"].valeur);
-        $(".o_close b:nth-child(3)").css("border-bottom-color", monProfilUtilisateur.parametre["couleur1"].valeur);
-        $(".o_close b:nth-child(4)").css("border-right-color", monProfilUtilisateur.parametre["couleur1"].valeur);
-        $(".o_close").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur).hover(
-            (e) => { $(e.currentTarget).animate({ "background-color": "#bb3333" }, 400); },
-            (e) => { $(e.currentTarget).animate({ "background-color": monProfilUtilisateur.parametre["couleur2"].valeur }, 400); }
+        $j(".o_close b:nth-child(1)").css("border-top-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $j(".o_close b:nth-child(2)").css("border-left-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $j(".o_close b:nth-child(3)").css("border-bottom-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $j(".o_close b:nth-child(4)").css("border-right-color", monProfilUtilisateur.parametre["couleur1"].valeur);
+        $j(".o_close").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur).hover(
+            (e) => { $j(e.currentTarget).animate({ "background-color": "#bb3333" }, 400); },
+            (e) => { $j(e.currentTarget).animate({ "background-color": monProfilUtilisateur.parametre["couleur2"].valeur }, 400); }
         );
-        $(".o_tabs > .ui-widget-header").css("border-bottom-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content p, .o_content .o_label, .o_content label, .o_content table").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_tabs > .ui-widget-header").css("border-bottom-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content p, .o_content .o_label, .o_content label, .o_content table").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         return this;
     }
     /**
@@ -133296,7 +133594,7 @@ Utils.register(class Boite {
     * @method event
     */
     event() {
-        $("#" + this._id + "Close").click((e) => { this.masquer(); });
+        $j("#" + this._id + "Close").click((e) => { this.masquer(); });
         return this;
     }
 });
@@ -133359,39 +133657,39 @@ Utils.register(class Dock {
     * @method afficher
     */
     async afficher() {
-        $("body").append(this._html);
-        $(".o_toolbarDroite .o_toolbarItem").tooltip({
+        $j("body").append(this._html);
+        $j(".o_toolbarDroite .o_toolbarItem").tooltip({
             tooltipClass: "warning-tooltip",
-            content: function () { return $(this).prop("title"); },
+            content: function () { return $j(this).prop("title"); },
             position: { my: "left+10 center", at: "right center" },
             hide: { effect: "fade", duration: 10 }
         });
-        $(".o_toolbarBas .o_toolbarItem").tooltip({
+        $j(".o_toolbarBas .o_toolbarItem").tooltip({
             tooltipClass: "warning-tooltip",
-            content: function () { return $(this).prop("title"); },
+            content: function () { return $j(this).prop("title"); },
             position: { my: "center top", at: "center bottom+10" },
             hide: { effect: "fade", duration: 10 }
         });
         // selon la pref on cache l'element
         if (monProfilUtilisateur.parametre["dockVisible"].valeur == "0") {
-            $(document).mousemove((e) => {
+            $j(document).mousemove((e) => {
                 if (monProfilUtilisateur.parametre["dockPosition"].valeur == "1") { // boite en bas
-                    if ($(window).height() - e.pageY < 60)
-                        $("#o_toolbarOutiiil").slideDown(500);
+                    if ($j(window).height() - e.pageY < 60)
+                        $j("#o_toolbarOutiiil").slideDown(500);
                     else
-                        $("#o_toolbarOutiiil").slideUp(500);
+                        $j("#o_toolbarOutiiil").slideUp(500);
                 } else { // boite à droite
-                    if ($(window).width() - e.pageX < 60)
-                        $("#o_toolbarOutiiil").show("slide", { direction: "right" }, 500);
+                    if ($j(window).width() - e.pageX < 60)
+                        $j("#o_toolbarOutiiil").show("slide", { direction: "right" }, 500);
                     else
-                        $("#o_toolbarOutiiil").hide("slide", { direction: "right" }, 500);
+                        $j("#o_toolbarOutiiil").hide("slide", { direction: "right" }, 500);
                 }
             });
         }
         // evenement sur le clic d'un item de la boite d'outil
-        $(".o_toolbarItem").click(async (e) => {
+        $j(".o_toolbarItem").click(async (e) => {
             // affichage de la boite
-            switch ($(e.currentTarget).find("span").attr("id")) {
+            switch ($j(e.currentTarget).find("span").attr("id")) {
                 case "o_itemPonte":
                     await this._boitePonte.afficher();
                     break;
@@ -134952,7 +135250,7 @@ Utils.register(class ObjetForum {
         const proprietes = this.constructor.recupererProprietesAffichage(ordreAffichage);
 
         // 3. Construction du corps jQuery
-        const $tr = $('<tr>');
+        const $tr = $j('<tr>');
 
         ordreAffichage.forEach(nomParametre => {
             const valeur = donnees[nomParametre];
@@ -134974,7 +135272,7 @@ Utils.register(class ObjetForum {
             };
 
             const ajouterCellule = (val, nom) => {
-                const $td = $('<td>');
+                const $td = $j('<td>');
                 const contenu = formaterValeur(val, nom);
                 if (contenu instanceof jQuery || contenu instanceof Element) {
                     $td.append(contenu);
@@ -135692,7 +135990,7 @@ Utils.register(class GestionnaireSections {
         try {
             let html;
             try {
-                const data = await $.ajax({
+                const data = await $j.ajax({
                     type: "post",
                     url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                     dataType: "text",
@@ -135714,7 +136012,7 @@ Utils.register(class GestionnaireSections {
                 return false;
             }
 
-            const element = $("<div/>").html(html);
+            const element = $j("<div/>").html(html);
             const allForumSpans = element.find("span[class^='forum']");
 
             // Récupérer les visibilités réelles via la zone admin (options du forum)
@@ -135722,7 +136020,7 @@ Utils.register(class GestionnaireSections {
             const droitsFourmizzz = await monProfilJoueur.lire('Droits Fourmizzz');
             if (droitsFourmizzz['Administrer le forum']) {
                 try {
-                    const data = await $.ajax({
+                    const data = await $j.ajax({
                         type: "post",
                         url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                         data: {
@@ -135731,8 +136029,8 @@ Utils.register(class GestionnaireSections {
                             "xajaxr": moment().valueOf()
                         }
                     });
-                    $(data).find("cmd").each(function () {
-                        const txt = $(this).text();
+                    $j(data).find("cmd").each(function () {
+                        const txt = $j(this).text();
                         if (txt.includes("Sections du Forum") || txt.includes("id=\"cat_forum\"")) {
                             optionsHtml = txt;
                         }
@@ -135744,9 +136042,9 @@ Utils.register(class GestionnaireSections {
 
             const categoriesOptions = {};
             if (optionsHtml) {
-                const $options = $("<div/>").html(optionsHtml);
+                const $options = $j("<div/>").html(optionsHtml);
                 $options.find("form[id^='cat']").each(function () {
-                    const $form = $(this);
+                    const $form = $j(this);
                     const idCat = $form.attr("id").replace("cat", "");
                     const nomSection = $form.find("input[name='nom']").val();
                     const actualVisibility = $form.find("select[name='type']").val();
@@ -135771,7 +136069,7 @@ Utils.register(class GestionnaireSections {
 
                 if (storedId) {
                     const currentSectionElement = allForumSpans.filter(function () {
-                        const classMatch = $(this).attr("class").match(/\d+/);
+                        const classMatch = $j(this).attr("class").match(/\d+/);
                         return classMatch && classMatch[0] == storedId;
                     });
 
@@ -135798,7 +136096,7 @@ Utils.register(class GestionnaireSections {
 
                 if (!sectionActuelleValide) {
                     const exactMatchElement = allForumSpans.filter(function () {
-                        return $(this).text().trim() === nomSection;
+                        return $j(this).text().trim() === nomSection;
                     });
 
                     if (exactMatchElement.length) {
@@ -135849,7 +136147,7 @@ Utils.register(class GestionnaireSections {
             }
 
             if (idsUpdated) {
-                $.toast({ ...TOAST_SUCCESS, text: "IDs des sections forum Outiiil mis à jour." });
+                $j.toast({ ...TOAST_SUCCESS, text: "IDs des sections forum Outiiil mis à jour." });
             }
             return true;
         } finally {
@@ -136366,7 +136664,7 @@ Utils.register(class GestionnaireVersions {
                     objet.constructor.PARAMETRES_OBJET = convertirIdsEnClasses(historiqueTronque);
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
-                $.toast({
+                $j.toast({
                     heading: 'Mise à jour requise',
                     text: "Votre version d'Outiiil est obsolète pour cet objet du forum. Veuillez actualiser la page (F5) pour appliquer la dernière mise à jour.",
                     icon: 'warning',
@@ -136471,7 +136769,7 @@ Utils.register(class GestionnaireVersions {
             // Scénario 1 (Extension obsolète)
             if (compVersion < 0 || compFormatHistory < 0) {
                 console.warn(`[GestionnaireVersions.verifierCompatibiliteParametre] Extension obsolète. Le paramètre ${parametre.constructor.name} nécessite une mise à jour.`);
-                $.toast({
+                $j.toast({
                     heading: 'Mise à jour requise',
                     text: "Votre version d'Outiiil est obsolète pour ce paramètre du forum. Veuillez actualiser la page (F5) pour appliquer la dernière mise à jour.",
                     icon: 'warning',
@@ -136866,7 +137164,7 @@ Utils.register(class FonctionnaliteAlliance {
                 return await callback();
             }
 
-            $.toast({
+            $j.toast({
                 ...TOAST_WARNING,
                 text: "Une opération est déjà en cours, veuillez patienter."
             });
@@ -137488,7 +137786,7 @@ Utils.register(class Transaction {
             if (!estLienInterneVide && !ouvreDansNouvelOnglet) {
                 e.preventDefault();
                 e.stopPropagation();
-                $.toast({
+                $j.toast({
                     ...TOAST_WARNING,
                     text: "Navigation bloquée : une transaction est en cours."
                 });
@@ -137504,7 +137802,7 @@ Utils.register(class Transaction {
         if (this.#vientDeLaTransaction()) return;
         e.preventDefault();
         e.stopPropagation();
-        $.toast({
+        $j.toast({
             ...TOAST_WARNING,
             text: "Action bloquée : attendez la fin de la transaction pour soumettre des formulaires."
         });
@@ -137529,9 +137827,9 @@ Utils.register(class Transaction {
     async run(callback) {
         try {
             // Active les bloqueurs pour cette transaction
-            window.addEventListener('beforeunload', this.#bloquerFermetureEtRafraichissement);
-            document.addEventListener('click', this.#intercepterClicsDestructeurs, true);
-            document.addEventListener('submit', this.#intercepterSoumissionsFormulaire, true);
+            window.addEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
+            document.addEventListener('click', this.intercepterClicsDestructeurs, true);
+            document.addEventListener('submit', this.intercepterSoumissionsFormulaire, true);
 
             const resultat = await callback();
 
@@ -137542,7 +137840,7 @@ Utils.register(class Transaction {
                 // }
                 const etatCollision = await this.verifierEtatForum();
                 if (etatCollision === 'COLLISION_TOTAL') {
-                    $.toast({
+                    $j.toast({
                         ...TOAST_ERROR,
                         heading: "Collision totale détectée",
                         text: "Les modifications forum ont été entièrement altérées ou supprimées par un tiers, invalidant l'opération. La page va être rechargée.",
@@ -137555,7 +137853,7 @@ Utils.register(class Transaction {
                     setTimeout(() => location.href = location.href, tempsRestant);
                     return;
                 } else if (etatCollision === 'COLLISION_INCOHERENT') {
-                    $.toast({
+                    $j.toast({
                         ...TOAST_ERROR,
                         heading: "Collision partielle détectée",
                         text: "Une collision partielle a été détectée, invalidant l'opération. Annulation des opérations effectuées et rechargement de la page.",
@@ -137586,7 +137884,7 @@ Utils.register(class Transaction {
                 console.error(`[${this.constructor.name}][executerTransaction] Échec critique lors du rollback de la transaction:`, rollbackError);
             }
             await this.executerActionsApresAnnuler();
-            $.toast({
+            $j.toast({
                 ...TOAST_ERROR,
                 text: "Une erreur est survenue lors de l'opération. Les modifications ont été annulées. La page va être rechargée.",
                 hideAfter: 3000
@@ -137597,9 +137895,9 @@ Utils.register(class Transaction {
             setTimeout(() => location.href = location.href, tempsRestant);
             throw error;
         } finally {
-            window.removeEventListener('beforeunload', this.#bloquerFermetureEtRafraichissement);
-            document.removeEventListener('click', this.#intercepterClicsDestructeurs, true);
-            document.removeEventListener('submit', this.#intercepterSoumissionsFormulaire, true);
+            window.removeEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
+            document.removeEventListener('click', this.intercepterClicsDestructeurs, true);
+            document.removeEventListener('submit', this.intercepterSoumissionsFormulaire, true);
         }
     }
 
@@ -137779,7 +138077,7 @@ Utils.register(class Transaction {
             for (const convoi of convoisCrees) {
                 const idConvoi = await convoi.lire('Id Convoi');
                 if (convoisPageIds.includes(idConvoi)) {
-                    const $link = $(`a[href*="commerce.php?annuler=${idConvoi}"]`);
+                    const $link = $j(`a[href*="commerce.php?annuler=${idConvoi}"]`);
                     console.log(`[Transaction] Clic sur le lien d'annulation pour le convoi ID ${idConvoi}`);
                     $link.get(0).click();
                 }
@@ -138167,14 +138465,14 @@ Utils.register(class Alliance {
     * @method getDescription
     */
     getDescription() {
-        return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php?alliance=" + this._tag });
+        return $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php?alliance=" + this._tag });
     }
     /**
     *
     */
     getHistorique(id) {
         // Récuperation des données
-        $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/team/" + this._tag, (data) => {
+        $j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/team/" + this._tag, (data) => {
             // Creation du graphique
             let donnees = JSON.parse(data);
             let chart = new Highcharts.Chart({
@@ -138195,7 +138493,7 @@ Utils.register(class Alliance {
                     crosshairs: [true],
                     formatter: function () {
                         let s = Highcharts.dateFormat("%A %e %b", this.x);
-                        $.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this.y).format() + "</b>"; });
+                        $j.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this.y).format() + "</b>"; });
                         return s;
                     },
                     shared: true,
@@ -138227,16 +138525,16 @@ Utils.register(class Alliance {
                 ]
             });
 
-            $("span[id^=o_selectHisto]").click((e) => {
-                let chart = $("#o_chartAlliance").highcharts(), histo = $(e.currentTarget).attr("data");
-                $("span[id^=o_selectHisto]").removeClass("active");
-                $(e.currentTarget).addClass("active");
+            $j("span[id^=o_selectHisto]").click((e) => {
+                let chart = $j("#o_chartAlliance").highcharts(), histo = $j(e.currentTarget).attr("data");
+                $j("span[id^=o_selectHisto]").removeClass("active");
+                $j(e.currentTarget).addClass("active");
                 if (histo == "all")
                     chart.xAxis[0].update({ min: moment("2016-01-01").valueOf() });
                 else
                     chart.xAxis[0].update({ min: moment().subtract(histo, "days").valueOf() });
-                $("#o_bouton_range span.active").addClass("ligne_paire");
-                $("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
+                $j("#o_bouton_range span.active").addClass("ligne_paire");
+                $j("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
             });
         });
         return this;
@@ -138245,24 +138543,24 @@ Utils.register(class Alliance {
     *
     */
     getLigneRadar(radar, id, indice) {
-        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
+        $j(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${this._tag}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td class="left"><a class="gras" href="classementAlliance.php?alliance=${this._tag}">${this._tag}</a></td><td id="o_terrain_${this._tag}" class="right reduce" title="">${numeral(this._terrain).format()}</td></tr>`);
         // event
-        $("#o_maj_" + this._tag).click(async (e) => {
+        $j("#o_maj_" + this._tag).click(async (e) => {
             e.preventDefault(); // Empêche le rechargement de la page
             console.log(`[Alliance.getLigneRadar] Clic sur le bouton de rafraîchissement pour alliance: ${this._tag}`);
-            let oldTerrain = numeral($("#o_terrain_" + this._tag).text()).value();
-            $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
+            let oldTerrain = numeral($j("#o_terrain_" + this._tag).text()).value();
+            $j({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $j(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
             await this.getDescription().then(async (data) => {
                 this._terrain = 0;
-                $(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => { this._terrain += numeral($(elt).find("td:eq(4)").text()).value(); });
+                $j(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => { this._terrain += numeral($j(elt).find("td:eq(4)").text()).value(); });
                 let diff = this._terrain - oldTerrain;
                 if (diff) {
-                    $("#o_terrain_" + this._tag).text(numeral(this._terrain).format())
+                    $j("#o_terrain_" + this._tag).text(numeral(this._terrain).format())
                         .effect("highlight", { color: (diff > 0 ? "#458D58" : "#8D4545") }, 1000)
                         .attr("title", numeral(diff).format())
                         .tooltip({
                             position: { my: "left+10 center", at: "right center" },
-                            content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $("#o_terrain_" + this._tag).attr("title") : $("#o_terrain_" + this._tag).attr("title")} cm²</span>`,
+                            content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $j("#o_terrain_" + this._tag).attr("title") : $j("#o_terrain_" + this._tag).attr("title")} cm²</span>`,
                             hide: { effect: "fade", duration: 10 },
                             tooltipClass: "warning-tooltip ui-tooltip-right"
                         }).tooltip("open");
@@ -138270,7 +138568,7 @@ Utils.register(class Alliance {
                 }
             }).catch(error => {
                 console.error(`[Alliance.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${this._tag}:`, error);
-                $.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement de l'alliance ${this._tag}.` });
+                $j.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement de l'alliance ${this._tag}.` });
             });
             console.log(`[Alliance.getLigneRadar] Fin du clic sur le bouton de rafraîchissement pour alliance: ${this._tag}.`);
             return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
@@ -138281,7 +138579,7 @@ Utils.register(class Alliance {
     *
     */
     static rechercher(elt) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php",
             data: {
@@ -138398,21 +138696,21 @@ Utils.register(class Armee {
 	* @method getArmee
 	*/
 	getArmee() {
-		return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Armee.php" });
+		return $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Armee.php" });
 	}
 	/**
 	*
 	*/
 	chargeData(html) {
 		this._unite.fill(0);
-		let $html = $(typeof html === 'string' ? $.parseHTML(html) : html);
+		let $html = $j(typeof html === 'string' ? $j.parseHTML(html) : html);
 		$html.find(".simulateur tr[align='center']:lt(15)").each((i, elt) => {
-			let label = $(elt).find(".pas_sur_telephone").text().replace(/\s/g, ' ').trim();
+			let label = $j(elt).find(".pas_sur_telephone").text().replace(/\s/g, ' ').trim();
 			if (label) {
 				let index = NOM_UNITE.indexOf(label);
 				if (index != -1) {
-					$(elt).find("td span").each((i2, elt2) => {
-						var val = parseInt($(elt2).text().replace(/[^0-9]/g, ''));
+					$j(elt).find("td span").each((i2, elt2) => {
+						var val = parseInt($j(elt2).text().replace(/[^0-9]/g, ''));
 						if (!isNaN(val))
 							this._unite[index] += val;
 					});
@@ -138923,12 +139221,12 @@ Utils.register(class Armee {
 	*/
 	async simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, reste) {
 		let iTabChasse = await this.#calculChasse(tdcDep, diffChasse, fixNB, fixHF, reste), dDiff = this.#calculDifficulte(tdcDep, iTabChasse["NB"], iTabChasse["HF"]), iTabPerte = await this.#calculPerte(RATIO_CHASSE.indexOf(parseFloat(diffChasse)), dDiff);
-		if ($("#o_chasseNbrAuto").is(':checked')) {
-			$("#o_chasseNbr").spinner("value", iTabChasse["NB"]);
+		if ($j("#o_chasseNbrAuto").is(':checked')) {
+			$j("#o_chasseNbr").spinner("value", iTabChasse["NB"]);
 			nbChasse = iTabChasse["NB"];
 		}
-		if ($("#o_chasseTDCRepAuto").is(':checked')) {
-			$("#o_chasseTDCRep").spinner("value", iTabChasse["HF"]);
+		if ($j("#o_chasseTDCRepAuto").is(':checked')) {
+			$j("#o_chasseTDCRep").spinner("value", iTabChasse["HF"]);
 			terrainChasse = iTabChasse["HF"];
 		}
 		let ratio = await this.#calculRatio(tdcDep, nbChasse, terrainChasse);
@@ -138963,11 +139261,11 @@ Utils.register(class Armee {
 			donnees["unite13"] = this.repartition[indice][12];
 			donnees["unite14"] = this.repartition[indice][7];
 			// Requete
-			$.post("http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php", donnees, (data) => {
+			$j.post("http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php", donnees, (data) => {
 				if (data.indexOf("La chasse est lancée.") > -1)
-					$("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='green'>${indice + 1}</td><td colspan='14' class='green'>La chasse est lancée.</td>`);
+					$j("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='green'>${indice + 1}</td><td colspan='14' class='green'>La chasse est lancée.</td>`);
 				else
-					$("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='red'>${indice + 1}</td><td colspan='14' class='red'>La chasse n'a pas pu être lancée.</td>`);
+					$j("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='red'>${indice + 1}</td><td colspan='14' class='red'>La chasse n'a pas pu être lancée.</td>`);
 				setTimeout(() => { this.envoyerChasse(terrainChasse, nbChasse, ++indice, intervalle, securite); }, intervalle);
 			});
 		} else // on a fini, on recharge la page
@@ -139160,7 +139458,7 @@ Utils.register(class Armee {
 				donnees["" + securite.split("=")[0]] = securite.split("=")[1];
 				donnees["ChoixArmee"] = "1";
 				donnees["lieu"] = "1"; //$("input[name=o_domeFlood]:checked").val() == "Oui" ? "2" : "1";
-				donnees["pseudoCible"] = $("input[name=pseudoCible]").val();
+				donnees["pseudoCible"] = $j("input[name=pseudoCible]").val();
 				donnees["unite1"] = this.repartition[indice][1];
 				donnees["unite2"] = this.repartition[indice][2];
 				donnees["unite3"] = this.repartition[indice][3];
@@ -139176,9 +139474,9 @@ Utils.register(class Armee {
 				donnees["unite13"] = this.repartition[indice][12];
 				donnees["unite14"] = this.repartition[indice][7];
 				// Requete
-				$.post("http://" + Utils.serveur + ".fourmizzz.fr/ennemie.php?Attaquer=" + idCible, donnees, (data) => {
-					let res = $("<div/>").append(data).find("center:last").text();
-					$("#o_simulationFlood tr:eq(" + (indice + 2) + ")").addClass(res.indexOf("Vos troupes sont en marche") == -1 ? "red" : "green");
+				$j.post("http://" + Utils.serveur + ".fourmizzz.fr/ennemie.php?Attaquer=" + idCible, donnees, (data) => {
+					let res = $j("<div/>").append(data).find("center:last").text();
+					$j("#o_simulationFlood tr:eq(" + (indice + 2) + ")").addClass(res.indexOf("Vos troupes sont en marche") == -1 ? "red" : "green");
 					setTimeout(() => { this.envoyerFlood(idCible, ++indice, securite); }, 1000);
 				});
 			} else // on passe à l'attaque suivante
@@ -139226,19 +139524,19 @@ Utils.register(class Armee {
 			unitesTotales[nom] = 0;
 		});
 
-		let parsedHtml = $("<div/>").append(html);
+		let parsedHtml = $j("<div/>").append(html);
 		parsedHtml.find(".simulateur tr[align='center']:lt(14)").each((i, elt) => {
-			let nomUnite = $(elt).find(".pas_sur_telephone").text();
+			let nomUnite = $j(elt).find(".pas_sur_telephone").text();
 			if (nomUnite && unitesTotales.hasOwnProperty(nomUnite)) {
 				// Somme des unités TDC (col 3), Dôme (cols 4 à n-2), Loge (col n-1)
 				// TDC
-				unitesTotales[nomUnite] += numeral($(elt).find("td:nth-child(3) span").text()).value() || 0;
+				unitesTotales[nomUnite] += numeral($j(elt).find("td:nth-child(3) span").text()).value() || 0;
 				// Dôme (plus complexe car nombre variable de colonnes)
-				$(elt).find("td").slice(3, -2).each((i2, elt2) => {
-					unitesTotales[nomUnite] += numeral($(elt2).text()).value() || 0;
+				$j(elt).find("td").slice(3, -2).each((i2, elt2) => {
+					unitesTotales[nomUnite] += numeral($j(elt2).text()).value() || 0;
 				});
 				// Loge
-				unitesTotales[nomUnite] += numeral($(elt).find("td:nth-last-child(2)").text()).value() || 0;
+				unitesTotales[nomUnite] += numeral($j(elt).find("td:nth-last-child(2)").text()).value() || 0;
 			}
 		});
 		// Retourner seulement les unités qui ont une quantité > 0 pour alléger
@@ -140477,7 +140775,7 @@ Utils.register(class Traceur {
     * @private
     */
     #envoyerData() {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://outiiil.fr/fzzz/traceur",
             data: {
@@ -140539,7 +140837,7 @@ Utils.register(class TraceurJoueur extends Traceur {
     * @private
     */
     #getClassement(numeroPage) {
-        return $.ajax({
+        return $j.ajax({
             type: "get",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classement2.php",
             data: {
@@ -140555,7 +140853,7 @@ Utils.register(class TraceurJoueur extends Traceur {
     * @private
     */
     #getInformation() {
-        return $.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/player`);
+        return $j.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/player`);
     }
     /**
     *
@@ -140575,26 +140873,26 @@ Utils.register(class TraceurJoueur extends Traceur {
                 Promise.all(promiseClassement).then((values) => {
                     this._data = {};
                     for (let i = 0; i < values.length; i++) {
-                        $("<div/>").append(values[i]["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
-                            let cellule1 = $(elt).find("td:eq(1)").text(), pseudo = cellule1.split(" (")[0], alliance = "";
+                        $j("<div/>").append(values[i]["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
+                            let cellule1 = $j(elt).find("td:eq(1)").text(), pseudo = cellule1.split(" (")[0], alliance = "";
                             // si le joueur à une alliance on extrait le tag
                             if (cellule1.includes("("))
                                 alliance = cellule1.split(" (")[1].split(")")[0];
                             // on enregistre un tablea avec [alliance, terrain, construction, recherche, trophée]
-                            this._data[pseudo] = alliance + ";" + numeral($(elt).find("td:eq(2)").text()).value() + ";" + ~~$(elt).find("td:eq(3)").text() + ";" + ~~$(elt).find("td:eq(4)").text() + ";" + numeral($(elt).find("td:eq(5)").text()).value();
+                            this._data[pseudo] = alliance + ";" + numeral($j(elt).find("td:eq(2)").text()).value() + ";" + ~~$j(elt).find("td:eq(3)").text() + ";" + ~~$j(elt).find("td:eq(4)").text() + ";" + numeral($j(elt).find("td:eq(5)").text()).value();
                         });
                     }
                     // on poste les données sur l'utilitaire
                     this.envoyerData().then((data) => {
                         let donnees = JSON.parse(data);
                         if (donnees.error == "0") {
-                            $.toast({ ...TOAST_INFO, text: "Traceur joueur mis à jour" });
+                            $j.toast({ ...TOAST_INFO, text: "Traceur joueur mis à jour" });
                             // lancement de la boucle
                             setTimeout(() => { this.tracer(); }, this._intervalle * 60000);
                         } else
-                            $.toast({ ...TOAST_ERROR, text: donnees.message });
+                            $j.toast({ ...TOAST_ERROR, text: donnees.message });
                     }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
+                        $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
                     });
                 });
             } else {
@@ -140607,8 +140905,8 @@ Utils.register(class TraceurJoueur extends Traceur {
     *
     */
     afficher(id) {
-        $(id).append(`<table id='o_infosTraceurJoueur'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Pseudo</th><th>Evènement</th></tr></thead></table>`);
-        $("#o_infosTraceurJoueur").DataTable({
+        $j(id).append(`<table id='o_infosTraceurJoueur'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Pseudo</th><th>Evènement</th></tr></thead></table>`);
+        $j("#o_infosTraceurJoueur").DataTable({
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             order: [[0, "desc"]],
@@ -140617,10 +140915,10 @@ Utils.register(class TraceurJoueur extends Traceur {
                 zeroRecords: "Aucune information trouvée"
             },
             rowCallback: (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
+                $j(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback: (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+                $j(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         this.#getInformation().then((data) => {
@@ -140629,10 +140927,10 @@ Utils.register(class TraceurJoueur extends Traceur {
                 for (let line of donnees.message.split("\n")) {
                     if (line) {
                         info = line.split(", ");
-                        rows.push($(`<tr><td>${info[0]}</td><td>${this.parseAlliance(this.parseJoueur(info[1]))}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
+                        rows.push($j(`<tr><td>${info[0]}</td><td>${this.parseAlliance(this.parseJoueur(info[1]))}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
                     }
                 }
-                $("#o_infosTraceurJoueur").DataTable().clear().rows.add(rows).draw();
+                $j("#o_infosTraceurJoueur").DataTable().clear().rows.add(rows).draw();
             }
         }, (jqXHR, textStatus, errorThrown) => {
             return false;
@@ -140666,7 +140964,7 @@ Utils.register(class TraceurAlliance extends Traceur {
     * @private
     */
     #getClassement(numeroPage) {
-        return $.ajax({
+        return $j.ajax({
             type: "get",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classement2.php",
             data: {
@@ -140682,7 +140980,7 @@ Utils.register(class TraceurAlliance extends Traceur {
     * @private
     */
     #getInformation() {
-        return $.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/team`);
+        return $j.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/team`);
     }
     /**
     *
@@ -140697,24 +140995,24 @@ Utils.register(class TraceurAlliance extends Traceur {
                 // recupérer des données
                 this.#getClassement(1).then((data) => {
                     this._data = {};
-                    $("<div/>").append(data["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
+                    $j("<div/>").append(data["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
                         // on enregistre un tablea avec [alliance, terrain, construction, recherche, trophée]
-                        this._data[$(elt).find("td:eq(1)").text()] = numeral($(elt).find("td:eq(2)").text()).value() + ";" + numeral($(elt).find("td:eq(3)").text()).value() + ";" + numeral($(elt).find("td:eq(4)").text()).value() + ";" + numeral($(elt).find("td:eq(5)").text()).value() + ";" + ~~$(elt).find("td:eq(6)").text();
+                        this._data[$j(elt).find("td:eq(1)").text()] = numeral($j(elt).find("td:eq(2)").text()).value() + ";" + numeral($j(elt).find("td:eq(3)").text()).value() + ";" + numeral($j(elt).find("td:eq(4)").text()).value() + ";" + numeral($j(elt).find("td:eq(5)").text()).value() + ";" + ~~$j(elt).find("td:eq(6)").text();
                     });
                     // on poste les données sur l'utilitaire
                     this.envoyerData().then((data) => {
                         let donnees = JSON.parse(data);
                         if (donnees.error == "0") {
-                            $.toast({ ...TOAST_INFO, text: "Traceur alliance mis à jour" });
+                            $j.toast({ ...TOAST_INFO, text: "Traceur alliance mis à jour" });
                             // lancement de la boucle
                             setTimeout(() => { this.tracer(); }, this._intervalle * 60000);
                         } else
-                            $.toast({ ...TOAST_ERROR, text: donnees.message });
+                            $j.toast({ ...TOAST_ERROR, text: donnees.message });
                     }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
+                        $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
                     });
                 }, (jqXHR, textStatus, errorThrown) => {
-                    $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencntrée lors de la récupération du classement alliance." });
+                    $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencntrée lors de la récupération du classement alliance." });
                 });
             } else {
                 setTimeout(() => { this.tracer(); }, tempsMAJ * 1000);
@@ -140726,8 +141024,8 @@ Utils.register(class TraceurAlliance extends Traceur {
     *
     */
     afficher(id) {
-        $(id).append(`<table id='o_infosTraceurAlliance'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Tag</th><th>Evènement</th></tr></thead></table>`);
-        $("#o_infosTraceurAlliance").DataTable({
+        $j(id).append(`<table id='o_infosTraceurAlliance'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Tag</th><th>Evènement</th></tr></thead></table>`);
+        $j("#o_infosTraceurAlliance").DataTable({
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             order: [[0, "desc"]],
@@ -140736,10 +141034,10 @@ Utils.register(class TraceurAlliance extends Traceur {
                 zeroRecords: "Aucune information trouvée"
             },
             rowCallback: (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
+                $j(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback: (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+                $j(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         this.#getInformation().then((data) => {
@@ -140748,10 +141046,10 @@ Utils.register(class TraceurAlliance extends Traceur {
                 for (let line of donnees.message.split("\n")) {
                     if (line) {
                         info = line.split(", ");
-                        rows.push($(`<tr><td>${info[0]}</td><td>${this.parseAlliance(info[1])}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
+                        rows.push($j(`<tr><td>${info[0]}</td><td>${this.parseAlliance(info[1])}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
                     }
                 }
-                $("#o_infosTraceurAlliance").DataTable().clear().rows.add(rows).draw();
+                $j("#o_infosTraceurAlliance").DataTable().clear().rows.add(rows).draw();
             }
         }, (jqXHR, textStatus, errorThrown) => {
             return false;
@@ -141080,7 +141378,7 @@ Utils.register(class BoiteComptePlus {
         let visible = localStorage.getItem("outiiil_boiteActive");
         if (!Utils.comptePlus) {
             // Ajout du contenue
-            $("#boiteComptePlus").replaceWith("<div id='boiteComptePlus' class='boite_compte_plus'><div class='titre_colonne_cliquable'><span class='titre_compte_plus'>Outiiil " + VERSION.substring(0, 2) + "<span class='reduce'>" + VERSION.substring(2) + "</span></span></div><div class='contenu_boite_compte_plus'><table " + (visible == null || visible == "C" ? "" : "style='display:none'") + ">"
+            $j("#boiteComptePlus").replaceWith("<div id='boiteComptePlus' class='boite_compte_plus'><div class='titre_colonne_cliquable'><span class='titre_compte_plus'>Outiiil " + VERSION.substring(0, 2) + "<span class='reduce'>" + VERSION.substring(2) + "</span></span></div><div class='contenu_boite_compte_plus'><table " + (visible == null || visible == "C" ? "" : "style='display:none'") + ">"
                 // Ligne ponte
                 + "<tr class='lien' title='Aller sur Reine'><td><a href='Reine.php'><div style='position:relative;height:27px;padding-left:5px;'><div class='mini_icone_ponte'/><div id='o_resteUnite' class='o_labelBoite'></div><div id='o_tempsUnite' class='o_labelTempsBoite'></div><div id='o_progressUnite'/></div></a></td></tr>"
                 // Ligne construction
@@ -141100,14 +141398,14 @@ Utils.register(class BoiteComptePlus {
             await this.majPonte()
             this.majConstruction().majRecherche().majAttaque().majConvoi().majChasse();
             // Formatage du title
-            $("#boiteComptePlus table tr").tooltip({
+            $j("#boiteComptePlus table tr").tooltip({
                 tooltipClass: "warning-tooltip",
-                content: function () { return $(this).prop("title"); },
+                content: function () { return $j(this).prop("title"); },
                 position: { my: "left+10 center", at: "right center" },
                 hide: { effect: "fade", duration: 10 }
             });
             // autocomplete sur le chams de recherche
-            $("#recherche").autocomplete({
+            $j("#recherche").autocomplete({
                 source: (request, response) => {
                     // requete pour autocomplete
                     Joueur.rechercher(request.term).then((data) => { response(Utils.extraitRecherche(data)); });
@@ -141121,11 +141419,11 @@ Utils.register(class BoiteComptePlus {
             // Button code removed from here
 
         } else
-            visible == null || visible == "C" ? "" : $("#boiteComptePlus .contenu_boite_compte_plus table:eq(0)").css('display', 'none');
+            visible == null || visible == "C" ? "" : $j("#boiteComptePlus .contenu_boite_compte_plus table:eq(0)").css('display', 'none');
         // effet highlight si du terrain est decouvert
-        let tooltipConso = $("<div/>").append($("#tableau_boite_info").next().text().split("content:")[1].split("})")[0]);
+        let tooltipConso = $j("<div/>").append($j("#tableau_boite_info").next().text().split("content:")[1].split("})")[0]);
         if (Utils.terrain * 48 != numeral(tooltipConso.find("td:eq(7)").text()).value() + numeral(tooltipConso.find("td:eq(8)").text()).value() && Utils.ouvrieres > Utils.terrain)
-            $("#boite_info_tdc .jauge").addClass("highlight_error");
+            $j("#boite_info_tdc .jauge").addClass("highlight_error");
     }
     /**
     * Met à jour les pontes si elles ne correspondent pas.
@@ -141134,8 +141432,8 @@ Utils.register(class BoiteComptePlus {
     */
     async majPonte() {
         if (this._ponte.length) {
-            $("#o_resteUnite").text(this._ponte[0].unite).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressUnite").progressbar({ value: (moment().valueOf() - moment(this._startPonte).valueOf()) * 100 / (moment(this._ponte[0].exp).valueOf() - moment(this._startPonte).valueOf()) });
+            $j("#o_resteUnite").text(this._ponte[0].unite).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressUnite").progressbar({ value: (moment().valueOf() - moment(this._startPonte).valueOf()) * 100 / (moment(this._ponte[0].exp).valueOf() - moment(this._startPonte).valueOf()) });
             // Ajout du title
             let table = "<table>", tmpExp = moment(this._ponte[0].exp), nombreU, tempsU;
             for (let i = 0; i < this._ponte.length; i++) {
@@ -141145,16 +141443,16 @@ Utils.register(class BoiteComptePlus {
                 table += `<tr><td class='gras right'>${(nombreU < 1000 ? nombreU : numeral(nombreU).format("0[.]00a"))}</td><td>${this._ponte[i].unite}</td><td>${moment(this._ponte[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             }
             table += "</table>";
-            $("#boiteComptePlus table tr:eq(0)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(0)").attr("title", table);
             // Si il reste moins d'une heure (on voit les secondes) on met dynamise
             let tempsR = moment(this._ponte[0].exp).diff(moment()) / 1000;
-            $("#o_tempsUnite").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsUnite").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsUnite");
-            if (tempsR <= 600) $("#o_progressUnite").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressUnite").addClass("highlight_success");
         } else {
-            $("#o_resteUnite").html("<span class='red_light'>Aucune ponte</span>");
-            $("#o_tempsUnite").text("");
-            $("#o_progressUnite").progressbar({ value: 0 });
+            $j("#o_resteUnite").html("<span class='red_light'>Aucune ponte</span>");
+            $j("#o_tempsUnite").text("");
+            $j("#o_progressUnite").progressbar({ value: 0 });
         }
         return this;
     }
@@ -141165,12 +141463,12 @@ Utils.register(class BoiteComptePlus {
     */
     majConstruction() {
         if (this._construction) {
-            $("#o_resteConstruction").text(this._construction).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressConstruction").progressbar({ value: (moment().valueOf() - moment(this._startConstruction).valueOf()) * 100 / (moment(this._expConstruction).valueOf() - moment(this._startConstruction).valueOf()) });
+            $j("#o_resteConstruction").text(this._construction).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressConstruction").progressbar({ value: (moment().valueOf() - moment(this._startConstruction).valueOf()) * 100 / (moment(this._expConstruction).valueOf() - moment(this._startConstruction).valueOf()) });
             let tempsR = moment(this._expConstruction).diff(moment()) / 1000;
-            $("#o_resteConstruction").after(`<div id='o_tempsConstruction' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
+            $j("#o_resteConstruction").after(`<div id='o_tempsConstruction' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsConstruction");
-            if (tempsR <= 600) $("#o_progressConstruction").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressConstruction").addClass("highlight_success");
         }
         return this;
     }
@@ -141181,12 +141479,12 @@ Utils.register(class BoiteComptePlus {
     */
     majRecherche() {
         if (this._recherche) {
-            $("#o_resteRecherche").text(this._recherche).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressRecherche").progressbar({ value: (moment().valueOf() - moment(this._startRecherche).valueOf()) * 100 / (moment(this._expRecherche).valueOf() - moment(this._startRecherche).valueOf()) });
+            $j("#o_resteRecherche").text(this._recherche).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressRecherche").progressbar({ value: (moment().valueOf() - moment(this._startRecherche).valueOf()) * 100 / (moment(this._expRecherche).valueOf() - moment(this._startRecherche).valueOf()) });
             let tempsR = moment(this._expRecherche).diff(moment()) / 1000;
-            $("#o_resteRecherche").after(`<div id='o_tempsRecherche' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
+            $j("#o_resteRecherche").after(`<div id='o_tempsRecherche' class='o_labelTempsBoite'>${Utils.shortcutTime(tempsR)}</div>`);
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsRecherche");
-            if (tempsR <= 600) $("#o_progressRecherche").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressRecherche").addClass("highlight_success");
         }
         return this;
     }
@@ -141197,22 +141495,22 @@ Utils.register(class BoiteComptePlus {
     */
     majAttaque() {
         if (this._attaque.length) {
-            $("#o_resteAttaque").text(this._attaque[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressAttaque").progressbar({ value: (moment().valueOf() - moment(this._startAttaque).valueOf()) * 100 / (moment(this._attaque[0].exp).valueOf() - moment(this._startAttaque).valueOf()) });
+            $j("#o_resteAttaque").text(this._attaque[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressAttaque").progressbar({ value: (moment().valueOf() - moment(this._startAttaque).valueOf()) * 100 / (moment(this._attaque[0].exp).valueOf() - moment(this._startAttaque).valueOf()) });
             // Ajout du title
             let table = "<table>";
             for (let i = 0, l = this._attaque.length; i < l; i++)
                 table += `<tr><td class='gras'>${this._attaque[i].cible}</td><td>&nbsp;</td><td>Retour le ${moment(this._attaque[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             table += "</table>";
-            $("#boiteComptePlus table tr:eq(4)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(4)").attr("title", table);
             let tempsR = moment(this._attaque[0].exp).diff(moment()) / 1000;
-            $("#o_tempsAttaque").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsAttaque").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsAttaque");
-            if (tempsR <= 600) $("#o_progressAttaque").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressAttaque").addClass("highlight_success");
         } else {
-            $("#o_resteAttaque").text("Aucune attaque");
-            $("#o_tempsAttaque").text("");
-            $("#o_progressAttaque").progressbar({ value: 0 });
+            $j("#o_resteAttaque").text("Aucune attaque");
+            $j("#o_tempsAttaque").text("");
+            $j("#o_progressAttaque").progressbar({ value: 0 });
         }
         return this;
     }
@@ -141223,22 +141521,22 @@ Utils.register(class BoiteComptePlus {
     */
     majConvoi() {
         if (this._convoi.length) {
-            $("#o_resteConvoi").text(this._convoi[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressConvoi").progressbar({ value: (moment().valueOf() - moment(this._startConvoi).valueOf()) * 100 / (moment(this._convoi[0].exp).valueOf() - moment(this._startConvoi).valueOf()) });
+            $j("#o_resteConvoi").text(this._convoi[0].cible).css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressConvoi").progressbar({ value: (moment().valueOf() - moment(this._startConvoi).valueOf()) * 100 / (moment(this._convoi[0].exp).valueOf() - moment(this._startConvoi).valueOf()) });
             // Ajout du title
             let table = "<table id='o_titleConvoi'>";
             for (let i = 0, l = this._convoi.length; i < l; i++)
                 table += `<tr><td>${this._convoi[i].sens ? "<img src='" + IMG_DOWN + "' alt='reception'/>" : "<img src='" + IMG_UP + "' alt='livraison'/>"}</td><td class='gras'>${this._convoi[i].cible}</td><td>&nbsp;</td><td class="right">${numeral(this._convoi[i].nou).format("0[.]00a")} <img alt="nourritures" src="images/icone/icone_pomme.png" height="17"></td><td class="right">${numeral(this._convoi[i].mat).format("0[.]00a")} <img alt="materiaux" src="images/icone/icone_bois.png" height="17"/></td><td>Retour le ${moment(this._convoi[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             table += "</table>";
-            $("#boiteComptePlus table tr:eq(5)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(5)").attr("title", table);
             let tempsR = moment(this._convoi[0].exp).diff(moment()) / 1000;
-            $("#o_tempsConvoi").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsConvoi").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsConvoi");
-            if (tempsR <= 600) $("#o_progressConvoi").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressConvoi").addClass("highlight_success");
         } else {
-            $("#o_resteConvoi").text("Aucune convoi");
-            $("#o_tempsConvoi").text("");
-            $("#o_progressConvoi").progressbar({ value: 0 });
+            $j("#o_resteConvoi").text("Aucune convoi");
+            $j("#o_tempsConvoi").text("");
+            $j("#o_progressConvoi").progressbar({ value: 0 });
         }
         return this;
     }
@@ -141256,18 +141554,18 @@ Utils.register(class BoiteComptePlus {
                 table += `<tr><td><span class="gras">${numeral(this._chasse[i].quantite).format()}</span> cm²</td><td>Retour le ${moment(this._chasse[i].exp).add(1, "minute").startOf("minute").format("D MMM YYYY à HH[h]mm")}</td></tr>`;
             }
             table += "</table>";
-            $("#o_resteChasse").text(numeral(total).format() + " cm²").css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
-            $("#o_progressChasse").progressbar({ value: (moment().valueOf() - moment(this._startChasse).valueOf()) * 100 / (moment(this._chasse[0].exp).valueOf() - moment(this._startChasse).valueOf()) });
+            $j("#o_resteChasse").text(numeral(total).format() + " cm²").css({ "max-width": "110px", "text-overflow": "ellipsis", "overflow": "hidden", "white-space": "nowrap" });
+            $j("#o_progressChasse").progressbar({ value: (moment().valueOf() - moment(this._startChasse).valueOf()) * 100 / (moment(this._chasse[0].exp).valueOf() - moment(this._startChasse).valueOf()) });
             // Ajout du title
-            $("#boiteComptePlus table tr:eq(3)").attr("title", table);
+            $j("#boiteComptePlus table tr:eq(3)").attr("title", table);
             let tempsR = moment(this._chasse[0].exp).diff(moment()) / 1000;
-            $("#o_tempsChasse").text(Utils.shortcutTime(tempsR));
+            $j("#o_tempsChasse").text(Utils.shortcutTime(tempsR));
             if (tempsR <= 3600) Utils.decreaseTime(tempsR, "o_tempsChasse");
-            if (tempsR <= 600) $("#o_progressChasse").addClass("highlight_success");
+            if (tempsR <= 600) $j("#o_progressChasse").addClass("highlight_success");
         } else {
-            $("#o_resteChasse").text("Aucune chasse");
-            $("#o_tempsChasse").text("");
-            $("#o_progressChasse").progressbar({ value: 0 });
+            $j("#o_resteChasse").text("Aucune chasse");
+            $j("#o_tempsChasse").text("");
+            $j("#o_progressChasse").progressbar({ value: 0 });
         }
         return this;
     }
@@ -141373,7 +141671,7 @@ Utils.register(class BoiteRadar {
         let newOrdre = serie.split("&"), item = new Array(), lien = "";
         for (let i = 0; i < newOrdre.length; i++) {
             item = newOrdre[i].split("=");
-            lien = $("#o_item_" + item[1]).find("a:eq(1)");
+            lien = $j("#o_item_" + item[1]).find("a:eq(1)");
             // si l'item correspond à un joueur
             if (lien.attr("href").includes("Membre.php"))
                 await this._joueurs[lien.text()].ecrire('Ordre Radar', i);
@@ -141446,14 +141744,14 @@ Utils.register(class BoiteRadar {
         // si il y a des joueurs ou des alliances surveillés on affiche la boite
         if (Object.keys(this._joueurs).length || Object.keys(this._alliances).length) {
             // Modification de la boite compte plus pour faire apparaitre la boite radar
-            $("#boiteComptePlus .titre_colonne_cliquable").replaceWith(() => { return `<div class='titre_colonne_cliquable'>${IMG_FLECHE} <span class='titre_compte_plus'>Outiiil ${VERSION.substring(0, 2)}<span class='reduce'>${VERSION.substring(2)}</span></span> ${IMG_FLECHE}</div>`; });
+            $j("#boiteComptePlus .titre_colonne_cliquable").replaceWith(() => { return `<div class='titre_colonne_cliquable'>${IMG_FLECHE} <span class='titre_compte_plus'>Outiiil ${VERSION.substring(0, 2)}<span class='reduce'>${VERSION.substring(2)}</span></span> ${IMG_FLECHE}</div>`; });
             // Event sur le titre si on utilise le radar
-            $("#boiteComptePlus .titre_colonne_cliquable").click((e) => {
-                if ($(e.currentTarget).next().find("table:visible").attr("id"))
+            $j("#boiteComptePlus .titre_colonne_cliquable").click((e) => {
+                if ($j(e.currentTarget).next().find("table:visible").attr("id"))
                     localStorage.setItem("outiiil_boiteActive", "C");
                 else
                     localStorage.setItem("outiiil_boiteActive", "R");
-                $("#boiteComptePlus .contenu_boite_compte_plus table").toggle();
+                $j("#boiteComptePlus .contenu_boite_compte_plus table").toggle();
             });
             // Remplissage de la boite
             await this.actualiser();
@@ -141468,19 +141766,19 @@ Utils.register(class BoiteRadar {
     async actualiser() {
         let affiche = localStorage.getItem("outiiil_boiteActive"), html = `<table id='o_radar' ${!affiche || affiche == "C" ? `style="display:none"` : ""}><tbody></tbody></table>`;
         // on remplace le contenu ou l'ajoute
-        if ($("#o_radar").length)
-            $("#o_radar").replaceWith(html);
+        if ($j("#o_radar").length)
+            $j("#o_radar").replaceWith(html);
         else {
-            $("#boiteComptePlus .contenu_boite_compte_plus table").after(html);
-            $("#o_radar tbody").sortable({
+            $j("#boiteComptePlus .contenu_boite_compte_plus table").after(html);
+            $j("#o_radar tbody").sortable({
                 placeholder: "o_radarPlaceholder",
                 update: (e, ui) => {
-                    this.#calculeOrdre($("#o_radar tbody").sortable("serialize"));
+                    this.#calculeOrdre($j("#o_radar tbody").sortable("serialize"));
                 }
             });
         }
         // Event pour mettre à jour les données d'un joueur ou une alliance
-        $("#o_radar").off();
+        $j("#o_radar").off();
         // affichage des elements
         let j = 1;
         let elements = [];
@@ -141538,9 +141836,9 @@ Utils.register(class BoiteSignalement extends Boite {
      */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_signalementProgressContainer").hide();
-            $("#o_btnEnvoyerSignalement").show().removeClass('processing').css('pointer-events', 'auto');
-            $("#o_signalementError").hide();
+            $j("#o_signalementProgressContainer").hide();
+            $j("#o_btnEnvoyerSignalement").show().removeClass('processing').css('pointer-events', 'auto');
+            $j("#o_signalementError").hide();
             await this.css().event();
         }
         return this;
@@ -141565,13 +141863,13 @@ Utils.register(class BoiteSignalement extends Boite {
     event() {
         super.event();
 
-        $("#o_btnEnvoyerSignalement").off("click").on("click", async (e) => {
+        $j("#o_btnEnvoyerSignalement").off("click").on("click", async (e) => {
             e.preventDefault();
-            const bouton = $("#o_btnEnvoyerSignalement");
+            const bouton = $j("#o_btnEnvoyerSignalement");
             if (bouton.hasClass('processing')) return false;
 
-            const description = $("#o_inputBugDescription").val().trim();
-            const errorContainer = $("#o_signalementError");
+            const description = $j("#o_inputBugDescription").val().trim();
+            const errorContainer = $j("#o_signalementError");
 
             if (!description) {
                 errorContainer.text("Veuillez décrire le problème rencontré.").show();
@@ -141581,9 +141879,9 @@ Utils.register(class BoiteSignalement extends Boite {
             errorContainer.hide();
             bouton.addClass('processing').css('pointer-events', 'none');
 
-            const progressContainer = $("#o_signalementProgressContainer");
-            const progressBar = $("#o_signalementProgressBar");
-            const progressText = $("#o_signalementProgressText");
+            const progressContainer = $j("#o_signalementProgressContainer");
+            const progressBar = $j("#o_signalementProgressBar");
+            const progressText = $j("#o_signalementProgressText");
 
             bouton.hide();
             progressBar.progressbar({ value: 0 });
@@ -141610,16 +141908,16 @@ Utils.register(class BoiteSignalement extends Boite {
                 if (succes) {
                     progressBar.progressbar("value", 100);
                     progressText.text("100%");
-                    $.toast({ ...TOAST_SUCCESS, text: "Merci pour votre signalement !" });
-                    $("#o_inputBugDescription").val("");
+                    $j.toast({ ...TOAST_SUCCESS, text: "Merci pour votre signalement !" });
+                    $j("#o_inputBugDescription").val("");
                     await Utils.sleep(500);
                     this.masquer();
                 } else {
-                    $.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
+                    $j.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
                 }
             } catch (err) {
                 console.error("Erreur lors de l'envoi du signalement:", err);
-                $.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
+                $j.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
             } finally {
                 progressContainer.hide();
                 bouton.show().removeClass('processing').css('pointer-events', 'auto');
@@ -141654,7 +141952,7 @@ Utils.register(class BoitePonte extends Boite {
 	* @method afficher
 	*/
 	async afficher() {
-		if (!$("#" + this._id).length) {
+		if (!$j("#" + this._id).length) {
 			let tdp = await monProfilJoueur.getTDP();
 			let recherches = await monProfilJoueur.lire('Niveaux Recherches');
 			let constructions = await monProfilJoueur.lire('Niveaux Constructions');
@@ -141678,9 +141976,9 @@ Utils.register(class BoitePonte extends Boite {
 		}
 		if (await super.afficher()) {
 			// Formatage des spinners
-			$("input[name^='o_nombre'], input[name^='o_jour']").spinner({ min: 0, numberFormat: "i" });
-			$("input[name^='o_heure'], input[name^='o_minute'], input[name^='o_seconde']").spinner({ min: 0, numberFormat: "d2" });
-			$("#o_niveauTDP").spinner({ min: 0, max: 150 });
+			$j("input[name^='o_nombre'], input[name^='o_jour']").spinner({ min: 0, numberFormat: "i" });
+			$j("input[name^='o_heure'], input[name^='o_minute'], input[name^='o_seconde']").spinner({ min: 0, numberFormat: "d2" });
+			$j("#o_niveauTDP").spinner({ min: 0, max: 150 });
 			this.css().event();
 		}
 		return this;
@@ -141692,7 +141990,7 @@ Utils.register(class BoitePonte extends Boite {
 	*/
 	css() {
 		super.css();
-		$("#o_ponteContent table tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+		$j("#o_ponteContent table tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
 		return this;
 	}
 	/**
@@ -141702,70 +142000,70 @@ Utils.register(class BoitePonte extends Boite {
 	*/
 	event() {
 		super.event();
-		$("input[name^='o_nombre']").on("input spin", (e, ui) => {
+		$j("input[name^='o_nombre']").on("input spin", (e, ui) => {
 			let nombre = numeral(ui ? ui.value : e.currentTarget.value).value();
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_nombre", ""));
-			this.#majTemps(unite, nombre * (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($("#o_niveauTDP").spinner("value")))));
-			$(e.currentTarget).spinner("value", nombre);
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_nombre", ""));
+			this.#majTemps(unite, nombre * (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($j("#o_niveauTDP").spinner("value")))));
+			$j(e.currentTarget).spinner("value", nombre);
 		});
-		$("input[name^='o_seconde']").on("input spin", (e, ui) => {
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_seconde", ""));
-			let seconde = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_seconde']").on("input spin", (e, ui) => {
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_seconde", ""));
+			let seconde = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			if (seconde >= 60) {
-				$(e.currentTarget).spinner("value", seconde - 60);
-				$("input[name='o_minute" + unite + "']").spinner("stepUp");
+				$j(e.currentTarget).spinner("value", seconde - 60);
+				$j("input[name='o_minute" + unite + "']").spinner("stepUp");
 				return false;
 			}
 			// mise à jour du nombre
 			this.#majNombre(unite, -1, -1, -1, seconde);
 		});
-		$("input[name^='o_minute']").on("input spin", (e, ui) => {
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_minute", ""));
-			let minute = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_minute']").on("input spin", (e, ui) => {
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_minute", ""));
+			let minute = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			if (minute >= 60) {
-				$(e.currentTarget).spinner("value", minute - 60);
-				$("input[name='o_heure" + unite + "']").spinner("stepUp");
+				$j(e.currentTarget).spinner("value", minute - 60);
+				$j("input[name='o_heure" + unite + "']").spinner("stepUp");
 				return false;
 			}
 			// mise à jour du nombre
 			this.#majNombre(unite, -1, -1, minute, -1);
 		});
-		$("input[name^='o_heure']").on("input spin", (e, ui) => {
-			let unite = parseInt($(e.currentTarget).attr("name").replace("o_heure", ""));
-			let heure = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_heure']").on("input spin", (e, ui) => {
+			let unite = parseInt($j(e.currentTarget).attr("name").replace("o_heure", ""));
+			let heure = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			if (heure >= 24) {
-				$(e.currentTarget).spinner("value", heure - 24);
-				$("input[name='o_jour" + unite + "']").spinner("stepUp");
+				$j(e.currentTarget).spinner("value", heure - 24);
+				$j("input[name='o_jour" + unite + "']").spinner("stepUp");
 				return false;
 			}
 			// mise à jour du nombre
 			this.#majNombre(unite, -1, heure, -1, -1);
 		});
-		$("input[name^='o_jour']").on("input spin", (e, ui) => {
-			let jour = ui ? ui.value : $(e.currentTarget).spinner("value");
+		$j("input[name^='o_jour']").on("input spin", (e, ui) => {
+			let jour = ui ? ui.value : $j(e.currentTarget).spinner("value");
 			// mise à jour du nombre
-			this.#majNombre(parseInt($(e.currentTarget).attr("name").replace("o_jour", "")), jour, -1, -1, -1);
-			$(e.currentTarget).spinner("value", jour);
+			this.#majNombre(parseInt($j(e.currentTarget).attr("name").replace("o_jour", "")), jour, -1, -1, -1);
+			$j(e.currentTarget).spinner("value", jour);
 		});
 		// event sur le temps de ponte
-		$("#o_niveauTDP").on("input spin", (e, ui) => {
-			let tdp = ui ? ui.value : $(e.currentTarget).spinner("value");
-			$("input[name^='o_nombre']").each((i, elt) => { // Pour chaque unité on met à jour le temps
-				let unite = parseInt($(elt).attr("name").replace("o_nombre", ""));
-				$(elt).parent().parent().prev().text(BoitePonte.#arrondiTemps(TEMPS_UNITE[unite] * Math.pow(0.9, tdp)));
-				let nombre = $(elt).spinner("value");
+		$j("#o_niveauTDP").on("input spin", (e, ui) => {
+			let tdp = ui ? ui.value : $j(e.currentTarget).spinner("value");
+			$j("input[name^='o_nombre']").each((i, elt) => { // Pour chaque unité on met à jour le temps
+				let unite = parseInt($j(elt).attr("name").replace("o_nombre", ""));
+				$j(elt).parent().parent().prev().text(BoitePonte.#arrondiTemps(TEMPS_UNITE[unite] * Math.pow(0.9, tdp)));
+				let nombre = $j(elt).spinner("value");
 				// mise à jour du temps
 				if (nombre) this.#majTemps(unite, nombre * (TEMPS_UNITE[unite] * Math.pow(0.9, tdp)));
 			});
 		});
 		// Lancer les pontes
-		$("img[id^=o_lancer]").click((e) => {
-			let unite = ~~($(e.currentTarget).attr("id").replace("o_lancer", "")), nombre = $("input[name='o_nombre" + unite + "']").spinner("value"), securite = "";
+		$j("img[id^=o_lancer]").click((e) => {
+			let unite = ~~($j(e.currentTarget).attr("id").replace("o_lancer", "")), nombre = $j("input[name='o_nombre" + unite + "']").spinner("value"), securite = "";
 			let correspondanceFzzz = new Array("", 1, 2, 3, 4, 5, 6, -1, 7, 8, 9, 10, -1, 11, 12);
 			if (nombre) {
 				// on recup un jeton
-				$.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Reine.php" }).then((data) => {
-					let parsed = $("<div/>").append(data);
+				$j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Reine.php" }).then((data) => {
+					let parsed = $j("<div/>").append(data);
 					securite = parsed.find("#t").attr("name") + "=" + parsed.find("#t").attr("value");
 					// on prepare et on lance la ponte
 					let donnees = {};
@@ -141775,13 +142073,13 @@ Utils.register(class BoitePonte extends Boite {
 					donnees["input_cout_nombre" + (unite ? correspondanceFzzz[unite] : "")] = nombre;
 					donnees["nombre_de_ponte"] = nombre;
 					donnees["" + securite.split("=")[0]] = securite.split("=")[1];
-					$.post("http://" + Utils.serveur + ".fourmizzz.fr/Reine.php", donnees, (data) => {
-						let parsed = $('<div/>').append(data);
-						$("#boiteInfo").fadeOut("slow").html(parsed.find("#boiteInfo").html()).fadeIn("slow");
+					$j.post("http://" + Utils.serveur + ".fourmizzz.fr/Reine.php", donnees, (data) => {
+						let parsed = $j('<div/>').append(data);
+						$j("#boiteInfo").fadeOut("slow").html(parsed.find("#boiteInfo").html()).fadeIn("slow");
 						if (Utils.comptePlus)
-							$("#boiteComptePlus").fadeOut("slow").html(parsed.find("#boiteComptePlus").html()).fadeIn("slow");
-						$.toast({ ...TOAST_SUCCESS, text: "La ponte a été correctement lancée." });
-						$("input[name='o_nombre" + unite + "']").spinner("value", 0);
+							$j("#boiteComptePlus").fadeOut("slow").html(parsed.find("#boiteComptePlus").html()).fadeIn("slow");
+						$j.toast({ ...TOAST_SUCCESS, text: "La ponte a été correctement lancée." });
+						$j("input[name='o_nombre" + unite + "']").spinner("value", 0);
 					});
 				});
 			}
@@ -141801,12 +142099,12 @@ Utils.register(class BoitePonte extends Boite {
 	* @param {Integer} seconde
 	*/
 	#majNombre(unite, jour, heure, minute, seconde) {
-		let nbJour = (jour < 0) ? $("input[name='o_jour" + unite + "']").spinner("value") : jour;
-		let nbHeure = (heure < 0) ? $("input[name='o_heure" + unite + "']").spinner("value") : heure;
-		let nbMinute = (minute < 0) ? $("input[name='o_minute" + unite + "']").spinner("value") : minute;
-		let nbSeconde = (seconde < 0) ? $("input[name='o_seconde" + unite + "']").spinner("value") : seconde;
+		let nbJour = (jour < 0) ? $j("input[name='o_jour" + unite + "']").spinner("value") : jour;
+		let nbHeure = (heure < 0) ? $j("input[name='o_heure" + unite + "']").spinner("value") : heure;
+		let nbMinute = (minute < 0) ? $j("input[name='o_minute" + unite + "']").spinner("value") : minute;
+		let nbSeconde = (seconde < 0) ? $j("input[name='o_seconde" + unite + "']").spinner("value") : seconde;
 		let temps = nbJour * 86400 + nbHeure * 3600 + nbMinute * 60 + nbSeconde;
-		$("input[name='o_nombre" + unite + "']").spinner("value", Math.round(temps / (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($("#o_niveauTDP").val())))));
+		$j("input[name='o_nombre" + unite + "']").spinner("value", Math.round(temps / (TEMPS_UNITE[unite] * Math.pow(0.9, ~~($j("#o_niveauTDP").val())))));
 		return this;
 	}
 	/**
@@ -141819,16 +142117,16 @@ Utils.register(class BoitePonte extends Boite {
 	*/
 	#majTemps(i, temps) {
 		// on compte les jours
-		$("input[name='o_jour" + i + "']").spinner("value", (temps - temps % 86400) / 86400);
+		$j("input[name='o_jour" + i + "']").spinner("value", (temps - temps % 86400) / 86400);
 		temps %= 86400;
 		// on compte les heures restantes
-		$("input[name='o_heure" + i + "']").spinner("value", (temps - temps % 3600) / 3600);
+		$j("input[name='o_heure" + i + "']").spinner("value", (temps - temps % 3600) / 3600);
 		temps %= 3600;
 		// on compte les minutes restantes
-		$("input[name='o_minute" + i + "']").spinner("value", (temps - temps % 60) / 60);
+		$j("input[name='o_minute" + i + "']").spinner("value", (temps - temps % 60) / 60);
 		temps = Math.round(temps % 60);
 		// il ne reste que les secondes
-		$("input[name='o_seconde" + i + "']").spinner("value", temps);
+		$j("input[name='o_seconde" + i + "']").spinner("value", temps);
 		return this;
 	}
 	/**
@@ -141870,7 +142168,7 @@ Utils.register(class BoiteChasse extends Boite {
     */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_tabsChasse").tabs({ disabled: [1], activate: (event, ui) => { this.css(); } }).removeClass("ui-widget");
+            $j("#o_tabsChasse").tabs({ disabled: [1], activate: (event, ui) => { this.css(); } }).removeClass("ui-widget");
             this.#analyse().css().event();
         }
     }
@@ -141882,15 +142180,15 @@ Utils.register(class BoiteChasse extends Boite {
     */
     css() {
         super.css();
-        $("#o_resultatChasse tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
+        $j("#o_resultatChasse tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
+        $j(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
     // /**
@@ -141910,13 +142208,13 @@ Utils.register(class BoiteChasse extends Boite {
     * @method #analyse
     */
     #analyse() {
-        $("#o_tabsChasse1").append("<textarea id='o_rcChasse' class='o_maxWidth' placeholder='Rapport(s) de chasse(s)...'></textarea><div class='o_marginT15'><table  id='o_resultatChasse' class='o_maxWidth'></table></div>");
+        $j("#o_tabsChasse1").append("<textarea id='o_rcChasse' class='o_maxWidth' placeholder='Rapport(s) de chasse(s)...'></textarea><div class='o_marginT15'><table  id='o_resultatChasse' class='o_maxWidth'></table></div>");
 
-        $("#o_rcChasse").on("input", async (e) => {
+        $j("#o_rcChasse").on("input", async (e) => {
             // on recup les chasses à analyser
             let chasses = e.currentTarget.value.split("nourriture"), bilan = new Chasse(""), chasse = null, erreur = false, html = "<tr class='gras'><td colspan='2'>Avant</td><td colspan='2'>Evolution</td><td colspan='2'>Résultat</td></tr>";
             // on nettoie l'ancien affichage
-            $("#o_resultatChasse").html("");
+            $j("#o_resultatChasse").html("");
             for (let i = 0; i < chasses.length; i++) {
                 if (chasses[i]) {
                     chasse = new Chasse(chasses[i]);
@@ -141924,13 +142222,13 @@ Utils.register(class BoiteChasse extends Boite {
                         html += await chasse.toHTMLBoite(false);
                         bilan.ajoute(chasse);
                     } else {
-                        $.toast({ ...TOAST_WARNING, text: "Le rapport de chasse ne peut pas être analysé." });
+                        $j.toast({ ...TOAST_WARNING, text: "Le rapport de chasse ne peut pas être analysé." });
                         erreur = true;
                     }
                 }
             }
             if (!erreur) {
-                $("#o_resultatChasse").append(html);
+                $j("#o_resultatChasse").append(html);
                 await this.#afficherBilan(bilan);
             }
         });
@@ -141946,15 +142244,15 @@ Utils.register(class BoiteChasse extends Boite {
     */
     async #afficherBilan(chasse) {
         let i = 0, html = "<tr><td colspan='6'><select id='o_choixChasse' class='o_marginT15'>";
-        for (; i < Math.floor($("#o_resultatChasse tr").length / 4); html += "<option value='" + i + "'>Chasse " + (i + 1) + "</option>", i++);
+        for (; i < Math.floor($j("#o_resultatChasse tr").length / 4); html += "<option value='" + i + "'>Chasse " + (i + 1) + "</option>", i++);
         html += "<option value='" + i + "' selected>Bilan</option></select></td></tr>";
-        $("#o_resultatChasse").append(await chasse.toHTMLBoite(true) + html);
+        $j("#o_resultatChasse").append(await chasse.toHTMLBoite(true) + html);
         // Style
-        $("#o_resultatChasse tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $("#o_choixChasse").change((e) => {
+        $j("#o_resultatChasse tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j("#o_choixChasse").change((e) => {
             let selection = e.currentTarget.value;
-            $("#o_resultatChasse tr:gt(0):lt(-1):visible").toggle();
-            $("#o_resultatChasse tr:eq(" + ((selection * 4) + 1) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 2) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 3) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 4) + ")").toggle();
+            $j("#o_resultatChasse tr:gt(0):lt(-1):visible").toggle();
+            $j("#o_resultatChasse tr:eq(" + ((selection * 4) + 1) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 2) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 3) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 4) + ")").toggle();
         });
     }
 
@@ -141993,7 +142291,7 @@ Utils.register(class BoiteCombat extends Boite {
     */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_tabsCombat").tabs({ disabled: [2], activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
+            $j("#o_tabsCombat").tabs({ disabled: [2], activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
             this.#analyser()
             await this.#simuler()
             this.#calculatrice().css().event();
@@ -142008,16 +142306,16 @@ Utils.register(class BoiteCombat extends Boite {
     */
     css() {
         super.css();
-        $("#o_resultatCombat tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor, #o_calculatriceCombat tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
+        $j("#o_resultatCombat tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor, #o_calculatriceCombat tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
+        $j(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
     // /**
@@ -142037,7 +142335,7 @@ Utils.register(class BoiteCombat extends Boite {
     * @method #analyser
     */
     #analyser() {
-        $("#o_tabsCombat1").append("<textarea id='o_rcCombat' class='o_maxWidth' placeholder='Rapport de combat...'></textarea><div class='o_marginT15' style='max-height:200px;overflow:auto'><table id='o_resultatCombat' class='o_maxWidth'></table></div>");
+        $j("#o_tabsCombat1").append("<textarea id='o_rcCombat' class='o_maxWidth' placeholder='Rapport de combat...'></textarea><div class='o_marginT15' style='max-height:200px;overflow:auto'><table id='o_resultatCombat' class='o_maxWidth'></table></div>");
         return this.#eventAnalyser();
     }
     /**
@@ -142045,13 +142343,13 @@ Utils.register(class BoiteCombat extends Boite {
     */
     #eventAnalyser() {
         // event Analyse
-        $("#o_rcCombat").on("input", async (e) => {
+        $j("#o_rcCombat").on("input", async (e) => {
             let combat = new Combat({ RC: e.currentTarget.value });
             if (await combat.analyse()) {
-                $("#o_resultatCombat").html(await combat.toHTMLBoite());
+                $j("#o_resultatCombat").html(await combat.toHTMLBoite());
                 this.css();
             } else
-                $.toast({ ...TOAST_WARNING, text: "Le rapport de combat ne peut pas être analysé." });
+                $j.toast({ ...TOAST_WARNING, text: "Le rapport de combat ne peut pas être analysé." });
         });
         return this;
     }
@@ -142102,21 +142400,21 @@ Utils.register(class BoiteCombat extends Boite {
                 </table>
             </td></tr>
             </table>`;
-        $("#o_tabsCombat2").append(html);
+        $j("#o_tabsCombat2").append(html);
         // spinner
-        $("#o_simulateurArmee input").spinner({ min: 0, numberFormat: "i" });
-        $("#o_bouclier1, #o_armes1, #o_bouclier2, #o_armes2, #o_etable1, #o_etable2").spinner({ min: 0, max: 50, numberFormat: "d2" });
-        $("#o_logeNiveau, #o_domeNiveau").spinner({ min: 0, max: 50, numberFormat: "d2" });
-        $("#o_positionJoueur").slider({
+        $j("#o_simulateurArmee input").spinner({ min: 0, numberFormat: "i" });
+        $j("#o_bouclier1, #o_armes1, #o_bouclier2, #o_armes2, #o_etable1, #o_etable2").spinner({ min: 0, max: 50, numberFormat: "d2" });
+        $j("#o_logeNiveau, #o_domeNiveau").spinner({ min: 0, max: 50, numberFormat: "d2" });
+        $j("#o_positionJoueur").slider({
             min: 0,
             max: 1,
             change: (e, ui) => {
                 if (ui.value) { // si != 0 alors on est defenseur
-                    $("#o_positionAtt").removeClass("gras");
-                    $("#o_positionDef").addClass("gras");
+                    $j("#o_positionAtt").removeClass("gras");
+                    $j("#o_positionDef").addClass("gras");
                 } else { // sinon on est attaquant
-                    $("#o_positionDef").removeClass("gras");
-                    $("#o_positionAtt").addClass("gras");
+                    $j("#o_positionDef").removeClass("gras");
+                    $j("#o_positionAtt").addClass("gras");
                 }
             }
         });
@@ -142126,17 +142424,17 @@ Utils.register(class BoiteCombat extends Boite {
     * @private
     */
     async #eventSimulateur() {
-        $("#o_simulateurArmee input").on("input spin", (e, ui) => {
+        $j("#o_simulateurArmee input").on("input spin", (e, ui) => {
             let nombre = numeral(ui ? ui.value : e.currentTarget.value).value();
-            let name = $(e.currentTarget).attr("name"), armee = new Armee();
+            let name = $j(e.currentTarget).attr("name"), armee = new Armee();
             // si le name contient 1 c'est l'attaquant sinon la defense
             if (name.includes("1_"))
                 this.#actualiserStatistique(name, nombre);
             else
                 this.#actualiserStatistique("", 0, name, nombre);
-            $(e.currentTarget).spinner("value", nombre);
+            $j(e.currentTarget).spinner("value", nombre);
         });
-        $("#o_placementAtt").click((e) => {
+        $j("#o_placementAtt").click((e) => {
             if (this._armee)
                 this.#placerArmee(1).#actualiserStatistique();
             else {
@@ -142148,7 +142446,7 @@ Utils.register(class BoiteCombat extends Boite {
             }
             return false;
         });
-        $("#o_placementDef").click((e) => {
+        $j("#o_placementDef").click((e) => {
             if (this._armee)
                 this.#placerArmee(0).#actualiserStatistique();
             else {
@@ -142160,47 +142458,47 @@ Utils.register(class BoiteCombat extends Boite {
             }
             return false;
         });
-        $("#o_switchArmee").click((e) => {
+        $j("#o_switchArmee").click((e) => {
             this.#permuterArmee().#actualiserStatistique();
             return false;
         });
-        $("#o_copierAtt").click((e) => { this.#copierCollerArmee("ATT"); });
-        $("#o_copierDef").click((e) => { this.#copierCollerArmee("DEF"); });
+        $j("#o_copierAtt").click((e) => { this.#copierCollerArmee("ATT"); });
+        $j("#o_copierDef").click((e) => { this.#copierCollerArmee("DEF"); });
         // event sur les bonus joueurs
-        $("#o_bonusAtt").click(async (e) => {
+        $j("#o_bonusAtt").click(async (e) => {
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            $("#o_armes1").spinner("value", $("#o_armes1").spinner("value") == recherches[2] ? 0 : recherches[2]);
-            $("#o_bouclier1").spinner("value", $("#o_bouclier1").spinner("value") == recherches[1] ? 0 : recherches[1]);
-            $("#o_etable1").spinner("value", $("#o_etable1").spinner("value") == constructions[12] ? 0 : constructions[12]);
+            $j("#o_armes1").spinner("value", $j("#o_armes1").spinner("value") == recherches[2] ? 0 : recherches[2]);
+            $j("#o_bouclier1").spinner("value", $j("#o_bouclier1").spinner("value") == recherches[1] ? 0 : recherches[1]);
+            $j("#o_etable1").spinner("value", $j("#o_etable1").spinner("value") == constructions[12] ? 0 : constructions[12]);
             this.#actualiserStatistique();
             return false;
         });
-        $("#o_bonusDef").click(async (e) => {
+        $j("#o_bonusDef").click(async (e) => {
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            $("#o_armes2").spinner("value", $("#o_armes2").spinner("value") == recherches[2] ? 0 : recherches[2]);
-            $("#o_bouclier2").spinner("value", $("#o_bouclier2").spinner("value") == recherches[1] ? 0 : recherches[1]);
-            $("#o_etable2").spinner("value", $("#o_etable2").spinner("value") == constructions[12] ? 0 : constructions[12]);
+            $j("#o_armes2").spinner("value", $j("#o_armes2").spinner("value") == recherches[2] ? 0 : recherches[2]);
+            $j("#o_bouclier2").spinner("value", $j("#o_bouclier2").spinner("value") == recherches[1] ? 0 : recherches[1]);
+            $j("#o_etable2").spinner("value", $j("#o_etable2").spinner("value") == constructions[12] ? 0 : constructions[12]);
             this.#actualiserStatistique();
             return false;
         });
-        $("#o_bouclier1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_armes1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_bouclier2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_armes2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_bouclier1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_armes1").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_bouclier2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_armes2").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
         // event bonus lieu
-        $("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.#actualiserStatistique(); });
-        $("#o_bonusLieu").click(async (e) => {
+        $j("#o_simulateurNiveau input[name='o_lieu']").change((e) => { this.#actualiserStatistique(); });
+        $j("#o_bonusLieu").click(async (e) => {
             let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            $("#o_domeNiveau").spinner("value", $("#o_domeNiveau").spinner("value") == constructions[9] ? 0 : constructions[9]);
-            $("#o_logeNiveau").spinner("value", $("#o_logeNiveau").spinner("value") == constructions[10] ? 0 : constructions[10]);
+            $j("#o_domeNiveau").spinner("value", $j("#o_domeNiveau").spinner("value") == constructions[9] ? 0 : constructions[9]);
+            $j("#o_logeNiveau").spinner("value", $j("#o_logeNiveau").spinner("value") == constructions[10] ? 0 : constructions[10]);
             this.#actualiserStatistique();
             return false;
         });
-        $("#o_domeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_logeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
-        $("#o_simuler").click(async (e) => {
+        $j("#o_domeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_logeNiveau").on("input spin", (e, ui) => { this.#actualiserStatistique("", 0, "", 0, -1, -1, -1, -1, -1, numeral(ui ? ui.value : e.currentTarget.value).value()); });
+        $j("#o_simuler").click(async (e) => {
             await this.#lancerSimulation();
             return false;
         });
@@ -142212,23 +142510,23 @@ Utils.register(class BoiteCombat extends Boite {
     async #lancerSimulation() {
         let uniteATT = {}, uniteDef = {};
         // données attaquant
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { uniteATT[NOM_UNITE[i + 1]] = $(elt).spinner("value"); });
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { uniteATT[NOM_UNITE[i + 1]] = $j(elt).spinner("value"); });
         // données defenseur
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { uniteDef[NOM_UNITE[i + 1]] = $(elt).spinner("value"); });
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { uniteDef[NOM_UNITE[i + 1]] = $j(elt).spinner("value"); });
         // preparation du combat
-        let combat = new Combat({ id: moment().valueOf(), lieu: $("input[name='o_lieu']:checked").val(), attaquant: new Armee({ unite: uniteATT }), defenseur: new Armee({ unite: uniteDef }), pointDeVue: $("#o_positionJoueur").slider("value") });
+        let combat = new Combat({ id: moment().valueOf(), lieu: $j("input[name='o_lieu']:checked").val(), attaquant: new Armee({ unite: uniteATT }), defenseur: new Armee({ unite: uniteDef }), pointDeVue: $j("#o_positionJoueur").slider("value") });
         // modification des niveaux des joueurs
         let recherchesAttaquant = await combat.attaquant.lire('Niveaux Recherches');
         let recherchesDefenseur = await combat.defenseur.lire('Niveaux Recherches');
-        recherchesAttaquant[1] = $("#o_bouclier1").spinner("value");
-        recherchesAttaquant[2] = $("#o_armes1").spinner("value");
-        recherchesDefenseur[1] = $("#o_bouclier2").spinner("value");
-        recherchesDefenseur[2] = $("#o_armes2").spinner("value");
+        recherchesAttaquant[1] = $j("#o_bouclier1").spinner("value");
+        recherchesAttaquant[2] = $j("#o_armes1").spinner("value");
+        recherchesDefenseur[1] = $j("#o_bouclier2").spinner("value");
+        recherchesDefenseur[2] = $j("#o_armes2").spinner("value");
         await combat.attaquant.ecrire("Niveaux Recherches", recherchesAttaquant);
         await combat.defenseur.ecrire("Niveaux Recherches", recherchesDefenseur);
         let constructionsDefenseur = await combat.defenseur.lire('Niveaux Constructions');
-        constructionsDefenseur[9] = $("#o_domeNiveau").spinner("value");
-        constructionsDefenseur[10] = $("#o_logeNiveau").spinner("value");
+        constructionsDefenseur[9] = $j("#o_domeNiveau").spinner("value");
+        constructionsDefenseur[10] = $j("#o_logeNiveau").spinner("value");
         await combat.defenseur.ecrire("Niveaux Constructions", constructionsDefenseur);
         // lancement du combat
         if (combat.armee1.getSommeUnite() && combat.armee2.getSommeUnite()) {
@@ -142236,33 +142534,33 @@ Utils.register(class BoiteCombat extends Boite {
             combat.genererRC();
             // affichage des armées retours dans le formulaire
             for (let i = 1; i <= 14; i++) {
-                $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
-                $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
+                $j("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
+                $j("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
             }
             this.#actualiserStatistique();
             // ajout de l'event pour switch les armées avant et aprés combat
-            $("#o_switchAvantApres").off().click((e) => {
+            $j("#o_switchAvantApres").off().click((e) => {
                 let armeeAttTmp = new Array(), armeeDefTmp = new Array();
                 for (let i = 1; i <= 14; i++) {
-                    armeeAttTmp.push($("input[name='o_unite1_" + i + "']").spinner("value"));
-                    armeeDefTmp.push($("input[name='o_unite2_" + i + "']").spinner("value"));
+                    armeeAttTmp.push($j("input[name='o_unite1_" + i + "']").spinner("value"));
+                    armeeDefTmp.push($j("input[name='o_unite2_" + i + "']").spinner("value"));
                 }
                 // si dans le formulaire on a l'armée aprés on plalce l'armée avant sinon l'armée aprés
                 if (combat.armee1Ap.unite.slice(1).every((elt, i) => { return elt == armeeAttTmp[i]; }) && combat.armee2Ap.unite.slice(1).every((elt, i) => { return elt == armeeDefTmp[i]; })) {
                     for (let i = 1; i <= 14; i++) {
-                        $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1.unite[i]);
-                        $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2.unite[i]);
+                        $j("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1.unite[i]);
+                        $j("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2.unite[i]);
                     }
                 } else {
                     for (let i = 1; i <= 14; i++) {
-                        $("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
-                        $("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
+                        $j("input[name='o_unite1_" + i + "']").spinner("value", combat.armee1Ap.unite[i]);
+                        $j("input[name='o_unite2_" + i + "']").spinner("value", combat.armee2Ap.unite[i]);
                     }
                 }
                 this.#actualiserStatistique();
             }).parent().show();
         } else
-            $.toast({ ...TOAST_ERROR, text: "Le combat ne peut pas etre simulé : aucune unité." });
+            $j.toast({ ...TOAST_ERROR, text: "Le combat ne peut pas etre simulé : aucune unité." });
         return this;
     }
     /**
@@ -142272,22 +142570,22 @@ Utils.register(class BoiteCombat extends Boite {
         let armeeTmp = new Array();
         if (position) {
             // on prepare un tableau des unités pour savoir si on renseigne l'armée ou on vide des champs
-            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value"));
+            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value"));
             if (this._armee.unite.slice(1).every((elt, i) => { return elt == armeeTmp[i]; })) {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", 0);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", 0);
             } else {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", this._armee.unite[i]);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(0)`).spinner("value", this._armee.unite[i]);
             }
         } else {
-            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value"));
+            for (let i = 1; i < this._armee.unite.length; i++) armeeTmp.push($j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value"));
             if (this._armee.unite.slice(1).every((elt, i) => { return elt == armeeTmp[i]; })) {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", 0);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", 0);
             } else {
                 for (let i = 1; i < this._armee.unite.length; i++)
-                    $(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", this._armee.unite[i]);
+                    $j(`#o_simulateurArmee tr:eq(${i + 1}) input:eq(1)`).spinner("value", this._armee.unite[i]);
             }
         }
         return this;
@@ -142298,59 +142596,59 @@ Utils.register(class BoiteCombat extends Boite {
     #permuterArmee() {
         // switch des armées
         for (let i = 0; i < 14; i++) {
-            let valueTmp = $("input[name='o_unite1_" + (i + 1) + "']").spinner("value");
-            $("input[name='o_unite1_" + (i + 1) + "']").spinner("value", $("input[name='o_unite2_" + (i + 1) + "']").spinner("value"));
-            $("input[name='o_unite2_" + (i + 1) + "']").spinner("value", valueTmp);
+            let valueTmp = $j("input[name='o_unite1_" + (i + 1) + "']").spinner("value");
+            $j("input[name='o_unite1_" + (i + 1) + "']").spinner("value", $j("input[name='o_unite2_" + (i + 1) + "']").spinner("value"));
+            $j("input[name='o_unite2_" + (i + 1) + "']").spinner("value", valueTmp);
         }
         // switch des bonus
-        let tmpBonusArme = $("#o_armes1").spinner("value"), tmpBonusBouclier = $("#o_bouclier1").spinner("value");
-        $("#o_armes1").spinner("value", $("#o_armes2").spinner("value"));
-        $("#o_bouclier1").spinner("value", $("#o_bouclier2").spinner("value"));
-        $("#o_armes2").spinner("value", tmpBonusArme);
-        $("#o_bouclier2").spinner("value", tmpBonusBouclier);
+        let tmpBonusArme = $j("#o_armes1").spinner("value"), tmpBonusBouclier = $j("#o_bouclier1").spinner("value");
+        $j("#o_armes1").spinner("value", $j("#o_armes2").spinner("value"));
+        $j("#o_bouclier1").spinner("value", $j("#o_bouclier2").spinner("value"));
+        $j("#o_armes2").spinner("value", tmpBonusArme);
+        $j("#o_bouclier2").spinner("value", tmpBonusBouclier);
         // switch de la position
-        let tmpPosition = $("#o_positionJoueur").slider("option", "value");
-        $("#o_positionJoueur").slider("option", "value", 1 - tmpPosition);
+        let tmpPosition = $j("#o_positionJoueur").slider("option", "value");
+        $j("#o_positionJoueur").slider("option", "value", 1 - tmpPosition);
         return this;
     }
     /**
     * @private
     */
     #actualiserStatistique(nameAtt = "", valueAtt = 0, nameDef = "", valueDef = 0, bouclier1 = -1, armes1 = -1, bouclier2 = -1, armes2 = -1, niveauDome = -1, niveauLoge = -1) {
-        let armesAtt = armes1 != -1 ? armes1 : $("#o_armes1").spinner("value"), bouclierAtt = bouclier1 != -1 ? bouclier1 : $("#o_bouclier1").spinner("value");
-        let armesDef = armes2 != -1 ? armes2 : $("#o_armes2").spinner("value"), bouclierDef = bouclier2 != -1 ? bouclier2 : $("#o_bouclier2").spinner("value");
-        let lieu = parseInt($("#o_simulateurNiveau input[name='o_lieu']:checked").val()), bonusLieu = 0;
+        let armesAtt = armes1 != -1 ? armes1 : $j("#o_armes1").spinner("value"), bouclierAtt = bouclier1 != -1 ? bouclier1 : $j("#o_bouclier1").spinner("value");
+        let armesDef = armes2 != -1 ? armes2 : $j("#o_armes2").spinner("value"), bouclierDef = bouclier2 != -1 ? bouclier2 : $j("#o_bouclier2").spinner("value");
+        let lieu = parseInt($j("#o_simulateurNiveau input[name='o_lieu']:checked").val()), bonusLieu = 0;
         switch (lieu) {
             case LIEU.DOME:
-                bonusLieu = niveauDome != -1 ? niveauDome : $("#o_domeNiveau").spinner("value");
+                bonusLieu = niveauDome != -1 ? niveauDome : $j("#o_domeNiveau").spinner("value");
                 break;
             case LIEU.LOGE:
-                bonusLieu = niveauLoge != -1 ? niveauLoge : $("#o_logeNiveau").spinner("value");
+                bonusLieu = niveauLoge != -1 ? niveauLoge : $j("#o_logeNiveau").spinner("value");
                 break;
             default:
                 break;
         }
         let armee = new Armee();
         // données attaquant
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { armee.unite[i + 1] = $(elt).attr("name") == nameAtt ? valueAtt : $(elt).spinner("value"); });
-        $("#o_vieAtt").text(numeral(armee.getTotalVie(bouclierAtt)).format());
-        $("#o_degatAtt").text(numeral(armee.getTotalAtt(armesAtt)).format());
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(0)").each((i, elt) => { armee.unite[i + 1] = $j(elt).attr("name") == nameAtt ? valueAtt : $j(elt).spinner("value"); });
+        $j("#o_vieAtt").text(numeral(armee.getTotalVie(bouclierAtt)).format());
+        $j("#o_degatAtt").text(numeral(armee.getTotalAtt(armesAtt)).format());
         // données defenseur
         armee = new Armee();
-        $("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { armee.unite[i + 1] = $(elt).attr("name") == nameDef ? valueDef : $(elt).spinner("value"); });
-        $("#o_vieDef").text(numeral(armee.getTotalVie(bouclierDef, lieu, bonusLieu)).format());
-        $("#o_degatDef").text(numeral(armee.getTotalDef(armesDef)).format());
+        $j("#o_simulateurArmee tr:gt(1)").find("input:eq(1)").each((i, elt) => { armee.unite[i + 1] = $j(elt).attr("name") == nameDef ? valueDef : $j(elt).spinner("value"); });
+        $j("#o_vieDef").text(numeral(armee.getTotalVie(bouclierDef, lieu, bonusLieu)).format());
+        $j("#o_degatDef").text(numeral(armee.getTotalDef(armesDef)).format());
         return this;
     }
     /**
     * @private
     */
     #copierCollerArmee(position) {
-        if ($("#o_divccarmee").length) {
-            $("#o_divccarmee").show();
-            $("#o_camp").val(position);
+        if ($j("#o_divccarmee").length) {
+            $j("#o_divccarmee").show();
+            $j("#o_camp").val(position);
         } else {
-            $("body").append(`<div class="voile" id="o_divccarmee">
+            $j("body").append(`<div class="voile" id="o_divccarmee">
                 <div class="message_voile">
                     <input type="hidden" id="o_camp" value="${position}"/>Importer une Armée
                     <textarea id="o_textAreaArmee" name="textAreaArmee" rows="9" cols="50" style="width:100%;"></textarea>
@@ -142371,22 +142669,22 @@ Utils.register(class BoiteCombat extends Boite {
                 </div>
             </div>`);
             // event
-            $("#o_annulerCopie").click((e) => {
-                $("#o_divccarmee").hide();
-                $("#o_textAreaArmee").val("");
+            $j("#o_annulerCopie").click((e) => {
+                $j("#o_divccarmee").hide();
+                $j("#o_textAreaArmee").val("");
                 return false;
             });
-            $("#o_afficherAide").click((e) => {
-                $("#o_aideCopierArmee").is(":visible") ? $("#o_aideCopierArmee").hide() : $("#o_aideCopierArmee").show();
+            $j("#o_afficherAide").click((e) => {
+                $j("#o_aideCopierArmee").is(":visible") ? $j("#o_aideCopierArmee").hide() : $j("#o_aideCopierArmee").show();
                 return false;
             });
-            $("#o_importerArmee").click((e) => {
-                let armee = new Armee(), camp = $("#o_camp").val() == "ATT" ? 1 : 2;
-                armee.parseArmee($("#o_textAreaArmee").val());
+            $j("#o_importerArmee").click((e) => {
+                let armee = new Armee(), camp = $j("#o_camp").val() == "ATT" ? 1 : 2;
+                armee.parseArmee($j("#o_textAreaArmee").val());
                 for (let i = 1; i < armee.unite.length; i++)
-                    $("input[name='o_unite" + camp + "_" + i + "']").spinner("value", armee.unite[i]);
-                $("#o_divccarmee").hide();
-                $("#o_textAreaArmee").val("");
+                    $j("input[name='o_unite" + camp + "_" + i + "']").spinner("value", armee.unite[i]);
+                $j("#o_divccarmee").hide();
+                $j("#o_textAreaArmee").val("");
                 this.#actualiserStatistique();
                 return false;
             });
@@ -142406,34 +142704,34 @@ Utils.register(class BoiteCombat extends Boite {
             <tr><td>Dernier mouvement</td><td><input id="o_dernierMvt" placeholder="JJ-MM-AAAA HH:mm"/></td><td></td><td><button id="o_calculerTemps">Calculer</button></td></tr>
             <tr class="reduce"><td colspan="4"><em>Le temps maximal d'un trajet est de <span id="o_indicationTemps">${this.#calculerLimiteTemps(0)}</span>.</em></td></tr>
             </table>`;
-        $("#o_tabsCombat4").append(html);
+        $j("#o_tabsCombat4").append(html);
         return this.#eventCalculatrice();
     }
     /**
     * @private
     */
     #eventCalculatrice() {
-        $("#o_placementJ").click(async () => {
+        $j("#o_placementJ").click(async () => {
             // si les infos sont deja renseigné on vide
-            if ($("#o_pseudoTemps").val() == await monProfilJoueur.lire('Pseudo')) {
-                $("#o_pseudoTemps").val("");
-                $("#o_vaTemps").val(0);
-                $("#o_indicationTemps").text(this.#calculerLimiteTemps(0));
+            if ($j("#o_pseudoTemps").val() == await monProfilJoueur.lire('Pseudo')) {
+                $j("#o_pseudoTemps").val("");
+                $j("#o_vaTemps").val(0);
+                $j("#o_indicationTemps").text(this.#calculerLimiteTemps(0));
             } else {
                 let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-                $("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
-                $("#o_vaTemps").val(recherches[6]);
-                $("#o_indicationTemps").text(this.#calculerLimiteTemps(recherches[6]));
+                $j("#o_pseudoTemps").val(await monProfilJoueur.lire('Pseudo'));
+                $j("#o_vaTemps").val(recherches[6]);
+                $j("#o_indicationTemps").text(this.#calculerLimiteTemps(recherches[6]));
             }
         });
-        $("#o_pseudoTemps").autocomplete({
+        $j("#o_pseudoTemps").autocomplete({
             source: (request, response) => {
                 Joueur.rechercher(request.term).then((data) => { response(Utils.extraitRecherche(data, true, false)); });
             },
             position: { my: "left top-5", at: "left bottom" },
             minLength: 3
         });
-        $("#o_cibleJoueurTemps").autocomplete({
+        $j("#o_cibleJoueurTemps").autocomplete({
             source: (request, response) => { Alliance.rechercher(request.term.split(/,\s*/g).pop()).then((data) => { response(Utils.extraitRecherche(data, true, false)); }); },
             position: { my: "left top-6", at: "left bottom" },
             minLength: 2,
@@ -142447,7 +142745,7 @@ Utils.register(class BoiteCombat extends Boite {
                 return false;
             }
         });
-        $("#o_cibleTagTemps").autocomplete({
+        $j("#o_cibleTagTemps").autocomplete({
             source: (request, response) => { Alliance.rechercher(request.term.split(/,\s*/g).pop()).then((data) => { response(Utils.extraitRecherche(data, false)); }); },
             position: { my: "left top-6", at: "left bottom" },
             minLength: 0,
@@ -142462,37 +142760,37 @@ Utils.register(class BoiteCombat extends Boite {
             }
         }).data("ui-autocomplete")._renderItem = (ul, item) => {
             let style = '';
-            return $("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
+            return $j("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
         };
-        $("#o_dernierMvt").datetimepicker({
+        $j("#o_dernierMvt").datetimepicker({
             ...DATEPICKER_OPTION, dateFormat: "dd-mm-yy", timeFormat: "HH:mm", timeText: "Horaire", hourText: "Heure", minuteText: "Minute"
         });
-        $("#o_vaTemps").on("input", (e) => { $("#o_indicationTemps").text(this.#calculerLimiteTemps($(e.currentTarget).val())); });
-        $("#o_calculerTemps").click(async () => {
-            let ref = new Joueur(null, { donneesInitiales: { Pseudo: $("#o_pseudoTemps").val() } });
+        $j("#o_vaTemps").on("input", (e) => { $j("#o_indicationTemps").text(this.#calculerLimiteTemps($j(e.currentTarget).val())); });
+        $j("#o_calculerTemps").click(async () => {
+            let ref = new Joueur(null, { donneesInitiales: { Pseudo: $j("#o_pseudoTemps").val() } });
             let recherches = await ref.lire('Niveaux Recherches');
-            recherches[6] = $("#o_vaTemps").val();
+            recherches[6] = $j("#o_vaTemps").val();
             await ref.ecrire("Niveaux Recherches", recherches);
             // si pas de referentiel on ne peut rien calculer
             if (! await ref.lire('Pseudo')) {
-                $.toast({ ...TOAST_ERROR, text: "Le joueur 1 n'est pas renseigné." });
+                $j.toast({ ...TOAST_ERROR, text: "Le joueur 1 n'est pas renseigné." });
                 return false;
             }
             // preparation des joueurs
             let joueurs = new Array(), alliances = new Array();
-            for (let i = 0, tmp = $("#o_cibleJoueurTemps").val().split(", "); i < tmp.length; i++)
+            for (let i = 0, tmp = $j("#o_cibleJoueurTemps").val().split(", "); i < tmp.length; i++)
                 if (tmp[i])
                     joueurs.push(new Joueur(null, { donneesInitiales: { Pseudo: tmp[i] } }));
             // preparation des alliances
-            for (let i = 0, tmp = $("#o_cibleTagTemps").val().split(", "); i < tmp.length; i++)
+            for (let i = 0, tmp = $j("#o_cibleTagTemps").val().split(", "); i < tmp.length; i++)
                 if (tmp[i])
                     alliances.push(new Alliance({ tag: tmp[i] }));
 
             if (!joueurs.length && !alliances.length) {
-                $.toast({ ...TOAST_ERROR, text: "Vous n'avez pas renseigné de joueur ni d'alliance pour lancer le calcul." });
+                $j.toast({ ...TOAST_ERROR, text: "Vous n'avez pas renseigné de joueur ni d'alliance pour lancer le calcul." });
             } else {
-                if (!$("#o_infosTemps").length) this.#afficherTemps();
-                await this.#calculerTemps(ref, joueurs, alliances, $("#o_dernierMvt").val());
+                if (!$j("#o_infosTemps").length) this.#afficherTemps();
+                await this.#calculerTemps(ref, joueurs, alliances, $j("#o_dernierMvt").val());
             }
             return false;
         });
@@ -142512,7 +142810,7 @@ Utils.register(class BoiteCombat extends Boite {
             // promise pour recupérer les joueurs et leurs coordonnées
             let promise = new Array();
             // promise pour recup les coordonnées
-            if (!Object.keys(this._coordonnees).length) promise.push($.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map"));
+            if (!Object.keys(this._coordonnees).length) promise.push($j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map"));
             // promise qui recup le profil du ref
             if (! await ref.estJoueurCourant()) promise.push(ref.chargerDonneesMembre());
             // promise pour recup les joueurs et les descriptions d'alliance
@@ -142537,17 +142835,17 @@ Utils.register(class BoiteCombat extends Boite {
             // on calcule les temps de trajet vers les joueurs
             for (let i = 0; i < joueurs.length; i++) {
                 let tempsP = await ref.getTempsParcours2(joueurs[i]);
-                rows.push($(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].lire('Terrain de Chasse')).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
+                rows.push($j(`<tr><td>${await joueurs[i].lire('Pseudo')}</td><td>${numeral(await joueurs[i].lire('Terrain de Chasse')).format()}</td><td>${Utils.intToTime(tempsP)}</td><td>${dernierMvt ? moment(dernierMvt, "DD-MM-YYYY HH:mm").add(tempsP, 's').format("D MMM à HH[h]mm[m]ss[s]") : ""}</td></tr>`)[0]);
             }
             // on recup les pseudos des alliances
             for (let i = 0; i < alliances.length; i++) {
-                const lignes = $(values[i + ind + joueurs.length])
+                const lignes = $j(values[i + ind + joueurs.length])
                     .find("#tabMembresAlliance tr:gt(0)")
                     .toArray(); // transforme en vrai tableau
 
                 for (const elt of lignes) {
-                    let pseudo = $(elt).find("td:eq(2)").text();
-                    let terrain = numeral($(elt).find("td:eq(4)").text()).value();
+                    let pseudo = $j(elt).find("td:eq(2)").text();
+                    let terrain = numeral($j(elt).find("td:eq(4)").text()).value();
 
                     if (this._coordonnees.hasOwnProperty(pseudo)) {
                         let tempsP = await ref.getTempsParcours(
@@ -142556,7 +142854,7 @@ Utils.register(class BoiteCombat extends Boite {
                         );
 
                         rows.push(
-                            $(`<tr>
+                            $j(`<tr>
                             <td>${pseudo}</td>
                             <td>${numeral(terrain).format()}</td>
                             <td>${Utils.intToTime(tempsP)}</td>
@@ -142572,10 +142870,10 @@ Utils.register(class BoiteCombat extends Boite {
                 }
             }
             // affichage du tableau des distances
-            $("#o_infosTemps").DataTable().clear().rows.add(rows).draw();
+            $j("#o_infosTemps").DataTable().clear().rows.add(rows).draw();
         } catch (error) {
             console.error("[BoiteCombat] Erreur lors du calcul du temps de trajet:", error);
-            $.toast({ ...TOAST_ERROR, text: "Erreur lors du calcul des temps. Consultez la console." });
+            $j.toast({ ...TOAST_ERROR, text: "Erreur lors du calcul des temps. Consultez la console." });
         }
         return this;
     }
@@ -142583,8 +142881,8 @@ Utils.register(class BoiteCombat extends Boite {
     * @private
     */
     #afficherTemps() {
-        $("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
-        $("#o_infosTemps").DataTable({
+        $j("#o_tabsCombat4").append(`<br/><table id='o_infosTemps'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Pseudo</th><th>Terrain</th><th>Temps de trajet</th><th>Retour le</th></tr></thead></table>`);
+        $j("#o_infosTemps").DataTable({
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             pageLength: 15,
@@ -142598,10 +142896,10 @@ Utils.register(class BoiteCombat extends Boite {
                 { type: "time-unformat", targets: 2 },
             ],
             rowCallback: (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
+                $j(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback: (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+                $j(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         return this;
@@ -142661,30 +142959,30 @@ Utils.register(class BoiteCommande extends Boite {
     */
     async event() {
         super.event();
-        $("input[name='o_dateCommande'], input[name='o_dateApres']").datepicker({ ...DATEPICKER_OPTION, minDate: new Date(), dateFormat: "dd-mm-yy" });
+        $j("input[name='o_dateCommande'], input[name='o_dateApres']").datepicker({ ...DATEPICKER_OPTION, minDate: new Date(), dateFormat: "dd-mm-yy" });
 
         // Autocomplete des champs en fonction de l'évolution (uniquement pour les nouvelles commandes)
         if (this._estNouvelle) {
-            $("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").change(async (e) => {
+            $j("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").change(async (e) => {
                 let qte = await Utils.calculQuantite(parseInt(e.currentTarget.value));
-                $("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
-                $("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
+                $j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val(numeral(qte[0]).format());
+                $j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val(numeral(qte[1]).format());
             });
         }
 
-        $("#o_form" + await this._commande.idSujet + " input[name^='o_quantite']").on("input", (e) => {
-            return $(e.currentTarget).val(numeral($(e.currentTarget).val()).format());
+        $j("#o_form" + await this._commande.idSujet + " input[name^='o_quantite']").on("input", (e) => {
+            return $j(e.currentTarget).val(numeral($j(e.currentTarget).val()).format());
         });
 
-        $("#o_commander" + await this._commande.idSujet).onActionSecurisee('click', this._commande.fonctionnaliteCreatrice, async (e) => {
+        $j("#o_commander" + await this._commande.idSujet).onActionSecurisee('click', this._commande.fonctionnaliteCreatrice, async (e) => {
             e.preventDefault();
 
             // Récupérer les valeurs du formulaire
-            const evolution = parseInt($("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").val());
-            const nourritureDemandee = numeral($("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val()).value();
-            const materiauxDemandes = numeral($("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val()).value();
-            const dateSouhaiteeStr = $("#o_form" + await this._commande.idSujet + " input[name='o_dateCommande']").val();
-            const dateApresStr = $("#o_form" + await this._commande.idSujet + " input[name='o_dateApres']").val();
+            const evolution = parseInt($j("#o_form" + await this._commande.idSujet + " select[name='o_evolution']").val());
+            const nourritureDemandee = numeral($j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteNou']").val()).value();
+            const materiauxDemandes = numeral($j("#o_form" + await this._commande.idSujet + " input[name='o_quantiteMat']").val()).value();
+            const dateSouhaiteeStr = $j("#o_form" + await this._commande.idSujet + " input[name='o_dateCommande']").val();
+            const dateApresStr = $j("#o_form" + await this._commande.idSujet + " input[name='o_dateApres']").val();
 
             // Mettre à jour les paramètres de la commande
             await this._commande.ecrire({
@@ -142710,9 +143008,9 @@ Utils.register(class BoiteCommande extends Boite {
                     // Enregistrer sur le forum via le framework
                     await this._commande.enregistrerSurForum();
                     if (this._estNouvelle) {
-                        $.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
+                        $j.toast({ ...TOAST_SUCCESS, text: "Commande ajoutée avec succès." });
                     } else {
-                        $.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour avec succès." });
+                        $j.toast({ ...TOAST_SUCCESS, text: "Commande mise à jour avec succès." });
                     }
 
                     // Actualiser l'affichage via GererCommandes
@@ -142724,14 +143022,14 @@ Utils.register(class BoiteCommande extends Boite {
                     this.masquer();
                 } catch (error) {
                     console.error("[BoiteCommande] Erreur lors de l'enregistrement:", error);
-                    $.toast({
+                    $j.toast({
                         ...TOAST_ERROR,
                         text: `Une erreur est survenue lors de ${this._estNouvelle ? "l'ajout" : "la mise à jour"} de la commande.`
                     });
                     throw error;
                 }
             } else {
-                $.toast({ ...TOAST_ERROR, text: message });
+                $j.toast({ ...TOAST_ERROR, text: message });
             }
             return false;
 
@@ -142767,7 +143065,7 @@ Utils.register(class BoiteCommande extends Boite {
             select += `<option value="${i}" ${i == evolution ? "selected" : ""}>${EVOLUTION[i]}</option>`;
         }
 
-        $("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.idSujet}">
+        $j("#" + this._id).append(`<div class="o_commandeForm"><form id="o_form${await this._commande.idSujet}">
             <div class="group"><select name="o_evolution" class="o_input" required>${select}</select><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Evolution</label></div>
             <div class="group"><input name="o_quantiteNou" class="o_input" type="text" value="${nourritureDemandee}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Nourriture</label></div>
             <div class="group"><input name="o_quantiteMat" class="o_input" type="text" value="${materiauxDemandes}" required/><span class="o_inputHighlight"></span><span class="o_inputBar"></span><label class='o_label'>Materiaux</label></div>
@@ -142808,7 +143106,7 @@ Utils.register(class BoiteMap extends Boite {
                 let donnees = JSON.parse(data);
                 if (donnees.error == "0") await this.#afficherMap(donnees.message);
             }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la map." });
+                $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la map." });
             });
             this.css().event();
         }
@@ -142836,7 +143134,7 @@ Utils.register(class BoiteMap extends Boite {
     *
     */
     #getMap() {
-        return $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map");
+        return $j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/map");
     }
     /**
     * @private
@@ -142957,8 +143255,8 @@ Utils.register(class BoiteParametre extends Boite {
     */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_tabsParametre").tabs({ activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
-            if (!monProfilUtilisateur.parametre["cleTraceur"].valeur) $("#o_tabsParametre").tabs("disable", 3);
+            $j("#o_tabsParametre").tabs({ activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
+            if (!monProfilUtilisateur.parametre["cleTraceur"].valeur) $j("#o_tabsParametre").tabs("disable", 3);
             this.#parametreStyle().#parametreUtilitaire().#parametreGeneral().#parametreTraceur().css().event();
         }
     }
@@ -142969,15 +143267,15 @@ Utils.register(class BoiteParametre extends Boite {
     */
     css() {
         super.css();
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
+        $j(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
+        $j(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
     /**
@@ -142989,13 +143287,13 @@ Utils.register(class BoiteParametre extends Boite {
         super.event();
 
         // Delegated event listener for text inputs (type 'input') and color inputs
-        $("#o_boiteParametre").on("input", ".o_input:not([type='checkbox']):not([type='color']), .o_inputColor", function (e) {
+        $j("#o_boiteParametre").on("input", ".o_input:not([type='checkbox']):not([type='color']), .o_inputColor", function (e) {
             const paramId = this.id.replace('Picker', ''); // Handle color picker ID
             const param = monProfilUtilisateur.parametre[paramId];
             if (param) {
                 if (param.type === 'color') {
                     param.valeur = e.currentTarget.value.padEnd(7, "0");
-                    $(`#${param.id}Picker`).val(param.valeur);
+                    $j(`#${param.id}Picker`).val(param.valeur);
                 } else { // type 'input'
                     param.valeur = e.currentTarget.value;
                 }
@@ -143004,7 +143302,7 @@ Utils.register(class BoiteParametre extends Boite {
         });
 
         // Delegated event listener for checkboxes and selects
-        $("#o_boiteParametre").on("change", ".o_checkbox, select.o_input", function (e) {
+        $j("#o_boiteParametre").on("change", ".o_checkbox, select.o_input", function (e) {
             const paramId = this.id;
             const param = monProfilUtilisateur.parametre[paramId];
             if (param) {
@@ -143046,12 +143344,12 @@ Utils.register(class BoiteParametre extends Boite {
                     spinnerOptions.min = 0;
                 }
 
-                $(`#${paramId}`).spinner(spinnerOptions);
+                $j(`#${paramId}`).spinner(spinnerOptions);
 
                 // Also add an input event for direct typing into spinner field
-                $(`#${paramId}`).on("input", (e) => {
+                $j(`#${paramId}`).on("input", (e) => {
                     param.valeur = numeral(e.currentTarget.value).value();
-                    $(e.currentTarget).spinner("value", param.valeur); // Update spinner display
+                    $j(e.currentTarget).spinner("value", param.valeur); // Update spinner display
                     param.sauvegarde();
                 });
             }
@@ -143065,7 +143363,7 @@ Utils.register(class BoiteParametre extends Boite {
     #parametreStyle() {
         let content = ``;
         for (let param of this.#paramStyle) content += monProfilUtilisateur.parametre[param].getForm();
-        $("#o_tabsParametre3").append(`<form>${content}</form>`);
+        $j("#o_tabsParametre3").append(`<form>${content}</form>`);
         return this;
     }
     /**
@@ -143095,14 +143393,14 @@ Utils.register(class BoiteParametre extends Boite {
                 console.error(`[BoiteParametre] Erreur: monProfilUtilisateur.parametre[${param}] est indéfini lors de la génération du formulaire.`);
             }
         }
-        $("#o_tabsParametre2").append(`<p class='left reduce gras'>Saisissez les identifiants des sections de votre utilitaire</p><form>${content}</form>`);
+        $j("#o_tabsParametre2").append(`<p class='left reduce gras'>Saisissez les identifiants des sections de votre utilitaire</p><form>${content}</form>`);
         return this;
     }
     /**
     * @private
     */
     #parametreGeneral() {
-        $("#o_tabsParametre1").append(`<form>
+        $j("#o_tabsParametre1").append(`<form>
             <p class='left reduce gras'>L'affectation sera automatique lors de la consultation de la page ressource</p>
             ${monProfilUtilisateur.parametre[this.#paramGeneral[0]].getForm()}
             <p class='left reduce gras'>La méthode sera sélectionnée par défaut dans le lanceur de flood</p>
@@ -143117,7 +143415,7 @@ Utils.register(class BoiteParametre extends Boite {
     * @private
     */
     #parametreTraceur() {
-        $("#o_tabsParametre4").append(`<form>
+        $j("#o_tabsParametre4").append(`<form>
             <p class='left reduce gras'>Paramètres pour le traçage des joueurs</p>
             ${monProfilUtilisateur.parametre[this.#paramTraceur[0]].getForm() + monProfilUtilisateur.parametre[this.#paramTraceur[1]].getForm() + monProfilUtilisateur.parametre[this.#paramTraceur[2]].getForm()}
             <p class='left reduce gras'>Paramètres pour le traçage des alliances</p>
@@ -143241,21 +143539,21 @@ Utils.register(class BoiteGrade extends Boite {
     */
     async event() {
         super.event();
-        $("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").onActionSecurisee('click', this._joueur.fonctionnaliteCreatrice, async (e) => {
+        $j("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").onActionSecurisee('click', this._joueur.fonctionnaliteCreatrice, async (e) => {
             e.preventDefault();
             try {
                 // on sauvegarde le grade du joueur
-                await this._joueur.ecrire('Grade', $("#o_libGrade" + await this._joueur.lire('Id')).val());
-                await this._joueur.ecrire('Ordre Grade', $("#o_ordGrade" + await this._joueur.lire('Id')).val());
+                await this._joueur.ecrire('Grade', $j("#o_libGrade" + await this._joueur.lire('Id')).val());
+                await this._joueur.ecrire('Ordre Grade', $j("#o_ordGrade" + await this._joueur.lire('Id')).val());
 
                 // mise a jour du forum
                 await this._joueur.enregistrerSurForum();
                 const fonctionnaliteDonneesPrivees = new DonneesPrivees(this._page);
                 await fonctionnaliteDonneesPrivees.init();
-                $.toast({ ...TOAST_INFO, text: "Mise à jour correctement effectuée." });
+                $j.toast({ ...TOAST_INFO, text: "Mise à jour correctement effectuée." });
             }
             catch (err) {
-                $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la mise à jour des membres de l'alliance." });
+                $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la mise à jour des membres de l'alliance." });
                 console.error(err)
             }
             this.masquer();
@@ -143299,7 +143597,7 @@ Utils.register(class BoiteTraceur extends Boite {
     async afficher() {
         if (await super.afficher()) {
             let chargeAlliance = false;
-            $("#o_tabsTraceur").tabs({
+            $j("#o_tabsTraceur").tabs({
                 activate: async (e, ui) => {
                     if (!chargeAlliance && ui.newTab.index() == 1) {
                         chargeAlliance = true;
@@ -143320,12 +143618,12 @@ Utils.register(class BoiteTraceur extends Boite {
     */
     css() {
         super.css();
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
         return this;
     }
@@ -143694,7 +143992,7 @@ Utils.register(class BoutonLivrer extends AttributObjet {
         const apres = !dateApres || moment().isSameOrAfter(moment(dateApres));
 
         if (apres && etat == ETAT_COMMANDE["En cours"]) {
-            const $btn = $(`<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`);
+            const $btn = $j(`<a id='o_commande${this.objetParent.idSujet}' href=''><img src='${IMG_LIVRAISON}' alt='livrer'/></a>`);
             $btn.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 const constructions = await monProfilJoueur.lire('Niveaux Constructions');
                 const transportCapacity = Math.floor((Utils.ouvrieres - Utils.terrain) * (10 + (constructions[11] / 2)));
@@ -143704,18 +144002,18 @@ Utils.register(class BoutonLivrer extends AttributObjet {
                 let materialsToPrefill = Math.min(materiauxRestants, transportCapacity);
                 let nourishmentToPrefill = Math.min(nourritureRestante, transportCapacity - materialsToPrefill);
 
-                $("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
-                $("#nbMateriaux").val(materialsToPrefill);
-                $("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
-                $("#nbNourriture").val(nourishmentToPrefill);
+                $j("#input_nbMateriaux").val(numeral(materialsToPrefill).format());
+                $j("#nbMateriaux").val(materialsToPrefill);
+                $j("#input_nbNourriture").val(numeral(nourishmentToPrefill).format());
+                $j("#nbNourriture").val(nourishmentToPrefill);
 
                 const workersToPrefill = Math.ceil((materialsToPrefill + nourishmentToPrefill) / (10 + (constructions[11] / 2)));
-                $("#nbOuvriere").val(workersToPrefill);
-                $("#input_nbOuvriere").val(numeral(workersToPrefill).format());
+                $j("#nbOuvriere").val(workersToPrefill);
+                $j("#input_nbOuvriere").val(numeral(workersToPrefill).format());
 
-                $("#pseudo_convoi").val(await this.objetParent.lire('Demandeur'));
-                $("#o_idCommande").val(this.objetParent.idSujet);
-                $("html").animate({ scrollTop: 0 }, 600);
+                $j("#pseudo_convoi").val(await this.objetParent.lire('Demandeur'));
+                $j("#o_idCommande").val(this.objetParent.idSujet);
+                $j("html").animate({ scrollTop: 0 }, 600);
                 return false;
             });
             return $btn;
@@ -143740,8 +144038,8 @@ Utils.register(class Options extends AttributObjet {
         const pseudoActuel = await monProfilJoueur.lire('Pseudo');
 
         if (demandeur == pseudoActuel) {
-            const $modifier = $(`<a id='o_modifierCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a>`);
-            const $supprimer = $(`<a id='o_supprimerCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>`);
+            const $modifier = $j(`<a id='o_modifierCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CRAYON}' alt='modifier'/></a>`);
+            const $supprimer = $j(`<a id='o_supprimerCommande${this.objetParent.idSujet}' href=''><img src='${IMG_CROIX}' alt='supprimer'/></a>`);
 
             $modifier.onActionSecurisee('click', this.objetParent.fonctionnaliteCreatrice, async (e) => {
                 let boiteCommande = new BoiteCommande(this.objetParent, this.objetParent.fonctionnaliteCreatrice.page);
@@ -143753,7 +144051,7 @@ Utils.register(class Options extends AttributObjet {
                 if (confirm("Supprimer cette commande ?")) {
                     await this.objetParent.ecrire('État', ETAT_COMMANDE.Supprimée);
                     await this.objetParent.enregistrerSurForum();
-                    $.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
+                    $j.toast({ ...TOAST_INFO, text: "Commande supprimée avec succès." });
                     if (this.objetParent.fonctionnaliteCreatrice && typeof this.objetParent.fonctionnaliteCreatrice.actualiserCommandes === 'function') {
                         await this.objetParent.fonctionnaliteCreatrice.actualiserCommandes();
                     }
@@ -143761,7 +144059,7 @@ Utils.register(class Options extends AttributObjet {
                 return false;
             });
 
-            return $('<span></span>').append($modifier, " ", $supprimer);
+            return $j('<span></span>').append($modifier, " ", $supprimer);
         }
         return "";
     }
@@ -144156,7 +144454,7 @@ Utils.register(class Joueur extends ObjetForum {
         }
 
         try {
-            const html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + pseudo });
+            const html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Membre.php?Pseudo=" + pseudo });
             return await this.chargerDonneesMembreDepuisPage(html);
         } catch (error) {
             console.error(`[Joueur] Erreur AJAX lors de la récupération du profil pour: ${pseudo}`, error);
@@ -144176,20 +144474,20 @@ Utils.register(class Joueur extends ObjetForum {
             return false;
         }
 
-        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(html).find(".boite_membre a[href^='carte2.php?']").text();
-        await this.ecrire('Id', parseInt($(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10));
+        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $j(html).find(".boite_membre a[href^='carte2.php?']").text();
+        await this.ecrire('Id', parseInt($j(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10));
         await this.ecrire('X', ~~(ligne.replace(regexp, "$1")));
         await this.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
-        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.lire('Activité'));
-        await this.ecrire('Activité', $(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.lire('Activité'));
-        await this.ecrire('Terrain de Chasse', numeral($(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value());
-        await this.ecrire('Fourmilière', numeral($(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value());
-        await this.ecrire('Technologie', numeral($(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value());
+        await this.ecrire('Activité', $j(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.lire('Activité'));
+        await this.ecrire('Activité', $j(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.lire('Activité'));
+        await this.ecrire('Terrain de Chasse', numeral($j(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value());
+        await this.ecrire('Fourmilière', numeral($j(html).find(".tableau_score tr:eq(2) td:eq(1)").text()).value());
+        await this.ecrire('Technologie', numeral($j(html).find(".tableau_score tr:eq(3) td:eq(1)").text()).value());
 
-        const etatText = $(html).find("table:eq(0)").text();
+        const etatText = $j(html).find("table:eq(0)").text();
         await this.ecrire('Colonisé', etatText.includes("Etat : Fourmilière soumise par "));
 
-        const allianceRow = $(html).find("table:eq(0) tr:contains('Alliance :')");
+        const allianceRow = $j(html).find("table:eq(0) tr:contains('Alliance :')");
         if (allianceRow.length > 0) {
             let allianceTag = allianceRow.find("td:eq(1)").text().trim();
             await this.ecrire('Tag Alliance', (allianceTag === "-") ? "" : allianceTag);
@@ -144315,7 +144613,7 @@ Utils.register(class Joueur extends ObjetForum {
         const pseudo = await this.lire('Pseudo');
         if (!pseudo) return false;
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?Membres",
                 dataType: "text",
@@ -144331,14 +144629,14 @@ Utils.register(class Joueur extends ObjetForum {
             const allianceCmd = xmlDoc.querySelector("cmd[t='alliance']");
             const htmlContent = allianceCmd.textContent;
 
-            const doc = $("<div/>").html(htmlContent);
+            const doc = $j("<div/>").html(htmlContent);
             const table = doc.find("#tabMembresAlliance");
             let pseudoIdx = -1;
             let rangIdx = -1;
             table.find("tr").each((idx, tr) => {
-                const ths = $(tr).find("th, td");
+                const ths = $j(tr).find("th, td");
                 ths.each((cIdx, cell) => {
-                    const text = $(cell).text().trim();
+                    const text = $j(cell).text().trim();
                     if (text === "Pseudo") pseudoIdx = cIdx;
                     if (text === "Rang") rangIdx = cIdx;
                 });
@@ -144348,10 +144646,10 @@ Utils.register(class Joueur extends ObjetForum {
             if (rangIdx === -1) rangIdx = 2;
             let rangTrouve = null;
             table.find("tbody tr, tr").each((idx, tr) => {
-                const tds = $(tr).find("td");
-                const cellPseudo = $(tds[pseudoIdx]).text().trim();
+                const tds = $j(tr).find("td");
+                const cellPseudo = $j(tds[pseudoIdx]).text().trim();
                 if (cellPseudo === pseudo) {
-                    rangTrouve = $(tds[rangIdx]).text().trim();
+                    rangTrouve = $j(tds[rangIdx]).text().trim();
                     return false;
                 }
             });
@@ -144369,7 +144667,7 @@ Utils.register(class Joueur extends ObjetForum {
         const rang = await this.lire('Rang');
         if (!rang) return false;
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?Options",
                 dataType: "text",
@@ -144385,14 +144683,14 @@ Utils.register(class Joueur extends ObjetForum {
             const allianceCmd = xmlDoc.querySelector("cmd[t='alliance']");
             const htmlContent = allianceCmd.textContent;
 
-            const doc = $("<div/>").html(htmlContent);
+            const doc = $j("<div/>").html(htmlContent);
             const table = doc.find("#AffichageRang table");
             const headerTr = table.find("tr").eq(2);
             const headerCells = headerTr.find("td, th");
             let droitsActuels = await this.lire('Droits Fourmizzz');
             const colMap = {};
             headerCells.each((cIdx, cell) => {
-                const text = $(cell).text().trim().toLowerCase();
+                const text = $j(cell).text().trim().toLowerCase();
                 for (const key of Object.keys(droitsActuels)) {
                     if (Utils.normaliser(text) === Utils.normaliser(key)) {
                         colMap[key] = cIdx;
@@ -144401,11 +144699,11 @@ Utils.register(class Joueur extends ObjetForum {
             });
             let targetTr = null;
             table.find("tr").each((idx, tr) => {
-                const strong = $(tr).find("td strong").first();
+                const strong = $j(tr).find("td strong").first();
                 if (strong.length) {
                     const trRang = strong.text().trim();
                     if (trRang === rang.trim()) {
-                        targetTr = $(tr);
+                        targetTr = $j(tr);
                         return false;
                     }
                 }
@@ -144414,7 +144712,7 @@ Utils.register(class Joueur extends ObjetForum {
                 const tds = targetTr.find("td");
                 for (const key in colMap) {
                     const colIdx = colMap[key];
-                    const td = $(tds[colIdx]);
+                    const td = $j(tds[colIdx]);
                     const img = td.find("img");
                     if (img.length) {
                         droitsActuels[key] = true;
@@ -144437,7 +144735,7 @@ Utils.register(class Joueur extends ObjetForum {
      * @returns {Promise<boolean>} Vrai si le chargement a réussi.
      */
     async chargerJoueurCourant() {
-        const pseudo = $("#pseudo").text();
+        const pseudo = $j("#pseudo").text();
         if (!pseudo) {
             console.error('[Joueur] Impossible de trouver le pseudo du joueur courant sur la page.');
             return false;
@@ -144597,7 +144895,7 @@ Utils.register(class Joueur extends ObjetForum {
             const levels = await this.lire('Niveaux Constructions');
             if (levels.every((elt) => elt == -1)) {
                 try {
-                    html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
+                    html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
                 } catch (error) {
                     console.error(`[Joueur] Erreur AJAX lors de la récupération des constructions.`, error);
                     return false;
@@ -144607,9 +144905,9 @@ Utils.register(class Joueur extends ObjetForum {
             }
         }
 
-        let parsed = $("<div/>").append(html);
+        let parsed = $j("<div/>").append(html);
         const levels = await this.lire('Niveaux Constructions');
-        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         await this.ecrire('Niveaux Constructions', levels);
         console.log(`[Joueur.chargerConstruction] Niveaux de construction chargés pour ${await this.lire('Pseudo')}:`, levels);
 
@@ -144647,7 +144945,7 @@ Utils.register(class Joueur extends ObjetForum {
             const levels = await this.lire('Niveaux Recherches');
             if (levels.every((elt) => elt == -1)) {
                 try {
-                    html = await $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
+                    html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
                 } catch (error) {
                     console.error(`[Joueur] Erreur AJAX lors de la récupération des recherches.`, error);
                     return false;
@@ -144657,9 +144955,9 @@ Utils.register(class Joueur extends ObjetForum {
             }
         }
 
-        let parsed = $("<div/>").append(html);
+        let parsed = $j("<div/>").append(html);
         const levels = await this.lire('Niveaux Recherches');
-        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        parsed.find(".ligneAmelioration").each((i, elt) => { levels[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         await this.ecrire('Niveaux Recherches', levels);
         console.log(`[Joueur.chargerRecherche] Niveaux de recherche chargés pour ${await this.lire('Pseudo')}:`, levels);
 
@@ -144687,7 +144985,7 @@ Utils.register(class Joueur extends ObjetForum {
     *
     */
     getHistorique(id) {
-        $.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/player/" + $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], (data) => {
+        $j.get("http://outiiil.fr/fzzz/" + Utils.serveur + "/player/" + $j("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], (data) => {
             // Creation du graphique
             let histoAlliance = new Array(), histoDate = new Array(), donnees = JSON.parse(data);
             let chart = new Highcharts.Chart({
@@ -144712,7 +145010,7 @@ Utils.register(class Joueur extends ObjetForum {
                     crosshairs: [true],
                     formatter: function () {
                         let s = Highcharts.dateFormat("%A %e %b", this._x);
-                        $.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this._y).format() + "</b>"; });
+                        $j.each(this.points, function () { s += "<br/><span style='color:" + this.series.color + "'>\u25CF</span> " + this.series.name + ": <b>" + numeral(this._y).format() + "</b>"; });
                         return s;
                     },
                     shared: true,
@@ -144745,17 +145043,17 @@ Utils.register(class Joueur extends ObjetForum {
                     { name: "Vacance", color: "#013ADF", visible: false }
                 ]
             });
-            $("span[id^=o_selectHisto]").click((e) => {
-                let chart = $("#o_chartJoueur").highcharts(), histo = $(e.currentTarget).attr("data");
-                $("span[id^=o_selectHisto]").removeClass("active");
-                $(e.currentTarget).addClass("active");
+            $j("span[id^=o_selectHisto]").click((e) => {
+                let chart = $j("#o_chartJoueur").highcharts(), histo = $j(e.currentTarget).attr("data");
+                $j("span[id^=o_selectHisto]").removeClass("active");
+                $j(e.currentTarget).addClass("active");
                 if (histo == "all")
                     chart.xAxis[0].update({ min: moment("2016-01-01").valueOf() });
                 else
                     chart.xAxis[0].update({ min: moment().subtract(histo, "days").valueOf() });
                 // Style
-                $("#o_bouton_range span.active").addClass("ligne_paire");
-                $("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
+                $j("#o_bouton_range span.active").addClass("ligne_paire");
+                $j("#o_bouton_range span:not(.active)").removeClass("ligne_paire");
             });
             // ajout d'un tableau pour l'historique des alliance
             if (histoDate.length) {
@@ -144775,8 +145073,8 @@ Utils.register(class Joueur extends ObjetForum {
                 }
                 if (nbJour != 1)
                     html += `<tr><td class='left'>${fDate.format("DD/MM/YYYY")} -> ${cDate.format("DD/MM/YYYY")} (${(nbJour > 1 ? nbJour + " jours" : nbJour + " jour")})</td><td class='centre'>${cTeam != "0" ? `<a href='/classementAlliance.php?alliance=${cTeam}'>${cTeam}` : "Sans alliance"}</a></td></tr>`;
-                $("#" + id).after("<table id='o_historiqueAlliance' cellspacing=0><thead><tr class='gras even'><th>Date</th><th>Alliance</th></tr></thead><tbody>" + html + "</tbody></table>");
-                $("#o_historiqueAlliance tr:even").addClass("ligne_paire");
+                $j("#" + id).after("<table id='o_historiqueAlliance' cellspacing=0><thead><tr class='gras even'><th>Date</th><th>Alliance</th></tr></thead><tbody>" + html + "</tbody></table>");
+                $j("#o_historiqueAlliance tr:even").addClass("ligne_paire");
             }
         });
     }
@@ -144788,14 +145086,14 @@ Utils.register(class Joueur extends ObjetForum {
         const pseudo = (typeof pseudoParam === 'object' && pseudoParam !== null && pseudoParam.hasOwnProperty('valeur')) ? pseudoParam.valeur : pseudoParam;
         let enVacances = await this.lire('Activité') === 'vacances';
         let cellTerrain = await this.estAttaquable() ? `<a class="gras ${enVacances ? "blue_light" : ""} href="/ennemie.php?Attaquer=${await this.lire('Id')}&lieu=1">${numeral(await this.lire('Terrain de Chasse')).format()}</a>` : `<span ${enVacances ? `class="blue_light" title="En vacances"` : ""}>${numeral(await this.lire('Terrain de Chasse')).format()}</span>`;
-        $(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${await this.lire('Id')}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td id="o_nom_${await this.lire('Id')}" class="left" title=""><a class="gras ${enVacances ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${await this.lire('Id')}" class="right reduce" title="">${cellTerrain}</td></tr>`);
+        $j(id).append(`<tr id="o_item_${indice}" class="lien"><td><a id="o_maj_${await this.lire('Id')}" class='o_actualiser' href=""><img src="${IMG_ACTUALISER}" alt="grade" height="20"/></a></td><td id="o_nom_${await this.lire('Id')}" class="left" title=""><a class="gras ${enVacances ? "blue_light" : ""}" href="Membre.php?Pseudo=${pseudo}">${pseudo}</a></td><td id="o_terrain_${await this.lire('Id')}" class="right reduce" title="">${cellTerrain}</td></tr>`);
         // event
-        $("#o_maj_" + await this.lire('Id')).click(async (e) => {
+        $j("#o_maj_" + await this.lire('Id')).click(async (e) => {
             console.log(`[Joueur.getLigneRadar] Clic sur le bouton de rafraîchissement pour joueur: ${pseudo}, ID: ${await this.lire('Id')}`);
             e.preventDefault(); // Empêche le rechargement de la page
             try {
-                let oldTerrain = numeral($("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
-                $({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
+                let oldTerrain = numeral($j("#o_terrain_" + await this.lire('Id')).text()).value(), oldEtat = await this.lire('Activité'), bSave = false;
+                $j({ deg: 0 }).animate({ deg: 360 }, { duration: 600, step: (now) => { $j(e.currentTarget).find("img").css({ transform: "rotate(" + now + "deg)" }); } });
 
                 if (await this.chargerDonneesMembre()) {
                     console.log(`[Joueur.getLigneRadar] chargerDonneesMembre réussi pour ${pseudo}. Nouveau terrain: ${await this.lire('Terrain de Chasse')}, Nouvel état: ${await this.lire('Activité')}`);
@@ -144806,22 +145104,22 @@ Utils.register(class Joueur extends ObjetForum {
                     // si le joueur est sortie de MV ou si il a mis le MV
                     if (oldEtat != await this.lire('Activité')) {
                         console.log(`[Joueur.getLigneRadar] Changement de statut pour ${pseudo}. Ancien état: ${oldEtat}, Nouvel état: ${await this.lire('Activité')}`);
-                        $("#o_terrain_" + await this.lire('Id')).html(cellTerrain);
+                        $j("#o_terrain_" + await this.lire('Id')).html(cellTerrain);
                         if (enVacances)
-                            $("#o_nom_" + await this.lire('Id') + " a").addClass("blue_light");
+                            $j("#o_nom_" + await this.lire('Id') + " a").addClass("blue_light");
                         else
-                            $("#o_nom_" + await this.lire('Id') + " a").removeClass("blue_light");
+                            $j("#o_nom_" + await this.lire('Id') + " a").removeClass("blue_light");
                         bSave = true;
                     }
                     if (diff) {
                         console.log(`[Joueur.getLigneRadar] Différence de terrain pour ${pseudo}. Diff: ${diff}`);
-                        $("#o_terrain_" + await this.lire('Id'))
+                        $j("#o_terrain_" + await this.lire('Id'))
                             .html(cellTerrain)
                             .effect("highlight", { color: (diff > 0 ? "#458D58" : "#8D4545") }, 1000)
                             .attr("title", numeral(diff).format())
                             .tooltip({
                                 position: { my: "left+10 center", at: "right center" },
-                                content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $("#o_terrain_" + await this.lire('Id')).attr("title") : $("#o_terrain_" + await this.lire('Id')).attr("title")} cm²</span>`,
+                                content: `<span class='${diff > 0 ? "green_light" : "red_xlight"}'>${diff > 0 ? "+ " + $j("#o_terrain_" + await this.lire('Id')).attr("title") : $j("#o_terrain_" + await this.lire('Id')).attr("title")} cm²</span>`,
                                 hide: { effect: "fade", duration: 10 },
                                 tooltipClass: "warning-tooltip ui-tooltip-right"
                             }).tooltip("open");
@@ -144830,21 +145128,21 @@ Utils.register(class Joueur extends ObjetForum {
                     bSave && await radar.sauvegarder();
                 } else {
                     console.warn(`[Joueur.getLigneRadar] chargerProfil a échoué pour ${pseudo}.`);
-                    $.toast({ ...TOAST_WARNING, text: `Le joueur ${pseudo} n'existe plus.` });
+                    $j.toast({ ...TOAST_WARNING, text: `Le joueur ${pseudo} n'existe plus.` });
                     await radar.supprimeJoueur(this);
                     await radar.sauvegarder();
                     await radar.actualiser();
                 }
             } catch (error) {
                 console.error(`[Joueur.getLigneRadar] Erreur lors du rafraîchissement du profil pour ${pseudo}:`, error);
-                $.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement du joueur ${pseudo}.` });
+                $j.toast({ ...TOAST_ERROR, text: `Erreur lors du rafraîchissement du joueur ${pseudo}.` });
             }
             return false; // Assure que l'événement ne se propage pas et que le navigateur ne suit pas le lien
         });
         // tooltip vacance...
-        $("#o_terrain_" + await this.lire('Id')).tooltip({ position: { my: "left+10 center", at: "right center" }, tooltipClass: "warning-tooltip" });
+        $j("#o_terrain_" + await this.lire('Id')).tooltip({ position: { my: "left+10 center", at: "right center" }, tooltipClass: "warning-tooltip" });
         // creation du tooltip sur les joueurs pour avoir le temps de trajet
-        $("#o_nom_" + await this.lire('Id')).tooltip({
+        $j("#o_nom_" + await this.lire('Id')).tooltip({
             position: { my: "left+10 bottom", at: "right center" },
             content: async (callback) => {
                 if (radar.joueurs.hasOwnProperty(pseudo)) {
@@ -144865,7 +145163,7 @@ Utils.register(class Joueur extends ObjetForum {
     *
     */
     static rechercher(elt) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classementAlliance.php",
             data: {
@@ -145089,12 +145387,12 @@ Utils.register(class Commande extends ObjetForum {
         }
 
         if (await convoiTrouve.estTermine()) {
-            $.toast({ ...TOAST_INFO, text: "Convoi déjà arrivé : annulation ignorée sur le forum." });
+            $j.toast({ ...TOAST_INFO, text: "Convoi déjà arrivé : annulation ignorée sur le forum." });
             return { trouve: true, modifie: false };
         }
 
         if (!(await convoiTrouve.estAnnulable(timestampClic))) {
-            $.toast({ ...TOAST_INFO, text: "Délai d'annulation de 2 minutes dépassé : annulation ignorée sur le forum." });
+            $j.toast({ ...TOAST_INFO, text: "Délai d'annulation de 2 minutes dépassé : annulation ignorée sur le forum." });
             return { trouve: true, modifie: false };
         }
 
@@ -145124,7 +145422,7 @@ Utils.register(class Commande extends ObjetForum {
         // Sauvegarde de la commande sur le forum (mise à jour des totaux dans le titre/sujet)
         await this.enregistrerSurForum();
 
-        $.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum (message supprimé)." });
+        $j.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum (message supprimé)." });
         return { trouve: true, modifie: true, resurrection: resurrection };
     }
 })
@@ -145173,9 +145471,9 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
+        const dtButtonsContainer = $j("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
-            const bouton = $(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
+            const bouton = $j(`<a id="o_actualiserAlliance" class="dt-button" href="#"><span>Actualiser l'alliance</span></a>`);
             bouton.onActionSecurisee('click', this, this.actualiserAlliance.bind(this));
             dtButtonsContainer.prepend(bouton);
         }
@@ -145218,10 +145516,10 @@ Utils.register(class Actualiser extends FonctionnaliteAlliance {
                 await fonctionnaliteModifierGrade.init();
             }
 
-            $.toast({ ...TOAST_SUCCESS, text: "L'alliance a été mise à jour avec succès." });
+            $j.toast({ ...TOAST_SUCCESS, text: "L'alliance a été mise à jour avec succès." });
         } catch (error) {
             console.error("Erreur lors de l'actualisation de l'alliance:", error);
-            $.toast({ ...TOAST_ERROR, heading: "Erreur Actualisation", text: `${error.message || 'Une erreur est survenue.'}` });
+            $j.toast({ ...TOAST_ERROR, heading: "Erreur Actualisation", text: `${error.message || 'Une erreur est survenue.'}` });
         }
     }
 });
@@ -145257,10 +145555,10 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
         if (gradeColIndex === -1) {
             // La colonne 'Grade' n'existe pas, on la crée
             console.log(`[${this.constructor.name}] Création de la colonne 'Grade'.`);
-            $('<th class="dt-head-center">Grade</th>').insertBefore($(`#tabMembresAlliance thead tr th:eq(${initialRangColIndex})`));
+            $j('<th class="dt-head-center">Grade</th>').insertBefore($j(`#tabMembresAlliance thead tr th:eq(${initialRangColIndex})`));
 
-            const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-                const row = $(elt);
+            const promises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const row = $j(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
                 const joueur = membresForumMap.get(pseudo);
 
@@ -145269,15 +145567,15 @@ Utils.register(class DonneesPrivees extends FonctionnaliteAlliance {
                     grade = await joueur.lire('Grade') || '';
                 }
                 const gradeCell = `<td align="center">${grade}</td>`;
-                $(gradeCell).insertBefore(row.find(`td:eq(${initialRangColIndex})`));
+                $j(gradeCell).insertBefore(row.find(`td:eq(${initialRangColIndex})`));
             }).get();
 
             await Promise.all(promises);
         } else {
             // La colonne 'Grade' existe, on la met à jour
             console.log(`[${this.constructor.name}] Mise à jour de la colonne 'Grade'.`);
-            const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-                const row = $(elt);
+            const promises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const row = $j(elt);
                 const pseudo = row.find(`td:eq(${initialPseudoColIndex})`).text().split(' ')[0];
                 const joueur = membresForumMap.get(pseudo);
 
@@ -145333,14 +145631,14 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
 
             if (tagAllianceColIndex === -1) {
                 // Créer la colonne "Tag Alliance" juste après "Pseudo"
-                $('<th>Tag Alliance</th>').insertAfter($(`#tabMembresAlliance thead tr th:eq(${pseudoColIndex})`));
+                $j('<th>Tag Alliance</th>').insertAfter($j(`#tabMembresAlliance thead tr th:eq(${pseudoColIndex})`));
                 tagAllianceColIndex = pseudoColIndex + 1;
                 console.log(`[${this.constructor.name}] Colonne 'Tag Alliance' créée.`);
             }
 
             // Peupler la colonne pour tous les joueurs déjà dans le tableau
-            const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-                const row = $(elt);
+            const promises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const row = $j(elt);
                 const pseudo = row.find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
                 const joueur = tousLesMembresMap.get(pseudo);
 
@@ -145352,19 +145650,19 @@ Utils.register(class JoueursExterieurs extends FonctionnaliteAlliance {
                     }
                 }
                 const tagCell = `<td align="center">${tag}</td>`;
-                $(tagCell).insertAfter(row.find(`td:eq(${pseudoColIndex})`));
+                $j(tagCell).insertAfter(row.find(`td:eq(${pseudoColIndex})`));
             }).get();
             await Promise.all(promises);
 
             // Ajouter les lignes des joueurs extérieurs
             const headers = [];
-            $("#tabMembresAlliance thead tr th").each(function () {
-                headers.push($(this).text().trim());
+            $j("#tabMembresAlliance thead tr th").each(function () {
+                headers.push($j(this).text().trim());
             });
 
             for (const membre of membresExterieurs) {
                 const $corps = await membre.afficherCorps(headers);
-                $("#tabMembresAlliance tbody").append($corps);
+                $j("#tabMembresAlliance tbody").append($corps);
                 const pseudo = await membre.lire('Pseudo');
                 console.log(`[${this.constructor.name}] Ligne ajoutée pour le joueur ${pseudo}.`);
             }
@@ -145407,17 +145705,17 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
         const pseudoColIndex = this.page.getColonneIndex('Pseudo');
 
         // Parcourir toutes les lignes pour ajouter l'icône de modification
-        $("#tabMembresAlliance tbody tr").each((i, elt) => {
-            const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
+        $j("#tabMembresAlliance tbody tr").each((i, elt) => {
+            const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
             const data = membresForumMap.get(pseudo);
 
             if (data) {
-                const premierTd = $(elt).find('td:eq(0)');
+                const premierTd = $j(elt).find('td:eq(0)');
                 if (premierTd.find('img[alt="grade"]').length > 0) {
                     return;
                 }
                 const { joueur, id } = data;
-                const bouton = $(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
+                const bouton = $j(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                 bouton.onActionSecurisee('click', this, (e) => {
                     const boite = new BoiteGrade(joueur, this.page, id);
                     boite.afficher();
@@ -145443,9 +145741,9 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
+        const dtButtonsContainer = $j("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
-            const bouton = $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
+            const bouton = $j(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
             bouton.onActionSecurisee('click', this, this.effectuerRecensement.bind(this));
             dtButtonsContainer.append(bouton);
         }
@@ -145458,7 +145756,7 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
      */
     async effectuerRecensement(e) {
         e.preventDefault();
-        const bouton = $(e.currentTarget);
+        const bouton = $j(e.currentTarget);
         bouton.addClass('processing').css('pointer-events', 'none');
 
         try {
@@ -145466,13 +145764,13 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
             recensementReussi = await monProfilJoueur.effectuerRecensement();
 
             if (recensementReussi) {
-                $.toast({ ...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum." });
+                $j.toast({ ...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum." });
             } else {
                 throw new Error("Échec de l'opération de recensement.");
             }
         } catch (error) {
             console.error("Erreur lors du recensement:", error);
-            $.toast({ ...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}` });
+            $j.toast({ ...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}` });
         } finally {
             bouton.removeClass('processing').css('pointer-events', 'auto');
         }
@@ -145545,8 +145843,8 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
     async afficherConvoisEntrants() {
         if (Utils.comptePlus) return;
 
-        if ($("#o_convoisEntrants").length === 0) {
-            $("#o_listeCommande").before("<div id='o_convoisEntrants'></div>");
+        if ($j("#o_convoisEntrants").length === 0) {
+            $j("#o_listeCommande").before("<div id='o_convoisEntrants'></div>");
         }
 
         const convoisEntrants = [];
@@ -145577,7 +145875,7 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             }
         }
 
-        $("#o_convoisEntrants").html(html);
+        $j("#o_convoisEntrants").html(html);
 
         for (const timer of timers) {
             Utils.decreaseTime(timer.temps, timer.id);
@@ -145610,14 +145908,14 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
      * Affiche le tableau des convois en cours.
      */
     async afficherTableauConvois() {
-        if ($("#o_tableListeConvoi").length === 0) {
+        if ($j("#o_tableListeConvoi").length === 0) {
             const en_tete_html = await Convoi.afficherEntete();
 
             let contenu = `<div id="o_listeConvoi" class="simulateur centre o_marginT15"><h2>Convois en cours</h2><table id='o_tableListeConvoi' class="o_maxWidth" cellspacing=0>
                 <thead><tr class="ligne_paire">${en_tete_html}</tr></thead>
                 <tbody></tbody></table></div><br/>`;
 
-            $("#centre .Bas").before(contenu);
+            $j("#centre .Bas").before(contenu);
 
             // Générer la configuration DataTables à partir des propriétés de l'objet Convoi
             const proprietes = Convoi.recupererProprietesAffichage();
@@ -145632,7 +145930,7 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             // Trouver l'index de la colonne d'arrivée pour le tri par défaut
             const indexArrivee = Object.keys(proprietes).indexOf('Date Arrivée');
 
-            $("#o_tableListeConvoi").DataTable({
+            $j("#o_tableListeConvoi").DataTable({
                 data: [],
                 bPaginate: false,
                 dom: "Bfrti",
@@ -145661,22 +145959,22 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             tableRows.push(corps_html);
         }
         // Optimisation : Utiliser l'API DataTables sans détruire/recréer la table
-        if ($.fn.DataTable.isDataTable('#o_tableListeConvoi')) {
-            const table = $("#o_tableListeConvoi").DataTable();
+        if ($j.fn.DataTable.isDataTable('#o_tableListeConvoi')) {
+            const table = $j("#o_tableListeConvoi").DataTable();
 
             // Effacer les données actuelles sans redessiner
             table.clear();
 
             if (tableRows.length > 0) {
                 // Ajouter les nouvelles lignes via l'API pour qu'elles soient indexées et affichées
-                table.rows.add($(tableRows.map($tr => $tr[0])));
+                table.rows.add($j(tableRows.map($tr => $tr[0])));
             }
 
             // Redessiner la table avec les nouvelles données
             table.draw();
         } else {
             // Si la DataTable n'existe pas encore, juste mettre à jour le HTML
-            $("#o_tableListeConvoi tbody").empty().append(tableRows);
+            $j("#o_tableListeConvoi tbody").empty().append(tableRows);
         }
     }
 })
@@ -145723,7 +146021,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Affiche le tableau des commandes.
      */
     async afficherTableauCommandes() {
-        if ($("#o_tableListeCommande").length === 0) {
+        if ($j("#o_tableListeCommande").length === 0) {
             const en_tete_html = await Commande.afficherEntete();
             const nbColonnes = Commande.COLONNES_DEFAUT.length;
 
@@ -145731,7 +146029,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 <thead class="ligne_paire">${en_tete_html}</thead>
                 <tfoot><tr class='gras'><td colspan='${nbColonnes}' id='o_footerCommande'></td></tr></tfoot></table></div><br/>`;
 
-            $("#centre .Bas").before(contenu);
+            $j("#centre .Bas").before(contenu);
 
             // Générer la configuration DataTables à partir des propriétés de l'objet Commande
             const proprietes = Commande.recupererProprietesAffichage();
@@ -145746,7 +146044,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             // Trouver l'index de la colonne d'échéance pour le tri par défaut
             const indexEcheance = Object.keys(proprietes).indexOf('Date Souhaitée');
 
-            $("#o_tableListeCommande").DataTable({
+            $j("#o_tableListeCommande").DataTable({
                 bPaginate: false,
                 dom: "Bfrti",
                 buttons: ["colvis", "copyHtml5", "csvHtml5", "excelHtml5"],
@@ -145758,8 +146056,8 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 columnDefs: columnDefs
             });
 
-            $("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
-            $("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
+            $j("#o_tableListeCommande_wrapper .dt-buttons").prepend(`<a id="o_ajouterCommande" class="dt-button" href="#"><span>Commander</span></a>`);
+            $j("#o_ajouterCommande").onActionSecurisee('click', this, async (e) => {
                 // $("#o_ajouterCommande").on('click', async (e) => {
                 // await commandeTest.enregistrerSurForum();
 
@@ -145859,8 +146157,8 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         }
 
         // Optimisation : Utiliser l'API DataTables sans détruire/recréer la table
-        if ($.fn.DataTable.isDataTable('#o_tableListeCommande')) {
-            const table = $("#o_tableListeCommande").DataTable();
+        if ($j.fn.DataTable.isDataTable('#o_tableListeCommande')) {
+            const table = $j("#o_tableListeCommande").DataTable();
 
             // Effacer les données actuelles sans redessiner
             table.clear();
@@ -145868,49 +146166,49 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
             if (tableRows.length > 0) {
                 // Ajouter les nouvelles lignes via l'API pour qu'elles soient indexées et affichées
                 // On regroupe les éléments DOM dans un seul objet jQuery pour DataTables
-                table.rows.add($(tableRows.map($tr => $tr[0])));
+                table.rows.add($j(tableRows.map($tr => $tr[0])));
             }
 
             // Redessiner la table avec les nouvelles données
             table.draw();
         } else {
             // Si la DataTable n'existe pas encore, juste mettre à jour le HTML
-            $("#o_tableListeCommande tbody").empty().append(tableRows);
+            $j("#o_tableListeCommande tbody").empty().append(tableRows);
         }
         let texteFooter = `${tableRows.length} commande(s)`;
         if (!(estRestreint && auMoinsUneCommandeEtrangere)) {
             texteFooter += ` : ${numeral(total).format("0.00 a")} ~ <span class='red'>${numeral(totalRouge).format("0.00 a")}</span> en retard !`;
         }
 
-        $("#o_footerCommande").html(texteFooter);
-        $("#o_footerCommande").parent().toggleClass("ligne_paire", tableRows.length % 2 !== 0);
+        $j("#o_footerCommande").html(texteFooter);
+        $j("#o_footerCommande").parent().toggleClass("ligne_paire", tableRows.length % 2 !== 0);
     }
 
     /**
      * Configure le formulaire de convoi.
      */
     formulaireConvoi() {
-        $("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>")
+        $j("input[name='convoi']").before("<input id='o_idCommande' type='hidden' value='-1' name='o_idCommande'/>")
             .after(` <button id='o_resetConvoi'>Effacer</button>`)
             .onActionSecurisee('click', this, async (e) => {
-                const idCommande = $("#o_idCommande").val();
+                const idCommande = $j("#o_idCommande").val();
                 if (idCommande == -1) return true;
 
-                const materiaux = numeral($("#nbMateriaux").val()).value();
-                const nourriture = numeral($("#nbNourriture").val()).value();
+                const materiaux = numeral($j("#nbMateriaux").val()).value();
+                const nourriture = numeral($j("#nbNourriture").val()).value();
 
                 if (materiaux === 0 && nourriture === 0) {
-                    $.toast({ ...TOAST_ERROR, text: "Impossible de lancer un convoi vide." });
+                    $j.toast({ ...TOAST_ERROR, text: "Impossible de lancer un convoi vide." });
                     e.preventDefault();
                     return false;
                 }
 
                 const commande = this.commandes.find(c => c.idSujet == idCommande);
-                const destinataireConvoi = $("#pseudo_convoi").val();
+                const destinataireConvoi = $j("#pseudo_convoi").val();
                 const demandeur = await commande.lire('Demandeur');
 
                 if (commande && demandeur !== destinataireConvoi) {
-                    $.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
+                    $j.toast({ ...TOAST_ERROR, text: `Le destinataire du convoi (${destinataireConvoi}) ne correspond pas au demandeur de la commande (${demandeur}).` });
                     e.preventDefault();
                     return false;
                 }
@@ -145943,7 +146241,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                         'Id Commande': numeral(idCommande).value(),
                         'Date Départ': moment().toISOString(),
                         'Date Arrivée': dateArriveeCalculee.toISOString(),
-                        'Ouvrières': numeral($("#nbOuvriere").val()).value()
+                        'Ouvrières': numeral($j("#nbOuvriere").val()).value()
                     }
                 });
 
@@ -145952,9 +146250,9 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 return false;
             });
 
-        $("#o_resetConvoi").click((e) => {
+        $j("#o_resetConvoi").click((e) => {
             e.preventDefault();
-            $("#pseudo_convoi, #input_nbNourriture, #input_nbMateriaux, #input_nbOuvriere, #o_idCommande").val("");
+            $j("#pseudo_convoi, #input_nbNourriture, #input_nbMateriaux, #input_nbOuvriere, #o_idCommande").val("");
             return false;
         });
     }
@@ -145965,16 +146263,16 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      */
     getConvoisEnCoursDePage() {
         const convois = [];
-        $("#centre > strong").each((i, elt) => {
-            const texte = $(elt).text();
+        $j("#centre > strong").each((i, elt) => {
+            const texte = $j(elt).text();
             // Nettoyage pour extraire les nombres
             const matches = texte.replace(/\s/g, '').split("dans")[0].match(/\d+/g);
 
             if (matches && matches.length >= 2) {
-                const urlAnnuler = $(elt).nextAll("a[href*='commerce.php?annuler=']").first().attr('href');
+                const urlAnnuler = $j(elt).nextAll("a[href*='commerce.php?annuler=']").first().attr('href');
                 const matchId = urlAnnuler ? urlAnnuler.match(/annuler=(\d+)/) : null;
                 const idAnnulation = matchId ? numeral(matchId[1]).value() : null;
-                const pseudo = $(elt).find("a").first().text();
+                const pseudo = $j(elt).find("a").first().text();
                 const tempsRestantText = texte.split("dans")?.[1]?.trim();
                 const tempsRestant = Utils.timeToInt(tempsRestantText);
 
@@ -145994,8 +146292,8 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
      * Attache les listeners pour l'annulation de convoi.
      */
     _attacherListenersAnnulationConvoi() {
-        $("a[href*='commerce.php?annuler=']").onActionSecurisee('click', this, (e) => {
-            const match = $(e.currentTarget).attr('href').match(/annuler=(\d+)/);
+        $j("a[href*='commerce.php?annuler=']").onActionSecurisee('click', this, (e) => {
+            const match = $j(e.currentTarget).attr('href').match(/annuler=(\d+)/);
             if (match) {
                 localStorage.setItem('outiiil_convoi_annulation_pending_id', match[1]);
                 localStorage.setItem('outiiil_convoi_annulation_pending_timestamp', moment().toISOString());
@@ -146060,17 +146358,17 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                     await convoiDataObj.ecrire('Id Convoi', leBonConvoi.idAnnulation);
 
                     await commande.ajouterConvoi(convoiDataObj);
-                    $.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
+                    $j.toast({ ...TOAST_SUCCESS, text: "Convoi posté." });
 
                     // Passer la prochaine commande en cours si nécessaire
                     await this.#activerProchaineCommandeSiBesoin();
                     await this.actualiserCommandes();
                 } else {
-                    $.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
+                    $j.toast({ ...TOAST_ERROR, text: "Impossible de trouver le convoi envoyé. L'envoi a probablement échoué." });
                 }
             });
         } catch (error) {
-            $.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
+            $j.toast({ ...TOAST_ERROR, text: `Erreur lors de l'association du convoi: ${error.message || error}` });
             console.error(error);
             throw error;
         }
@@ -146106,7 +146404,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 }
 
                 if (!convoiTraite) {
-                    $.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
+                    $j.toast({ ...TOAST_INFO, text: "Convoi hors système ou déjà annulé." });
                 }
             });
         } catch (error) {
@@ -146139,7 +146437,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
         if (!foundActive && cmdSuivante) {
             await cmdSuivante.ecrire('État', ETAT_COMMANDE["En cours"]);
             await cmdSuivante.enregistrerSurForum();
-            $.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours." });
+            $j.toast({ ...TOAST_SUCCESS, text: "Nouvelle commande en cours." });
         }
     }
 
@@ -146184,17 +146482,17 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        if ($("img[src='images/icone/outil.gif']").length && !$("#o_afficheMenuUtilitaire").length) {
-            $("#cat_forum").prepend(`<span id="o_afficheMenuUtilitaire" class="o_forumOption categorie_forum"><img src="${IMG_OUTIIIL}" alt="outiiil"/></span>
+        if ($j("img[src='images/icone/outil.gif']").length && !$j("#o_afficheMenuUtilitaire").length) {
+            $j("#cat_forum").prepend(`<span id="o_afficheMenuUtilitaire" class="o_forumOption categorie_forum"><img src="${IMG_OUTIIIL}" alt="outiiil"/></span>
                 <span id="o_menuUtilitaire" class="ligne_paire o_prepareUtilitaire">
                     <a href="#" id="o_creerUtilitaire">» Préparer le forum pour un SDC</a><br/>
                     <a href="#" id="o_preparerGuerre">» Préparer une section pour une guerre</a>
             </span>`);
-            $("#o_afficheMenuUtilitaire").click((e) => { $("#o_menuUtilitaire").toggle(); return false; });
+            $j("#o_afficheMenuUtilitaire").click((e) => { $j("#o_menuUtilitaire").toggle(); return false; });
             // ajout de l'input pour la selection du tag alliance
-            $("#alliance .simulateur").append(`<div id="o_formGuerre" style="display:none;"><input id="o_tagGuerre" type="text"/> <button id="o_creerSectionGuerre">Créer section</button></div>`);
+            $j("#alliance .simulateur").append(`<div id="o_formGuerre" style="display:none;"><input id="o_tagGuerre" type="text"/> <button id="o_creerSectionGuerre">Créer section</button></div>`);
             // Creation de l'utilitaire
-            $("#o_creerUtilitaire").onActionSecurisee('click', this, async (e) => {
+            $j("#o_creerUtilitaire").onActionSecurisee('click', this, async (e) => {
                 if (sectionsRequises) {
                     for (const sec of sectionsRequises) {
                         if (!sec.estDerniere) continue;
@@ -146202,7 +146500,7 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                         const visibiliteTheorique = sec.visibilite;
                         const typeCategorie = Utils.normaliser(visibiliteTheorique);
 
-                        if (!$(`#cat_forum span:contains('${nomSection}')`).length) {
+                        if (!$j(`#cat_forum span:contains('${nomSection}')`).length) {
                             try {
                                 const idCat = await AccesForum.creerSectionEtRetournerId(nomSection);
                                 if (idCat) {
@@ -146212,20 +146510,20 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                                     }
 
                                     AccesForum.modifierSection(idCat, nomSection, typeCategorie).then((data) => {
-                                        $.toast({ ...TOAST_SUCCESS, text: `La section ${nomSection} a été correctement créée et son ID sauvegardé.` });
+                                        $j.toast({ ...TOAST_SUCCESS, text: `La section ${nomSection} a été correctement créée et son ID sauvegardé.` });
                                     }, (jqXHR, textStatus, errorThrown) => {
                                         console.error(`[AdministrerForum][o_creerUtilitaire] Erreur lors de la modification de la section ${nomSection} (ID: ${idCat}):`, textStatus, errorThrown);
-                                        $.toast({ ...TOAST_ERROR, text: `Une erreur réseau a été rencontrée lors de la protection de la section ${nomSection}.` });
+                                        $j.toast({ ...TOAST_ERROR, text: `Une erreur réseau a été rencontrée lors de la protection de la section ${nomSection}.` });
                                     });
                                 } else {
                                     console.error(`[AdministrerForum][o_creerUtilitaire] ID de section non retourné pour "${nomSection}".`);
                                 }
                             } catch (error) {
                                 console.error(`[AdministrerForum][o_creerUtilitaire] Erreur lors de la création de la section ${nomSection}:`, error);
-                                $.toast({ ...TOAST_ERROR, text: `Une erreur réseau a été rencontrée lors de la création de la section ${nomSection}.` });
+                                $j.toast({ ...TOAST_ERROR, text: `Une erreur réseau a été rencontrée lors de la création de la section ${nomSection}.` });
                             }
                         } else {
-                            $.toast({ ...TOAST_WARNING, text: `Section ${nomSection} est déjà créée !` });
+                            $j.toast({ ...TOAST_WARNING, text: `Section ${nomSection} est déjà créée !` });
                         }
                     }
                 } else {
@@ -146234,43 +146532,43 @@ Utils.register(class AdministrerForum extends FonctionnaliteAlliance {
                 return false;
             });
             // Preparation d'une guerre
-            $("#o_preparerGuerre").click((e) => { $("#o_formGuerre").toggle(); });
-            $("#o_tagGuerre").autocomplete({
+            $j("#o_preparerGuerre").click((e) => { $j("#o_formGuerre").toggle(); });
+            $j("#o_tagGuerre").autocomplete({
                 source: (request, response) => { Alliance.rechercher(request.term).then((data) => { response(Utils.extraitRecherche(data, false, true)); }); },
                 position: { my: "left top-6", at: "left bottom" },
                 delay: 0,
                 minLength: 1,
-                select: (e, ui) => { $("#o_tagGuerre").val(ui.item.tag); return false; }
+                select: (e, ui) => { $j("#o_tagGuerre").val(ui.item.tag); return false; }
             }).data("ui-autocomplete")._renderItem = (ul, item) => {
                 let style = '';
-                return $("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
+                return $j("<li>").append(`<a style="${style}">${item.value_avec_html}</a>`).appendTo(ul);
             };
             // event sur le bouton guerre
-            $("#o_creerSectionGuerre").onActionSecurisee('click', this, (e) => {
-                let alliance = new Alliance({ tag: $("#o_tagGuerre").val() }), titreSection = "Guerre " + alliance.tag;
-                if (!$("#cat_forum span[class^='forum']").text().toUpperCase().includes(titreSection.toUpperCase())) {
+            $j("#o_creerSectionGuerre").onActionSecurisee('click', this, (e) => {
+                let alliance = new Alliance({ tag: $j("#o_tagGuerre").val() }), titreSection = "Guerre " + alliance.tag;
+                if (!$j("#cat_forum span[class^='forum']").text().toUpperCase().includes(titreSection.toUpperCase())) {
                     // on créer la section "Guerre " + tag
                     AccesForum.creerSection(titreSection).then((data) => {
                         // on recup la section pour ajouter les sujets des joueurs
-                        let response = $("<div/>").append($(data).find("cmd:eq(1)").html());
-                        let idCat = $(response).find(`input[value='${titreSection}']`).parent().attr("id").match(/\d+/)[0];
+                        let response = $j("<div/>").append($j(data).find("cmd:eq(1)").html());
+                        let idCat = $j(response).find(`input[value='${titreSection}']`).parent().attr("id").match(/\d+/)[0];
                         alliance.getDescription().then((data) => {
                             // on construit les appels de creation des sujets
                             let promiseJoueur = new Array();
-                            $(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => {
-                                let pseudo = $(elt).find("td:eq(2)").text();
+                            $j(data).find("#tabMembresAlliance tr:gt(0)").each((i, elt) => {
+                                let pseudo = $j(elt).find("td:eq(2)").text();
                                 promiseJoueur.push(AccesForum.creerSujet(idCat, pseudo, `[player]${pseudo}[/player]`));
                             });
                             // on creer les sujets
                             Promise.all(promiseJoueur).then((values) => { location.reload(); });
                         }, (jqXHR, textStatus, errorThrown) => {
-                            $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la description." });
+                            $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la récupération de la description." });
                         });
                     }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la création de la section guerre." });
+                        $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la création de la section guerre." });
                     });
                 } else
-                    $.toast({ ...TOAST_WARNING, text: `La section "Guerre ${alliance.tag}" existe déjà !` });
+                    $j.toast({ ...TOAST_WARNING, text: `La section "Guerre ${alliance.tag}" existe déjà !` });
             });
         }
     }
@@ -146301,43 +146599,43 @@ Utils.register(class AdministrerCommandes extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const elementActive = $("#alliance").find("span[class^='forum'][class$='ligne_paire']");
+        const elementActive = $j("#alliance").find("span[class^='forum'][class$='ligne_paire']");
         const estSurCommandesOutiiil = elementActive.html() === "Commandes Outiiil";
 
         if (estSurCommandesOutiiil) {
             // on verifie si on n'est pas dans un sujet mais bien sur la liste des topics
-            if ($("#form_cat").length && !$("#o_afficherEtat").length && $("img[src='images/icone/outil.gif']").length) {
+            if ($j("#form_cat").length && !$j("#o_afficherEtat").length && $j("img[src='images/icone/outil.gif']").length) {
                 let options = "";
                 for (let etat in ETAT_COMMANDE) options += `<option value="${ETAT_COMMANDE[etat]}">${etat}</option>`;
-                $("#form_cat td:last")
+                $j("#form_cat td:last")
                     .prepend(`<img class="cursor" id="o_afficherEtat" src="${IMG_CHANGE}" height="16" alt="changer" title="Changer l'etat des commandes selectionnées"/>`)
                     .append(`<select id="o_selectEtatCommande" style="display:none;">${options}</select> <button type="button" id="o_changerEtat" style="display:none;">Modifier l'état</button>`);
-                $("#o_afficherEtat").click((e) => { $("#o_changerEtat, #o_selectEtatCommande").toggle(); });
-                $("#o_changerEtat").click((e) => {
-                    if (!$("#form_cat tr:gt(0) input[name='topic[]']:checked").length) {
+                $j("#o_afficherEtat").click((e) => { $j("#o_changerEtat, #o_selectEtatCommande").toggle(); });
+                $j("#o_changerEtat").click((e) => {
+                    if (!$j("#form_cat tr:gt(0) input[name='topic[]']:checked").length) {
                         e.stopImmediatePropagation();
                         return false;
                     }
                 });
-                $("#o_changerEtat").onActionSecurisee('click', this, async (e) => {
+                $j("#o_changerEtat").onActionSecurisee('click', this, async (e) => {
                     let promiseCmdModif = new Array();
-                    $("#form_cat tr:gt(0)").each((i, elt) => {
+                    $j("#form_cat tr:gt(0)").each((i, elt) => {
                         // si la commande est selectionnée
-                        if ($(elt).find("input[name='topic[]']:checked").length) {
-                            let id = $(elt).find("input[name='topic[]']").val();
+                        if ($j(elt).find("input[name='topic[]']:checked").length) {
+                            let id = $j(elt).find("input[name='topic[]']").val();
                             if (id) {
                                 let commande = new Commande(this);
                                 commande.idSujet = parseInt(id, 10);
                                 promiseCmdModif.push((async () => {
                                     await commande.rafraichir(false);
-                                    await commande.ecrire('État', $("#o_selectEtatCommande").val());
+                                    await commande.ecrire('État', $j("#o_selectEtatCommande").val());
                                     return commande.enregistrerSurForum();
                                 })());
                             }
                         }
                     });
                     await Promise.all(promiseCmdModif);
-                    $.toast({ ...TOAST_SUCCESS, text: promiseCmdModif.length > 1 ? "Commandes mises à jour avec succès." : "Commande mise à jour avec succès." });
+                    $j.toast({ ...TOAST_SUCCESS, text: promiseCmdModif.length > 1 ? "Commandes mises à jour avec succès." : "Commande mise à jour avec succès." });
                     return false;
                 });
             }
@@ -146370,16 +146668,16 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const elementActive = $("#alliance").find("span[class^='forum'][class$='ligne_paire']");
+        const elementActive = $j("#alliance").find("span[class^='forum'][class$='ligne_paire']");
         const estSurLogsOutiiil = elementActive.html() === "Logs Outiiil";
 
         if (estSurLogsOutiiil) {
-            if ($("#form_cat").length && !$("#o_copierLogs").length) {
-                $("#form_cat td:last")
+            if ($j("#form_cat").length && !$j("#o_copierLogs").length) {
+                $j("#form_cat td:last")
                     .prepend(`<img class="cursor" id="o_copierLogs" src="${IMG_COPIER}" height="16" alt="copier" title="Copier les logs sélectionnés dans le presse-papier"/>`);
 
-                $("#o_copierLogs").click(async (e) => {
-                    const sujetsCoches = $("#form_cat tr:gt(0) input[name='topic[]']:checked");
+                $j("#o_copierLogs").click(async (e) => {
+                    const sujetsCoches = $j("#form_cat tr:gt(0) input[name='topic[]']:checked");
 
                     if (!sujetsCoches.length) {
                         return;
@@ -146389,7 +146687,7 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
                         let contenuGlobal = "";
 
                         for (let i = 0; i < sujetsCoches.length; i++) {
-                            const idSujet = parseInt($(sujetsCoches[i]).val(), 10);
+                            const idSujet = parseInt($j(sujetsCoches[i]).val(), 10);
                             if (!idSujet) continue;
 
                             const { titre, messages } = await AccesForum.consulterSujetAvecMessagesEtIds(idSujet);
@@ -146408,7 +146706,7 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             await navigator.clipboard.writeText(contenuGlobal);
                         } else {
-                            const $temp = $("<textarea>")
+                            const $temp = $j("<textarea>")
                                 .val(contenuGlobal)
                                 .appendTo("body")
                                 .select();
@@ -146416,13 +146714,13 @@ Utils.register(class CopierLogs extends FonctionnaliteAlliance {
                             $temp.remove();
                         }
 
-                        $.toast({
+                        $j.toast({
                             ...TOAST_SUCCESS,
                             text: sujetsCoches.length > 1 ? "Les logs ont été copiés dans le presse-papier." : "Le log a été copié dans le presse-papier."
                         });
                     } catch (error) {
                         console.error("[CopierLogs] Erreur lors de la copie des logs :", error);
-                        $.toast({
+                        $j.toast({
                             ...TOAST_ERROR,
                             text: "Une erreur est survenue lors de la copie des logs."
                         });
@@ -146468,8 +146766,8 @@ Utils.register(class ColorerMessage extends FonctionnaliteAlliance {
             mapJoueurs[pseudo] = joueur;
         }
 
-        $("tr[id^='conversation_']").each((i, elt) => {
-            let titre = $(elt).find("td:eq(3) .intitule_message").text(), color = "";
+        $j("tr[id^='conversation_']").each((i, elt) => {
+            let titre = $j(elt).find("td:eq(3) .intitule_message").text(), color = "";
             // une colonie perdue est toujours rouge
             // Attaque échouée contre xXx : votre armée...
             if (titre.includes("Colonie perdue") || titre.includes("conquis par") || titre.includes("Attaque échouée contre") || titre.includes("Rebellion échouée"))
@@ -146483,7 +146781,7 @@ Utils.register(class ColorerMessage extends FonctionnaliteAlliance {
             // Invasion de xXx: votre armée
             else if (titre.includes("Vol par") || titre.includes("Invasion"))
                 color = mapJoueurs.hasOwnProperty(titre.split(" ")[2]) ? "green" : "red";
-            if (color) $(elt).find("td:eq(3)").children().addClass(color);
+            if (color) $j(elt).find("td:eq(3)").children().addClass(color);
         });
     }
 });
@@ -146549,9 +146847,9 @@ Utils.register(class Membres extends Page {
         const allHeaderTexts = [];
         const headerIndices = [];
         let currentIdx = 0;
-        $("#tabMembresAlliance thead th").each((i, th) => {
-            const text = $(th).text().trim().replace(/\s+/g, ' ');
-            const colspan = parseInt($(th).attr('colspan') || 1);
+        $j("#tabMembresAlliance thead th").each((i, th) => {
+            const text = $j(th).text().trim().replace(/\s+/g, ' ');
+            const colspan = parseInt($j(th).attr('colspan') || 1);
             allHeaderTexts.push(text);
             headerIndices.push(currentIdx);
             currentIdx += colspan;
@@ -146596,28 +146894,28 @@ Utils.register(class Membres extends Page {
      */
     async init() {
         // Attendre que le tableau des membres soit présent dans le DOM
-        if ($("#tabMembresAlliance").length) {
+        if ($j("#tabMembresAlliance").length) {
             // Nettoyage complet : on enlève thead, tfoot et l'ancienne ligne d'en-tête de Fourmizzz (tr class='alt')
-            $("#tabMembresAlliance thead").remove();
-            $("#tabMembresAlliance tfoot").remove();
-            $("#tabMembresAlliance tr.alt:first").remove(); // Préférer supprimer par classe pour cibler l'en-tête original
+            $j("#tabMembresAlliance thead").remove();
+            $j("#tabMembresAlliance tfoot").remove();
+            $j("#tabMembresAlliance tr.alt:first").remove(); // Préférer supprimer par classe pour cibler l'en-tête original
 
             // Ajouter le thead avec les en-têtes de base (12 colonnes couvertes via 11 <th>)
-            $("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
+            $j("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
             await super.init();
         } else {
             // Observer le DOM pour l'apparition du tableau
             let observer = new MutationObserver(async (mutationsList) => {
-                if ($("#tabMembresAlliance").length) {
-                    $("#tabMembresAlliance thead").remove();
-                    $("#tabMembresAlliance tfoot").remove();
-                    $("#tabMembresAlliance tr.alt:first").remove();
-                    $("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
+                if ($j("#tabMembresAlliance").length) {
+                    $j("#tabMembresAlliance thead").remove();
+                    $j("#tabMembresAlliance tfoot").remove();
+                    $j("#tabMembresAlliance tr.alt:first").remove();
+                    $j("#tabMembresAlliance").prepend(`<thead><tr class='alt'><th></th><th></th><th>Rang</th><th>Pseudo</th><th></th><th>Terrain de Chasse</th><th></th><th><span style='padding-right:10px'>Technologie</span></th><th><span style='padding-right:10px'>Fourmilière</span></th><th colspan='2'>État</th><th></th></tr></thead>`);
                     await super.init();
                     observer.disconnect();
                 }
             });
-            observer.observe($("#alliance")[0], { childList: true, subtree: true });
+            observer.observe($j("#alliance")[0], { childList: true, subtree: true });
         }
     }
 
@@ -146634,9 +146932,9 @@ Utils.register(class Membres extends Page {
         const pseudoColIndex = this.getColonneIndex('Pseudo');
         const etatColIndex = this.getColonneIndex('État');
 
-        const promises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-            const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().trim().split(' ')[0];
-            const etatImage = $(elt).find(`td:eq(${etatColIndex}) img`).attr('src');
+        const promises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+            const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text().trim().split(' ')[0];
+            const etatImage = $j(elt).find(`td:eq(${etatColIndex}) img`).attr('src');
 
             // Créer une instance de Joueur ou mettre à jour une existante
             let joueur = this._alliance.joueurs[pseudo];
@@ -146669,15 +146967,15 @@ Utils.register(class Membres extends Page {
         await this.synchroniserJoueursDepuisDOM();
 
         // Insérer les en-têtes pour TdT et Retour après la colonne "Fourmilière" dans le thead
-        const thFourmiliere = $("#tabMembresAlliance thead tr th:contains('Fourmilière')");
+        const thFourmiliere = $j("#tabMembresAlliance thead tr th:contains('Fourmilière')");
         thFourmiliere.after(`<th class="dt-head-center">TdT</th><th class="dt-head-center">Retour</th>`);
 
 
         const pseudoColIndex = this.getColonneIndex('Pseudo');
         const fourmiliereColIndex = this.getColonneIndex('Fourmilière');
 
-        const itemsPromises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-            const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
+        const itemsPromises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+            const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
             const joueur = this._alliance.joueurs[pseudo];
 
             if (joueur) {
@@ -146685,11 +146983,11 @@ Utils.register(class Membres extends Page {
                 const tempsParcours = await monProfilJoueur.getTempsParcours2(joueur);
                 const tdtDisplay = Utils.intToTime(tempsParcours);
                 const retourDisplay = Utils.roundMinute(tempsParcours).format("D MMM à HH[h]mm");
-                $(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">${tdtDisplay}</td><td align="center">${retourDisplay}</td>`);
+                $j(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">${tdtDisplay}</td><td align="center">${retourDisplay}</td>`);
             } else {
                 // Si le joueur n'est pas trouvé dans l'alliance (cas inattendu après synchronisation),
                 // ajouter des valeurs par défaut pour éviter les erreurs d'affichage.
-                $(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">N/C</td><td align="center">N/C</td>`);
+                $j(elt).find(`td:eq(${fourmiliereColIndex})`).after(`<td align="center">N/C</td><td align="center">N/C</td>`);
             }
         }).get();
 
@@ -146706,16 +147004,16 @@ Utils.register(class Membres extends Page {
             const pseudoColIndex = this.getColonneIndex('Pseudo');
             const TerrainColIndex = this.getColonneIndex('Terrain de Chasse');
 
-            const indicatorsPromises = $("#tabMembresAlliance tbody tr").map(async (i, elt) => {
-                const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text();
+            const indicatorsPromises = $j("#tabMembresAlliance tbody tr").map(async (i, elt) => {
+                const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text();
                 const joueur = this._alliance.joueurs[pseudo];
 
                 if (joueur && !await joueur.estJoueurCourant()) {
                     if (await joueur.estAttaquable()) {
-                        $(elt).find(`td:eq(${TerrainColIndex + 1})`).html(IMG_ATT);
+                        $j(elt).find(`td:eq(${TerrainColIndex + 1})`).html(IMG_ATT);
                     }
                     if (await joueur.estAttaquant()) {
-                        $(elt).find(`td:eq(${TerrainColIndex - 1})`).html(IMG_DEF);
+                        $j(elt).find(`td:eq(${TerrainColIndex - 1})`).html(IMG_DEF);
                     }
                 }
             }).get();
@@ -146743,10 +147041,10 @@ Utils.register(class Membres extends Page {
         // Calculer le nombre de colonnes actuel du tableau en se basant sur la première ligne du tbody.
         // Cela garantit que toutes les colonnes ajoutées dynamiquement sont prises en compte.
         let colspanValue = 0;
-        const firstRow = $("#tabMembresAlliance tbody tr:first");
+        const firstRow = $j("#tabMembresAlliance tbody tr:first");
         colspanValue = firstRow.find("td").length;
 
-        $("#tabMembresAlliance").append(`
+        $j("#tabMembresAlliance").append(`
             <tfoot class='${nbJoueurs % 2 ? "ligne_paire" : ""}'>
                 <tr style='display: none;'>
                     ${Array(colspanValue).fill('<th></th>').join('')}
@@ -146765,15 +147063,15 @@ Utils.register(class Membres extends Page {
         // Ces éléments sont généralement dans un simulateur ou une section dédiée,
         // il faudra adapter le sélecteur si l'emplacement change.
         // Pour l'instant, on utilise les sélecteurs de l'ancien code pour les images d'état.
-        $(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(1)").append(` (${comptesParEtat['actif'] || 0})`);
-        $(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(3)").append(` (${comptesParEtat['vacances'] || 0})`);
+        $j(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(1)").append(` (${comptesParEtat['actif'] || 0})`);
+        $j(".simulateur table[class='ligne_paire'] tr:eq(0) td:eq(3)").append(` (${comptesParEtat['vacances'] || 0})`);
         // Les autres états ('banni', 'inactif', 'colonise') nécessitent une adaptation des sélecteurs
         // ou l'ajout de nouveaux éléments HTML pour les afficher.
         // Pour l'exemple, je me base sur les images existantes.
-        $(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(1)").append(` (${comptesParEtat['inactif_3_jours'] || 0})`); // Exemple
-        $(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(3)").append(` (${comptesParEtat['banni'] || 0})`); // Exemple
-        $(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(1)").append(` (${comptesParEtat['inactif_10_jours'] || 0})`); // Exemple
-        $(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(3)").append(` (${comptesParEtat['colonise'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(1)").append(` (${comptesParEtat['inactif_3_jours'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(1) td:eq(3)").append(` (${comptesParEtat['banni'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(1)").append(` (${comptesParEtat['inactif_10_jours'] || 0})`); // Exemple
+        $j(".simulateur table[class='ligne_paire'] tr:eq(2) td:eq(3)").append(` (${comptesParEtat['colonise'] || 0})`); // Exemple
     }
 
     /**
@@ -146784,10 +147082,10 @@ Utils.register(class Membres extends Page {
     async ajouterBoutonsDataTable() {
         const allHeaderTexts = [];
         const colspans = [];
-        $("#tabMembresAlliance thead th").each((i, th) => {
-            const text = $(th).text().trim().replace(/\s+/g, ' ');
+        $j("#tabMembresAlliance thead th").each((i, th) => {
+            const text = $j(th).text().trim().replace(/\s+/g, ' ');
             allHeaderTexts.push(text);
-            colspans.push(parseInt($(th).attr('colspan') || 1));
+            colspans.push(parseInt($j(th).attr('colspan') || 1));
         });
 
         const proprietes = Joueur.recupererProprietesAffichage(allHeaderTexts);
@@ -146821,7 +147119,7 @@ Utils.register(class Membres extends Page {
         const terrainIndex = this.getColonneIndex('Terrain de Chasse');
 
         // Initialiser DataTable
-        $("#tabMembresAlliance").DataTable({
+        $j("#tabMembresAlliance").DataTable({
             bPaginate: false,
             bDestroy: true,
             dom: "Bfrti",
@@ -146894,24 +147192,24 @@ Utils.register(class PageArmee extends Page {
         * @property nbAttaque
         * @type Integer
         */
-        this._nbAttaque = $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length - 1;
+        this._nbAttaque = $j("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length - 1;
     }
 
     async afficherAttaquesRestantes() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         // Affichage du nombre d'attaque restante
-        $("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(recherche[6] + 1 - this._nbAttaque)}.</p>`);
+        $j("h3:eq(2)").append(` ${this._nbAttaque}, reste : ${(recherche[6] + 1 - this._nbAttaque)}.</p>`);
     }
 
     async afficherTotalUnite() {
         // Affichage du nombre total d'unité
-        $("h3:first").append(` (${numeral(this._armeeTdc.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeLoge.getSommeUnite()).format()})</p>`);
+        $j("h3:first").append(` (${numeral(this._armeeTdc.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeLoge.getSommeUnite()).format()})</p>`);
     }
 
     async boutonAntisonde() {
         // Bouton antisonde
-        $(".simulateur:eq(0) tr:eq(0)").after(`<tr><td colspan="10" class='right'><button id='o_replaceArmee' class='o_button f_success'>Replacer l'armée</button></td></tr>`);
-        $("#o_replaceArmee").click(() => {
+        $j(".simulateur:eq(0) tr:eq(0)").after(`<tr><td colspan="10" class='right'><button id='o_replaceArmee' class='o_button f_success'>Replacer l'armée</button></td></tr>`);
+        $j("#o_replaceArmee").click(() => {
             if (this._armeeLoge.getSommeUnite() + this._armeeDome.getSommeUnite() + this._armeeTdc.getSommeUnite()) {
                 let premiereUnite = this.#indicePremiereUnite();
                 let nbUniteDispo = this._armeeLoge.unite[premiereUnite] + this._armeeDome.unite[premiereUnite] + this._armeeTdc.unite[premiereUnite];
@@ -146921,22 +147219,22 @@ Utils.register(class PageArmee extends Page {
                     if (!this.#estPlacePourAntiSonde(premiereUnite, monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur, monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur))
                         this.#placerAntisondeSuffisant(premiereUnite, nbUniteDispo);
                     else
-                        $.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
+                        $j.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
                 } else {
                     if (!this.#estPlacePourAntiSonde(premiereUnite, 1, nbUniteDispo * 0.3))
                         this.#placerAntisondeInsuffisant(premiereUnite, nbUniteDispo);
                     else
-                        $.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
+                        $j.toast({ ...TOAST_INFO, text: "Votre armée est déjà placée correctement." });
                 }
             } else
-                $.toast({ ...TOAST_ERROR, text: "Aucune unité n'est transférable." });
+                $j.toast({ ...TOAST_ERROR, text: "Aucune unité n'est transférable." });
             return false;
         });
     }
 
     async afficherHoF() {
         // Affichage du temps Hof de votre armée
-        $(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(await monProfilJoueur.getTDP()) + this._armeeDome.getTemps(await monProfilJoueur.getTDP()) + this._armeeLoge.getTemps(await monProfilJoueur.getTDP())) + "</span></td></tr>");
+        $j(".simulateur:first").append("<tr><td colspan=10>Temps <span class='gras' title='Hall Of Fame' >HOF : " + Utils.shortcutTime(this._armeeTdc.getTemps(0) + this._armeeDome.getTemps(0) + this._armeeLoge.getTemps(0)) + "</span>, Temps relatif : <span class='gras'>" + Utils.shortcutTime(this._armeeTdc.getTemps(await monProfilJoueur.getTDP()) + this._armeeDome.getTemps(await monProfilJoueur.getTDP()) + this._armeeLoge.getTemps(await monProfilJoueur.getTDP())) + "</span></td></tr>");
     }
     /**
     * Initialise l'armée en terrain de chasse.
@@ -146945,8 +147243,8 @@ Utils.register(class PageArmee extends Page {
     */
     recupereArmeeTdc() {
         let unites = {};
-        $(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
-            let unite = $(elt).find(".pas_sur_telephone").text(), nbr = numeral($(elt).find("td:nth-child(3) span").text()).value();
+        $j(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
+            let unite = $j(elt).find(".pas_sur_telephone").text(), nbr = numeral($j(elt).find("td:nth-child(3) span").text()).value();
             if (unite && nbr) unites[unite] = nbr;
         });
         this._armeeTdc = new Armee({ unite: unites });
@@ -146958,10 +147256,10 @@ Utils.register(class PageArmee extends Page {
     */
     recupereArmeeDome() {
         let unites = {};
-        $(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
-            let unite = $(elt).find(".pas_sur_telephone").text();
-            $(elt).find("td").slice(3, ($(elt).find("td").length - 2)).each((i2, elt2) => {
-                let nbr = numeral($(elt2).text()).value();
+        $j(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
+            let unite = $j(elt).find(".pas_sur_telephone").text();
+            $j(elt).find("td").slice(3, ($j(elt).find("td").length - 2)).each((i2, elt2) => {
+                let nbr = numeral($j(elt2).text()).value();
                 if (unite && nbr) unites[unite] = nbr;
             });
         });
@@ -146974,8 +147272,8 @@ Utils.register(class PageArmee extends Page {
     */
     recupereArmeeLoge() {
         let unites = {};
-        $(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
-            let unite = $(elt).find('.pas_sur_telephone').text(), nbr = numeral($(elt).find("td:nth-last-child(2)").text()).value();
+        $j(".simulateur tr[align=center]:lt(14)").each((i, elt) => {
+            let unite = $j(elt).find('.pas_sur_telephone').text(), nbr = numeral($j(elt).find("td:nth-last-child(2)").text()).value();
             if (unite && nbr) unites[unite] = nbr;
         });
         this._armeeLoge = new Armee({ unite: unites });
@@ -147016,19 +147314,19 @@ Utils.register(class PageArmee extends Page {
     * @private
     */
     #placerAntisondeSuffisant(indUnite, nbTroupeDispo) {
-        let securite = $("#t").attr("name") + "=" + $("#t").val();
-        $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
+        let securite = $j("#t").attr("name") + "=" + $j("#t").val();
+        $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
             // si on a pas assez de troupes on prend un nombre au hasard
             let nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur - monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeDome"].valeur * 0.9);
             if (nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
             // on place l'antisonde en dome
-            $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
+            $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
                 nbTroupeDispo -= nbTroupes;
                 nbTroupes = Math.round(Math.random() * (monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur - monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur * 0.9) + monProfilUtilisateur.parametre["uniteAntisondeTerrain"].valeur * 0.9);
                 // si on a pas assez de troupes on prend un nombre au hasard
                 if (nbTroupeDispo < nbTroupes) nbTroupes = Math.round(Math.random() * (nbTroupeDispo - nbTroupeDispo * 0.9) + nbTroupeDispo * 0.9);
-                $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
+                $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + nbTroupes + "&" + securite, (data) => {
                     location = "/Armee.php";
                 });
             });
@@ -147039,12 +147337,12 @@ Utils.register(class PageArmee extends Page {
     * @private
     */
     #placerAntisondeInsuffisant(indUnite, nbTroupeDispo) {
-        let securite = $("#t").attr("name") + "=" + $("#t").val();
-        $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
+        let securite = $j("#t").attr("name") + "=" + $j("#t").val();
+        $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?deplacement=3&" + securite, (data) => {
             let correspondanceUnite = [0, 1, 2, 3, 4, 5, 13, 6, 7, 8, 9, 12, 10, 11];
             // on place l'antisonde en dome
-            $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + Math.round(nbTroupeDispo * 0.3) + "&" + securite, (data) => {
-                $.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=1&" + securite, (data) => {
+            $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=2&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=" + Math.round(nbTroupeDispo * 0.3) + "&" + securite, (data) => {
+                $j.post("http://" + Utils.serveur + ".fourmizzz.fr/Armee.php?Transferer=Envoyer&LieuOrigine=3&LieuDestination=1&ChoixUnite=unite" + correspondanceUnite[indUnite] + "&nbTroupes=1&" + securite, (data) => {
                     location = "/Armee.php";
                 });
             });
@@ -147059,17 +147357,17 @@ Utils.register(class PageArmee extends Page {
     async plus() {
         if (Utils.comptePlus) return;
         // Affiche les fléches de deplacement des unités
-        $(".simulateur td").each((i, elt) => {
-            if (/^[0-9,]+$/.test($(elt).text().replace(/ /g, ''))) {
-                let info = $(elt).find('span').attr('id').replace(/\(|\)/g, '');
+        $j(".simulateur td").each((i, elt) => {
+            if (/^[0-9,]+$/.test($j(elt).text().replace(/ /g, ''))) {
+                let info = $j(elt).find('span').attr('id').replace(/\(|\)/g, '');
                 let nbUnit = info.split(',')[0], nomUnit = info.split(',')[1].replace(/\'/g, ''), lieuDep = info.split(',')[2];
                 if (lieuDep != 3) {
                     let lien = "Armee.php?Transferer&nbTroupes=" + nbUnit + "&ChoixUnite=" + nomUnit + "&LieuOrigine=" + lieuDep + "&LieuDestination=" + (~~(lieuDep) + 1) + "&" + $("#t").attr('name') + "=" + $("#t").attr('value');
                     $(elt).next().html(`<a href="${lien}" class='cursor'><img width='9' height='15' src='http://img2.fourmizzz.fr/images/bouton/fleche-champs-droite.gif'/></a>`);
                 }
                 if (lieuDep != 1) {
-                    let lien = "Armee.php?Transferer&nbTroupes=" + nbUnit + "&ChoixUnite=" + nomUnit + "&LieuOrigine=" + lieuDep + "&LieuDestination=" + (~~(lieuDep) - 1) + "&" + $("#t").attr('name') + "=" + $("#t").attr('value');
-                    $(elt).prev().html(`<a href="${lien}" class='cursor'><img width='9' height='15' src='http://img2.fourmizzz.fr/images/bouton/fleche-champs-gauche.gif'/></a>`);
+                    let lien = "Armee.php?Transferer&nbTroupes=" + nbUnit + "&ChoixUnite=" + nomUnit + "&LieuOrigine=" + lieuDep + "&LieuDestination=" + (~~(lieuDep) - 1) + "&" + $j("#t").attr('name') + "=" + $j("#t").attr('value');
+                    $j(elt).prev().html(`<a href="${lien}" class='cursor'><img width='9' height='15' src='http://img2.fourmizzz.fr/images/bouton/fleche-champs-gauche.gif'/></a>`);
                 }
             }
         });
@@ -147080,13 +147378,13 @@ Utils.register(class PageArmee extends Page {
         this.#afficherLigneConsommation();
         // Sauvegarde des attaques en cours
         let listeAttaque = new Array();
-        $("span[id^='attaque_']").each((i, elt) => {
-            if ($(elt).prev().find("a").length) { // attaque normale
-                listeAttaque.push({ "cible": $(elt).prev().text(), "exp": moment().add($(elt).next().text().split(",")[0].split("(")[1], 's') });
+        $j("span[id^='attaque_']").each((i, elt) => {
+            if ($j(elt).prev().find("a").length) { // attaque normale
+                listeAttaque.push({ "cible": $j(elt).prev().text(), "exp": moment().add($j(elt).next().text().split(",")[0].split("(")[1], 's') });
                 // Affichage du retour
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
             } else // renfort
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
         // Verification si les données sont deja enregistré
         this.#saveAttaque(listeAttaque);
@@ -147103,8 +147401,8 @@ Utils.register(class PageArmee extends Page {
         let line = `<tr align='center' class='vie cursor'>
 			 <td>Vie (AB)</td>
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeTdc.getTotalVie(bouclier)).format()}</td>
-			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeDome.getTotalVie(bouclier, LIEU.DOME, ~~($('span:contains("Dôme")').text().replace(/\D/g, '')))).format()}</td>
-			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeLoge.getTotalVie(bouclier, LIEU.LOGE, ~~($('span:contains("Loge")').text().replace(/\D/g, '')))).format()}</td>
+			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeDome.getTotalVie(bouclier, LIEU.DOME, ~~($j('span:contains("Dôme")').text().replace(/\D/g, '')))).format()}</td>
+			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeLoge.getTotalVie(bouclier, LIEU.LOGE, ~~($j('span:contains("Loge")').text().replace(/\D/g, '')))).format()}</td>
 			 </tr>
 			 <tr align='center' class='vie cursor' style='display:none;'>
 			 <td>Vie (HB)</td>
@@ -147112,8 +147410,8 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeDome.getBaseVie()).format()}</td>
 			 <td colspan=3>${IMG_VIE} ${numeral(this._armeeLoge.getBaseVie()).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
-        $(".vie").click(() => { $(".vie").toggle(); });
+        $j(".simulateur tr[align=center]:last").after(line);
+        $j(".vie").click(() => { $j(".vie").toggle(); });
     }
     /**
     * Affiche les informations supplémentaires sur l'attaque des armées.
@@ -147136,8 +147434,8 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_ATT} ${numeral(this._armeeDome.getBaseAtt()).format()}</td>
 			 <td colspan=3>${IMG_ATT} ${numeral(this._armeeLoge.getBaseAtt()).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
-        $(".att").click(() => { $(".att").toggle(); });
+        $j(".simulateur tr[align=center]:last").after(line);
+        $j(".att").click(() => { $j(".att").toggle(); });
     }
     /**
     * Affiche les informations supplémentaires sur la defense des armées.
@@ -147160,8 +147458,8 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_DEF} ${numeral(this._armeeDome.getBaseDef()).format()}</td>
 			 <td colspan=3>${IMG_DEF} ${numeral(this._armeeLoge.getBaseDef()).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
-        $(".def").click(() => { $(".def").toggle(); });
+        $j(".simulateur tr[align=center]:last").after(line);
+        $j(".def").click(() => { $j(".def").toggle(); });
     }
     /**
     * Affiche les informations supplémentaires sur la consommation des armées.
@@ -147176,14 +147474,14 @@ Utils.register(class PageArmee extends Page {
 			 <td colspan=3>${IMG_POMME} ${numeral(this._armeeDome.getConsommation(2)).format()}</td>
 			 <td colspan=3>${IMG_POMME} ${numeral(this._armeeLoge.getConsommation(3)).format()}</td>
 			 </tr>`;
-        $(".simulateur tr[align=center]:last").after(line);
+        $j(".simulateur tr[align=center]:last").after(line);
     }
     /**
     */
     async afficherStatistique() {
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let bouclier = recherche[1], armes = recherche[2];
-        $(".simulateur:first").after(`<br/><div id="o_statArmee" class="simulateur">
+        $j(".simulateur:first").after(`<br/><div id="o_statArmee" class="simulateur">
             <h3>Statistiques</h3>
             <table class="centre o_maxWidth" cellspacing=0>
                 <tr class="ligne_paire gras"><td></td><td colspan="2">Non XP</td><td colspan="2">Total</td></tr>
@@ -147193,7 +147491,7 @@ Utils.register(class PageArmee extends Page {
                 <tr class="ligne_paire"><td class="left">${IMG_DEF} Défense</td><td>${numeral(this._armeeTdc.getNonXpBaseDef() + this._armeeDome.getNonXpBaseDef() + this._armeeLoge.getNonXpBaseDef()).format()}</td><td>${numeral(this._armeeTdc.getNonXpTotalDef(armes) + this._armeeDome.getNonXpTotalDef(armes) + this._armeeLoge.getNonXpTotalDef(armes)).format()}</td><td>${numeral(this._armeeTdc.getBaseDef() + this._armeeDome.getBaseDef() + this._armeeLoge.getBaseDef()).format()}</td><td>${numeral(this._armeeTdc.getTotalDef(armes) + this._armeeDome.getTotalDef(armes) + this._armeeLoge.getTotalDef(armes)).format()}</td></tr>
             </table>
         </div>`);
-        $("#o_statArmee").width($(".simulateur:first").width());
+        $j("#o_statArmee").width($j(".simulateur:first").width());
     }
     /**
     * Verifie les attaques en cours avec ce qui est sauvegarder.
@@ -147202,7 +147500,7 @@ Utils.register(class PageArmee extends Page {
     * @method #saveAttaque
     */
     #saveAttaque(listeAttaque) {
-        if (!boiteComptePlus.hasOwnProperty("attaque") || boiteComptePlus.attaque.length != listeAttaque.length || boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (!boiteComptePlus.hasOwnProperty("attaque") || boiteComptePlus.attaque.length != listeAttaque.length || boiteComptePlus.attaque[0]["cible"] != listeAttaque[0]["cible"] || listeAttaque[0]["exp"].diff(boiteComptePlus.attaque[0]["exp"], 's') > 1 && !Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.attaque = listeAttaque;
             boiteComptePlus.startAttaque = moment();
             boiteComptePlus.sauvegarder().majAttaque();
@@ -147245,7 +147543,7 @@ Utils.register(class Attaquer extends Page {
         /**
         *
         */
-        this._cible = new Joueur(null, { donneesInitiales: { Pseudo: $("input[name=pseudoCible]").val() } });
+        this._cible = new Joueur(null, { donneesInitiales: { Pseudo: $j("input[name=pseudoCible]").val() } });
         /**
         * Armee.
         */
@@ -147253,15 +147551,15 @@ Utils.register(class Attaquer extends Page {
     }
 
     async chargerDonnees() {
-        if ($("#tabChoixArmee").length) {
+        if ($j("#tabChoixArmee").length) {
             // récupération de l'armée
             this._armee = new Armee({ unite: this.#extraitArmee() });
             this.#majStatistique(this._armee);
             // ajoute event
-            $("input[id^=unite]").on("input", (e) => { this.#majStatistique(); });
+            $j("input[id^=unite]").on("input", (e) => { this.#majStatistique(); });
 
             const niveauRecherche = await monProfilJoueur.lire('Niveaux Recherches');
-            this._nbAttaque = niveauRecherche[6] + 2 - $("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
+            this._nbAttaque = niveauRecherche[6] + 2 - $j("#centre").text().split(/- Vous allez attaquer|- Des renforts arrivent/g).length;
 
             // on recupére le profil du joueur pour les coordonnées
             await this._cible.chargerDonneesMembre();
@@ -147272,7 +147570,7 @@ Utils.register(class Attaquer extends Page {
     */
     #extraitArmee() {
         let unites = {};
-        $("input[id^='unite']").each((i, elt) => { unites[$(elt).parent().parent().find("td:first").text()] = numeral($(elt).val()).value(); });
+        $j("input[id^='unite']").each((i, elt) => { unites[$j(elt).parent().parent().find("td:first").text()] = numeral($j(elt).val()).value(); });
         return unites;
     }
     /**
@@ -147290,38 +147588,38 @@ Utils.register(class Attaquer extends Page {
             <tr><td>${IMG_DEF}</td><td>${numeral(tmp.getBaseDef()).format()}</td><td>${numeral(tmp.getTotalDef(recherche[2])).format()}</td></tr>
             <tr><td><img alt="Nombre" src="images/icone/fourmi.png" height="18"/></td><td colspan="2" class="centre">${numeral(tmp.getSommeUnite()).format()}</td></tr>
             </table>`;
-        $("#formulaireChoixArmee fieldset:eq(1)").tooltip({
+        $j("#formulaireChoixArmee fieldset:eq(1)").tooltip({
             position: { my: "left+10", at: "right center" },
             content: html,
             items: "fieldset",
             hide: { effect: "fade", duration: 10 },
             tooltipClass: "ui-tooltip-right ui-tooltip-brown ui-tooltip-lightBrown"
         }).tooltip("open");
-        $("#formulaireChoixArmee fieldset:eq(1)").on("mouseout focusout", (e) => { e.stopImmediatePropagation(); });
+        $j("#formulaireChoixArmee fieldset:eq(1)").on("mouseout focusout", (e) => { e.stopImmediatePropagation(); });
     }
     /**
     *
     */
     async ajouterOption() {
         // on deplace le bouton standarf à droite
-        $("input[name='ChoixArmee']").unwrap().wrap("<div id='o_btnLancer' class='right'></div>");
+        $j("input[name='ChoixArmee']").unwrap().wrap("<div id='o_btnLancer' class='right'></div>");
         // Ajout du bouton pour la synchro simple
         // Ajout du temps de trajet
-        $("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(await monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
-        $("#o_synchro").click((e) => {
+        $j("#o_btnLancer").before(`<div id="o_btnSynchro"><button id='o_synchro' class="o_button f_info">Synchroniser</button><button id='o_sonder' class="o_button f_error">Sonder</button></div>`).after(`<p class="centre reduce ligne_paire">Votre armée rentrera le <span id="o_retourArmee" class="gras">${moment().add(await monProfilJoueur.getTempsParcours2(this._cible), 's').format("D MMM à HH[h]mm[m]ss[s]")}</span> (RC : <span id="o_retourArmeeRC" class="gras">${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._cible)).format("D MMM à HH[h]mm")}</span>).</p>`);
+        $j("#o_synchro").click((e) => {
             e.preventDefault();
             this.#lancerSynchro(this._cible.attenteSynchro());
             return false;
         });
         // Bouton de sonde
-        $("#o_sonder").click((e) => {
+        $j("#o_sonder").click((e) => {
             let premiereUnite = true;
             e.preventDefault();
             // on prepare le formulaire pour la sonde
-            $("#lieu").val(3);
+            $j("#lieu").val(3);
             for (let i = 1; i < 15; i++)
-                if ($("#unite" + i).length) {
-                    $("#unite" + i).val(premiereUnite ? monProfilUtilisateur.parametre["uniteSonde"].valeur : 0);
+                if ($j("#unite" + i).length) {
+                    $j("#unite" + i).val(premiereUnite ? monProfilUtilisateur.parametre["uniteSonde"].valeur : 0);
                     premiereUnite = false;
                 }
             // une sonde est forcement synchro
@@ -147335,9 +147633,9 @@ Utils.register(class Attaquer extends Page {
     */
     #lancerSynchro(attente) {
         // Affichage du compte à rebours
-        $("#formulaireChoixArmee fieldset:eq(1)").append(`<p class="centre">Synchronisation en cours, veuillez attendre : <span id='o_decSyncA'></span>.</p>`);
+        $j("#formulaireChoixArmee fieldset:eq(1)").append(`<p class="centre">Synchronisation en cours, veuillez attendre : <span id='o_decSyncA'></span>.</p>`);
         Utils.decreaseTime(attente, "o_decSyncA");
-        setTimeout(() => { $("input[name='ChoixArmee']").click(); }, attente * 1000);
+        setTimeout(() => { $j("input[name='ChoixArmee']").click(); }, attente * 1000);
     }
     /**
     * Formulaire de lancement de flood.
@@ -147346,7 +147644,7 @@ Utils.register(class Attaquer extends Page {
     */
     async formulaireFlood() {
         let methode = monProfilUtilisateur.parametre["methodeFlood"].valeur;
-        $(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
+        $j(".simulateur:eq(0)").append(`<fieldset id='o_prepaFlood' class='centre'><legend><span class='titre'>Lanceur de Flood</span></legend>
             <table id='o_simulationFlood' class='o_maxWidth' cellspacing=0>
 			<tr class='gras'><td>Etape</td><td>Troupes</td><td>Supp.*</td><td>Mon Terrain</td><td>${await this._cible.lire('Pseudo')} (${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._cible))})</td></tr>
 			<tr><td><select id='o_methodeFlood'><option value='0' ${methode == 0 ? "selected" : ""}>${METHODE_FLOOD[0]}</option><option value='1' ${methode == 1 ? "selected" : ""}>${METHODE_FLOOD[1]}</option><option value='2' ${methode == 2 ? "selected" : ""}>${METHODE_FLOOD[2]}</option><option value='3' ${methode == 3 ? "selected" : ""}>${METHODE_FLOOD[3]}</option></select></td><td colspan="2"></td><td><input value='${Utils.terrain}' size='12' id='o_floodTDCA'/></td><td><input value='${await this._cible.lire('Terrain de Chasse')}' size='12' id='o_floodTDCB'/></td></tr>
@@ -147356,38 +147654,38 @@ Utils.register(class Attaquer extends Page {
             <button id='o_lanceFlood' class='o_marginT15 o_button f_success'>Flooder</button>
             <p class="reduce left">* : place les unités restantes sur l'attaque selectionnée.</p>
             </fieldset>`);
-        $("#o_floodTDCA, #o_floodTDCB, #o_floodAntiSonde, input[id^='o_attaque']").spinner({ min: 0, numberFormat: "i" });
-        $("#o_simulationFlood tr:even").addClass("ligne_paire");
+        $j("#o_floodTDCA, #o_floodTDCB, #o_floodAntiSonde, input[id^='o_attaque']").spinner({ min: 0, numberFormat: "i" });
+        $j("#o_simulationFlood tr:even").addClass("ligne_paire");
         for (let i = 1; i < Math.min(4, this._nbAttaque); i++) await this.#ajouterAttaque();
         // Si la methode par defaut est par standard on prepare
         if (methode)
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
         // event
-        $("#o_methodeFlood").change(async (e) => {
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+        $j("#o_methodeFlood").change(async (e) => {
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
             if (e.currentTarget.value == "1") // en optimisee on peut ni ajouter ni supprimer d'attaques
-                $("#o_ajouteAttaque, #o_supprimeAttaque").hide();
+                $j("#o_ajouteAttaque, #o_supprimeAttaque").hide();
             else
-                $("#o_ajouteAttaque, #o_supprimeAttaque").show();
+                $j("#o_ajouteAttaque, #o_supprimeAttaque").show();
         });
-        $("#o_floodTDCA").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
-            await this.#preparerFlood(ui ? ui.value : $(e.currentTarget).spinner("value"), $("#o_floodTDCB").spinner("value"));
+        $j("#o_floodTDCA").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
+            await this.#preparerFlood(ui ? ui.value : $j(e.currentTarget).spinner("value"), $j("#o_floodTDCB").spinner("value"));
         });
-        $("#o_floodTDCB").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), ui ? ui.value : $(e.currentTarget).spinner("value"));
+        $j("#o_floodTDCB").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), ui ? ui.value : $j(e.currentTarget).spinner("value"));
         });
-        $("#o_floodAntiSonde").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
-            await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+        $j("#o_floodAntiSonde").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
+            await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
         });
-        $("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.lire('Id'), 0, $("#t:last").attr("name") + "=" + $("#t:last").attr("value")); });
-        $("#o_ajouteAttaque").click(async (e) => { await this.#ajouterAttaque(); });
-        $("#o_supprimeAttaque").click((e) => { this.#supprimerAttaque(); });
+        $j("#o_lanceFlood").click(async (e) => { this._armee.envoyerFlood(await this._cible.lire('Id'), 0, $j("#t:last").attr("name") + "=" + $j("#t:last").attr("value")); });
+        $j("#o_ajouteAttaque").click(async (e) => { await this.#ajouterAttaque(); });
+        $j("#o_supprimeAttaque").click((e) => { this.#supprimerAttaque(); });
     }
     /**
 * Lance une simulation si les données saisies sont correctes.
@@ -147398,20 +147696,20 @@ Utils.register(class Attaquer extends Page {
     async #preparerFlood(tdcAtt, tdcCible, bRecup = false) {
         // Si la cible est à porter
         if (tdcCible >= (tdcAtt * 0.5) && tdcCible <= (tdcAtt * 3)) {
-            let methode = $("#o_methodeFlood").val();
+            let methode = $j("#o_methodeFlood").val();
             // on recup les attaques manuellement
             let attaques = new Array();
             // on push au moins l'antisonde quelque soit le cas !
-            attaques.push($("#o_floodAntiSonde").spinner("value"));
+            attaques.push($j("#o_floodAntiSonde").spinner("value"));
             if (bRecup || methode == "0") {
                 for (let i = 1; i < this._nbAttaque; i++)
-                    if ($("#o_attaque" + i).length)
-                        attaques.push($("#o_attaque" + i).spinner("value"));
+                    if ($j("#o_attaque" + i).length)
+                        attaques.push($j("#o_attaque" + i).spinner("value"));
             }
             // si attaques n'est pas vide c'est qu'on parametre soit meme les floods
             // si la methode est uniforme ou degressive on utilise que le nbAttaque dans le tableau
-            let indSupp = $("input[name='o_suppAttaque']:checked").length ? $("input[name='o_suppAttaque']:checked").attr("id").replace("o_suppAttaque", "") : -1;
-            let simulation = this._armee.simulerFlood(tdcAtt, tdcCible, methode, attaques, $("#o_attaque1").spinner("value"), (methode == "2" || methode == "3") ? Math.min($("input[id^='o_attaque']").length, this._nbAttaque) : this._nbAttaque, indSupp);
+            let indSupp = $j("input[name='o_suppAttaque']:checked").length ? $j("input[name='o_suppAttaque']:checked").attr("id").replace("o_suppAttaque", "") : -1;
+            let simulation = this._armee.simulerFlood(tdcAtt, tdcCible, methode, attaques, $j("#o_attaque1").spinner("value"), (methode == "2" || methode == "3") ? Math.min($j("input[id^='o_attaque']").length, this._nbAttaque) : this._nbAttaque, indSupp);
             // mise a jour de l'antisonde
             let priseMax = Math.floor(tdcCible * 0.2), pourcent = 0;
             if (simulation[0]) {
@@ -147419,14 +147717,14 @@ Utils.register(class Attaquer extends Page {
                 pourcent = Math.round(priseMax * 100 / tdcCible);
                 tdcAtt += priseMax;
                 tdcCible -= priseMax;
-                $("#o_pourcentAttaque" + 0).text(pourcent);
-                $("#o_simulationFlood tr:eq(2) td:eq(3)").text(numeral(tdcAtt).format());
-                $("#o_simulationFlood tr:eq(2) td:eq(4)").text(numeral(tdcCible).format());
+                $j("#o_pourcentAttaque" + 0).text(pourcent);
+                $j("#o_simulationFlood tr:eq(2) td:eq(3)").text(numeral(tdcAtt).format());
+                $j("#o_simulationFlood tr:eq(2) td:eq(4)").text(numeral(tdcCible).format());
             }
             // mise à jour des attaques
             for (let i = 1; i < simulation.length; i++) {
-                if (!$("#o_attaque" + i).length) await this.#ajouterAttaque();
-                $("#o_attaque" + i).spinner("value", simulation[i]);
+                if (!$j("#o_attaque" + i).length) await this.#ajouterAttaque();
+                $j("#o_attaque" + i).spinner("value", simulation[i]);
                 // Calcule des terrains
                 if (tdcCible >= (tdcAtt * 0.5)) {
                     priseMax = Math.floor(tdcCible * 0.2);
@@ -147435,12 +147733,12 @@ Utils.register(class Attaquer extends Page {
                     tdcAtt += priseMax;
                     tdcCible -= priseMax;
                 }
-                $("#o_pourcentAttaque" + i).text(pourcent);
-                $("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(3)").text(numeral(tdcAtt).format());
-                $("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(4)").text(numeral(tdcCible).format());
+                $j("#o_pourcentAttaque" + i).text(pourcent);
+                $j("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(3)").text(numeral(tdcAtt).format());
+                $j("#o_simulationFlood tr:eq(" + (i + 2) + ") td:eq(4)").text(numeral(tdcCible).format());
             }
             // supprime les attaques en trop si besoin
-            for (let i = simulation.length; i < $("#o_simulationFlood tr").length - 3; i++)
+            for (let i = simulation.length; i < $j("#o_simulationFlood tr").length - 3; i++)
                 this.#supprimerAttaque();
         }
     }
@@ -147449,27 +147747,27 @@ Utils.register(class Attaquer extends Page {
     * @private
     */
     async #ajouterAttaque() {
-        let nbAttaque = $("input[id^='o_attaque']").length + 1;
+        let nbAttaque = $j("input[id^='o_attaque']").length + 1;
         // si le nombre d'attaque depasse la VA
         if (nbAttaque >= this._nbAttaque)
-            $.toast({ ...TOAST_WARNING, text: "Votre vitesse d'attaque ne vous permet d'envoyer plus d'attaques" });
+            $j.toast({ ...TOAST_WARNING, text: "Votre vitesse d'attaque ne vous permet d'envoyer plus d'attaques" });
         else {
-            $("#o_simulationFlood tr:last").before(`<tr class='ligne_paire'><td>Attaque ${nbAttaque} (<span id="o_pourcentAttaque${nbAttaque}">0</span>%)</td><td><input value='0' size='12' id='o_attaque${nbAttaque}'/></td><td><input type="checkbox" id="o_suppAttaque${nbAttaque}" name="o_suppAttaque"/></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.lire('Terrain de Chasse')).format()}</td></tr>`);
-            $("#o_attaque" + nbAttaque).spinner({ min: 0, numberFormat: "i" });
-            $("#o_simulationFlood tr").removeClass("ligne_paire");
-            $("#o_simulationFlood tr:even").addClass("ligne_paire");
+            $j("#o_simulationFlood tr:last").before(`<tr class='ligne_paire'><td>Attaque ${nbAttaque} (<span id="o_pourcentAttaque${nbAttaque}">0</span>%)</td><td><input value='0' size='12' id='o_attaque${nbAttaque}'/></td><td><input type="checkbox" id="o_suppAttaque${nbAttaque}" name="o_suppAttaque"/></td><td>${numeral(Utils.terrain).format()}</td><td>${numeral(await this._cible.lire('Terrain de Chasse')).format()}</td></tr>`);
+            $j("#o_attaque" + nbAttaque).spinner({ min: 0, numberFormat: "i" });
+            $j("#o_simulationFlood tr").removeClass("ligne_paire");
+            $j("#o_simulationFlood tr:even").addClass("ligne_paire");
             // Event
-            $("#o_attaque" + nbAttaque).on("input spin", async (e, ui) => {
-                await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"), true);
+            $j("#o_attaque" + nbAttaque).on("input spin", async (e, ui) => {
+                await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"), true);
             });
-            $("input[name='o_suppAttaque']").on("change", async (e) => {
+            $j("input[name='o_suppAttaque']").on("change", async (e) => {
                 // une seule checkbox peut etre cocher
-                $("input[name='o_suppAttaque']").not(e.currentTarget).prop("checked", false);
-                await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+                $j("input[name='o_suppAttaque']").not(e.currentTarget).prop("checked", false);
+                await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
             });
             // si la methode est uniforme ou degressive on utilise autocomplete la valeur de l'attaque
-            let methode = $("#o_methodeFlood").val();
-            if (methode == "2" || methode == "3") await this.#preparerFlood($("#o_floodTDCA").spinner("value"), $("#o_floodTDCB").spinner("value"));
+            let methode = $j("#o_methodeFlood").val();
+            if (methode == "2" || methode == "3") await this.#preparerFlood($j("#o_floodTDCA").spinner("value"), $j("#o_floodTDCB").spinner("value"));
         }
     }
     /**
@@ -147477,14 +147775,14 @@ Utils.register(class Attaquer extends Page {
     */
     #supprimerAttaque() {
         // si le nombre d'attaque est de 0
-        let nbAttaque = $("input[id^='o_attaque']").length + 1;
+        let nbAttaque = $j("input[id^='o_attaque']").length + 1;
         if (nbAttaque == 1)
-            $.toast({ ...TOAST_WARNING, text: "Vous ne pouvez plus supprimer d'attaque" });
+            $j.toast({ ...TOAST_WARNING, text: "Vous ne pouvez plus supprimer d'attaque" });
         else {
-            $("#o_attaque" + (nbAttaque - 1)).off();
-            $("#o_simulationFlood tr:eq(" + (nbAttaque + 1) + ")").remove();
-            $("#o_simulationFlood tr").removeClass("ligne_paire");
-            $("#o_simulationFlood tr:even").addClass("ligne_paire");
+            $j("#o_attaque" + (nbAttaque - 1)).off();
+            $j("#o_simulationFlood tr:eq(" + (nbAttaque + 1) + ")").remove();
+            $j("#o_simulationFlood tr").removeClass("ligne_paire");
+            $j("#o_simulationFlood tr:even").addClass("ligne_paire");
         }
     }
     /**
@@ -147496,13 +147794,13 @@ Utils.register(class Attaquer extends Page {
         if (Utils.comptePlus) return;
         // Sauvegarde des attaques en cours
         let listeAttaque = new Array();
-        $("span[id^='attaque_']").each((i, elt) => {
-            if ($(elt).prev().find("a").length) { // attaque normale
-                listeAttaque.push({ "cible": $(elt).prev().text(), "exp": moment().add($(elt).next().text().split(",")[0].split("(")[1], 's') });
+        $j("span[id^='attaque_']").each((i, elt) => {
+            if ($j(elt).prev().find("a").length) { // attaque normale
+                listeAttaque.push({ "cible": $j(elt).prev().text(), "exp": moment().add($j(elt).next().text().split(",")[0].split("(")[1], 's') });
                 // Affichage du retour
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
             } else // renfort
-                $(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+                $j(elt).after(`<span class='small'> - Retour le ${Utils.roundMinute($j(elt).next().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         });
         this.#saveAttaque(listeAttaque);
     }
@@ -147517,7 +147815,7 @@ Utils.register(class Attaquer extends Page {
         dataEvo.attaque = listeAttaque;
         dataEvo.startAttaque = moment();
         localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
-        if (!Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (!Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.attaque = dataEvo.attaque;
             boiteComptePlus.startAttaque = dataEvo.startAttaque;
             boiteComptePlus.majAttaque();
@@ -147563,12 +147861,12 @@ Utils.register(class Chat extends Page {
     */
     envoiFormulaire() {
         // Modification pour l'envoie du formulaire
-        $("#message").on("keypress", (e) => {
+        $j("#message").on("keypress", (e) => {
             let code = e.keyCode || e.which;
             if (code == 13)
                 this.#parserMessage();
         });
-        $("input[name='Envoyer']").click((e) => { this.#parserMessage(); });
+        $j("input[name='Envoyer']").click((e) => { this.#parserMessage(); });
     }
     /**
     * Change l'apparance de l'affichage des messages, "Pseudo (datetime) :" au lieu de "datetime pseudo :"
@@ -147577,26 +147875,26 @@ Utils.register(class Chat extends Page {
     */
     afficheMessage() {
         // ajoute du cite sur les anciens messages
-        $("#anciensMessages p, #nouveauxMessages p").each((i, elt) => {
-            $(elt).html((i, html) => {
+        $j("#anciensMessages p, #nouveauxMessages p").each((i, elt) => {
+            $j(elt).html((i, html) => {
                 let nth = 0;
                 return html.replace(/:/g, (match, j) => {
                     nth++;
-                    return nth == 3 ? ` <span id="o_cite${$(elt).attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
+                    return nth == 3 ? ` <span id="o_cite${$j(elt).attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
                 });
             });
         });
         // event sur les anciens message
-        $("span[id^='o_cite']").click((e) => {
+        $j("span[id^='o_cite']").click((e) => {
             let texte = this.#citerMessage(e);
-            texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
+            texte.length && $j("#message").val(`[i]${texte}[/i] // `).focus();
         });
         // MutationObserver pour les nouveaux messages
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 mutation.addedNodes.forEach((node) => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        let element = $(node);
+                        let element = $j(node);
                         if (element.is("p") && !element.hasClass("o_parsed")) {
                             element.addClass("o_parsed");
                             element.html((i, html) => {
@@ -147606,9 +147904,9 @@ Utils.register(class Chat extends Page {
                                     return nth == 3 ? ` <span id="o_cite${element.attr("id")}" class="reduce souligne cursor">citer</span> :` : match;
                                 });
                             });
-                            $(`#o_cite${element.attr("id")}`).click((e) => {
+                            $j(`#o_cite${element.attr("id")}`).click((e) => {
                                 let texte = this.#citerMessage(e);
-                                texte.length && $("#message").val(`[i]${texte}[/i] // `).focus();
+                                texte.length && $j("#message").val(`[i]${texte}[/i] // `).focus();
                             });
                         }
                     }
@@ -147627,7 +147925,7 @@ Utils.register(class Chat extends Page {
     * @private
     */
     #getMessage() {
-        return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/appelAjax.php", data: "actualiserChat=" + ($(".titre:first").text().includes("Alliance") ? "alliance" : "general") });
+        return $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/appelAjax.php", data: "actualiserChat=" + ($j(".titre:first").text().includes("Alliance") ? "alliance" : "general") });
     }
     /**
     * Ajoute la Couleur, options de chat.
@@ -147637,41 +147935,41 @@ Utils.register(class Chat extends Page {
     plus() {
         if (Utils.comptePlus) return
         // ajout de l'auto actualisation
-        $("#actualiser").after(" --- <label><input id='o_autoActualiser' type='checkbox' name='autoActualiser'/>auto</label> ");
-        $("#o_autoActualiser").change(() => {
-            if ($("#o_autoActualiser").prop("checked"))
+        $j("#actualiser").after(" --- <label><input id='o_autoActualiser' type='checkbox' name='autoActualiser'/>auto</label> ");
+        $j("#o_autoActualiser").change(() => {
+            if ($j("#o_autoActualiser").prop("checked"))
                 this.#actualiserMessage();
             else
                 clearTimeout(this._timeoutChat);
         });
         // Ajout des fonctions de mise en forme
-        $("#formulaireChat").append(`<div class='o_group_bouton o_group_bouton_chat'><span id='o_msgUp' class='option_gestion'>aA</span><span id='o_msgDown' class='option_gestion'>Aa</span></div>
+        $j("#formulaireChat").append(`<div class='o_group_bouton o_group_bouton_chat'><span id='o_msgUp' class='option_gestion'>aA</span><span id='o_msgDown' class='option_gestion'>Aa</span></div>
             <div class='o_group_bouton o_group_bouton_chat'><span id='o_msgB' class='option_gestion gras' onclick="miseEnForme('message','gras');">B</span><span id='o_msgI' class='option_gestion' onclick="miseEnForme('message','italic');"><em>I</em></span><span id='o_msgU' class='option_gestion' onclick="miseEnForme('message','souligne');" style='text-decoration:underline'>U</span></div>
             <div class='o_group_bouton o_group_bouton_chat'><span id='o_msgImg' class='option_gestion' onclick="miseEnForme('message','img');"><img height='12' src='images/BBCode/picture.png' title='Image' /></span><span id='o_msgLink' class='option_gestion' class='btn' onclick="miseEnForme('message','url');"><img height='12' src='images/BBCode/link.png' title='Lien' /></span><span id='o_msgPlay' class='option_gestion' onclick="miseEnForme('message','player');"><img height='12' src='images/BBCode/membre.gif' title='Pseudo'/></span><span id='o_msgAlly' class='option_gestion' onclick="miseEnForme('message','ally');"><img height='12' src='images/BBCode/groupe.gif' title='Alliance'/></span></div>`);
-        $(".o_group_bouton span").css("background-color", monProfilJoueur.couleur1);
+        $j(".o_group_bouton span").css("background-color", monProfilJoueur.couleur1);
 
-        $("#o_msgUp").click((e) => {
+        $j("#o_msgUp").click((e) => {
             e.preventDefault();
-            $("#message").val("[size=4]" + $("#message").val() + "[/size]");
-            $("#message")[0].selectionStart += 8;
-            $("#message")[0].selectionEnd -= 7;
-            $("#message").focus();
+            $j("#message").val("[size=4]" + $j("#message").val() + "[/size]");
+            $j("#message")[0].selectionStart += 8;
+            $j("#message")[0].selectionEnd -= 7;
+            $j("#message").focus();
         });
-        $("#o_msgDown").click((e) => {
+        $j("#o_msgDown").click((e) => {
             e.preventDefault();
-            $("#message").val("[size=2]" + $("#message").val() + "[/size]");
-            $("#message")[0].selectionStart += 8;
-            $("#message")[0].selectionEnd -= 7;
-            $("#message").focus();
+            $j("#message").val("[size=2]" + $j("#message").val() + "[/size]");
+            $j("#message")[0].selectionStart += 8;
+            $j("#message")[0].selectionEnd -= 7;
+            $j("#message").focus();
         });
-        $("#o_msgB, #o_msgI, #o_msgU, #o_msgImg, #o_msgLink, #o_msgPlay, #o_msgAlly").click((e) => { e.preventDefault(); });
+        $j("#o_msgB, #o_msgI, #o_msgU, #o_msgImg, #o_msgLink, #o_msgPlay, #o_msgAlly").click((e) => { e.preventDefault(); });
         // Ajout des emoticone
-        $("#listeSmiley20").html(LISTESMILEY1);
-        $("#listeSmiley30").html(LISTESMILEY2);
-        $("#listeSmiley40").html(LISTESMILEY3);
-        $("#listeSmiley50").html(LISTESMILEY4);
-        $("#listeSmiley60").html(LISTESMILEY5);
-        $("#listeSmiley70").html(LISTESMILEY6);
+        $j("#listeSmiley20").html(LISTESMILEY1);
+        $j("#listeSmiley30").html(LISTESMILEY2);
+        $j("#listeSmiley40").html(LISTESMILEY3);
+        $j("#listeSmiley50").html(LISTESMILEY4);
+        $j("#listeSmiley60").html(LISTESMILEY5);
+        $j("#listeSmiley70").html(LISTESMILEY6);
     }
     /**
     * @private
@@ -147679,25 +147977,25 @@ Utils.register(class Chat extends Page {
     #actualiserMessage(nbTour = 40) {
         if (nbTour) {
             this.#getMessage().then((data) => {
-                $("#anciensMessages").prepend($('#nouveauxMessages').html());
-                $("#nouveauxMessages").html(data.message);
-                $("#NonLuMess").html(data.NonLuMess);
-                $("#NonLuRapComb").html(data.NonLuRapComb);
-                $("#NonLuRapChass").html(data.NonLuRapChass);
+                $j("#anciensMessages").prepend($j('#nouveauxMessages').html());
+                $j("#nouveauxMessages").html(data.message);
+                $j("#NonLuMess").html(data.NonLuMess);
+                $j("#NonLuRapComb").html(data.NonLuRapComb);
+                $j("#NonLuRapChass").html(data.NonLuRapChass);
             }, (jqXHR, textStatus, errorThrown) => {
-                $.toast({ ...TOAST_ERROR, text: "Mise à jour des messages impossible." });
+                $j.toast({ ...TOAST_ERROR, text: "Mise à jour des messages impossible." });
             });
             this._timeoutChat = setTimeout(() => { this.#actualiserMessage(--nbTour); }, 5000);
         } else
-            $("#o_autoActualiser").prop("checked", false);
+            $j("#o_autoActualiser").prop("checked", false);
         return this;
     }
     /**
     * @private
     */
     #citerMessage(e) {
-        let clone = $(e.currentTarget).parent().clone();
-        $("span", clone).remove();
+        let clone = $j(e.currentTarget).parent().clone();
+        $j("span", clone).remove();
         let texte = clone.text();
         if (texte.length > 80) texte = texte.substring(0, 80) + "...";
         return texte;
@@ -147709,10 +148007,10 @@ Utils.register(class Chat extends Page {
     * @method #parserMessage
     */
     #parserMessage() {
-        let color = $("#inputCouleur").val();
+        let color = $j("#inputCouleur").val();
         if (color != "000000" && color != "0000000")
-            $("#message").val("[color=#" + color + "]" + $("#message").val() + "[/color]");
-        $("#message").val($("#message").val().replace(/\{outiiil([1-9]|1[0-9]|2[0-6])\}/g, "[img]http://outiiil.fr/images/outiiil/$1.gif[/img]"));
+            $j("#message").val("[color=#" + color + "]" + $j("#message").val() + "[/color]");
+        $j("#message").val($j("#message").val().replace(/\{outiiil([1-9]|1[0-9]|2[0-6])\}/g, "[img]http://outiiil.fr/images/outiiil/$1.gif[/img]"));
         return this;
     }
     /**
@@ -147721,12 +148019,12 @@ Utils.register(class Chat extends Page {
     * @method couleur
     */
     couleur() {
-        $("#inputCouleur").val(monProfilUtilisateur.parametre["couleurChat"].valeur.substring(1));
-        $("#boutonCouleur").remove();
-        $("#smileySuivant0").after(`<span><input id='color' type='color' name='couleur' value='${monProfilUtilisateur.parametre["couleurChat"].valeur}'/></span>`);
-        $("#color").change((e) => {
+        $j("#inputCouleur").val(monProfilUtilisateur.parametre["couleurChat"].valeur.substring(1));
+        $j("#boutonCouleur").remove();
+        $j("#smileySuivant0").after(`<span><input id='color' type='color' name='couleur' value='${monProfilUtilisateur.parametre["couleurChat"].valeur}'/></span>`);
+        $j("#color").change((e) => {
             let color = e.currentTarget.value;
-            $("#inputCouleur").val(color.substring(1));
+            $j("#inputCouleur").val(color.substring(1));
             monProfilUtilisateur.parametre["couleurChat"].valeur = color;
             monProfilUtilisateur.parametre["couleurChat"].sauvegarde();
         });
@@ -147740,23 +148038,23 @@ Utils.register(class Chat extends Page {
         // Ajout des emoticones d'outiiil
         let ligne = `<div id='listeSmiley80' style='display:none'>`;
         for (let i = 0; ++i < 27; ligne += `<img id='smiley_${i}' src='http://outiiil.fr/images/outiiil/${i}.gif'>`);
-        $("#tousLesSmiley0").append(ligne + `</div>`);
-        $("img[id^=smiley_]").click((e) => { $("#message").val($("#message").val() + "{outiiil" + $(e.currentTarget).attr("id").slice(7) + "}"); });
+        $j("#tousLesSmiley0").append(ligne + `</div>`);
+        $j("img[id^=smiley_]").click((e) => { $j("#message").val($j("#message").val() + "{outiiil" + $j(e.currentTarget).attr("id").slice(7) + "}"); });
         // Modification de la fleche preedante
-        $("#smileyPrecedent0").replaceWith(() => { return `<span id="smileyPrecedent0"><img title='Précédent' class='cursor' src='images/bouton/fleche-champs-gauche.gif'/></span>`; });
+        $j("#smileyPrecedent0").replaceWith(() => { return `<span id="smileyPrecedent0"><img title='Précédent' class='cursor' src='images/bouton/fleche-champs-gauche.gif'/></span>`; });
         // Event sur la fleche preedante
-        $("#smileyPrecedent0").click((e) => {
-            let div = $("#tousLesSmiley0 > div:visible");
+        $j("#smileyPrecedent0").click((e) => {
+            let div = $j("#tousLesSmiley0 > div:visible");
             div.hide();
-            div.is(':first-child') ? $("#tousLesSmiley0 div:last").show() : div.prev().show();
+            div.is(':first-child') ? $j("#tousLesSmiley0 div:last").show() : div.prev().show();
         });
         // Modification de la fleche suivante
-        $("#smileySuivant0").replaceWith(() => { return `<span id="smileySuivant0"><img title='Suivant' class='cursor' src='images/bouton/fleche-champs-droite.gif'/></span>`; });
+        $j("#smileySuivant0").replaceWith(() => { return `<span id="smileySuivant0"><img title='Suivant' class='cursor' src='images/bouton/fleche-champs-droite.gif'/></span>`; });
         // Event sur la fleche suivante
-        $("#smileySuivant0").click((e) => {
-            let div = $("#tousLesSmiley0 > div:visible");
+        $j("#smileySuivant0").click((e) => {
+            let div = $j("#tousLesSmiley0 > div:visible");
             div.hide();
-            div.is(':last-child') ? $("#tousLesSmiley0 div:first").show() : div.next().show();
+            div.is(':last-child') ? $j("#tousLesSmiley0 div:first").show() : div.next().show();
         });
     }
 })
@@ -147789,7 +148087,7 @@ Utils.register(class Commerce extends Page {
      */
     async ajouterInfosEtable() {
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-        $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${constructions[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (constructions[11] / 2))}</strong> ressources.</td></tr>`);
+        $j("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${constructions[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (constructions[11] / 2))}</strong> ressources.</td></tr>`);
     }
 
     /**
@@ -147801,30 +148099,30 @@ Utils.register(class Commerce extends Page {
         const transportCapacity = 10 + (constructions[11] / 2);
 
         // Bouton arrondir nourriture
-        $("#bouton_nourriture_max").html(`Nourriture donnée <span id="o_arrondirNou" class="gras small">arrondir...</span>`);
-        $("#o_arrondirNou").click((e) => {
+        $j("#bouton_nourriture_max").html(`Nourriture donnée <span id="o_arrondirNou" class="gras small">arrondir...</span>`);
+        $j("#o_arrondirNou").click((e) => {
             e.preventDefault();
-            const value = Math.floor($("#nbNourriture").val());
-            const nbMat = Math.floor($("#nbMateriaux").val());
+            const value = Math.floor($j("#nbNourriture").val());
+            const nbMat = Math.floor($j("#nbMateriaux").val());
             const newValue = Utils.arrondiQuantite(value);
-            $("#input_nbNourriture").val(numeral(newValue).format());
-            $("#nbNourriture").val(newValue);
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / transportCapacity)).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbMat) / transportCapacity));
+            $j("#input_nbNourriture").val(numeral(newValue).format());
+            $j("#nbNourriture").val(newValue);
+            $j("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / transportCapacity)).format());
+            $j("#nbOuvriere").val(Math.floor((newValue + nbMat) / transportCapacity));
             return false;
         });
 
         // Bouton arrondir matériaux
-        $("#bouton_materiaux_max").html(`Matériaux donnés <span id="o_arrondirMat" class="gras small">arrondir...</span>`);
-        $("#o_arrondirMat").click((e) => {
+        $j("#bouton_materiaux_max").html(`Matériaux donnés <span id="o_arrondirMat" class="gras small">arrondir...</span>`);
+        $j("#o_arrondirMat").click((e) => {
             e.preventDefault();
-            const value = Math.floor($("#nbMateriaux").val());
-            const nbNou = Math.floor($("#nbNourriture").val());
+            const value = Math.floor($j("#nbMateriaux").val());
+            const nbNou = Math.floor($j("#nbNourriture").val());
             const newValue = Utils.arrondiQuantite(value);
-            $("#input_nbMateriaux").val(numeral(newValue).format());
-            $("#nbMateriaux").val(newValue);
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / transportCapacity)).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbNou) / transportCapacity));
+            $j("#input_nbMateriaux").val(numeral(newValue).format());
+            $j("#nbMateriaux").val(newValue);
+            $j("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / transportCapacity)).format());
+            $j("#nbOuvriere").val(Math.floor((newValue + nbNou) / transportCapacity));
             return false;
         });
     }
@@ -147836,7 +148134,7 @@ Utils.register(class Commerce extends Page {
         if (Utils.comptePlus) return;
 
         // Autocomplete sur le champ pseudo
-        $("#pseudo_convoi").autocomplete({
+        $j("#pseudo_convoi").autocomplete({
             source: (request, response) => {
                 Joueur.rechercher(request.term).then((data) => {
                     response(Utils.extraitRecherche(data, true, false));
@@ -147849,20 +148147,20 @@ Utils.register(class Commerce extends Page {
 
         // Sauvegarde des convois
         const listeConvoi = [];
-        $("#centre > strong").each((i, elt) => {
+        $j("#centre > strong").each((i, elt) => {
             // Affichage du retour des convois
-            if ($(elt).next().text().indexOf("Retour") == -1) {
-                const tempsRestant = Utils.timeToInt($(elt).text().split("dans")[1].trim());
-                $(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}</span>`);
+            if ($j(elt).next().text().indexOf("Retour") == -1) {
+                const tempsRestant = Utils.timeToInt($j(elt).text().split("dans")[1].trim());
+                $j(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}</span>`);
             }
-            const nombres = $(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
+            const nombres = $j(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
             if (nombres) {
                 const convoiData = {
-                    "cible": $(elt).find("a").text(),
-                    "sens": $(elt).text().includes("livrer"),
+                    "cible": $j(elt).find("a").text(),
+                    "sens": $j(elt).text().includes("livrer"),
                     "nou": nombres[0],
                     "mat": nombres[1],
-                    "exp": moment().add(Utils.timeToInt($(elt).text().split("dans")[1].trim()), 's')
+                    "exp": moment().add(Utils.timeToInt($j(elt).text().split("dans")[1].trim()), 's')
                 };
                 listeConvoi.push(convoiData);
             }
@@ -147914,7 +148212,7 @@ Utils.register(class Construction extends Page {
     async recuperationConstruction() {
         // verification des niveaux
         let niveau = new Array(13);
-        $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        $j(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
         if (niveau.join(",") != constructions.join(",")) {
             constructions = niveau;
@@ -147928,7 +148226,7 @@ Utils.register(class Construction extends Page {
     * @method titleEtable
     */
     async titleEtable() {
-        if ($(".desciption_amelioration:eq(11) table").find(".verificationOK").length) return;
+        if ($j(".desciption_amelioration:eq(11) table").find(".verificationOK").length) return;
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
         let ouvDispo = Utils.ouvrieres - Utils.terrain, perte = 80 * Math.pow(2, recherche[4]);
@@ -147940,8 +148238,8 @@ Utils.register(class Construction extends Page {
             <tr><td>Capacité de livraison niveau suivant</td><td class='right' style='padding-left:10px'>${numeral((ouvDispo - perte) * (10 + ((constructions[11] + 1) / 2))).format()}</td></tr>
             <tr><td>Seuil rentabilité ouvrière</td><td class='right gras' style='padding-left:10px'>${numeral((21 + constructions[11]) * 40 * Math.pow(2, (constructions[11] + 3))).format()}</td></tr>
             </table>`;
-        $(".cout_amelioration:eq(11) table").prepend("<tr class='centre'><td colspan='2' id='o_rentabiliteEtable' title=''>Rentabilité</td></tr>");
-        $("#o_rentabiliteEtable").tooltip({
+        $j(".cout_amelioration:eq(11) table").prepend("<tr class='centre'><td colspan='2' id='o_rentabiliteEtable' title=''>Rentabilité</td></tr>");
+        $j("#o_rentabiliteEtable").tooltip({
             position: { my: "right+15 center", at: "left center" },
             content: title,
             tooltipClass: "ui-tooltip-brown ui-tooltip-lightBrown"
@@ -147956,13 +148254,13 @@ Utils.register(class Construction extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Affichage de la fin de la construction
-        if ($("#centre > strong").length)
-            $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+        if ($j("#centre > strong").length)
+            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($j("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la construction en cours
         this.#saveConstruction();
         // Suppresion de la construction en cours si on annule
-        if ($("a:contains('Annuler')").length)
-            $("a:contains('Annuler')").click((e) => {
+        if ($j("a:contains('Annuler')").length)
+            $j("a:contains('Annuler')").click((e) => {
                 boiteComptePlus.expConstruction = 0;
                 boiteComptePlus.construction = "";
                 boiteComptePlus.startConstruction = 0;
@@ -147977,9 +148275,9 @@ Utils.register(class Construction extends Page {
     * @method #saveConstruction
     */
     #saveConstruction() {
-        let str = $("#centre > strong").text();
+        let str = $j("#centre > strong").text();
         let construction = str.substring(2, str.indexOf("se termine") - 1);
-        if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.construction = construction.substr(0, 1).toUpperCase() + construction.substr(1);
             boiteComptePlus.expConstruction = moment().add(parseInt(str.split(',')[0].split('(')[1]), 's');
             boiteComptePlus.startConstruction = moment();
@@ -148021,24 +148319,24 @@ Utils.register(class Description extends Page {
 
     async constructionAlliance() {
         // Suppression du cadre classement
-        $("#centre center:first").remove();
+        $j("#centre center:first").remove();
         // construction de l'alliance
         let tmpJoueurs = {};
-        await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
-            let pseudo = $(elt).find("td:eq(2)").text(), terrain = numeral($(elt).find("td:eq(4)").text()).value();
+        await $j("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
+            let pseudo = $j(elt).find("td:eq(2)").text(), terrain = numeral($j(elt).find("td:eq(4)").text()).value();
             tmpJoueurs[pseudo] = new Joueur(null, {
                 donneesInitiales: {
                     'Pseudo': pseudo,
                     'Terrain de Chasse': terrain,
-                    'Fourmilière': ~~($(elt).find("td:eq(7)").text()),
-                    'Technologie': ~~($(elt).find("td:eq(6)").text())
+                    'Fourmilière': ~~($j(elt).find("td:eq(7)").text()),
+                    'Technologie': ~~($j(elt).find("td:eq(6)").text())
                 }
             });
             if (!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()) {
                 if (await tmpJoueurs[pseudo].estAttaquable())
-                    $(elt).find("td:eq(5)").html(IMG_ATT);
+                    $j(elt).find("td:eq(5)").html(IMG_ATT);
                 if (await tmpJoueurs[pseudo].estAttaquant())
-                    $(elt).find("td:eq(3)").html(IMG_DEF);
+                    $j(elt).find("td:eq(3)").html(IMG_DEF);
             }
         });
         this._alliance.joueurs = tmpJoueurs;
@@ -148049,8 +148347,8 @@ Utils.register(class Description extends Page {
     * @return
     */
     async ajoutFooter() {
-        $("#tabMembresAlliance tr:first").remove();
-        $("#tabMembresAlliance")
+        $j("#tabMembresAlliance tr:first").remove();
+        $j("#tabMembresAlliance")
             .append(`<tfoot><tr class='gras centre'><td colspan='8'>Terrain : <span id='totalTerrain'>${numeral(await this._alliance.calculTerrain()).format()}</span> cm² | Fourmilière : ${numeral(await this._alliance.calculFourmiliere()).format()} | Technologie : ${numeral(await this._alliance.calculTechnologie()).format()}.</td></tr></tfoot>`)
             .wrap("<div class='simulateur'>")
             .css({ "border": "0px", "width": "100%", "padding": "0px" })
@@ -148058,16 +148356,16 @@ Utils.register(class Description extends Page {
             .after(`<div id='o_bouton_alliance' class='o_group_bouton'><span id='o_historique' class='option_gestion'><img src="${IMG_HISTORIQUE}" alt="historique"/> Historique</span><span id='o_surveiller' class='option_gestion'><img src="${IMG_RADAR}" alt="surveiller"/>${boiteRadar.alliances.hasOwnProperty(this._alliance.tag) ? " Ignorer" : " Surveiller"}</span></div><div id='o_separation_graph' class='clear'></div>`);
         this.#tableau();
 
-        $("#o_historique").click((e) => {
-            $(e.currentTarget).off().css("backgroundColor", "#bbb");
+        $j("#o_historique").click((e) => {
+            $j(e.currentTarget).off().css("backgroundColor", "#bbb");
             this.#historique();
         });
-        $("#o_surveiller").click(async (e) => {
+        $j("#o_surveiller").click(async (e) => {
             if (!boiteRadar.alliances.hasOwnProperty(this._alliance.tag)) {
-                $(e.currentTarget).html($(e.currentTarget).html().replace(/Surveiller/, "Ignorer"));
+                $j(e.currentTarget).html($j(e.currentTarget).html().replace(/Surveiller/, "Ignorer"));
                 await boiteRadar.ajouteAlliance(this._alliance);
             } else {
-                $(e.currentTarget).html($(e.currentTarget).html().replace(/Ignorer/, "Surveiller"));
+                $j(e.currentTarget).html($j(e.currentTarget).html().replace(/Ignorer/, "Surveiller"));
                 await boiteRadar.supprimeAlliance(this._alliance);
             }
             await boiteRadar.sauvegarder(); // Await the promise to get the BoiteRadar instance
@@ -148081,7 +148379,7 @@ Utils.register(class Description extends Page {
     * @method #tableau
     */
     #tableau() {
-        $("#tabMembresAlliance").DataTable({
+        $j("#tabMembresAlliance").DataTable({
             bPaginate: false,
             dom: "Bfrti",
             order: [],
@@ -148103,7 +148401,7 @@ Utils.register(class Description extends Page {
     * @method #historique
     */
     #historique() {
-        $("#o_separation_graph").after(`<div id='o_boiteAlliance' class='simulateur o_marginT15'><div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div><div id='o_chartAlliance'></div></div>`);
+        $j("#o_separation_graph").after(`<div id='o_boiteAlliance' class='simulateur o_marginT15'><div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div><div id='o_chartAlliance'></div></div>`);
         this._alliance.getHistorique("o_chartAlliance");
         return this;
     }
@@ -148169,10 +148467,10 @@ Utils.register(class Forum extends Page {
             // On s'assure de ne pas boucler avec l'observer.
             observer.disconnect();
             await super.init();
-            observer.observe($("#alliance")[0], { childList: true });
+            observer.observe($j("#alliance")[0], { childList: true });
         });
-        if ($("#alliance").length) {
-            observer.observe($("#alliance")[0], { childList: true });
+        if ($j("#alliance").length) {
+            observer.observe($j("#alliance")[0], { childList: true });
         }
     }
 });
@@ -148207,7 +148505,7 @@ Utils.register(class Laboratoire extends Page {
         // verification des niveaux
         let niveau = new Array(10);
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-        $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        $j(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         if (niveau.join(",") != recherches.join(",")) {
             recherches = niveau;
             await monProfilJoueur.ecrire("Niveaux Recherches", recherches);
@@ -148223,7 +148521,7 @@ Utils.register(class Laboratoire extends Page {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
         let armee = await monProfilJoueur.lire('Armée');
         let vieAB = armee.getBaseVie() + armee.getBonusVie(recherches[1]);
-        let tOuv = numeral($(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
+        let tOuv = numeral($j(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
         let apportPonte = Math.round(parseInt(tOuv / (TEMPS_UNITE[1] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (8 + 8 * recherches[1] / 10));
         let vieABSupp = armee.getBaseVie() + armee.getBonusVie(recherches[1] + 1);
         let bLigneGras = vieAB + apportPonte >= vieABSupp ? true : false;
@@ -148232,7 +148530,7 @@ Utils.register(class Laboratoire extends Page {
             <tr${(bLigneGras ? " class='gras' " : "")}><td>Vie AB + ponte JSN</td><td class='right' style='padding-left:10px'>${numeral(vieAB + apportPonte).format()} (+ ${numeral(apportPonte).format()})</td></tr>
             <tr${(!bLigneGras ? " class='gras' " : "")}><td>Vie AB niveau ${(recherches[1] + 1)}</td><td class='right'>${numeral(vieABSupp).format()} (+ ${numeral(vieABSupp - vieAB).format()})</td></tr>
             </table>`;
-        $(".desciption_amelioration:eq(1) h2").attr("title", title).tooltip({
+        $j(".desciption_amelioration:eq(1) h2").attr("title", title).tooltip({
             position: { my: "left+5 top", at: "right top" },
             content: title,
             tooltipClass: "ui-tooltip-brown ui-tooltip-lightBrown"
@@ -148248,7 +148546,7 @@ Utils.register(class Laboratoire extends Page {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
         let armee = await monProfilJoueur.lire('Armée');
         let attAB = armee.getTotalAtt(recherches[2]);
-        let tOuv = numeral($(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
+        let tOuv = numeral($j(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
         let apportPonteJS = Math.round(parseInt(tOuv / (TEMPS_UNITE[4] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (10 + 10 * recherches[1] / 10));
         let apportPonteTk = Math.round(parseInt(tOuv / (TEMPS_UNITE[11] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (55 + 55 * recherches[1] / 10));
         let attABSupp = armee.getTotalAtt(recherches[2] + 1);
@@ -148269,7 +148567,7 @@ Utils.register(class Laboratoire extends Page {
             <tr${(bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB + ponte TuE</td><td class='right' style='padding-left:10px'>${numeral(defAB + apportPonteTuE).format()} (+ ${numeral(apportPonteTuE).format()})</td></tr>
             <tr${(!bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB niveau ${(recherches[2] + 1)}</td><td class='right'>${numeral(defABSupp).format()} (+ ${numeral(defABSupp - defAB).format()})</td></tr>
             </table>`;
-        $(".desciption_amelioration:eq(2) h2").attr("title", title).tooltip({
+        $j(".desciption_amelioration:eq(2) h2").attr("title", title).tooltip({
             position: { my: "left+5 top", at: "right top" },
             content: title,
             tooltipClass: "ui-tooltip-brown ui-tooltip-lightBrown"
@@ -148284,13 +148582,13 @@ Utils.register(class Laboratoire extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Affichage de la fin de la recherche
-        if ($("#centre > strong").length)
-            $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+        if ($j("#centre > strong").length)
+            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($j("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la recherche en cours
         this.#saveRecherche();
         // Suppresion de la recherche en cours si on annule
-        if ($("a:contains('Je confirme')").length)
-            $("a:contains('Je confirme')").click((e) => {
+        if ($j("a:contains('Je confirme')").length)
+            $j("a:contains('Je confirme')").click((e) => {
                 boiteComptePlus.expRecherche = 0;
                 boiteComptePlus.recherche = "";
                 boiteComptePlus.startRecherche = 0;
@@ -148306,9 +148604,9 @@ Utils.register(class Laboratoire extends Page {
     * @return
     */
     #saveRecherche() {
-        let str = $("#centre strong").text();
+        let str = $j("#centre strong").text();
         let recherche = str.substring(2, str.indexOf("termin") - 1);
-        if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.recherche = recherche.substr(0, 1).toUpperCase() + recherche.substr(1);
             boiteComptePlus.expRecherche = moment().add(parseInt(str.split(",")[0].split("(")[1]), 's');
             boiteComptePlus.startRecherche = moment();
@@ -148361,7 +148659,7 @@ Utils.register(class Messagerie extends Page {
                 for (const mutation of mutations) {
                     for (const node of mutation.addedNodes) {
                         if (node.nodeType === Node.ELEMENT_NODE) {
-                            const element = $(node);
+                            const element = $j(node);
                             // Si on ouvre le message pour la première fois
                             if (element.hasClass("contenu_conversation")) {
                                 // correction pour chrome
@@ -148377,7 +148675,7 @@ Utils.register(class Messagerie extends Page {
                                 if (titreMess.includes("chasseuses ont conquis")) {
                                     const messages = element.find(".message");
                                     for (const elt of messages.get()) {
-                                        await this.#analyseChasse(convId, $(elt).parent().attr("id"), $(elt).text());
+                                        await this.#analyseChasse(convId, $j(elt).parent().attr("id"), $j(elt).text());
                                     }
                                     if (messages.length > 1) {
                                         await this.#analyseChasses(convId);
@@ -148391,7 +148689,7 @@ Utils.register(class Messagerie extends Page {
                                 ) {
                                     const combatMessages = element.find(".message");
                                     for (const elt of combatMessages.get()) {
-                                        await this.#analyseCombat($(elt).parent().attr("id"), $(elt).prev().text(), $(elt).text());
+                                        await this.#analyseCombat($j(elt).parent().attr("id"), $j(elt).prev().text(), $j(elt).text());
                                     }
                                     this.#optionMessage(combatMessages.first().parent().attr("id"));
                                 }
@@ -148438,7 +148736,7 @@ Utils.register(class Messagerie extends Page {
     plus(id = 0) {
         if (Utils.comptePlus) return;
         let champsReponse = id != 0 ? "champ_reponse_" + id : "message_envoi";
-        $("#smileySuivant" + id).after(` <span style='cursor:pointer;position:relative;top:3px;'>
+        $j("#smileySuivant" + id).after(` <span style='cursor:pointer;position:relative;top:3px;'>
             <span style="position:relative;top:-4px"><input id="o_colorMess${champsReponse}" type="color" name="couleur" value="${monProfilUtilisateur.parametre["couleurMessagerie"].valeur}"/></span>
             <img onclick='miseEnForme("${champsReponse}","gras");' title='Gras' src='images/BBCode/bold.png'>
             <img onclick='miseEnForme("${champsReponse}","italic");' title='Italique' src='images/BBCode/italic.png'>
@@ -148449,47 +148747,47 @@ Utils.register(class Messagerie extends Page {
             <img onclick='miseEnForme("${champsReponse}","ally");' title='Alliance' src='images/BBCode/groupe.gif' height='15'>
             </span>`);
         // event sur le changement de couleur
-        $("#o_colorMess" + champsReponse).change((e) => {
+        $j("#o_colorMess" + champsReponse).change((e) => {
             let color = e.currentTarget.value;
-            $(this).val(color.substring(1));
+            $j(this).val(color.substring(1));
             monProfilUtilisateur.parametre["couleurMessagerie"].valeur = color;
             monProfilUtilisateur.parametre["couleurMessagerie"].sauvegarde();
         });
-        $(`#${id != 0 ? "repondre_tous_" + id : "bt_envoi_message"}`).click((e) => {
-            let color = $("#o_colorMess" + champsReponse).val(), idChamps = `#${id != 0 ? "champ_reponse_" + id : "message_envoi"}`;
+        $j(`#${id != 0 ? "repondre_tous_" + id : "bt_envoi_message"}`).click((e) => {
+            let color = $j("#o_colorMess" + champsReponse).val(), idChamps = `#${id != 0 ? "champ_reponse_" + id : "message_envoi"}`;
             if (color != "#000000")
-                $(idChamps).val("[color=" + color + "]" + $(idChamps).val() + "[/color]");
+                $j(idChamps).val("[color=" + color + "]" + $j(idChamps).val() + "[/color]");
         });
         // Ajoute des emoticones
-        $("#listeSmiley2" + id).html(LISTESMILEY1.replace(/message/g, champsReponse));
-        $("#listeSmiley3" + id).html(LISTESMILEY2.replace(/message/g, champsReponse));
-        $("#listeSmiley4" + id).html(LISTESMILEY3.replace(/message/g, champsReponse));
-        $("#listeSmiley5" + id).html(LISTESMILEY4.replace(/message/g, champsReponse));
-        $("#listeSmiley6" + id).html(LISTESMILEY5.replace(/message/g, champsReponse));
-        $("#listeSmiley7" + id).html(LISTESMILEY6.replace(/message/g, champsReponse));
+        $j("#listeSmiley2" + id).html(LISTESMILEY1.replace(/message/g, champsReponse));
+        $j("#listeSmiley3" + id).html(LISTESMILEY2.replace(/message/g, champsReponse));
+        $j("#listeSmiley4" + id).html(LISTESMILEY3.replace(/message/g, champsReponse));
+        $j("#listeSmiley5" + id).html(LISTESMILEY4.replace(/message/g, champsReponse));
+        $j("#listeSmiley6" + id).html(LISTESMILEY5.replace(/message/g, champsReponse));
+        $j("#listeSmiley7" + id).html(LISTESMILEY6.replace(/message/g, champsReponse));
         // event pour selectionner les listes de smiley
         if (id != 0) {
-            if ($("#tousLesSmiley" + id).find("div:visible").length)
-                $("#smileySuivant" + id + ", #smileyPrecedent" + id).toggle();
-            $("#smileySuivant" + id).prev().click((e) => { $("#smileySuivant" + id + ", #smileyPrecedent" + id).toggle(); });
+            if ($j("#tousLesSmiley" + id).find("div:visible").length)
+                $j("#smileySuivant" + id + ", #smileyPrecedent" + id).toggle();
+            $j("#smileySuivant" + id).prev().click((e) => { $j("#smileySuivant" + id + ", #smileyPrecedent" + id).toggle(); });
         }
         // event pour selectionner la liste precedante
-        $("#smileyPrecedent" + id)
+        $j("#smileyPrecedent" + id)
             .html(`<img title='Précédent' class='cursor' src='images/bouton/fleche-champs-gauche.gif'/>`)
             .removeAttr("onclick")
             .click((e) => {
-                let div = $("#tousLesSmiley" + id + " div:visible");
+                let div = $j("#tousLesSmiley" + id + " div:visible");
                 div.hide();
-                div.prev().length ? div.prev().show() : $("#tousLesSmiley" + id + " div:last").show();
+                div.prev().length ? div.prev().show() : $j("#tousLesSmiley" + id + " div:last").show();
             });
         // event pour selectionner la liste suivante
-        $("#smileySuivant" + id)
+        $j("#smileySuivant" + id)
             .html(`<img title='Suivant' class='cursor' src='images/bouton/fleche-champs-droite.gif'/>`)
             .removeAttr("onclick")
             .click((e) => {
-                let div = $("#tousLesSmiley" + id + " div:visible");
+                let div = $j("#tousLesSmiley" + id + " div:visible");
                 div.hide();
-                div.next().length ? div.next().show() : $("#tousLesSmiley" + id + " div:first").show();
+                div.next().length ? div.next().show() : $j("#tousLesSmiley" + id + " div:first").show();
             });
         return this;
     }
@@ -148502,38 +148800,38 @@ Utils.register(class Messagerie extends Page {
         // preparation de l'analyse
         await combat.analyse();
         // affichage des optiosn
-        $("#" + id + " td:eq(1)").append(`<p class="o_#optionMessage gras cursor"><span id="show_info_${id_mess}">+</span>${simulation}</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${await combat.toHTMLMessagerie()}</div>`);
-        $("#show_info_" + id_mess).click((e) => { $(e.currentTarget).text($(e.currentTarget).text() == "+" ? "-" : "+").parent().next().toggle("blind", 400); });
-        $("#o_simuler_" + id_mess).click(async (e) => {
+        $j("#" + id + " td:eq(1)").append(`<p class="o_#optionMessage gras cursor"><span id="show_info_${id_mess}">+</span>${simulation}</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${await combat.toHTMLMessagerie()}</div>`);
+        $j("#show_info_" + id_mess).click((e) => { $j(e.currentTarget).text($j(e.currentTarget).text() == "+" ? "-" : "+").parent().next().toggle("blind", 400); });
+        $j("#o_simuler_" + id_mess).click(async (e) => {
             // ouverture de la boite combat sur l'onglet de simulation
-            $("#o_itemCombat").parent().click();
-            $("#o_tabsCombat").tabs("option", "active", 1);
+            $j("#o_itemCombat").parent().click();
+            $j("#o_tabsCombat").tabs("option", "active", 1);
             // autocomplete des unites ennemies
             for (let i = 0; i < 14; i++)
-                $("input[name='o_unite2_" + (i + 1) + "']").spinner("value", combat.armee2Ap.unite[i]);
+                $j("input[name='o_unite2_" + (i + 1) + "']").spinner("value", combat.armee2Ap.unite[i]);
             // si je suis en defense dans le rc j'autocomplete les donnes de l'attaquant sinon l'inverse
             let recherchesAttaquant = await combat.attaquant.lire('Niveaux Recherches');
             let recherchesDefenseur = await combat.defenseur.lire('Niveaux Recherches');
             if (combat.position == 1) {
-                $("#o_armes2").spinner("value", recherchesAttaquant[2]);
-                $("#o_bouclier2").spinner("value", recherchesAttaquant[1] != -1 ? recherchesAttaquant[1] : 0);
+                $j("#o_armes2").spinner("value", recherchesAttaquant[2]);
+                $j("#o_bouclier2").spinner("value", recherchesAttaquant[1] != -1 ? recherchesAttaquant[1] : 0);
             } else {
-                $("#o_armes2").spinner("value", recherchesDefenseur[2]);
-                $("#o_bouclier2").spinner("value", recherchesDefenseur[1] != -1 ? recherchesDefenseur[1] : 0);
+                $j("#o_armes2").spinner("value", recherchesDefenseur[2]);
+                $j("#o_bouclier2").spinner("value", recherchesDefenseur[1] != -1 ? recherchesDefenseur[1] : 0);
                 if (combat.lieu == LIEU.DOME) {
-                    $("#o_dome").prop("checked", true);
+                    $j("#o_dome").prop("checked", true);
                     if (combat.bonusDefenseur.length) {
-                        $("#o_bouclier2").spinner("value", combat.bonusDefenseur[0].split('/')[0]);
-                        $("#o_domeNiveau").spinner("value", combat.bonusDefenseur[0].split('/')[1]);
-                        $("#o_logeNiveau").spinner("value", 0);
+                        $j("#o_bouclier2").spinner("value", combat.bonusDefenseur[0].split('/')[0]);
+                        $j("#o_domeNiveau").spinner("value", combat.bonusDefenseur[0].split('/')[1]);
+                        $j("#o_logeNiveau").spinner("value", 0);
                     }
                 }
                 if (combat.lieu == LIEU.LOGE) {
-                    $("#o_loge").prop("checked", true);
+                    $j("#o_loge").prop("checked", true);
                     if (combat.bonusDefenseur.length) {
-                        $("#o_bouclier2").spinner("value", combat.bonusDefenseur[0].split('/')[0]);
-                        $("#o_logeNiveau").spinner("value", combat.bonusDefenseur[0].split('/')[1]);
-                        $("#o_domeNiveau").spinner("value", 0);
+                        $j("#o_bouclier2").spinner("value", combat.bonusDefenseur[0].split('/')[0]);
+                        $j("#o_logeNiveau").spinner("value", combat.bonusDefenseur[0].split('/')[1]);
+                        $j("#o_domeNiveau").spinner("value", 0);
                     }
                 }
             }
@@ -148560,8 +148858,8 @@ Utils.register(class Messagerie extends Page {
                 new Chasse("").ajoute(chasse);
 
             const htmlAnalyse = await chasse.toHTMLMessagerie();
-            $("#" + id + " td:eq(1)").append(`<p id="show_info_${id_mess}" class="gras cursor">+</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${htmlAnalyse}</div>`);
-            $("#show_info_" + id_mess).click((e) => { $(e.currentTarget).text($(e.currentTarget).text() == "+" ? "-" : "+").next().toggle("blind", 400); });
+            $j("#" + id + " td:eq(1)").append(`<p id="show_info_${id_mess}" class="gras cursor">+</p><div id="o_analyse_${id_mess}" class="info_supp separateur_messages_meme_expe" style="display:none">${htmlAnalyse}</div>`);
+            $j("#show_info_" + id_mess).click((e) => { $j(e.currentTarget).text($j(e.currentTarget).text() == "+" ? "-" : "+").next().toggle("blind", 400); });
         }
         return this;
     }
@@ -148574,13 +148872,13 @@ Utils.register(class Messagerie extends Page {
         const idBilan = "#o_bilan_" + id_conv;
         const idBouton = "#show_bilan_" + id_conv;
 
-        if ($(idBilan).length) {
-            $(idBilan).html(await this._messagesOuvert["conv_" + id_conv].toHTMLMessagerie());
+        if ($j(idBilan).length) {
+            $j(idBilan).html(await this._messagesOuvert["conv_" + id_conv].toHTMLMessagerie());
         } else {
             // Empêcher les ajouts multiples si une création est déjà en cours
-            if ($(idBouton).length) return;
+            if ($j(idBouton).length) return;
 
-            const conversationContainer = $("#conversation_" + id_conv).next().next();
+            const conversationContainer = $j("#conversation_" + id_conv).next().next();
             const lastMessage = conversationContainer.find(".message:last");
 
             if (lastMessage.length) {
@@ -148588,12 +148886,12 @@ Utils.register(class Messagerie extends Page {
                 lastMessage.append(`<p id="show_bilan_${id_conv}" class="gras cursor souligne">Bilan</p><div id="o_bilan_${id_conv}" class="info_supp separateur_messages_meme_expe" style="display:none"></div>`);
 
                 // On attache l'événement une seule fois
-                $(idBouton).click((e) => {
-                    $(e.currentTarget).next().toggle("blind", 400);
+                $j(idBouton).click((e) => {
+                    $j(e.currentTarget).next().toggle("blind", 400);
                 });
 
                 // Chargement du contenu
-                $(idBilan).html(await this._messagesOuvert["conv_" + id_conv].toHTMLMessagerie());
+                $j(idBilan).html(await this._messagesOuvert["conv_" + id_conv].toHTMLMessagerie());
             }
         }
     }
@@ -148601,7 +148899,7 @@ Utils.register(class Messagerie extends Page {
     * @private
     */
     #optionMessage(id_conv) {
-        $("#" + id_conv + " td:eq(0)").append(`<div class="cursor_copy o_group_bouton_mess">
+        $j("#" + id_conv + " td:eq(0)").append(`<div class="cursor_copy o_group_bouton_mess">
             <img id="copier_${id_conv}" src="${IMG_COPIER}" height="16" alt="copy" title="copier dans le presse papier"/></span>
             <span id="copier_plus_${id_conv}"><img class="afficher_plus" src="images/icone/more_options.gif" title="Afficher les options" width="10" style="position:relative; top:-4px; margin-left:8px;"/>
             <div id="choix_supp_${id_conv}" class="choix_supplementaires_option" style="z-index: 3;display: none;">
@@ -148616,32 +148914,32 @@ Utils.register(class Messagerie extends Page {
                 </div>
 			</div></div>`);
         // action menu plus
-        $("#copier_plus_" + id_conv).click((e) => { $("#choix_supp_" + id_conv).toggle(); });
+        $j("#copier_plus_" + id_conv).click((e) => { $j("#choix_supp_" + id_conv).toggle(); });
         // action bouton principale
         let messDefaut = new Clipboard("#copier_" + id_conv, { text: () => { return this.#formatMessage(id_conv); } });
-        messDefaut.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
-        messDefaut.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
+        messDefaut.on("success", (e) => { $j.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
+        messDefaut.on("error", (e) => { $j.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
         // action bouton supplementaire
         let messHOF = new Clipboard("#copier_hof_" + id_conv, { text: () => { return this.#formatMessage(id_conv, true); } });
-        messHOF.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
-        messHOF.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
+        messHOF.on("success", (e) => { $j.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
+        messHOF.on("error", (e) => { $j.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
         let messBonus = new Clipboard("#copier_bonus_" + id_conv, { text: () => { return this.#formatMessage(id_conv, false, true); } });
-        messBonus.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
-        messBonus.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
+        messBonus.on("success", (e) => { $j.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
+        messBonus.on("error", (e) => { $j.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
         let messHOFBonus = new Clipboard("#copier_hof_bonus_" + id_conv, { text: () => { return this.#formatMessage(id_conv, true, true); } });
-        messHOFBonus.on("success", (e) => { $.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
-        messHOFBonus.on("error", (e) => { $.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
+        messHOFBonus.on("success", (e) => { $j.toast({ ...TOAST_SUCCESS, text: "Le rapport a été correctement copié dans le presse papier." }); });
+        messHOFBonus.on("error", (e) => { $j.toast({ ...TOAST_ERROR, text: "Une erreur a été rencontrée, la copie a échoué." }); });
     }
     /**
     * Ajout d'un code couleur sur les messages par defaut
     */
     couleurMessage() {
-        $("tr[id^='conversation_']").each((i, elt) => {
-            let titre = $(elt).find("td:eq(3) .intitule_message").text();
+        $j("tr[id^='conversation_']").each((i, elt) => {
+            let titre = $j(elt).find("td:eq(3) .intitule_message").text();
             if (titre.includes("Colonie perdue") || titre.includes("conquis par") || titre.includes("Vol par") || titre.includes("Invasion") || titre.includes("Attaque échouée contre") || titre.includes("Rebellion échouée"))
-                $(elt).find("td:eq(3)").children().addClass("red");
+                $j(elt).find("td:eq(3)").children().addClass("red");
             if (titre.includes("Colonie conquise") || titre.includes("Butin chez") || titre.includes("Attaque réussie contre") || titre.includes("Rebellion réussie"))
-                $(elt).find("td:eq(3)").children().addClass("green");
+                $j(elt).find("td:eq(3)").children().addClass("green");
         });
         return this;
     }
@@ -148651,14 +148949,14 @@ Utils.register(class Messagerie extends Page {
     async #formatMessage(id_conv, hof = false, bonus = false) {
         let html = ``;
         // pour chaque message de la conversation (attaque terrain + dome + loge par exemple)
-        await $("#" + id_conv).parent().find("tr[id^='message_']").each(async (i, elt) => {
-            let message = $(elt).find(".message").clone(), pseudo = "", armee = "", id = $(elt).attr("id").split("_")[1];
+        await $j("#" + id_conv).parent().find("tr[id^='message_']").each(async (i, elt) => {
+            let message = $j(elt).find(".message").clone(), pseudo = "", armee = "", id = $j(elt).attr("id").split("_")[1];
             // on remplace les br par des retours à la ligne
             message.find("br").replaceWith("\n");
             // on supprime le plus/moins
-            let detail = $("div[id^='o_analyse']", message).remove();
+            let detail = $j("div[id^='o_analyse']", message).remove();
             // on supprimer l'analyse
-            $(".o_#optionMessage", message).remove();
+            $j(".o_#optionMessage", message).remove();
             // en fonction du rc on on met en evidence l'ennemie
             let texte = message.text();
             if (texte.includes("Vous attaquez")) {
@@ -148677,7 +148975,7 @@ Utils.register(class Messagerie extends Page {
             // on met en gras le lieu
             texte = texte.replace(/Terrain de Chasse/gi, "[b]Terrain de Chasse[/b]").replace(/fourmilière/gi, "[b]fourmilière[/b]").replace(/Loge Impériale/gi, "[b]Loge Impériale[/b]");
             // on ajoute l'heure du RC
-            html += "[b]" + $(elt).find(".expe span > span").text() + "[/b] " + texte + "\n";
+            html += "[b]" + $j(elt).find(".expe span > span").text() + "[/b] " + texte + "\n";
             // si on veut le temps HOF
             if (hof) html += `Perte ${await monProfilJoueur.lire('Pseudo')} : ${detail.find("#temps_hof_vous_" + id).text()}\nPerte ${pseudo} : ${detail.find("#temps_hof_ennemie_" + id).text()}\nPerte totale : ${detail.find("#temps_hof_total_" + id).text()}\n\n`;
             // si on veut les bonus
@@ -148724,13 +149022,13 @@ Utils.register(class Profil extends Page {
     *
     */
     async chargerData() {
-        this._profil = new Joueur(null, { donneesInitiales: { Pseudo: $("h2").text() } });
-        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $(".boite_membre").find("a[href^='carte2.php?']").text();
+        this._profil = new Joueur(null, { donneesInitiales: { Pseudo: $j("h2").text() } });
+        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $j(".boite_membre").find("a[href^='carte2.php?']").text();
         await this._profil.ecrire('X', ~~(ligne.replace(regexp, "$1")));
         await this._profil.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
-        await this._profil.ecrire('Activité', $(".boite_membre table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances"));
-        await this._profil.ecrire('Id', $("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0]);
-        await this._profil.ecrire('Terrain de Chasse', numeral($(".tableau_score tr:eq(1) td:eq(1)").text()).value());
+        await this._profil.ecrire('Activité', $j(".boite_membre table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances"));
+        await this._profil.ecrire('Id', $j("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0]);
+        await this._profil.ecrire('Terrain de Chasse', numeral($j(".tableau_score tr:eq(1) td:eq(1)").text()).value());
     }
     /**
    *
@@ -148741,7 +149039,7 @@ Utils.register(class Profil extends Page {
             // si on a pas de compte+ on affiche le temps de trajet
             !Utils.comptePlus && await this.plus();
             // Affichage du retour dynamique
-            $(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(await monProfilJoueur.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
+            $j(".boite_membre:first div:first table").append(`<tr><td class='right'>Retour le :</td><td id='o_tempsRetour'>${moment().add(await monProfilJoueur.getTempsParcours2(this._profil), 's').format("D MMM à HH[h]mm[m]ss[s]")}</td></tr><tr><td class='right'>Rapport :</td><td id='o_tempsRetourRapport'>${Utils.roundMinute(await monProfilJoueur.getTempsParcours2(this._profil)).format("D MMM à HH[h]mm")}</td></tr>`);
             Utils.incrementTime(await monProfilJoueur.getTempsParcours2(this._profil), "o_tempsRetour", "o_tempsRetourRapport");
         }
     }
@@ -148750,18 +149048,18 @@ Utils.register(class Profil extends Page {
    */
     async ajouterOptions() {
         // Ajout des options pour ajouter au radar et utiliser l'historique
-        $(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
+        $j(".boite_membre:eq(1) table tr td:eq(0)").append(`${Utils.comptePlus ? "<br/>" : ""}- <span id='o_surveiller' class='cursor gras'>${boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo')) ? "Supprimer la surveillance" : "Surveiller ce joueur"}</span><br/>- <span id='o_historique' class='cursor gras'>Historique</span>`);
 
-        $("#o_historique").click((e) => {
-            $(e.currentTarget).off().css("color", "#555555");
+        $j("#o_historique").click((e) => {
+            $j(e.currentTarget).off().css("color", "#555555");
             this.#historique();
         });
-        $("#o_surveiller").click(async (e) => {
+        $j("#o_surveiller").click(async (e) => {
             if (!boiteRadar.joueurs.hasOwnProperty(await this._profil.lire('Pseudo'))) {
-                $(e.currentTarget).text("Supprimer la surveillance");
+                $j(e.currentTarget).text("Supprimer la surveillance");
                 await boiteRadar.ajouteJoueur(this._profil);
             } else {
-                $(e.currentTarget).text("Surveiller ce joueur");
+                $j(e.currentTarget).text("Surveiller ce joueur");
                 await boiteRadar.supprimeJoueur(this._profil);
             }
             await boiteRadar.sauvegarder();
@@ -148775,7 +149073,7 @@ Utils.register(class Profil extends Page {
     * @method #historique
     */
     #historique() {
-        $("#centre center .boite_membre:eq(1)").after(`<div class='boite_membre' id='o_boiteHistorique'>
+        $j("#centre center .boite_membre:eq(1)").after(`<div class='boite_membre' id='o_boiteHistorique'>
             <div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div>
             <div id='o_chartJoueur'></div></div>`);
         this._profil.getHistorique("o_chartJoueur");
@@ -148786,7 +149084,7 @@ Utils.register(class Profil extends Page {
     */
     async plus() {
         // Affichage du temps de trajet
-        $(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
+        $j(".boite_membre:first div:first table").append(`<tr><td style='text-align:right'>Temps de trajet :</td><td>${Utils.intToTime(await monProfilJoueur.getTempsParcours2(this._profil))}</td></tr>`);
         return this;
     }
 })
@@ -148821,19 +149119,19 @@ Utils.register(class Reine extends Page {
     async afficherFinPontes() {
         if (Utils.comptePlus) return;
         // Affichage de la fin des pontes
-        $(".tableau_leger tr:eq(0)").append("<td><strong>Terminé le</strong></td>");
-        $(".tableau_leger tr:gt(0)").each((i, elt) => { $(elt).append(`<td>${Utils.roundMinute($(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</td>`); });
-        $("span[id^='bouton_cout_nombre'], span[id^='bouton_cout_temps'], span[id^='bouton_cout_nourriture'], .icones_unite").addClass("cliquable3");
-        $(".icones_unite").attr("onclick", "$('.tab_stat').toggle();");
+        $j(".tableau_leger tr:eq(0)").append("<td><strong>Terminé le</strong></td>");
+        $j(".tableau_leger tr:gt(0)").each((i, elt) => { $j(elt).append(`<td>${Utils.roundMinute($j(elt).next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm")}</td>`); });
+        $j("span[id^='bouton_cout_nombre'], span[id^='bouton_cout_temps'], span[id^='bouton_cout_nourriture'], .icones_unite").addClass("cliquable3");
+        $j(".icones_unite").attr("onclick", "$('.tab_stat').toggle();");
     }
 
     async ajouterStatistiqueUnite() {
         if (Utils.comptePlus) return;
         // Ajout des statistiques des unités avec bonus
-        $(".icones_unite").each(async (i, elt) => {
-            let index = NOM_UNITE.indexOf($(elt).parent().find("h2").text());
+        $j(".icones_unite").each(async (i, elt) => {
+            let index = NOM_UNITE.indexOf($j(elt).parent().find("h2").text());
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-            $(elt).append(`<table class="tab_stat" style="display: none;"><tbody><tr><td style="text-align:center;font-size:0.8em;height:30px;" colspan="2"> Avec Bonus</td></tr><tr title="Vie avec Bouclier niveau ${recherches[1]}"><td class="icone_vie" style="position:relative; top:4px">${IMG_VIE}</td><td class="vie" style="white-space:nowrap">${(VIE_UNITE[index] + (VIE_UNITE[index] / 10 * recherches[1]).toFixed(1) / 1)}</td></tr><tr title="Dégâts en Attaque avec Armes niveau ${recherches[2]}"><td class="icone_degat_attaque" style="position:relative;top:3px">${IMG_ATT}</td><td class="degat_defense" style="white-space:nowrap">${(ATT_UNITE[index] + (ATT_UNITE[index] / 10 * recherches[2]).toFixed(1) / 1)}</td></tr><tr title="Dégâts en Défense avec Armes niveau ${recherches[2]}"><td class="icone_degat_defense" style="position:relative;top:3px">${IMG_DEF}</td><td class="degat_defense" style="white-space:nowrap">${(DEF_UNITE[index] + (DEF_UNITE[index] / 10 * recherches[2]).toFixed(1) / 1)}</td></tr><tr><td style="height:30px;" colspan="2"></td></tr></tbody></table>`);
+            $j(elt).append(`<table class="tab_stat" style="display: none;"><tbody><tr><td style="text-align:center;font-size:0.8em;height:30px;" colspan="2"> Avec Bonus</td></tr><tr title="Vie avec Bouclier niveau ${recherches[1]}"><td class="icone_vie" style="position:relative; top:4px">${IMG_VIE}</td><td class="vie" style="white-space:nowrap">${(VIE_UNITE[index] + (VIE_UNITE[index] / 10 * recherches[1]).toFixed(1) / 1)}</td></tr><tr title="Dégâts en Attaque avec Armes niveau ${recherches[2]}"><td class="icone_degat_attaque" style="position:relative;top:3px">${IMG_ATT}</td><td class="degat_defense" style="white-space:nowrap">${(ATT_UNITE[index] + (ATT_UNITE[index] / 10 * recherches[2]).toFixed(1) / 1)}</td></tr><tr title="Dégâts en Défense avec Armes niveau ${recherches[2]}"><td class="icone_degat_defense" style="position:relative;top:3px">${IMG_DEF}</td><td class="degat_defense" style="white-space:nowrap">${(DEF_UNITE[index] + (DEF_UNITE[index] / 10 * recherches[2]).toFixed(1) / 1)}</td></tr><tr><td style="height:30px;" colspan="2"></td></tr></tbody></table>`);
         });
     }
 
@@ -148842,14 +149140,14 @@ Utils.register(class Reine extends Page {
         // Switch entre les inputs
         let element = ["cout_nombre", "cout_temps", "cout_nourriture"];
         for (let i = 0; i < 3; i++) {
-            $("span[id^='bouton_" + element[i] + "']").click((e) => {
-                let j = $(e.currentTarget).attr("id").match(/\d+/) ? $(e.currentTarget).attr("id").match(/\d+/) : "";
+            $j("span[id^='bouton_" + element[i] + "']").click((e) => {
+                let j = $j(e.currentTarget).attr("id").match(/\d+/) ? $j(e.currentTarget).attr("id").match(/\d+/) : "";
 
-                $("#input_" + element[i] + j).val($("#" + element[i] + j).text());
-                $("#input_" + element[i] + j).show();
+                $j("#input_" + element[i] + j).val($j("#" + element[i] + j).text());
+                $j("#input_" + element[i] + j).show();
 
-                $("#" + element[(i + 1) % 3] + j + ", #" + element[(i + 2) % 3] + j).css("display", "inline-block");
-                $("#" + element[i] + j + ", #input_" + element[(i + 1) % 3] + j + ", #input_" + element[(i + 2) % 3] + j).hide();
+                $j("#" + element[(i + 1) % 3] + j + ", #" + element[(i + 2) % 3] + j).css("display", "inline-block");
+                $j("#" + element[i] + j + ", #input_" + element[(i + 1) % 3] + j + ", #input_" + element[(i + 2) % 3] + j).hide();
             });
         }
     }
@@ -148857,28 +149155,28 @@ Utils.register(class Reine extends Page {
     async gestionTempsPonte() {
         if (Utils.comptePlus) return;
         // Gestion du temps pour la ponte
-        $("span[id^='bouton_cout_temps']").each((i, elt) => { $(elt).append(`<input id="input_cout_temps${(i == 0 ? "" : i)}" class="tooltip_droite" type="text" style="height: 20px; width: 85px;display:none;" title="Ex: 1.5 jour, 1j 12h, 36h" value="${$(elt).find("span[id^='cout_temps']").text()}"/>`); });
-        $("input[id^='input_cout_temps']").on("input", async (e) => {
-            let i = $(e.currentTarget).attr("id").match(/\d+/) ? $(e.currentTarget).attr("id").match(/\d+/) : "",
+        $j("span[id^='bouton_cout_temps']").each((i, elt) => { $j(elt).append(`<input id="input_cout_temps${(i == 0 ? "" : i)}" class="tooltip_droite" type="text" style="height: 20px; width: 85px;display:none;" title="Ex: 1.5 jour, 1j 12h, 36h" value="${$j(elt).find("span[id^='cout_temps']").text()}"/>`); });
+        $j("input[id^='input_cout_temps']").on("input", async (e) => {
+            let i = $j(e.currentTarget).attr("id").match(/\d+/) ? $j(e.currentTarget).attr("id").match(/\d+/) : "",
                 nombre = parseInt(Utils.timeToInt(e.currentTarget.value) / (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, await monProfilJoueur.getTDP())));
-            $("#cout_nombre" + i).text(numeral(nombre).format());
-            $("#nombre_de_ponte" + i).attr("value", nombre);
-            $("#cout_temps" + i).text(e.currentTarget.value);
-            $("#cout_nourriture" + i).text(numeral(nombre * COUT_UNITE[(i == "" ? 0 : i)]).format("0 a"));
+            $j("#cout_nombre" + i).text(numeral(nombre).format());
+            $j("#nombre_de_ponte" + i).attr("value", nombre);
+            $j("#cout_temps" + i).text(e.currentTarget.value);
+            $j("#cout_nourriture" + i).text(numeral(nombre * COUT_UNITE[(i == "" ? 0 : i)]).format("0 a"));
         });
     }
 
     async gestionNourriturePonte() {
         if (Utils.comptePlus) return;
         // Gestion de la consommation pour la ponte
-        $("span[id^='bouton_cout_nourriture']").each((i, elt) => { $(elt).append(`<input id="input_cout_nourriture${(i == 0 ? "" : i)}" class="tooltip_droite" type="tel" style="height: 20px; width: 85px; display: none;" title="Ex: 100 000, 100k, 0.1M" value="${$(elt).find("span[id^='cout_nourriture']").text()}"/>`); });
-        $("input[id^='input_cout_nourriture']").on("input", async (e) => {
-            let i = $(e.currentTarget).attr("id").match(/\d+/) ? $(e.currentTarget).attr("id").match(/\d+/) : "",
+        $j("span[id^='bouton_cout_nourriture']").each((i, elt) => { $j(elt).append(`<input id="input_cout_nourriture${(i == 0 ? "" : i)}" class="tooltip_droite" type="tel" style="height: 20px; width: 85px; display: none;" title="Ex: 100 000, 100k, 0.1M" value="${$j(elt).find("span[id^='cout_nourriture']").text()}"/>`); });
+        $j("input[id^='input_cout_nourriture']").on("input", async (e) => {
+            let i = $j(e.currentTarget).attr("id").match(/\d+/) ? $j(e.currentTarget).attr("id").match(/\d+/) : "",
                 nombre = Math.floor(numeral(e.currentTarget.value).value() / COUT_UNITE[(i == "" ? 0 : i)]);
-            $("#cout_nombre" + i).text(numeral(nombre).format());
-            $("#nombre_de_ponte" + i).attr("value", nombre);
-            $("#cout_temps" + i).text(Utils.intToTime((nombre * (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, await monProfilJoueur.getTDP()))), nombre));
-            $("#cout_nourriture" + i).text(e.currentTarget.value);
+            $j("#cout_nombre" + i).text(numeral(nombre).format());
+            $j("#nombre_de_ponte" + i).attr("value", nombre);
+            $j("#cout_temps" + i).text(Utils.intToTime((nombre * (TEMPS_UNITE[(i == "" ? 0 : i)] * Math.pow(0.9, await monProfilJoueur.getTDP()))), nombre));
+            $j("#cout_nourriture" + i).text(e.currentTarget.value);
         });
     }
     /**
@@ -148889,10 +149187,10 @@ Utils.register(class Reine extends Page {
         if (Utils.comptePlus) return;
         // Sauvegarde de la ponte en cours
         let listePonte = new Array();
-        for (let i = 1, l = $(".tableau_leger:eq(0) tr").length; i < l; i++) {
-            let unite = $(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(0)").text().replace(/[0-9]+/g, '').trim(),
-                nombre = parseInt($(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(0)").text().replace(/\D+/g, '')),
-                temps = Utils.timeToInt($(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(3)").text());
+        for (let i = 1, l = $j(".tableau_leger:eq(0) tr").length; i < l; i++) {
+            let unite = $j(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(0)").text().replace(/[0-9]+/g, '').trim(),
+                nombre = parseInt($j(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(0)").text().replace(/\D+/g, '')),
+                temps = Utils.timeToInt($j(".tableau_leger:eq(0) tr:eq(" + i + ") td:eq(3)").text());
             listePonte.push({ "unite": unite.substr(0, 1).toUpperCase() + unite.substr(1), "nombre": nombre, "exp": moment().add(temps, 's') });
         }
         await this.#savePonte(listePonte);
@@ -148949,7 +149247,7 @@ Utils.register(class Ressource extends Page {
     */
     async initData() {
         const recherches = await monProfilJoueur.lire('Niveaux Recherches');
-        this._nbChasse = recherches[5] + 2 - $("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
+        this._nbChasse = recherches[5] + 2 - $j("#boite_tdc").text().split(/- Vos chasseuses vont conquérir/g).length;
         this._armee = await monProfilJoueur.lire('Armée');
     }
     /**
@@ -148958,11 +149256,11 @@ Utils.register(class Ressource extends Page {
     * @method lanceur
     */
     async lanceur() {
-        if (!$("#boite_tdc").length) {
+        if (!$j("#boite_tdc").length) {
             console.error("[Ressources] Element #boite_tdc introuvable.");
             return;
         }
-        $("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
+        $j("#boite_tdc").after(`<br/><div id='o_prepaChasse' class='boite_amelioration simulateur centre'><h2>Lanceur de Chasses</h2>
             <table id='o_lanceurChasse' class='o_maxWidth o_marginT15' cellspacing=0>
 			<tr class='ligne_paire'><td>Terrain à l'arrivée</td><td><input value='${Utils.terrain > 1000000 ? 1000000 : Utils.terrain}' size='21' id='o_chasseTDCDep'/></td><td></td></tr>
 			<tr><td>Nombre de chasse</td><td><input value='0' size='21' id='o_chasseNbr'/></td><td><input id='o_chasseNbrAuto' type='checkbox' checked='checked' name='optionAuto'/><label for='o_chasseNbrAuto'>Auto</label></td></tr>
@@ -148984,71 +149282,71 @@ Utils.register(class Ressource extends Page {
 			<tr><td>Difficulté</td><td>:</td><td id='o_chasseRefDiff'></td></tr>
 			<tr class='ligne_paire'><td>Perte estimé</td><td>:</td><td id='o_chassePerte'></td></tr>
 			</table></div>`);
-        $("#o_chasseTDCDep").spinner({ min: 0, numberFormat: "i" });
-        $("#o_chasseJSN").spinner({ min: 0, max: this._armee.nbrJSN, numberFormat: "i" });
-        $("#o_chasseTDCRep").spinner({ min: 1, numberFormat: "i", disabled: true });
-        $("#o_chasseNbr").spinner({ min: 1, max: this._nbChasse, numberFormat: "i", disabled: true });
-        $("#o_chasseDiff, #o_chasseInt").outerWidth($("#o_chasseTDCDep").parent().width() + 4);
-        $("#o_chasseDiff, #o_chasseInt").outerHeight($("#o_chasseTDCDep").parent().height());
-        $("#o_chasseDiff").css("color", "green");
+        $j("#o_chasseTDCDep").spinner({ min: 0, numberFormat: "i" });
+        $j("#o_chasseJSN").spinner({ min: 0, max: this._armee.nbrJSN, numberFormat: "i" });
+        $j("#o_chasseTDCRep").spinner({ min: 1, numberFormat: "i", disabled: true });
+        $j("#o_chasseNbr").spinner({ min: 1, max: this._nbChasse, numberFormat: "i", disabled: true });
+        $j("#o_chasseDiff, #o_chasseInt").outerWidth($j("#o_chasseTDCDep").parent().width() + 4);
+        $j("#o_chasseDiff, #o_chasseInt").outerHeight($j("#o_chasseTDCDep").parent().height());
+        $j("#o_chasseDiff").css("color", "green");
         // Completion des valeurs
         await this.#preparerChasse();
         // Event
-        $("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
+        $j("#o_chasseTDCDep, #o_chasseNbr, #o_chasseTDCRep").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
             await this.#preparerChasse();
         });
-        $("#o_chasseNbrAuto").click(async (e) => {
-            if (!$(e.currentTarget).is(':checked'))
-                $("#o_chasseNbr").spinner("enable");
+        $j("#o_chasseNbrAuto").click(async (e) => {
+            if (!$j(e.currentTarget).is(':checked'))
+                $j("#o_chasseNbr").spinner("enable");
             else {
-                $("#o_chasseNbr").spinner("disable");
+                $j("#o_chasseNbr").spinner("disable");
                 await this.#preparerChasse();
             }
         });
-        $("#o_chasseTDCRepAuto").click(async (e) => {
-            if (!$(e.currentTarget).is(':checked'))
-                $("#o_chasseTDCRep").spinner("enable");
+        $j("#o_chasseTDCRepAuto").click(async (e) => {
+            if (!$j(e.currentTarget).is(':checked'))
+                $j("#o_chasseTDCRep").spinner("enable");
             else {
-                $("#o_chasseTDCRep").spinner("disable");
+                $j("#o_chasseTDCRep").spinner("disable");
                 await this.#preparerChasse();
             }
         });
-        $("#o_chasseDiff").change(async (e) => {
+        $j("#o_chasseDiff").change(async (e) => {
             let value = parseFloat(e.currentTarget.value);
             switch (true) {
                 case value <= 4:
-                    $(e.currentTarget).css("color", "black");
+                    $j(e.currentTarget).css("color", "black");
                     break;
                 case value > 4 && value <= 6:
-                    $(e.currentTarget).css("color", "red");
+                    $j(e.currentTarget).css("color", "red");
                     break;
                 case value > 6 && value <= 7.5:
-                    $(e.currentTarget).css("color", "orange");
+                    $j(e.currentTarget).css("color", "orange");
                     break;
                 default:
-                    $(e.currentTarget).css("color", "green");
+                    $j(e.currentTarget).css("color", "green");
                     break;
             }
             await this.#preparerChasse();
         });
-        $("#o_chasseJSN").on("input spin", async (e, ui) => {
-            let nombre = ui ? ui.value : $(e.currentTarget).spinner("value");
-            $(e.currentTarget).spinner("value", nombre);
+        $j("#o_chasseJSN").on("input spin", async (e, ui) => {
+            let nombre = ui ? ui.value : $j(e.currentTarget).spinner("value");
+            $j(e.currentTarget).spinner("value", nombre);
             this._armee.setJSN(nombre);
             await this.#preparerChasse();
         });
         // Lancement des chasses
-        $("#o_chasseEnvoyer").click((e) => {
+        $j("#o_chasseEnvoyer").click((e) => {
             if (this._armee.getSommeUnite()) {
-                let terrainChasse = $("#o_chasseTDCRep").spinner("value"), nbChasse = $("#o_chasseNbr").spinner("value"), intervalle = $("#o_chasseInt").val() * 1000;
-                $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php" }).then((data) => {
-                    let parsed = $("<div/>").append(data);
+                let terrainChasse = $j("#o_chasseTDCRep").spinner("value"), nbChasse = $j("#o_chasseNbr").spinner("value"), intervalle = $j("#o_chasseInt").val() * 1000;
+                $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php" }).then((data) => {
+                    let parsed = $j("<div/>").append(data);
                     this._armee.envoyerChasse(terrainChasse, nbChasse, 0, intervalle, parsed.find("#t:last").attr("name") + "=" + parsed.find("#t:last").attr("value"));
                 });
             } else
-                $.toast({ ...TOAST_ERROR, text: "Vous n'avez pas d'armée à envoyer." });
+                $j.toast({ ...TOAST_ERROR, text: "Vous n'avez pas d'armée à envoyer." });
             return false;
         });
         return this;
@@ -149060,12 +149358,12 @@ Utils.register(class Ressource extends Page {
     * @method #preparerChasse
     */
     async #preparerChasse() {
-        let tdcDep = $("#o_chasseTDCDep").spinner("value"),
-            diffChasse = $("#o_chasseDiff").val(),
-            nbChasse = $("#o_chasseNbr").spinner("value"),
-            fixNB = nbChasse && !$("#o_chasseNbrAuto").is(':checked') ? nbChasse : 0,
-            terrainChasse = $("#o_chasseTDCRep").spinner("value"),
-            fixHF = terrainChasse && !$("#o_chasseTDCRepAuto").is(':checked') ? terrainChasse : 0;
+        let tdcDep = $j("#o_chasseTDCDep").spinner("value"),
+            diffChasse = $j("#o_chasseDiff").val(),
+            nbChasse = $j("#o_chasseNbr").spinner("value"),
+            fixNB = nbChasse && !$j("#o_chasseNbrAuto").is(':checked') ? nbChasse : 0,
+            terrainChasse = $j("#o_chasseTDCRep").spinner("value"),
+            fixHF = terrainChasse && !$j("#o_chasseTDCRepAuto").is(':checked') ? terrainChasse : 0;
         // Si une chasse peut être calculer
         if (tdcDep) {
             let simu = await this._armee.simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, this._nbChasse);
@@ -149102,8 +149400,8 @@ Utils.register(class Ressource extends Page {
             for (let j = 0; ++j < 15; simulation += (this._armee.unite[j] ? "<td class='small' nowrap>" + (repartition[i][j] ? numeral(repartition[i][j]).format() : "") + "</td>" : ""));
             simulation += `</tr>`;
         }
-        $("#o_simulationChasse").html(simulation);
-        $("#o_simulationChasse tr:even").addClass("ligne_paire");
+        $j("#o_simulationChasse").html(simulation);
+        $j("#o_simulationChasse tr:even").addClass("ligne_paire");
     }
     /**
     * Affiche le compte rendu de la simulation.
@@ -149118,13 +149416,13 @@ Utils.register(class Ressource extends Page {
     */
     async #majRecapitulatif(nbChasse, terrainChasse, ratio, ratioRef, iTabPerte) {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-        $("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
+        $j("#o_chasseTotal").html(nbChasse + " x " + numeral(terrainChasse).format() + " = <span class='green'>" + numeral(nbChasse * terrainChasse).format() + "</span> cm²");
         let temps = Math.round((Utils.terrain + terrainChasse) * Math.pow(0.9, recherches[5]));
-        $("#o_chasseTemps").text(Utils.intToTime(temps));
-        $("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
-        $("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
-        $("#o_chasseRefDiff").text(ratio.toFixed(1) + " ~ " + ratioRef);
-        $("#o_chassePerte").text(numeral(Math.round(iTabPerte["AVG"])).format() + " JSN (max : " + numeral(Math.round(iTabPerte["MAX"])).format() + ")");
+        $j("#o_chasseTemps").text(Utils.intToTime(temps));
+        $j("#o_chasseRetour").text(Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm"));
+        $j("#o_chasseRentabilite").text(numeral(Math.round(nbChasse * terrainChasse / temps * 86400)).format() + " cm² / jour");
+        $j("#o_chasseRefDiff").text(ratio.toFixed(1) + " ~ " + ratioRef);
+        $j("#o_chassePerte").text(numeral(Math.round(iTabPerte["AVG"])).format() + " JSN (max : " + numeral(Math.round(iTabPerte["MAX"])).format() + ")");
     }
     /**
     * Ajoute les boutons "max", sauvegarde la chasse en cours.
@@ -149134,26 +149432,26 @@ Utils.register(class Ressource extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Ajout des boutons pour l'affectation max
-        $("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
-        $("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
+        $j("#RecolteNourriture").after("<a title='Affecter un maximum d’ouvrière à la nourriture' class='button_max' onclick='javascript:maxNourriture();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
+        $j("#RecolteMateriaux").after("<a title='Affecter un maximum d’ouvrière aux matériaux' class='button_max' onclick='javascript:maxMateriaux();' href='#max'><img class='o_vAlign' width='23' height='23' src='images/bouton/fleche_haut.gif'/></a>");
         // Affichage du retour des chasses
         let listeChasse = new Array();
-        $("span[id^=chasse_]").each((i, elt) => {
-            listeChasse.push({ quantite: numeral($(elt).parent().text().split("conquérir")[1].split("cm²")[0]).value(), exp: moment().add($(elt).parent().next().text().split("reste(")[1].split(",")[0], 's') });
-            $(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
+        $j("span[id^=chasse_]").each((i, elt) => {
+            listeChasse.push({ quantite: numeral($j(elt).parent().text().split("conquérir")[1].split("cm²")[0]).value(), exp: moment().add($j(elt).parent().next().text().split("reste(")[1].split(",")[0], 's') });
+            $j(elt).parent().next().after("<span class='small'> Retour le " + Utils.roundMinute($j(elt).parent().next().text().split(",")[0].split("(")[1]).format("D MMM YYYY à HH[h]mm") + "</span>");
         });
         // Sauvegarde de la chasse en cours
         this.#saveChasse(listeChasse);
         let affection = parseInt(monProfilUtilisateur.parametre["affectationRessource"].valeur);
         // Ajout de la pref pour l'affectation auto
-        $("#ChangeRessource").parent().parent().before(`<tr>
+        $j("#ChangeRessource").parent().parent().before(`<tr>
             <td><span class="text"><img src="images/icone/favicon.gif" height="16"> Affectation des ouvrières lors de la consultation de la page : </span></td>
             <td style="white-space:nowrap;"><label><input type="radio" name="choixOuvriere" value="nourriture" ${affection == 2 ? 'checked="checked"' : ''}><img alt="nourritures" src="images/icone/icone_pomme.png" height="18" title="Nourriture"></label>
             <label><input type="radio" name="choixOuvriere" value="materiaux" ${affection == 1 ? 'checked="checked"' : ''}> <img alt="materiaux" src="images/icone/icone_bois.png" height="17" title="Materiaux"></label>
             <label><input type="radio" name="choixOuvriere" value="rien" ${affection == 0 ? 'checked="checked"' : ''}> <img alt="rien" src="http:images/croix.gif" height="23" title="Pas d'affectation automatique"></label>
         </td></tr>`);
-        $("input[name=choixOuvriere]").change(() => {
-            switch ($("input[name=choixOuvriere]:checked").val()) {
+        $j("input[name=choixOuvriere]").change(() => {
+            switch ($j("input[name=choixOuvriere]:checked").val()) {
                 case "nourriture":
                     monProfilUtilisateur.parametre["affectationRessource"].valeur = 2;
                     break;
@@ -149169,20 +149467,20 @@ Utils.register(class Ressource extends Page {
         });
         // Affectation des ouvriéres inutilisé si on a la pref
         if (affection) {
-            let RecolteMateriaux = numeral($("#RecolteMateriaux").val()).value(), RecolteNourriture = numeral($("#RecolteNourriture").val()).value();
+            let RecolteMateriaux = numeral($j("#RecolteMateriaux").val()).value(), RecolteNourriture = numeral($j("#RecolteNourriture").val()).value();
             // si on ne couvre pas le terrain et qu'on a assez d'ouvriére
             if ((RecolteMateriaux + RecolteNourriture < Utils.terrain) && (RecolteMateriaux + RecolteNourriture < Utils.ouvrieres)) {
                 switch (affection) {
                     case 1:
-                        $("#RecolteMateriaux").val(Math.min(Utils.ouvrieres - RecolteNourriture, Utils.terrain - RecolteNourriture));
+                        $j("#RecolteMateriaux").val(Math.min(Utils.ouvrieres - RecolteNourriture, Utils.terrain - RecolteNourriture));
                         break;
                     case 2:
-                        $("#RecolteNourriture").val(Math.min(Utils.ouvrieres - RecolteMateriaux, Utils.terrain - RecolteMateriaux));
+                        $j("#RecolteNourriture").val(Math.min(Utils.ouvrieres - RecolteMateriaux, Utils.terrain - RecolteMateriaux));
                         break;
                     default:
                         break;
                 }
-                $("#ChangeRessource").click();
+                $j("#ChangeRessource").click();
             }
         }
     }
@@ -149227,11 +149525,11 @@ Utils.register(class Ennemie extends Page {
      */
     async ajouterTemps() {
         // Affichage des temps de trajet
-        $("#tabEnnemie tr:eq(0) th:eq(5)").after("<th class='centre'>Temps</th>");
-        $("#tabEnnemie tr:gt(0)").each(async (i, elt) => {
-            let distance = parseInt($(elt).find("td:eq(5)").text());
+        $j("#tabEnnemie tr:eq(0) th:eq(5)").after("<th class='centre'>Temps</th>");
+        $j("#tabEnnemie tr:gt(0)").each(async (i, elt) => {
+            let distance = parseInt($j(elt).find("td:eq(5)").text());
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-            $(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, recherches[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
+            $j(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, recherches[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
         });
     }
 })
@@ -149249,11 +149547,25 @@ Utils.register(class Ennemie extends Page {
 * @class Main
 */
 !async function () {
+    // Save jQuery reference immediately (before page scripts can overwrite $ after DOMContentLoaded)
+    var $j = window.jQuery;
+    window.$j = $j;
+
+    // Ensure the DOM is ready before running game logic
+    // In userScript world: MAIN, the script runs at document_start before DOM is ready
+    function domReady() {
+        if (document.readyState === 'loading') {
+            return new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+        }
+        return Promise.resolve();
+    }
+
+    await domReady();
 
     // si l'utilisateur est identifié
-    if ($(".boite_connexion_titre:first").text() != "Connexion") {
-        // Récupération de la version : manifest.json en mode dev, dist/version.json en mode production
-        const isDevMode = document.documentElement.getAttribute('data-outiiil-dev-mode') === 'true';
+    if ($j(".boite_connexion_titre:first").text() != "Connexion") {
+        // Wait for dev mode info from bridge before proceeding
+        const isDevMode = (await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false))) === true;
         let versionRetenue = "1.0.0";
 
         if (isDevMode) {
@@ -149279,45 +149591,49 @@ Utils.register(class Ennemie extends Page {
         window.VERSION = versionRetenue;
 
         // Modification du theme jquery humanity
-        $("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
+        $j("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
         // Chargement du language francais
         numeral.locale("fr");
         moment.locale("fr");
 
         Highcharts.setOptions({ lang: { months: MOIS_FR, shortMonths: MOIS_RAC_FR, weekdays: JOUR_FR, decimalPoint: ',', thousandsSep: ' ' } });
         // Ajout du tri pour les nombres
-        $.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return d ? parseInt(d.replace(/\s/g, '')) : 0; };
-        $.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix() : 0; };
-        $.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix() : 0; };
-        $.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return d ? Utils.timeToInt(d) : 0; };
+        try {
+            $j.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return d ? parseInt(d.replace(/\s/g, '')) : 0; };
+            $j.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix() : 0; };
+            $j.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix() : 0; };
+            $j.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return d ? Utils.timeToInt(d) : 0; };
 
-        // Configuration globale de DataTables (Français)
-        $.extend(true, $.fn.dataTable.defaults, {
-            bInfo: false,
-            bAutoWidth: false,
-            responsive: true,
-            language: {
-                zeroRecords: "Aucun résultat trouvé",
-                info: "Page _PAGE_ de _PAGES_",
-                infoEmpty: "Aucun enregistrement disponible",
-                infoFiltered: "(filtré de _MAX_ enregistrements au total)",
-                search: "Rechercher : ",
-                paginate: {
-                    first: "Premier",
-                    last: "Dernier",
-                    next: "Suivant",
-                    previous: "Précédent"
-                },
-                buttons: {
-                    colvis: "Colonnes",
-                    copy: "Copier",
-                    csv: "CSV",
-                    excel: "Excel",
-                    pdf: "PDF",
-                    print: "Imprimer"
+            // Configuration globale de DataTables (Français)
+            $j.extend(true, $j.fn.dataTable.defaults, {
+                bInfo: false,
+                bAutoWidth: false,
+                responsive: true,
+                language: {
+                    zeroRecords: "Aucun résultat trouvé",
+                    info: "Page _PAGE_ de _PAGES_",
+                    infoEmpty: "Aucun enregistrement disponible",
+                    infoFiltered: "(filtré de _MAX_ enregistrements au total)",
+                    search: "Rechercher : ",
+                    paginate: {
+                        first: "Premier",
+                        last: "Dernier",
+                        next: "Suivant",
+                        previous: "Précédent"
+                    },
+                    buttons: {
+                        colvis: "Colonnes",
+                        copy: "Copier",
+                        csv: "CSV",
+                        excel: "Excel",
+                        pdf: "PDF",
+                        print: "Imprimer"
+                    }
                 }
-            }
-        });
+            });
+        } catch (e) {
+            console.warn('[Outiiil] DataTables initialization skipped:', e.message);
+        }
 
         await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
@@ -149440,9 +149756,8 @@ async function initialiserFrameworkGlobal() {
     console.log("Registre des classes 'Page':", registreClasses.Page);
 
     // 1b. Créer la "carte des types" des variables globales
-    // En production, parser le bundle déjà chargé ; en dev, charger main.js
     window.carteDesTypes = new Map();
-    const isDevMode = document.documentElement.getAttribute('data-outiiil-dev-mode') === 'true';
+    const isDevMode = await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false));
 
     async function analyserASTPourCarteDesTypes(sourceCode) {
         try {
@@ -149485,10 +149800,13 @@ async function initialiserFrameworkGlobal() {
         const initContent = await initResponse.text();
         await analyserASTPourCarteDesTypes(initContent);
     } else {
-        // En production : le bundle est déjà dans la page, le parser directement
-        const bundleScript = document.querySelector('script[data-source="outiiil-bundle"]');
-        if (bundleScript && bundleScript.textContent) {
-            await analyserASTPourCarteDesTypes(bundleScript.textContent);
+        // In production, the runtime is injected via userScripts.register() (world: MAIN),
+        // so there is no <script> tag in the DOM. Instead, fetch the runtime.js from dist/
+        const runtimeURL = Utils.getExtensionURL('dist/runtime.js');
+        const runtimeResponse = await fetch(runtimeURL);
+        if (runtimeResponse.ok) {
+            const runtimeContent = await runtimeResponse.text();
+            await analyserASTPourCarteDesTypes(runtimeContent);
         }
     }
 
