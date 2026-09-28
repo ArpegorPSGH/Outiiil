@@ -383,7 +383,9 @@ async function checkAndDownloadRuntime() {
         if (remoteInfo.sha256) {
             const computed = await sha256(runtimeCode);
             if (computed !== remoteInfo.sha256) {
-                throw new Error('SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed);
+                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed;
+                console.error('[Outiiil Background] ' + msg + ' (version=' + remoteVersion + ')');
+                throw new Error(msg);
             }
             console.log('[Outiiil Background] SHA-256 verified for v' + remoteVersion);
         }

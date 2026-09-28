@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import hashlib
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
@@ -86,6 +87,23 @@ def main():
         print("Erreur : La compilation de dist/ a échoué.", file=sys.stderr)
         sys.exit(1)
 
+    # Vérification locale de cohérence sha256 avant déploiement
+    dist_version_path = os.path.join(DIST_DIR, "version.json")
+    with open(dist_version_path, "r", encoding="utf-8") as f:
+        dist_version_data = json.load(f)
+    dist_runtime_path = os.path.join(DIST_DIR, "runtime.js")
+    with open(dist_runtime_path, "rb") as f:
+        computed_hash = hashlib.sha256(f.read()).hexdigest()
+    expected_hash = dist_version_data.get("sha256")
+    if expected_hash != computed_hash:
+        print(
+            f"Erreur : Incohérence locale avant déploiement : version.json indique {expected_hash}, "
+            f"mais runtime.js vaut {computed_hash}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(f"[*] SHA-256 local vérifié : {computed_hash}")
+
     # 4. Génération de l'archive zip (manifest + background.js + bridge.js + dist/* + dist/images/)
     zip_filename = f"Outiiil-v{version}.zip"
     zip_dest_path = os.path.join(BASE_DIR, zip_filename)
@@ -132,7 +150,10 @@ def main():
         if not os.path.exists(IMAGES_DIR):
             print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
             sys.exit(1)
-        shutil.copytree(IMAGES_DIR, os.path.join(dist_target, "images"))
+        images_dest = os.path.join(dist_target, "images")
+        if os.path.exists(images_dest):
+            shutil.rmtree(images_dest)
+        shutil.copytree(IMAGES_DIR, images_dest)
 
         # Création du zip
         with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -203,17 +224,26 @@ def main():
             f.write(bridge_code)
 
         # dist/ complet
+        dist_dest = os.path.join(temp_socle_dir, "dist")
+        if os.path.exists(dist_dest):
+            shutil.rmtree(dist_dest)
         if os.path.exists(DIST_DIR):
-            shutil.copytree(DIST_DIR, os.path.join(temp_socle_dir, "dist"))
+            shutil.copytree(DIST_DIR, dist_dest)
 
         # images/
+        images_dest = os.path.join(temp_socle_dir, "images")
+        if os.path.exists(images_dest):
+            shutil.rmtree(images_dest)
         if os.path.exists(IMAGES_DIR):
-            shutil.copytree(IMAGES_DIR, os.path.join(temp_socle_dir, "images"))
+            shutil.copytree(IMAGES_DIR, images_dest)
 
         # scripts/ (bundle_sources.json needed for DEV_MODE source loading in background.js)
         scripts_src = os.path.join(BASE_DIR, "scripts")
         if os.path.exists(scripts_src):
-            shutil.copytree(scripts_src, os.path.join(temp_socle_dir, "scripts"))
+            scripts_dest = os.path.join(temp_socle_dir, "scripts")
+            if os.path.exists(scripts_dest):
+                shutil.rmtree(scripts_dest)
+            shutil.copytree(scripts_src, scripts_dest)
 
         # Commit et push
         run_cmd("git add -A", cwd=temp_socle_dir)
