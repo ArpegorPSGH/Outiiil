@@ -365,25 +365,62 @@ async function checkAndDownloadRuntime() {
         console.log('[Outiiil Background] New runtime available: v' + remoteVersion + ' (current: v' + storedVersion + ')');
         const runtimeFile = remoteInfo.runtime || 'runtime.js';
         const cssFile = remoteInfo.css || 'runtime.css';
+        const imageFiles = Array.isArray(remoteInfo.images) ? remoteInfo.images : [];
 
-        const [runtimeRes, cssRes] = await Promise.all([
+        const fetchPromises = [
             fetch(BASE_UPDATE_URL + runtimeFile + '?_t=' + Date.now(), { cache: 'no-store' }),
-            fetch(BASE_UPDATE_URL + cssFile + '?_t=' + Date.now(), { cache: 'no-store' })
-        ]);
+            fetch(BASE_UPDATE_URL + cssFile + '?_t=' + Date.now(), { cache: 'no-store' }),
+            ...imageFiles.map(path => fetch(BASE_UPDATE_URL + path + '?_t=' + Date.now(), { cache: 'no-store' }))
+        ];
+
+        const responses = await Promise.all(fetchPromises);
+        const [runtimeRes, cssRes, ...imageResponses] = responses;
 
         if (!runtimeRes.ok) {
             throw new Error('Failed to download runtime.js: ' + runtimeRes.status);
         }
 
-        let runtimeCode = await runtimeRes.text();
-        let cssCode = '';
-        if (cssRes.ok) cssCode = await cssRes.text();
+        const runtimeCode = await runtimeRes.text();
+        const cssCode = cssRes.ok ? await cssRes.text() : '';
+
+        // Rebuild the dist hash from remote files in a stable order
+        const remoteBlobs = new Map();
+        remoteBlobs.set(runtimeFile, new Uint8Array(await runtimeRes.arrayBuffer()));
+        if (cssRes.ok) remoteBlobs.set(cssFile, new Uint8Array(await cssRes.arrayBuffer()));
+        for (let i = 0; i < imageFiles.length; i++) {
+            const path = imageFiles[i];
+            const res = imageResponses[i];
+            if (res.ok) remoteBlobs.set(path, new Uint8Array(await res.arrayBuffer()));
+        }
+
+        const sortedEntries = Array.from(remoteBlobs.keys()).sort();
+        console.log('[Outiiil Background] Remote dist files for hash (' + sortedEntries.length + '):');
+        for (const relPath of sortedEntries) {
+            console.log('  - ' + relPath + ' (' + remoteBlobs.get(relPath).length + ' bytes)');
+        }
+
+        const sortedEntries = Array.from(remoteBlobs.keys()).sort();
+        let combinedLength = 0;
+        for (const relPath of sortedEntries) {
+            const blob = remoteBlobs.get(relPath);
+            combinedLength += new TextEncoder().encode(`dist/${relPath}\n`).length + blob.length;
+        }
+        const combined = new Uint8Array(combinedLength);
+        let offset = 0;
+        for (const relPath of sortedEntries) {
+            const blob = remoteBlobs.get(relPath);
+            const prefix = new TextEncoder().encode(`dist/${relPath}\n`);
+            combined.set(prefix, offset);
+            offset += prefix.length;
+            combined.set(blob, offset);
+            offset += blob.length;
+        }
+        const computedHash = await sha256(combined);
 
         // Verify SHA-256
         if (remoteInfo.sha256) {
-            const computed = await sha256(runtimeCode);
             if (computed !== remoteInfo.sha256) {
-                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed + ' (version=' + remoteVersion + ', bytes=' + runtimeCode.length + ')';
+                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computed + ' (version=' + remoteVersion + ', bytes=' + combined.length + ')';
                 console.warn('[Outiiil Background] ' + msg);
                 const storedCode = await getStorage(STORAGE_KEY_CODE);
                 const storedCss = await getStorage(STORAGE_KEY_CSS);

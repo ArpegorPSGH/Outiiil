@@ -100,6 +100,30 @@ def build_dist():
                 chemin_complet = os.path.join(racine, fichier)
                 liste_images.append(os.path.relpath(chemin_complet, DIST_DIR).replace(os.sep, "/"))
 
+    # --- Calcul du SHA-256 global de dist/ (sans version.json) ---
+    dist_entries = []
+    for racine, _, fichiers in os.walk(DIST_DIR):
+        for fichier in fichiers:
+            chemin_complet = os.path.join(racine, fichier)
+            rel_path = os.path.relpath(chemin_complet, DIST_DIR).replace(os.sep, "/")
+            if rel_path == "version.json":
+                continue
+            dist_entries.append(rel_path)
+    dist_entries.sort()
+
+    print(f"[Outiiil Builder] Fichiers inclus dans le hash global ({len(dist_entries)}):")
+    for rel_path in dist_entries:
+        print(f"  - {rel_path}")
+
+    sha256_hash = hashlib.sha256()
+    for rel_path in dist_entries:
+        abs_path = os.path.join(DIST_DIR, rel_path)
+        with open(abs_path, "rb") as f:
+            sha256_hash.update(f"dist/{rel_path}\n".encode("utf-8"))
+            sha256_hash.update(f.read())
+    sha256_hash = sha256_hash.hexdigest()
+    print(f"[Outiiil Builder] SHA-256 global de dist/ : {sha256_hash}")
+
     # --- version.json avec sha256 ---
     version_json_path = os.path.join(DIST_DIR, "version.json")
 
