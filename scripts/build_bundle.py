@@ -111,6 +111,10 @@ def build_dist():
             dist_entries.append(rel_path)
     dist_entries.sort()
 
+    print(f"[Outiiil Builder] Fichiers inclus dans le hash global ({len(dist_entries)}):")
+    for rel_path in dist_entries:
+        print(f"  - {rel_path}")
+
     sha256_hash = hashlib.sha256()
     for rel_path in dist_entries:
         abs_path = os.path.join(DIST_DIR, rel_path)

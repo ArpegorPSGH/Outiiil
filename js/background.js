@@ -394,6 +394,12 @@ async function checkAndDownloadRuntime() {
         }
 
         const sortedEntries = Array.from(remoteBlobs.keys()).sort();
+        console.log('[Outiiil Background] Remote dist files for hash (' + sortedEntries.length + '):');
+        for (const relPath of sortedEntries) {
+            console.log('  - ' + relPath + ' (' + remoteBlobs.get(relPath).length + ' bytes)');
+        }
+
+        const sortedEntries = Array.from(remoteBlobs.keys()).sort();
         let combinedLength = 0;
         for (const relPath of sortedEntries) {
             const blob = remoteBlobs.get(relPath);

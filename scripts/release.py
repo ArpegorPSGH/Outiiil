@@ -85,6 +85,10 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10,
                 remote_entries.extend(data.get('images', []) or [])
                 remote_entries.sort()
 
+                print(f"[*] Fichiers distants inclus dans le hash ({len(remote_entries)}):")
+                for rel_path in remote_entries:
+                    print(f"  - {rel_path}")
+
                 remote_blobs = {}
                 for rel_path in remote_entries:
                     with urllib.request.urlopen(base_update_url + rel_path, timeout=30) as resp:
@@ -171,6 +175,11 @@ def main():
                 continue
             dist_entries.append(rel_path)
     dist_entries.sort()
+    
+    print(f"[*] Fichiers inclus dans le hash local ({len(dist_entries)}):")
+    for rel_path in dist_entries:
+        print(f"  - {rel_path}")
+    
     computed_hash = hashlib.sha256()
     for rel_path in dist_entries:
         abs_path = os.path.join(DIST_DIR, rel_path)
