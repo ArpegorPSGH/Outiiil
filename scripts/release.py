@@ -58,7 +58,6 @@ def verifier_git_propre():
 def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10, retry_interval_seconds=10):
     base_update_url = 'https://arpegorpsgh.github.io/Outiiil/dist/'
     version_url = base_update_url + 'version.json'
-    runtime_url = base_update_url + 'runtime.js'
     start = __import__('time').time()
     last_problems = []
     while True:
@@ -78,17 +77,41 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10,
                 problems.append(f"sha256 dans version.json distant={remote_sha}, attendu={expected_sha256}")
 
             try:
-                with urllib.request.urlopen(runtime_url, timeout=30) as resp:
-                    runtime_bytes = resp.read()
-                remote_runtime_sha = hashlib.sha256(runtime_bytes).hexdigest()
-                if remote_runtime_sha != expected_sha256:
-                    problems.append(f"sha256 de runtime.js distant={remote_runtime_sha}, attendu={expected_sha256}")
+                remote_entries = []
+                if data.get('runtime'):
+                    remote_entries.append(data['runtime'])
+                if data.get('css'):
+                    remote_entries.append(data['css'])
+                remote_entries.extend(data.get('images', []) or [])
+                remote_entries.sort()
+
+                remote_blobs = {}
+                for rel_path in remote_entries:
+                    with urllib.request.urlopen(base_update_url + rel_path, timeout=30) as resp:
+                        remote_blobs[rel_path] = resp.read()
+
+                combined_length = 0
+                for rel_path in remote_entries:
+                    combined_length += len(f"dist/{rel_path}\n".encode('utf-8')) + len(remote_blobs[rel_path])
+                combined = bytearray(combined_length)
+                offset = 0
+                for rel_path in remote_entries:
+                    prefix = f"dist/{rel_path}\n".encode('utf-8')
+                    combined[offset:offset + len(prefix)] = prefix
+                    offset += len(prefix)
+                    blob = remote_blobs[rel_path]
+                    combined[offset:offset + len(blob)] = blob
+                    offset += len(blob)
+
+                remote_computed_sha = hashlib.sha256(bytes(combined)).hexdigest()
+                if remote_computed_sha != expected_sha256:
+                    problems.append(f"sha256 global distant={remote_computed_sha}, attendu={expected_sha256}")
             except Exception as e:
-                problems.append(f"impossible de lire runtime.js distant: {e}")
+                problems.append(f"impossible de vérifier le hash global distant: {e}")
 
         last_problems = problems
         if not problems:
-            print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et runtime.js vérifiés).")
+            print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et dist/ vérifiés).")
             return True
 
         elapsed = __import__('time').time() - start
@@ -240,6 +263,10 @@ def main():
         run_cmd("git add -A", cwd=temp_gh_dir)
         status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
         print(f"[*] Diagnostic git gh-pages status:\n{status_gh}")
+
+        if status_gh:
+            runtime_diff = run_cmd("git diff -- dist/runtime.js", cwd=temp_gh_dir)
+            print(f"[*] Diagnostic git gh-pages diff dist/runtime.js:\n{runtime_diff}")
         if status_gh:
             run_cmd(f'git commit -m "Release {version} (runtime update)"', cwd=temp_gh_dir)
             run_cmd(f"git push origin {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
