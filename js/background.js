@@ -399,7 +399,6 @@ async function checkAndDownloadRuntime() {
             console.log('  - ' + relPath + ' (' + remoteBlobs.get(relPath).length + ' bytes)');
         }
 
-        const sortedEntries = Array.from(remoteBlobs.keys()).sort();
         let combinedLength = 0;
         for (const relPath of sortedEntries) {
             const blob = remoteBlobs.get(relPath);
