@@ -22,6 +22,7 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+import hashlib
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
