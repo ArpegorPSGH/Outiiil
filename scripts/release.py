@@ -258,6 +258,14 @@ def main():
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
+        # Vérifier s'il y a un .gitignore dans gh-pages qui pourrait bloquer dist/
+        gitignore_path = os.path.join(temp_gh_dir, ".gitignore")
+        if os.path.exists(gitignore_path):
+            with open(gitignore_path, "r", encoding="utf-8") as f:
+                gitignore_content = f.read()
+            if "dist/" in gitignore_content or "dist" in gitignore_content:
+                print(f"[!] Attention : .gitignore dans gh-pages contient une règle qui pourrait ignorer dist/")
+
         # Copier le contenu de dist/ sous dist/ de gh-pages
         dest_dist = os.path.join(temp_gh_dir, "dist")
         if os.path.exists(dest_dist):
@@ -276,6 +284,13 @@ def main():
         run_cmd("git add -A", cwd=temp_gh_dir)
         status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
         print(f"[*] Diagnostic git gh-pages status:\n{status_gh}")
+        
+        # Forcer l'ajout de dist/runtime.js et dist/runtime.css s'ils ne sont pas détectés
+        if status_gh and "dist/runtime.js" not in status_gh and "dist/runtime.css" not in status_gh:
+            print("[*] Forçage de l'ajout de dist/runtime.js et dist/runtime.css...")
+            run_cmd("git add -f dist/runtime.js dist/runtime.css", cwd=temp_gh_dir)
+            status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
+            print(f"[*] Diagnostic git gh-pages status après forçage:\n{status_gh}")
 
         if status_gh:
             runtime_diff = run_cmd("git diff -- dist/runtime.js", cwd=temp_gh_dir)
