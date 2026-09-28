@@ -62,15 +62,16 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=300
     start = __import__('time').time()
     last_problems = []
     while True:
+        problems = []
         try:
             with urllib.request.urlopen(version_url, timeout=30) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
         except Exception as e:
-            last_problems = [f"impossible de lire version.json distant: {e}"]
-        else:
+            problems = [f"impossible de lire version.json distant: {e}"]
+
+        if not problems:
             remote_version = data.get('version')
             remote_sha = data.get('sha256')
-            problems = []
             if remote_version != version:
                 problems.append(f"version distante={remote_version}, attendue={version}")
             elif remote_sha != expected_sha256:
@@ -85,10 +86,10 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=300
             except Exception as e:
                 problems.append(f"impossible de lire runtime.js distant: {e}")
 
-            last_problems = problems
-            if not problems:
-                print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et runtime.js vérifiés).")
-                return True
+        last_problems = problems
+        if not problems:
+            print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et runtime.js vérifiés).")
+            return True
 
         elapsed = __import__('time').time() - start
         if elapsed >= max_wait_seconds:
