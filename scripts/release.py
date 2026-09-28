@@ -248,6 +248,9 @@ def main():
             print(f"[*] Diagnostic git gh-pages commit: {commit_hash}")
             print(f"[*] Diagnostic git gh-pages diff stat:\n{run_cmd('git show --stat HEAD', cwd=temp_gh_dir)}")
             print(f"[*] Diagnostic git gh-pages dist/ status:\n{run_cmd('git ls-tree -r HEAD -- dist/', cwd=temp_gh_dir)}")
+            prev_commit = run_cmd("git rev-parse HEAD~1", cwd=temp_gh_dir)
+            print(f"[*] Diagnostic git gh-pages previous commit: {prev_commit}")
+            print(f"[*] Diagnostic git gh-pages previous dist/runtime.js blob:\n{run_cmd('git ls-tree -r HEAD~1 -- dist/runtime.js', cwd=temp_gh_dir)}")
         else:
             print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
