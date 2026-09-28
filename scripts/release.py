@@ -21,6 +21,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import urllib.request
 import zipfile
 import hashlib
 
@@ -53,6 +54,31 @@ def verifier_git_propre():
             print("  " + l, file=sys.stderr)
         print("Veuillez commiter ou remiser vos modifications avant de lancer une release.", file=sys.stderr)
         sys.exit(1)
+
+def verifier_deploiement_gh_pages(version, expected_sha256):
+    base_update_url = 'https://arpegorpsgh.github.io/Outiiil/dist/'
+    version_url = base_update_url + 'version.json'
+    try:
+        with urllib.request.urlopen(version_url, timeout=30) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+    except Exception as e:
+        print(f"[*] Impossible de vérifier le déploiement gh-pages : {e}", file=sys.stderr)
+        return
+
+    remote_version = data.get('version')
+    remote_sha = data.get('sha256')
+    if remote_version != version:
+        print(
+            f"[!] Déploiement potentiellement incohérent : version distante={remote_version}, attendue={version}.",
+            file=sys.stderr,
+        )
+    elif remote_sha != expected_sha256:
+        print(
+            f"[!] Déploiement potentiellement incohérent : sha256 distant={remote_sha}, attendu={expected_sha256}.",
+            file=sys.stderr,
+        )
+    else:
+        print(f"[*] Déploiement gh-pages cohérent pour v{version} (sha256 vérifié).")
 
 def get_current_branch():
     return run_cmd("git rev-parse --abbrev-ref HEAD")
@@ -194,6 +220,8 @@ def main():
         run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_gh_dir)
         run_cmd(f"git push -f origin {tag_name}", cwd=temp_gh_dir)
         print(f"  -> Tag Git {tag_name} créé et poussé.")
+
+    verifier_deploiement_gh_pages(version, computed_hash)
 
     # 6. Mise à jour de la branche socle
     print(f"[*] Mise à jour de la branche '{BRANCH_SOCLE}'...")
