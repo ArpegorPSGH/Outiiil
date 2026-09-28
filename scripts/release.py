@@ -55,38 +55,52 @@ def verifier_git_propre():
         print("Veuillez commiter ou remiser vos modifications avant de lancer une release.", file=sys.stderr)
         sys.exit(1)
 
-def verifier_deploiement_gh_pages(version, expected_sha256):
+def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=300, retry_interval_seconds=15):
     base_update_url = 'https://arpegorpsgh.github.io/Outiiil/dist/'
     version_url = base_update_url + 'version.json'
     runtime_url = base_update_url + 'runtime.js'
-    try:
-        with urllib.request.urlopen(version_url, timeout=30) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-    except Exception as e:
-        print(f"[*] Impossible de vérifier le déploiement gh-pages : {e}", file=sys.stderr)
-        return
+    start = __import__('time').time()
+    last_problems = []
+    while True:
+        try:
+            with urllib.request.urlopen(version_url, timeout=30) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+        except Exception as e:
+            last_problems = [f"impossible de lire version.json distant: {e}"]
+        else:
+            remote_version = data.get('version')
+            remote_sha = data.get('sha256')
+            problems = []
+            if remote_version != version:
+                problems.append(f"version distante={remote_version}, attendue={version}")
+            elif remote_sha != expected_sha256:
+                problems.append(f"sha256 dans version.json distant={remote_sha}, attendu={expected_sha256}")
 
-    remote_version = data.get('version')
-    remote_sha = data.get('sha256')
-    problems = []
-    if remote_version != version:
-        problems.append(f"version distante={remote_version}, attendue={version}")
-    elif remote_sha != expected_sha256:
-        problems.append(f"sha256 dans version.json distant={remote_sha}, attendu={expected_sha256}")
+            try:
+                with urllib.request.urlopen(runtime_url, timeout=30) as resp:
+                    runtime_bytes = resp.read()
+                remote_runtime_sha = hashlib.sha256(runtime_bytes).hexdigest()
+                if remote_runtime_sha != expected_sha256:
+                    problems.append(f"sha256 de runtime.js distant={remote_runtime_sha}, attendu={expected_sha256}")
+            except Exception as e:
+                problems.append(f"impossible de lire runtime.js distant: {e}")
 
-    try:
-        with urllib.request.urlopen(runtime_url, timeout=30) as resp:
-            runtime_bytes = resp.read()
-        remote_runtime_sha = hashlib.sha256(runtime_bytes).hexdigest()
-        if remote_runtime_sha != expected_sha256:
-            problems.append(f"sha256 de runtime.js distant={remote_runtime_sha}, attendu={expected_sha256}")
-    except Exception as e:
-        problems.append(f"impossible de lire runtime.js distant: {e}")
+            last_problems = problems
+            if not problems:
+                print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et runtime.js vérifiés).")
+                return True
 
-    if problems:
-        print(f"[!] Déploiement potentiellement incohérent : {'; '.join(problems)}.", file=sys.stderr)
-    else:
-        print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et runtime.js vérifiés).")
+        elapsed = __import__('time').time() - start
+        if elapsed >= max_wait_seconds:
+            print(
+                f"[!] Déploiement incohérent après {int(elapsed)}s d'attente : {'; '.join(last_problems)}.",
+                file=sys.stderr,
+            )
+            return False
+
+        remaining = max_wait_seconds - elapsed
+        print(f"[*] gh-pages pas encore cohérent ({'; '.join(last_problems)}), nouvel essai dans {retry_interval_seconds}s (reste {int(remaining)}s)...")
+        __import__('time').sleep(retry_interval_seconds)
 
 def get_current_branch():
     return run_cmd("git rev-parse --abbrev-ref HEAD")
@@ -224,12 +238,16 @@ def main():
         else:
             print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
-        # Création (ou re-création en force) et push du tag
-        run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_gh_dir)
-        run_cmd(f"git push -f origin {tag_name}", cwd=temp_gh_dir)
-        print(f"  -> Tag Git {tag_name} créé et poussé.")
+    if not verifier_deploiement_gh_pages(version, computed_hash):
+        print("Erreur : Le déploiement gh-pages est incohérent. Abandon de la release.", file=sys.stderr)
+        sys.exit(1)
 
-    verifier_deploiement_gh_pages(version, computed_hash)
+    # Création (ou re-création en force) et push du tag
+    with tempfile.TemporaryDirectory() as temp_tag_dir:
+        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_tag_dir}"')
+        run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_tag_dir)
+        run_cmd(f"git push -f origin {tag_name}", cwd=temp_tag_dir)
+        print(f"  -> Tag Git {tag_name} créé et poussé.")
 
     # 6. Mise à jour de la branche socle
     print(f"[*] Mise à jour de la branche '{BRANCH_SOCLE}'...")
