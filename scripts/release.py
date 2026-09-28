@@ -58,6 +58,7 @@ def verifier_git_propre():
 def verifier_deploiement_gh_pages(version, expected_sha256):
     base_update_url = 'https://arpegorpsgh.github.io/Outiiil/dist/'
     version_url = base_update_url + 'version.json'
+    runtime_url = base_update_url + 'runtime.js'
     try:
         with urllib.request.urlopen(version_url, timeout=30) as resp:
             data = json.loads(resp.read().decode('utf-8'))
@@ -67,18 +68,25 @@ def verifier_deploiement_gh_pages(version, expected_sha256):
 
     remote_version = data.get('version')
     remote_sha = data.get('sha256')
+    problems = []
     if remote_version != version:
-        print(
-            f"[!] Déploiement potentiellement incohérent : version distante={remote_version}, attendue={version}.",
-            file=sys.stderr,
-        )
+        problems.append(f"version distante={remote_version}, attendue={version}")
     elif remote_sha != expected_sha256:
-        print(
-            f"[!] Déploiement potentiellement incohérent : sha256 distant={remote_sha}, attendu={expected_sha256}.",
-            file=sys.stderr,
-        )
+        problems.append(f"sha256 dans version.json distant={remote_sha}, attendu={expected_sha256}")
+
+    try:
+        with urllib.request.urlopen(runtime_url, timeout=30) as resp:
+            runtime_bytes = resp.read()
+        remote_runtime_sha = hashlib.sha256(runtime_bytes).hexdigest()
+        if remote_runtime_sha != expected_sha256:
+            problems.append(f"sha256 de runtime.js distant={remote_runtime_sha}, attendu={expected_sha256}")
+    except Exception as e:
+        problems.append(f"impossible de lire runtime.js distant: {e}")
+
+    if problems:
+        print(f"[!] Déploiement potentiellement incohérent : {'; '.join(problems)}.", file=sys.stderr)
     else:
-        print(f"[*] Déploiement gh-pages cohérent pour v{version} (sha256 vérifié).")
+        print(f"[*] Déploiement gh-pages cohérent pour v{version} (version.json et runtime.js vérifiés).")
 
 def get_current_branch():
     return run_cmd("git rev-parse --abbrev-ref HEAD")
