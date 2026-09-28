@@ -55,7 +55,7 @@ def verifier_git_propre():
         print("Veuillez commiter ou remiser vos modifications avant de lancer une release.", file=sys.stderr)
         sys.exit(1)
 
-def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=300, retry_interval_seconds=15):
+def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10, retry_interval_seconds=10):
     base_update_url = 'https://arpegorpsgh.github.io/Outiiil/dist/'
     version_url = base_update_url + 'version.json'
     runtime_url = base_update_url + 'runtime.js'
@@ -94,13 +94,12 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=300
         elapsed = __import__('time').time() - start
         if elapsed >= max_wait_seconds:
             print(
-                f"[!] Déploiement incohérent après {int(elapsed)}s d'attente : {'; '.join(last_problems)}.",
+                f"[!] Déploiement incohérent : {'; '.join(last_problems)}.",
                 file=sys.stderr,
             )
             return False
 
-        remaining = max_wait_seconds - elapsed
-        print(f"[*] gh-pages pas encore cohérent ({'; '.join(last_problems)}), nouvel essai dans {retry_interval_seconds}s (reste {int(remaining)}s)...")
+        print(f"[*] Vérification différée de {retry_interval_seconds}s pour laisser le CDN se propager...")
         __import__('time').sleep(retry_interval_seconds)
 
 def get_current_branch():
