@@ -150,7 +150,10 @@ def main():
         if not os.path.exists(IMAGES_DIR):
             print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
             sys.exit(1)
-        shutil.copytree(IMAGES_DIR, os.path.join(dist_target, "images"))
+        images_dest = os.path.join(dist_target, "images")
+        if os.path.exists(images_dest):
+            shutil.rmtree(images_dest)
+        shutil.copytree(IMAGES_DIR, images_dest)
 
         # Création du zip
         with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:
@@ -237,7 +240,10 @@ def main():
         # scripts/ (bundle_sources.json needed for DEV_MODE source loading in background.js)
         scripts_src = os.path.join(BASE_DIR, "scripts")
         if os.path.exists(scripts_src):
-            shutil.copytree(scripts_src, os.path.join(temp_socle_dir, "scripts"))
+            scripts_dest = os.path.join(temp_socle_dir, "scripts")
+            if os.path.exists(scripts_dest):
+                shutil.rmtree(scripts_dest)
+            shutil.copytree(scripts_src, scripts_dest)
 
         # Commit et push
         run_cmd("git add -A", cwd=temp_socle_dir)
