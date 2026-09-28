@@ -222,15 +222,19 @@ def main():
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
-        # Diagnostic avant commit
-        local_runtime_size = os.path.getsize(os.path.join(DIST_DIR, "runtime.js")) if os.path.exists(os.path.join(DIST_DIR, "runtime.js")) else -1
-        print(f"[*] Diagnostic local : runtime.js taille={local_runtime_size} octets, sha256 attendu={computed_hash}")
-
         # Copier le contenu de dist/ sous dist/ de gh-pages
         dest_dist = os.path.join(temp_gh_dir, "dist")
         if os.path.exists(dest_dist):
             shutil.rmtree(dest_dist)
         shutil.copytree(DIST_DIR, dest_dist)
+
+        copied_runtime_path = os.path.join(dest_dist, "runtime.js")
+        copied_runtime_size = os.path.getsize(copied_runtime_path) if os.path.exists(copied_runtime_path) else -1
+        copied_runtime_sha = None
+        if copied_runtime_size > 0:
+            with open(copied_runtime_path, "rb") as f:
+                copied_runtime_sha = hashlib.sha256(f.read()).hexdigest()
+        print(f"[*] Diagnostic copie : runtime.js taille={copied_runtime_size} octets, sha256={copied_runtime_sha}, attendu={computed_hash}")
 
         # Ajouter et commiter sur gh-pages
         run_cmd("git add -A", cwd=temp_gh_dir)
