@@ -303,6 +303,14 @@ def main():
                 gitignore_content = f.read()
             if "dist/" in gitignore_content or "dist" in gitignore_content:
                 print(f"[!] Attention : .gitignore dans gh-pages contient une règle qui pourrait ignorer dist/")
+        
+        # Vérifier les flags git sur les fichiers dist/
+        for fname in ["dist/runtime.js", "dist/runtime.css"]:
+            flags = run_cmd(f"git ls-files -v {fname}", cwd=temp_gh_dir)
+            if flags and flags.startswith("S"):
+                print(f"[!] Attention : {fname} a le flag skip-worktree dans gh-pages")
+            elif flags and flags.startswith("h"):
+                print(f"[!] Attention : {fname} a le flag assume-unchanged dans gh-pages")
 
         # Copier le contenu de dist/ sous dist/ de gh-pages
         dest_dist = os.path.join(temp_gh_dir, "dist")
