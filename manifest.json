@@ -1,0 +1,64 @@
+{
+	"manifest_version": 3,
+	"name": "Outiiil",
+	"version": "3.22",
+	"description": "Extension pour www.fourmizzz.fr.",
+	"icons": {
+		"48": "images/icons/gear_48.png",
+		"96": "images/icons/gear_96.png"
+	},
+	"action": {
+		"default_icon": "images/icons/gear_48.png"
+	},
+	"author": "Arpegor",
+	"host_permissions": [
+		"http://*.fourmizzz.fr/*",
+		"https://*.fourmizzz.fr/*",
+		"http://outiiil.fr/",
+		"https://arpegorpsgh.github.io/*"
+	],
+	"background": {
+		"service_worker": "js/background.js"
+	},
+	"permissions": [
+		"storage",
+		"scripting",
+		"userScripts",
+		"tabs",
+		"webNavigation"
+	],
+	"content_scripts": [
+		{
+			"matches": [
+				"http://*.fourmizzz.fr/*",
+				"https://*.fourmizzz.fr/*"
+			],
+			"js": [
+				"js/bridge.js"
+			],
+			"run_at": "document_start"
+		}
+	],
+	"web_accessible_resources": [
+		{
+			"resources": [
+				"images/*",
+				"css/*",
+				"js/*",
+				"dist/*",
+				"scripts/*",
+				"manifest.json"
+			],
+			"matches": [
+				"http://*.fourmizzz.fr/*",
+				"https://*.fourmizzz.fr/*"
+			]
+		}
+	],
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "outiiil@arpegorpsgh.github.io",
+			"strict_min_version": "121.0"
+		}
+	}
+}
