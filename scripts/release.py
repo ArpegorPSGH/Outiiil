@@ -228,8 +228,11 @@ def main():
             shutil.copytree(DIST_DIR, dist_dest)
 
         # images/
+        images_dest = os.path.join(temp_socle_dir, "images")
+        if os.path.exists(images_dest):
+            shutil.rmtree(images_dest)
         if os.path.exists(IMAGES_DIR):
-            shutil.copytree(IMAGES_DIR, os.path.join(temp_socle_dir, "images"))
+            shutil.copytree(IMAGES_DIR, images_dest)
 
         # scripts/ (bundle_sources.json needed for DEV_MODE source loading in background.js)
         scripts_src = os.path.join(BASE_DIR, "scripts")
