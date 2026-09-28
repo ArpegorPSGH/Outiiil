@@ -86,6 +86,23 @@ def main():
         print("Erreur : La compilation de dist/ a échoué.", file=sys.stderr)
         sys.exit(1)
 
+    # Vérification locale de cohérence sha256 avant déploiement
+    dist_version_path = os.path.join(DIST_DIR, "version.json")
+    with open(dist_version_path, "r", encoding="utf-8") as f:
+        dist_version_data = json.load(f)
+    dist_runtime_path = os.path.join(DIST_DIR, "runtime.js")
+    with open(dist_runtime_path, "rb") as f:
+        computed_hash = hashlib.sha256(f.read()).hexdigest()
+    expected_hash = dist_version_data.get("sha256")
+    if expected_hash != computed_hash:
+        print(
+            f"Erreur : Incohérence locale avant déploiement : version.json indique {expected_hash}, "
+            f"mais runtime.js vaut {computed_hash}.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(f"[*] SHA-256 local vérifié : {computed_hash}")
+
     # 4. Génération de l'archive zip (manifest + background.js + bridge.js + dist/* + dist/images/)
     zip_filename = f"Outiiil-v{version}.zip"
     zip_dest_path = os.path.join(BASE_DIR, zip_filename)
