@@ -619,9 +619,8 @@ function compareVersions(v1, v2) {
     return 0;
 }
 
-async function sha256(str) {
-    const data = new TextEncoder().encode(str);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+async function sha256(bytes) {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
