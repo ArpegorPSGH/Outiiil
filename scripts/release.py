@@ -221,8 +221,11 @@ def main():
             f.write(bridge_code)
 
         # dist/ complet
+        dist_dest = os.path.join(temp_socle_dir, "dist")
+        if os.path.exists(dist_dest):
+            shutil.rmtree(dist_dest)
         if os.path.exists(DIST_DIR):
-            shutil.copytree(DIST_DIR, os.path.join(temp_socle_dir, "dist"))
+            shutil.copytree(DIST_DIR, dist_dest)
 
         # images/
         if os.path.exists(IMAGES_DIR):
