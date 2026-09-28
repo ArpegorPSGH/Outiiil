@@ -162,14 +162,27 @@ def main():
     dist_version_path = os.path.join(DIST_DIR, "version.json")
     with open(dist_version_path, "r", encoding="utf-8") as f:
         dist_version_data = json.load(f)
-    dist_runtime_path = os.path.join(DIST_DIR, "runtime.js")
-    with open(dist_runtime_path, "rb") as f:
-        computed_hash = hashlib.sha256(f.read()).hexdigest()
+    dist_entries = []
+    for racine, _, fichiers in os.walk(DIST_DIR):
+        for fichier in fichiers:
+            chemin_complet = os.path.join(racine, fichier)
+            rel_path = os.path.relpath(chemin_complet, DIST_DIR).replace(os.sep, "/")
+            if rel_path == "version.json":
+                continue
+            dist_entries.append(rel_path)
+    dist_entries.sort()
+    computed_hash = hashlib.sha256()
+    for rel_path in dist_entries:
+        abs_path = os.path.join(DIST_DIR, rel_path)
+        with open(abs_path, "rb") as f:
+            computed_hash.update(f"dist/{rel_path}\n".encode("utf-8"))
+            computed_hash.update(f.read())
+    computed_hash = computed_hash.hexdigest()
     expected_hash = dist_version_data.get("sha256")
     if expected_hash != computed_hash:
         print(
             f"Erreur : Incohérence locale avant déploiement : version.json indique {expected_hash}, "
-            f"mais runtime.js vaut {computed_hash}.",
+            f"mais dist/ vaut {computed_hash}.",
             file=sys.stderr,
         )
         sys.exit(1)
