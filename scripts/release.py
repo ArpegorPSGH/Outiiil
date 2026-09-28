@@ -223,6 +223,10 @@ def main():
             run_cmd(f"git checkout --orphan {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             run_cmd("git rm -rf .", cwd=temp_gh_dir, check=False)
 
+        # Diagnostic avant commit
+        local_runtime_size = os.path.getsize(os.path.join(DIST_DIR, "runtime.js")) if os.path.exists(os.path.join(DIST_DIR, "runtime.js")) else -1
+        print(f"[*] Diagnostic local : runtime.js taille={local_runtime_size} octets, sha256 attendu={computed_hash}")
+
         # Copier le contenu de dist/ sous dist/ de gh-pages
         dest_dist = os.path.join(temp_gh_dir, "dist")
         if os.path.exists(dest_dist):
@@ -232,10 +236,15 @@ def main():
         # Ajouter et commiter sur gh-pages
         run_cmd("git add -A", cwd=temp_gh_dir)
         status_gh = run_cmd("git status --porcelain", cwd=temp_gh_dir)
+        print(f"[*] Diagnostic git gh-pages status:\n{status_gh}")
         if status_gh:
             run_cmd(f'git commit -m "Release {version} (runtime update)"', cwd=temp_gh_dir)
             run_cmd(f"git push origin {BRANCH_GH_PAGES}", cwd=temp_gh_dir)
             print(f"  -> Branche {BRANCH_GH_PAGES} mise à jour et poussée.")
+            commit_hash = run_cmd("git rev-parse HEAD", cwd=temp_gh_dir)
+            print(f"[*] Diagnostic git gh-pages commit: {commit_hash}")
+            print(f"[*] Diagnostic git gh-pages diff stat:\n{run_cmd('git show --stat HEAD', cwd=temp_gh_dir)}")
+            print(f"[*] Diagnostic git gh-pages dist/ status:\n{run_cmd('git ls-tree -r HEAD -- dist/', cwd=temp_gh_dir)}")
         else:
             print(f"  -> Aucun changement détecté pour {BRANCH_GH_PAGES}.")
 
