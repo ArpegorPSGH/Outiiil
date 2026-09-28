@@ -55,15 +55,20 @@ def verifier_git_propre():
         print("Veuillez commiter ou remiser vos modifications avant de lancer une release.", file=sys.stderr)
         sys.exit(1)
 
-def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10, retry_interval_seconds=10):
+def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=60, retry_interval_seconds=15):
     base_update_url = 'https://arpegorpsgh.github.io/Outiiil/dist/'
     version_url = base_update_url + 'version.json'
     start = __import__('time').time()
     last_problems = []
     while True:
         problems = []
+        # Cache-busting: GitHub Pages CDN can serve a stale version.json (the only file
+        # that changes when the hash changes). The runtime itself uses ?_t=Date.now(),
+        # so we must fetch the same way to avoid a false mismatch.
+        cache_buster = str(int(__import__('time').time() * 1000))
         try:
-            with urllib.request.urlopen(version_url, timeout=30) as resp:
+            req = urllib.request.Request(version_url + '?_t=' + cache_buster, headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'})
+            with urllib.request.urlopen(req, timeout=30) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
         except Exception as e:
             problems = [f"impossible de lire version.json distant: {e}"]
@@ -103,7 +108,8 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10,
                         local_hash = "MANQUANT"
                     
                     try:
-                        with urllib.request.urlopen(base_update_url + rel_path, timeout=30) as resp:
+                        req = urllib.request.Request(base_update_url + rel_path + '?_t=' + cache_buster, headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'})
+                        with urllib.request.urlopen(req, timeout=30) as resp:
                             remote_bytes = resp.read()
                         remote_hash = hashlib.sha256(remote_bytes).hexdigest()
                     except Exception as e:
@@ -120,7 +126,8 @@ def verifier_deploiement_gh_pages(version, expected_sha256, max_wait_seconds=10,
 
                 remote_blobs = {}
                 for rel_path in remote_entries:
-                    with urllib.request.urlopen(base_update_url + rel_path, timeout=30) as resp:
+                    req = urllib.request.Request(base_update_url + rel_path + '?_t=' + cache_buster, headers={'Cache-Control': 'no-cache', 'Pragma': 'no-cache'})
+                    with urllib.request.urlopen(req, timeout=30) as resp:
                         remote_blobs[rel_path] = resp.read()
 
                 combined_length = 0
