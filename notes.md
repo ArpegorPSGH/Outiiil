@@ -1,8 +1,10 @@
 - Mettre à jour doc et roadmap
+- Enlever les checks de SHA du script de release et nettoyer le zip généré
 - N'utiliser qu'une seule des deux manières d'enregistrement dans Utils.register
 - mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle, avec un message invitant à une réinstallation de la nouvelle version
 - Nettoyer la branche socle, elle est obsolète.
 - Supprimer les commits de test du script sur gh-pages
 - Supprimer les anciennes releases
+- Renommer gh-pages en release
 - Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
 - Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+

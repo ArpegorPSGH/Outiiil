@@ -48,10 +48,12 @@ Un script unique de release prend en charge le cycle complet :
    - Tester l'exécution du script de release et la propagation de la mise à jour dynamique.
 
 ## Tests à effectuer
-- [] Vérifier que le script de release publie correctement sur `gh-pages`.
+- [x] Vérifier que le script de release publie correctement sur `gh-pages`.
 - Vérifier que les clients en `DEV_MODE: false` détectent et appliquent automatiquement la mise à jour poussée sur `gh-pages`.
 - Vérifier que le numéro de version s'incrémente bien
 - Vérifier le comportement bloquant et le message adapté en cas d'incompatibilité de données forum.
+- Vérifier tous les chemins d'exécution du socle en mode production
+- S'assurer que le code utilise bien les fichiers locaux en mode prod s'il n'existe pas de version plus récente en cache ou sur le serveur
 
 ## Avancement
 - [x] Création du loader d'injection dynamique (`js/loader.js`).

@@ -189,12 +189,17 @@ Utils.register(class FonctionnaliteAlliance {
             if (registreObjetForums.has(nom)) {
                 dependancesTrouvees.add(nom);
             }
-            // Scénario 2: L'identifiant est une variable globale qui pointe vers une instance d'ObjetForum.
-            // On utilise la carte des types pour trouver le nom de la classe.
-            if (carteDesTypes.has(`window.${nom}`)) {
-                const nomClasseMappee = carteDesTypes.get(`window.${nom}`);
-                if (registreObjetForums.has(nomClasseMappee)) {
-                    dependancesTrouvees.add(nomClasseMappee);
+            // Scénario 2: L'identifiant est une variable globale pointant vers une instance
+            // d'ObjetForum. On résout par instanceof contre les classes enregistrées :
+            // plus fiable qu'une carte des types (pas de fetch, pas de parsing AST, pas de
+            // cohérence timing à préserver) et O(n×m) avec n=m≈10, donc négligeable.
+            const instance = window[nom];
+            if (instance && typeof instance === 'object') {
+                for (const [nomClasse, Classe] of registreObjetForums) {
+                    if (instance instanceof Classe) {
+                        dependancesTrouvees.add(nomClasse);
+                        break;
+                    }
                 }
             }
         }
