@@ -133614,13 +133614,13 @@ Utils.register(class Dock {
         *
         */
         this._html = `<div id="o_toolbarOutiiil" class="${monProfilUtilisateur.parametre["dockPosition"].valeur == "1" ? "o_toolbarBas" : "o_toolbarDroite"}" ${monProfilUtilisateur.parametre["dockVisible"].valeur == 1 ? "" : "style='display:none'"}>
-            <div id="o_toolbarItem1" class="o_toolbarItem" title="Ponte"><span id="o_itemPonte" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
-            <div id="o_toolbarItem2" class="o_toolbarItem" title="Chasse"><span id="o_itemChasse" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
-            <div id="o_toolbarItem3" class="o_toolbarItem" title="Combat"><span id="o_itemCombat" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
-            <div id="o_toolbarItem4" class="o_toolbarItem" title="Traceur"><span id="o_itemTraceur" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
-            <div id="o_toolbarItem5" class="o_toolbarItem" title="Carte"><span id="o_itemMap" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
-            <div id="o_toolbarItem6" class="o_toolbarItem" title="Préférence"><span id="o_itemParametre" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
-            <div id="o_toolbarItem7" class="o_toolbarItem" title="Signaler un bug"><span id="o_itemBug" style="background-image: url(${IMG_SPRITE_MENU})"/></div>
+            <div id="o_toolbarItem1" class="o_toolbarItem" title="Ponte"><span id="o_itemPonte" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem2" class="o_toolbarItem" title="Chasse"><span id="o_itemChasse" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem3" class="o_toolbarItem" title="Combat"><span id="o_itemCombat" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem4" class="o_toolbarItem" title="Traceur"><span id="o_itemTraceur" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem5" class="o_toolbarItem" title="Carte"><span id="o_itemMap" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem6" class="o_toolbarItem" title="Préférence"><span id="o_itemParametre" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem7" class="o_toolbarItem" title="Signaler un bug"><span id="o_itemBug" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
             </div>`;
         /**
         *
@@ -133657,7 +133657,13 @@ Utils.register(class Dock {
     * @method afficher
     */
     async afficher() {
-        $j("body").append(this._html);
+        // Resolve the sprite URL at render time (not at constants.js load time):
+        // in production the bridge may not have set data-outiiil-base-url yet when
+        // constants.js is evaluated, so getExtensionURL() would return an empty/relative
+        // URL and the dock buttons would show as blank. Fetching it here (after the
+        // bridge is ready) fixes the race without changing dev behaviour.
+        const SPRITE_URL = Utils.getExtensionURL("images/sprite_menu.png");
+        $j("body").append(this._html.replace(/__IMG_SPRITE_MENU__/g, SPRITE_URL));
         $j(".o_toolbarDroite .o_toolbarItem").tooltip({
             tooltipClass: "warning-tooltip",
             content: function () { return $j(this).prop("title"); },
