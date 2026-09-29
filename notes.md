@@ -1,3 +1,4 @@
+- Enlever le temps d'attente pour script de release
 - Mettre à jour doc et roadmap
 - Enlever les checks de SHA du script de release et nettoyer le zip généré
 - N'utiliser qu'une seule des deux manières d'enregistrement dans Utils.register
