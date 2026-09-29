@@ -137293,12 +137293,17 @@ Utils.register(class FonctionnaliteAlliance {
             if (registreObjetForums.has(nom)) {
                 dependancesTrouvees.add(nom);
             }
-            // Scénario 2: L'identifiant est une variable globale qui pointe vers une instance d'ObjetForum.
-            // On utilise la carte des types pour trouver le nom de la classe.
-            if (carteDesTypes.has(`window.${nom}`)) {
-                const nomClasseMappee = carteDesTypes.get(`window.${nom}`);
-                if (registreObjetForums.has(nomClasseMappee)) {
-                    dependancesTrouvees.add(nomClasseMappee);
+            // Scénario 2: L'identifiant est une variable globale pointant vers une instance
+            // d'ObjetForum. On résout par instanceof contre les classes enregistrées :
+            // plus fiable qu'une carte des types (pas de fetch, pas de parsing AST, pas de
+            // cohérence timing à préserver) et O(n×m) avec n=m≈10, donc négligeable.
+            const instance = window[nom];
+            if (instance && typeof instance === 'object') {
+                for (const [nomClasse, Classe] of registreObjetForums) {
+                    if (instance instanceof Classe) {
+                        dependancesTrouvees.add(nomClasse);
+                        break;
+                    }
                 }
             }
         }
@@ -149754,63 +149759,6 @@ async function initialiserFrameworkGlobal() {
     console.log("Registre des classes 'ObjetForum':", registreClasses.ObjetForum);
     console.log("Registre des classes 'FonctionnaliteAlliance':", registreClasses.FonctionnaliteAlliance);
     console.log("Registre des classes 'Page':", registreClasses.Page);
-
-    // 1b. Créer la "carte des types" des variables globales
-    window.carteDesTypes = new Map();
-    const isDevMode = await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false));
-
-    async function analyserASTPourCarteDesTypes(sourceCode) {
-        try {
-            const ast = acorn.parse(sourceCode, { ecmaVersion: 2020 });
-
-            function traverse(node) {
-                if (!node) return;
-
-                if (node.type === 'AssignmentExpression' &&
-                    node.left.type === 'MemberExpression' &&
-                    node.left.object.type === 'Identifier' &&
-                    node.left.object.name === 'window' &&
-                    node.right.type === 'NewExpression') {
-
-                    const globalVarName = `window.${node.left.property.name}`;
-                    const className = node.right.callee.name;
-                    carteDesTypes.set(globalVarName, className);
-                }
-
-                for (const key in node) {
-                    if (node[key] && typeof node[key] === 'object') {
-                        if (Array.isArray(node[key])) {
-                            node[key].forEach(traverse);
-                        } else {
-                            traverse(node[key]);
-                        }
-                    }
-                }
-            }
-
-            traverse(ast);
-        } catch (error) {
-            console.error("Erreur lors de l'analyse AST:", error);
-        }
-    }
-
-    if (isDevMode) {
-        const initURL = Utils.getExtensionURL('js/main.js');
-        const initResponse = await fetch(initURL);
-        const initContent = await initResponse.text();
-        await analyserASTPourCarteDesTypes(initContent);
-    } else {
-        // In production, the runtime is injected via userScripts.register() (world: MAIN),
-        // so there is no <script> tag in the DOM. Instead, fetch the runtime.js from dist/
-        const runtimeURL = Utils.getExtensionURL('dist/runtime.js');
-        const runtimeResponse = await fetch(runtimeURL);
-        if (runtimeResponse.ok) {
-            const runtimeContent = await runtimeResponse.text();
-            await analyserASTPourCarteDesTypes(runtimeContent);
-        }
-    }
-
-    console.log("Carte des types des variables globales:", carteDesTypes);
 
     // 1c. Initialiser les caches globaux
     window.dependancesObjetForumsCache = new Map();
