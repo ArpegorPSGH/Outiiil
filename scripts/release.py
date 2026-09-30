@@ -98,6 +98,14 @@ def verifier_socle_a_changer(version):
         except Exception as e:
             return True, f"impossible de lire le zip de la dernière release: {e}"
 
+        def normaliser_chemin_icone(rel_path):
+            """Normalise le chemin d'une icône pour la comparaison : images/icons/X ≡ icons/X."""
+            if rel_path.startswith("images/icons/"):
+                return "icons/" + rel_path[len("images/icons/"):]
+            if rel_path.startswith("images/"):
+                return rel_path[len("images/"):]
+            return rel_path
+
         # Lire les fichiers du socle local (sans dist/, sans le numéro de version)
         local_files = {}
         for rel_path in ["manifest.json", "js/background.js", "js/bridge.js"]:
@@ -119,7 +127,10 @@ def verifier_socle_a_changer(version):
                     abs_path = os.path.join(racine, f)
                     rel_path = os.path.relpath(abs_path, BASE_DIR)
                     with open(abs_path, "rb") as fh:
-                        local_files[rel_path] = fh.read()
+                        local_files[normaliser_chemin_icone(rel_path)] = fh.read()
+
+        # Normaliser les chemins d'icônes distants (images/icons/X ≡ icons/X)
+        remote_files = {normaliser_chemin_icone(k): v for k, v in remote_files.items()}
 
         # Comparer les clés (fichiers)
         local_keys = set(local_files.keys())
