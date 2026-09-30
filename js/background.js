@@ -117,7 +117,7 @@ function handleEventListener(path, args, sender) {
                 target: 'outiiil',
                 cbId: cbId,
                 payload: wrapped.length === 1 ? wrapped[0] : wrapped
-            }).catch(() => {});
+            }).catch(() => { });
         };
 
         eventObj.addListener(wrapper);
@@ -192,23 +192,31 @@ function handleRuntimeMessage(message, sender) {
 
     switch (message.type) {
         case 'RUNTIME_INFO':
-            return {
-                ok: true,
-                result: {
-                    devMode: DEV_MODE,
-                    version: chrome.runtime.getManifest().version,
-                    baseUrl: chrome.runtime.getURL('')
-                }
-            };
+            // Return the version of the runtime actually registered (from storage),
+            // not the manifest version: the dynamic runtime can be newer than the
+            // installed extension, and window.VERSION must reflect what is loaded.
+            const storedRuntimeVersion = getStorage(STORAGE_KEY_VERSION);
+            return Promise.resolve(storedRuntimeVersion).then((storedVersion) => {
+                return {
+                    ok: true,
+                    result: {
+                        devMode: DEV_MODE,
+                        version: storedVersion || chrome.runtime.getManifest().version,
+                        manifestVersion: chrome.runtime.getManifest().version,
+                        baseUrl: chrome.runtime.getURL('')
+                    }
+                };
+            });
 
         case 'CHECK_UPDATE':
             checkAndRegisterRuntime().then(result => {
+                console.log('[Outiiil Background] CHECK_UPDATE result:', JSON.stringify(result));
                 if (sender && sender.tab) {
                     chrome.tabs.sendMessage(sender.tab.id, {
                         type: 'OUTIIIL_UPDATE_RESULT',
                         target: 'outiiil',
                         result: result
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
             });
             return { ok: true, result: { checking: true } };
@@ -229,7 +237,7 @@ function handleRuntimeMessage(message, sender) {
 
 // --- Message Listener ---
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (!message || !message.type) return false;
 
     if (message.type === 'CHROME_API_CALL') {
@@ -253,10 +261,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'RUNTIME_INFO') {
+        // Report the version of the runtime actually registered (from storage),
+        // not the manifest version: the dynamic runtime can be newer than the
+        // installed extension, and consumers must see what is really loaded.
+        const storedVersion = await getStorage(STORAGE_KEY_VERSION);
         sendResponse({
             type: 'RUNTIME_INFO_RESPONSE',
             devMode: DEV_MODE,
-            version: chrome.runtime.getManifest().version,
+            version: storedVersion || chrome.runtime.getManifest().version,
+            manifestVersion: chrome.runtime.getManifest().version,
             baseUrl: chrome.runtime.getURL('')
         });
         return true;
@@ -517,7 +530,7 @@ async function registerOrUpdateUserScript(jsCode, cssCode, version, forceReRegis
     try {
         if (forceReRegister) {
             // Force re-registration: unregister first, then register fresh
-            try { await chrome.userScripts.unregister({ ids: [USER_SCRIPT_ID] }); } catch (e) {}
+            try { await chrome.userScripts.unregister({ ids: [USER_SCRIPT_ID] }); } catch (e) { }
             userScriptRegistered = false;
             await chrome.userScripts.register([scriptDef]);
             userScriptRegistered = true;

@@ -7,12 +7,14 @@ Workflow :
   1. Vérifie que le répertoire de travail Git est propre.
   2. Récupère la version actuelle depuis manifest.json.
   3. Compile le dossier `dist/` complet (runtime.js, runtime.css, version.json, images/).
-  4. Génère l'archive zip de distribution du socle (`Outiiil-vX.Y.zip` :
-     manifest.json, js/background.js, js/bridge.js, dist/).
+  4. Génère l'archive zip de distribution (`Outiiil-vX.Y.zip` : manifest.json,
+     js/background.js, js/bridge.js, dist/).
   5. Déploie le contenu de `dist/` sur la branche distante `gh-pages`.
-  6. Met à jour la branche `socle` avec le socle minimal.
-  7. Crée/étiquette le tag Git et crée la Release GitHub (via gh CLI si présent).
-  8. Nettoie le dossier `dist/` local.
+  6. Crée/étiquette le tag Git et crée la Release GitHub (via gh CLI si présent).
+  7. Nettoie le dossier `dist/` local.
+
+Il n'y a plus de branche `socle` : la distribution dynamique est servie depuis
+`gh-pages` (dist/ + images/), et l'archive zip est l'artefact de release.
 """
 
 import json
@@ -32,7 +34,6 @@ BRIDGE_PATH = os.path.join(BASE_DIR, "js", "bridge.js")
 DIST_DIR = os.path.join(BASE_DIR, "dist")
 IMAGES_DIR = os.path.join(BASE_DIR, "images")
 BRANCH_GH_PAGES = "gh-pages"
-BRANCH_SOCLE = "socle"
 
 def run_cmd(cmd, cwd=BASE_DIR, check=True):
     """Exécute une commande système et retourne sa sortie textuelle."""
@@ -44,6 +45,94 @@ def run_cmd(cmd, cwd=BASE_DIR, check=True):
         print(res.stderr, file=sys.stderr)
         sys.exit(res.returncode)
     return res.stdout.strip()
+
+def verifier_socle_a_changer(version):
+    """Détermine si le socle (manifest + background.js + bridge.js + icons,
+    HORS numéro de version) a changé depuis la dernière release GitHub.
+
+    La source de référence est l'artefact de la dernière release (le zip
+    `Outiiil-vX.Y.zip`), pas le code sur la branche gh-pages : c'est cet artefact
+    qui définit ce qui a été release.
+
+    Retourne (a_changer, reason). Un simple bump de version ne déclenche pas
+    une nouvelle archive zip / release GitHub.
+    """
+    api_url = 'https://api.github.com/repos/ArpegorPSGH/Outiiil/releases/latest'
+    zip_url = None
+    try:
+        req = urllib.request.Request(api_url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'release.py'})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        # Chercher l'asset zip (nom de la forme Outiiil-vX.Y.zip)
+        for asset in data.get('assets', []) or []:
+            name = asset.get('name', '')
+            if name.endswith('.zip'):
+                zip_url = asset.get('browser_download_url')
+                break
+    except Exception as e:
+        return True, f"impossible de lire la dernière release GitHub: {e}"
+
+    if not zip_url:
+        return True, "aucun asset zip trouvé dans la dernière release"
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        zip_path = os.path.join(temp_dir, "release.zip")
+        try:
+            req = urllib.request.Request(zip_url, headers={'User-Agent': 'release.py'})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                with open(zip_path, "wb") as f:
+                    shutil.copyfileobj(resp, f)
+        except Exception as e:
+            return True, f"impossible de télécharger le zip de la dernière release: {e}"
+
+        # Lire les fichiers du socle depuis le zip (sans dist/)
+        remote_files = {}
+        try:
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                for name in zf.namelist():
+                    if name.endswith("/"):
+                        continue
+                    if name.startswith("dist/") or name.startswith(".git/"):
+                        continue
+                    remote_files[name] = zf.read(name)
+        except Exception as e:
+            return True, f"impossible de lire le zip de la dernière release: {e}"
+
+        # Lire les fichiers du socle local (sans dist/, sans le numéro de version)
+        local_files = {}
+        for rel_path in ["manifest.json", "js/background.js", "js/bridge.js"]:
+            abs_path = os.path.join(BASE_DIR, rel_path)
+            if os.path.exists(abs_path):
+                with open(abs_path, "rb") as f:
+                    data = f.read()
+                # Normaliser le numéro de version pour la comparaison
+                try:
+                    data = data.replace(version.encode(), b"0.0.0")
+                except Exception:
+                    pass
+                local_files[rel_path] = data
+
+        icons_src = os.path.join(IMAGES_DIR, "icons")
+        if os.path.isdir(icons_src):
+            for racine, _, fichiers in os.walk(icons_src):
+                for f in fichiers:
+                    abs_path = os.path.join(racine, f)
+                    rel_path = os.path.relpath(abs_path, BASE_DIR)
+                    with open(abs_path, "rb") as fh:
+                        local_files[rel_path] = fh.read()
+
+        # Comparer les clés (fichiers)
+        local_keys = set(local_files.keys())
+        remote_keys = set(remote_files.keys())
+        if local_keys != remote_keys:
+            return True, f"différence d'ensemble de fichiers: local={sorted(local_keys)}, distant={sorted(remote_keys)}"
+
+        # Comparer le contenu de chaque fichier
+        for key in sorted(local_keys):
+            if local_files[key] != remote_files[key]:
+                return True, f"fichier modifié: {key}"
+
+        return False, "aucune modification du socle détectée depuis la dernière release"
 
 def verifier_git_propre():
     status = run_cmd("git status --porcelain")
@@ -233,64 +322,73 @@ def main():
         sys.exit(1)
     print(f"[*] SHA-256 local vérifié : {computed_hash}")
 
-    # 4. Génération de l'archive zip (manifest + background.js + bridge.js + dist/* + dist/images/)
-    zip_filename = f"Outiiil-v{version}.zip"
-    zip_dest_path = os.path.join(BASE_DIR, zip_filename)
-    print(f"[*] Génération de l'archive de release : {zip_filename}...")
+    # 4. Génération de l'archive zip (uniquement si le socle a changé)
+    print("[*] Vérification des modifications du socle (manifest + js + icons, HORS numéro de version)...")
+    socle_a_changer, raison_socle = verifier_socle_a_changer(version)
+    if socle_a_changer:
+        print(f"[*] Le socle a changé ({raison_socle}) : génération de l'archive zip et de la release GitHub.")
+    else:
+        print(f"[*] Le socle n'a pas changé ({raison_socle}) : archive zip et release GitHub sautées, push de la distribution sur gh-pages uniquement.")
 
-    with tempfile.TemporaryDirectory() as temp_zip_dir:
-        # manifest.json
-        with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
-            manifest = json.load(f)
-        # Mettre à jour les chemins des icônes vers dist/images/
-        if "icons" in manifest:
-            for key, path in manifest["icons"].items():
-                if path.startswith("images/"):
-                    manifest["icons"][key] = "dist/" + path
-        if "action" in manifest and "default_icon" in manifest["action"]:
-            if manifest["action"]["default_icon"].startswith("images/"):
-                manifest["action"]["default_icon"] = "dist/" + manifest["action"]["default_icon"]
-        with open(os.path.join(temp_zip_dir, "manifest.json"), "w", encoding="utf-8") as f:
-            json.dump(manifest, f, indent=2, ensure_ascii=False)
+    zip_dest_path = None
+    zip_filename = None
+    if socle_a_changer:
+        zip_filename = f"Outiiil-v{version}.zip"
+        zip_dest_path = os.path.join(BASE_DIR, zip_filename)
+        print(f"[*] Génération de l'archive de release : {zip_filename}...")
+        with tempfile.TemporaryDirectory() as temp_zip_dir:
+            # manifest.json
+            with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+            # Mettre à jour les chemins des icônes vers dist/images/
+            if "icons" in manifest:
+                for key, path in manifest["icons"].items():
+                    if path.startswith("images/"):
+                        manifest["icons"][key] = "dist/" + path
+            if "action" in manifest and "default_icon" in manifest["action"]:
+                if manifest["action"]["default_icon"].startswith("images/"):
+                    manifest["action"]["default_icon"] = "dist/" + manifest["action"]["default_icon"]
+            with open(os.path.join(temp_zip_dir, "manifest.json"), "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2, ensure_ascii=False)
 
-        # js/background.js avec DEV_MODE = false
-        os.makedirs(os.path.join(temp_zip_dir, "js"), exist_ok=True)
-        with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
-            bg_code = f.read()
-        bg_code_prod = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
-        with open(os.path.join(temp_zip_dir, "js", "background.js"), "w", encoding="utf-8") as f:
-            f.write(bg_code_prod)
+            # js/background.js avec DEV_MODE = false
+            os.makedirs(os.path.join(temp_zip_dir, "js"), exist_ok=True)
+            with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
+                bg_code = f.read()
+            bg_code_prod = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
+            with open(os.path.join(temp_zip_dir, "js", "background.js"), "w", encoding="utf-8") as f:
+                f.write(bg_code_prod)
 
-        # js/bridge.js (copié directement)
-        with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
-            bridge_code = f.read()
-        with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
-            f.write(bridge_code)
+            # js/bridge.js (copié directement)
+            with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
+                bridge_code = f.read()
+            with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
+                f.write(bridge_code)
 
-        # dist/ : runtime.js, runtime.css, version.json, images/
-        dist_target = os.path.join(temp_zip_dir, "dist")
-        os.makedirs(dist_target, exist_ok=True)
-        for fname in ["runtime.js", "runtime.css", "version.json"]:
-            src = os.path.join(DIST_DIR, fname)
-            if os.path.exists(src):
-                shutil.copy2(src, os.path.join(dist_target, fname))
+            # dist/ : runtime.js, runtime.css, version.json, images/
+            dist_target = os.path.join(temp_zip_dir, "dist")
+            os.makedirs(dist_target, exist_ok=True)
+            for fname in ["runtime.js", "runtime.css", "version.json"]:
+                src = os.path.join(DIST_DIR, fname)
+                if os.path.exists(src):
+                    shutil.copy2(src, os.path.join(dist_target, fname))
 
-        # images/ dans dist/
-        if not os.path.exists(IMAGES_DIR):
-            print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
-            sys.exit(1)
-        images_dest = os.path.join(dist_target, "images")
-        if os.path.exists(images_dest):
-            shutil.rmtree(images_dest)
-        shutil.copytree(IMAGES_DIR, images_dest)
+            # images/ dans dist/
+            if not os.path.exists(IMAGES_DIR):
+                print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
+                sys.exit(1)
+            images_dest = os.path.join(dist_target, "images")
+            if os.path.exists(images_dest):
+                shutil.rmtree(images_dest)
+            shutil.copytree(IMAGES_DIR, images_dest)
 
-        # Création du zip
-        with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:
-            for root, _, files in os.walk(temp_zip_dir):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, temp_zip_dir)
-                    zipf.write(full_path, rel_path)
+            # Création du zip
+            with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(temp_zip_dir):
+                    for file in files:
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, temp_zip_dir)
+                        zipf.write(full_path, rel_path)
 
     # 5. Déploiement sur gh-pages avec tag Git
     print(f"[*] Déploiement du runtime sur la branche '{BRANCH_GH_PAGES}'...")
@@ -365,82 +463,26 @@ def main():
     if not verifier_deploiement_gh_pages(version, computed_hash):
         print("[!] Déploiement gh-pages incohérent côté distant ; la release continue, mais l'incohérence sera détectée au runtime.", file=sys.stderr)
 
-    # Création (ou re-création en force) et push du tag
-    with tempfile.TemporaryDirectory() as temp_tag_dir:
-        run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_tag_dir}"')
-        run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_tag_dir)
-        run_cmd(f"git push -f origin {tag_name}", cwd=temp_tag_dir)
-        print(f"  -> Tag Git {tag_name} créé et poussé.")
+    # Création (ou re-création en force) et push du tag (uniquement si le socle a changé)
+    if socle_a_changer:
+        with tempfile.TemporaryDirectory() as temp_tag_dir:
+            run_cmd(f'git clone --single-branch --branch {BRANCH_GH_PAGES} "{remote_url}" "{temp_tag_dir}"')
+            run_cmd(f'git tag -fa {tag_name} -m "Release {version}"', cwd=temp_tag_dir)
+            run_cmd(f"git push -f origin {tag_name}", cwd=temp_tag_dir)
+            print(f"  -> Tag Git {tag_name} créé et poussé.")
 
-    # 6. Mise à jour de la branche socle
-    print(f"[*] Mise à jour de la branche '{BRANCH_SOCLE}'...")
-    with tempfile.TemporaryDirectory() as temp_socle_dir:
-        try:
-            run_cmd(f'git clone --single-branch --branch {BRANCH_SOCLE} "{remote_url}" "{temp_socle_dir}"')
-        except SystemExit:
-            print(f"  -> La branche {BRANCH_SOCLE} n'existe pas encore, création...")
-            run_cmd(f'git clone "{remote_url}" "{temp_socle_dir}"')
-            run_cmd(f"git checkout --orphan {BRANCH_SOCLE}", cwd=temp_socle_dir)
-            run_cmd("git rm -rf .", cwd=temp_socle_dir, check=False)
-
-        # Copier le socle minimal
-        shutil.copy2(MANIFEST_PATH, os.path.join(temp_socle_dir, "manifest.json"))
-
-        # background.js avec DEV_MODE = false
-        os.makedirs(os.path.join(temp_socle_dir, "js"), exist_ok=True)
-        with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
-            bg_code = f.read()
-        bg_code_prod = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
-        with open(os.path.join(temp_socle_dir, "js", "background.js"), "w", encoding="utf-8") as f:
-            f.write(bg_code_prod)
-
-        # bridge.js
-        with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
-            bridge_code = f.read()
-        with open(os.path.join(temp_socle_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
-            f.write(bridge_code)
-
-        # dist/ complet
-        dist_dest = os.path.join(temp_socle_dir, "dist")
-        if os.path.exists(dist_dest):
-            shutil.rmtree(dist_dest)
-        if os.path.exists(DIST_DIR):
-            shutil.copytree(DIST_DIR, dist_dest)
-
-        # images/
-        images_dest = os.path.join(temp_socle_dir, "images")
-        if os.path.exists(images_dest):
-            shutil.rmtree(images_dest)
-        if os.path.exists(IMAGES_DIR):
-            shutil.copytree(IMAGES_DIR, images_dest)
-
-        # scripts/ (bundle_sources.json needed for DEV_MODE source loading in background.js)
-        scripts_src = os.path.join(BASE_DIR, "scripts")
-        if os.path.exists(scripts_src):
-            scripts_dest = os.path.join(temp_socle_dir, "scripts")
-            if os.path.exists(scripts_dest):
-                shutil.rmtree(scripts_dest)
-            shutil.copytree(scripts_src, scripts_dest)
-
-        # Commit et push
-        run_cmd("git add -A", cwd=temp_socle_dir)
-        status_socle = run_cmd("git status --porcelain", cwd=temp_socle_dir)
-        if status_socle:
-            run_cmd(f'git commit -m "Update socle for v{version}"', cwd=temp_socle_dir)
-            run_cmd(f"git push -f origin {BRANCH_SOCLE}", cwd=temp_socle_dir)
-            print(f"  -> Branche {BRANCH_SOCLE} mise à jour et poussée.")
+    # 7. Publication de la Release GitHub (uniquement si le socle a changé)
+    if socle_a_changer:
+        print(f"[*] Publication de la release GitHub pour le tag {tag_name}...")
+        gh_available = shutil.which("gh") is not None
+        if gh_available:
+            cmd_gh = f'gh release create {tag_name} "{zip_dest_path}" --title "Outiiil {version}" --target {BRANCH_GH_PAGES} --notes "Mise à jour dynamique Outiiil v{version}"'
+            res_gh = run_cmd(cmd_gh)
+            print(f"  -> Release GitHub créée avec succès via gh CLI : {res_gh}")
         else:
-            print(f"  -> Aucun changement détecté pour {BRANCH_SOCLE}.")
-
-    # 7. Publication de la Release GitHub
-    print(f"[*] Publication de la release GitHub pour le tag {tag_name}...")
-    gh_available = shutil.which("gh") is not None
-    if gh_available:
-        cmd_gh = f'gh release create {tag_name} "{zip_dest_path}" --title "Outiiil {version}" --target {BRANCH_GH_PAGES} --notes "Mise à jour dynamique Outiiil v{version}"'
-        res_gh = run_cmd(cmd_gh)
-        print(f"  -> Release GitHub créée avec succès via gh CLI : {res_gh}")
+            print(f"  -> GitHub CLI (gh) non détecté. Vous pouvez créer la release manuellement sur GitHub en y joignant {zip_filename}.")
     else:
-        print(f"  -> GitHub CLI (gh) non détecté. Vous pouvez créer la release manuellement sur GitHub en y joignant {zip_filename}.")
+        print(f"  -> Aucune archive zip/tag/release : le socle n'a pas changé.")
 
     # 8. Nettoyage local du dossier dist/
     if os.path.exists(DIST_DIR):
@@ -450,8 +492,7 @@ def main():
     print("========================================")
     print(f" Release {version} terminée avec succès ! ")
     print(f" - {BRANCH_GH_PAGES:<12}: runtime déployé + tag {tag_name}")
-    print(f" - {BRANCH_SOCLE:<12}: socle minimal mis à jour")
-    print(f" - artefact    : {zip_filename}")
+    print(f" - artefact    : {zip_filename or '(none - socle inchangé)'}")
     print(f" - branche     : reste sur {branche_origine} en mode DEV")
     print("========================================")
 

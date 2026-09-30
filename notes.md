@@ -1,9 +1,14 @@
+- Service worker registration failed. Status code: 15 en version dev
+- Erreur lors du passage de la version prod à celle de dev
+- Icône ne s'affiche pas en mode prod
+- Enlever la dist (sauf icône d'extension) de la release et ne l'effectuer que si le socle change (hors numéro de version), sinon simplement push la distribution sur la branche gh-pages
+- Ajouter une attente de la fin de téléchargement en cas de nouvelle version avant de charger la page, et afficher un message de mise à jour en cours/effectuée
 - Enlever le temps d'attente pour script de release
-- Séparer la création du zip de celle du push+release
+- Séparer la création du zip de release de celle du push serveur et création de release
 - Mettre à jour doc et roadmap
 - Enlever les checks de SHA du script de release et nettoyer le zip généré
 - N'utiliser qu'une seule des deux manières d'enregistrement dans Utils.register
-- mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle, avec un message invitant à une réinstallation de la nouvelle version
+- mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes), avec un message invitant à une réinstallation de la nouvelle version
 - Nettoyer la branche socle, elle est obsolète.
 - Supprimer les commits de test du script sur gh-pages
 - Supprimer les anciennes releases

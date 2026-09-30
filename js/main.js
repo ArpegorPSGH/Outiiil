@@ -24,13 +24,24 @@
 
     await domReady();
 
+    // Wait for runtime_init.js to finish (it sets window.VERSION from the dynamic
+    // runtime version, which can be newer than the installed extension manifest).
+    if (window.__outiiil_runtime_init_promise) {
+        try { await window.__outiiil_runtime_init_promise; } catch (e) { /* ignore */ }
+    }
+
     // si l'utilisateur est identifié
     if ($j(".boite_connexion_titre:first").text() != "Connexion") {
         // Wait for dev mode info from bridge before proceeding
         const isDevMode = (await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false))) === true;
         let versionRetenue = "1.0.0";
 
-        if (isDevMode) {
+        // runtime_init.js may have already set window.VERSION from the dynamic runtime
+        // (RUNTIME_INFO / storage). That is the version actually loaded, which can be
+        // newer than the installed extension manifest — preserve it.
+        if (window.VERSION) {
+            versionRetenue = window.VERSION;
+        } else if (isDevMode) {
             try {
                 const manifestURL = Utils.getExtensionURL('manifest.json');
                 const manifestResponse = await fetch(manifestURL);
