@@ -337,17 +337,16 @@ def main():
         zip_dest_path = os.path.join(BASE_DIR, zip_filename)
         print(f"[*] Génération de l'archive de release : {zip_filename}...")
         with tempfile.TemporaryDirectory() as temp_zip_dir:
-            # manifest.json
+            # manifest.json — les icônes sont placées à la racine du zip (chemin "gear_48.png")
             with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
                 manifest = json.load(f)
-            # Mettre à jour les chemins des icônes vers dist/images/
             if "icons" in manifest:
-                for key, path in manifest["icons"].items():
-                    if path.startswith("images/"):
-                        manifest["icons"][key] = "dist/" + path
+                for key, path in list(manifest["icons"].items()):
+                    if path.startswith("images/icons/"):
+                        manifest["icons"][key] = os.path.basename(path)
             if "action" in manifest and "default_icon" in manifest["action"]:
-                if manifest["action"]["default_icon"].startswith("images/"):
-                    manifest["action"]["default_icon"] = "dist/" + manifest["action"]["default_icon"]
+                if manifest["action"]["default_icon"].startswith("images/icons/"):
+                    manifest["action"]["default_icon"] = os.path.basename(manifest["action"]["default_icon"])
             with open(os.path.join(temp_zip_dir, "manifest.json"), "w", encoding="utf-8") as f:
                 json.dump(manifest, f, indent=2, ensure_ascii=False)
 
@@ -365,22 +364,14 @@ def main():
             with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
                 f.write(bridge_code)
 
-            # dist/ : runtime.js, runtime.css, version.json, images/
-            dist_target = os.path.join(temp_zip_dir, "dist")
-            os.makedirs(dist_target, exist_ok=True)
-            for fname in ["runtime.js", "runtime.css", "version.json"]:
-                src = os.path.join(DIST_DIR, fname)
-                if os.path.exists(src):
-                    shutil.copy2(src, os.path.join(dist_target, fname))
-
-            # images/ dans dist/
-            if not os.path.exists(IMAGES_DIR):
-                print("Erreur : le dossier images/ est introuvable à la racine du projet.", file=sys.stderr)
-                sys.exit(1)
-            images_dest = os.path.join(dist_target, "images")
-            if os.path.exists(images_dest):
-                shutil.rmtree(images_dest)
-            shutil.copytree(IMAGES_DIR, images_dest)
+            # Icônes d'extension à la racine du zip (le manifest est modifié pour y faire
+            # référence directement : "gear_48.png" au lieu de "images/icons/gear_48.png").
+            icons_src = os.path.join(IMAGES_DIR, "icons")
+            if os.path.isdir(icons_src):
+                for f in os.listdir(icons_src):
+                    src = os.path.join(icons_src, f)
+                    if os.path.isfile(src):
+                        shutil.copy2(src, os.path.join(temp_zip_dir, f))
 
             # Création du zip
             with zipfile.ZipFile(zip_dest_path, "w", zipfile.ZIP_DEFLATED) as zipf:
