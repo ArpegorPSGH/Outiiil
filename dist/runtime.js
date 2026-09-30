@@ -271,24 +271,85 @@
         // Try to get version info from background
         try {
             var info = await window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
-            if (info && info.version) {
-                window.VERSION = info.version;
+            if (info && info.result && info.result.version) {
+                window.VERSION = info.result.version;
+                console.log('[Outiiil Runtime] Version from RUNTIME_INFO: ' + window.VERSION +
+                    ' (manifest=' + (info.result.manifestVersion || '?') + ')');
             }
         } catch (e) {
+            console.warn('[Outiiil Runtime] RUNTIME_INFO failed:', e);
             // Fallback: try reading version from storage
             try {
                 var stored = await window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
                 if (stored[STORAGE_KEY_VERSION]) {
                     window.VERSION = stored[STORAGE_KEY_VERSION];
+                    console.log('[Outiiil Runtime] Version from storage: ' + window.VERSION);
                 }
             } catch (e2) {
                 // Ignore - main.js handles version detection
             }
         }
+
+        // Trigger an update check so the runtime version stays fresh.
+        // If a new version is downloaded, show an "update in progress" banner and
+        // wait for completion (polling storage) before continuing.
+        try {
+            var updateResult = await window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
+            console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
+            if (updateResult && updateResult.result && updateResult.result.updated) {
+                await attendreFinMiseAJour(updateResult.result.version);
+            }
+        } catch (e) {
+            console.warn('[Outiiil Runtime] CHECK_UPDATE failed:', e);
+        }
     }
 
-    // Start initialization (non-blocking)
-    initRuntime();
+    function afficherBanniereMiseAJour(message, type) {
+        try {
+            var existing = document.getElementById('o_outiiil_update_banner');
+            if (existing) existing.remove();
+            var banner = document.createElement('div');
+            banner.id = 'o_outiiil_update_banner';
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:30001;' +
+                'background:' + (type === 'error' ? '#c0392b' : type === 'done' ? '#27ae60' : '#f39c12') +
+                ';color:#fff;text-align:center;padding:8px;font-family:sans-serif;font-size:14px;' +
+                'box-shadow:0 2px 6px rgba(0,0,0,0.3);';
+            banner.textContent = message;
+            // At document_start, document.body may not exist yet; documentElement always does.
+            var host = document.body || document.documentElement;
+            host.appendChild(banner);
+        } catch (e) {
+            // Ignore - banner is cosmetic
+        }
+    }
+
+    async function attendreFinMiseAJour(targetVersion) {
+        afficherBanniereMiseAJour('Mise à jour Outiiil en cours...', 'pending');
+        var maxAttempts = 60; // up to ~60s
+        var attempt = 0;
+        while (attempt < maxAttempts) {
+            attempt++;
+            try {
+                var stored = await window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                if (stored[STORAGE_KEY_VERSION] === targetVersion) {
+                    afficherBanniereMiseAJour('Mise à jour effectuée. Rechargement de la page...', 'done');
+                    // Give the user a moment to see the message, then reload
+                    await new Promise(function (resolve) { setTimeout(resolve, 1500); });
+                    location.reload();
+                    return;
+                }
+            } catch (e) {
+                // Ignore - retry on next attempt
+            }
+            await new Promise(function (resolve) { setTimeout(resolve, 1000); });
+        }
+        afficherBanniereMiseAJour('Timeout de mise à jour. Veuillez recharger la page manuellement.', 'error');
+    }
+
+    // Start initialization (non-blocking). Expose the promise so main.js can await it
+    // before reading window.VERSION (avoids a race where VERSION is read before the
+    // background has reported the runtime version).
+    window.__outiiil_runtime_init_promise = initRuntime();
 })();
 
 ;
@@ -129360,19 +129421,37 @@ const IMG_VACANCES = "<img src='images/icone/4rondbleu.gif' alt='Vacances' title
 const IMG_BANNI = "<img src='images/icone/5rondgris.gif' alt='Banni' title='Banni'/>";
 const IMG_COLONISE = "<img src='images/icone/attention.gif' alt='Colonisé' title='Colonisé'/>";
 // Image pour l'extension
-const IMG_CHANGE = Utils.getExtensionURL("images/change.png");
-const IMG_ACTUALISER = Utils.getExtensionURL("images/actualize_on_01.png");
-const IMG_CRAYON = Utils.getExtensionURL("images/crayon.gif");
-const IMG_CROIX = Utils.getExtensionURL("images/croix.png");
-const IMG_COPIER = Utils.getExtensionURL("images/copy.png");
-const IMG_HISTORIQUE = Utils.getExtensionURL("images/historique.png");
-const IMG_LIVRAISON = Utils.getExtensionURL("images/livraison.png");
-const IMG_RADAR = Utils.getExtensionURL("images/radar.png");
-const IMG_SPRITE_MENU = Utils.getExtensionURL("images/sprite_menu.png");
-const IMG_UTILITY = Utils.getExtensionURL("images/utility.png");
-const IMG_DOWN = Utils.getExtensionURL("images/down.png");
-const IMG_UP = Utils.getExtensionURL("images/up.png");
-const IMG_OUTIIIL = Utils.getExtensionURL("images/outiiil.png");
+// Ces constantes sont des getters (résolus à l'accès, pas au chargement du module) :
+// OUTIIIL_DYNAMIC_IMAGES est peuplé de façon asynchrone par runtime_init.js, donc
+// appeler getExtensionURL() immédiatement ici (avant que le cache ne soit prêt)
+// renvoyait l'URL de l'extension bundle (dist/ local) au lieu du blob dynamique.
+// Résoudre à l'utilisation (dans les template literals, toujours après le cache prêt)
+// évite la race condition et fonctionne en mode dev comme prod.
+(function () {
+    const imagePaths = {
+        CHANGE: 'images/change.png',
+        ACTUALISER: 'images/actualize_on_01.png',
+        CRAYON: 'images/crayon.gif',
+        CROIX: 'images/croix.png',
+        COPIER: 'images/copy.png',
+        HISTORIQUE: 'images/historique.png',
+        LIVRAISON: 'images/livraison.png',
+        RADAR: 'images/radar.png',
+        SPRITE_MENU: 'images/sprite_menu.png',
+        UTILITY: 'images/utility.png',
+        DOWN: 'images/down.png',
+        UP: 'images/up.png',
+        OUTIIIL: 'images/outiiil.png'
+    };
+    for (const nom in imagePaths) {
+        (function (path) {
+            Object.defineProperty(window, 'IMG_' + nom, {
+                get: function () { return Utils.getExtensionURL(path); },
+                configurable: true
+            });
+        })(imagePaths[nom]);
+    }
+})();
 
 const TOAST_ERROR = { heading: "Erreur", hideAfter: 3500, showHideTransition: "slide", position: { top: 30, right: 100 }, icon: "error" };
 const TOAST_SUCCESS = { heading: "Succès", hideAfter: 3500, showHideTransition: "slide", position: { top: 30, right: 100 }, icon: "success" };
@@ -149573,13 +149652,24 @@ Utils.register(class Ennemie extends Page {
 
     await domReady();
 
+    // Wait for runtime_init.js to finish (it sets window.VERSION from the dynamic
+    // runtime version, which can be newer than the installed extension manifest).
+    if (window.__outiiil_runtime_init_promise) {
+        try { await window.__outiiil_runtime_init_promise; } catch (e) { /* ignore */ }
+    }
+
     // si l'utilisateur est identifié
     if ($j(".boite_connexion_titre:first").text() != "Connexion") {
         // Wait for dev mode info from bridge before proceeding
         const isDevMode = (await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false))) === true;
         let versionRetenue = "1.0.0";
 
-        if (isDevMode) {
+        // runtime_init.js may have already set window.VERSION from the dynamic runtime
+        // (RUNTIME_INFO / storage). That is the version actually loaded, which can be
+        // newer than the installed extension manifest — preserve it.
+        if (window.VERSION) {
+            versionRetenue = window.VERSION;
+        } else if (isDevMode) {
             try {
                 const manifestURL = Utils.getExtensionURL('manifest.json');
                 const manifestResponse = await fetch(manifestURL);
