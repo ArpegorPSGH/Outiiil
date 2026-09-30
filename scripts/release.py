@@ -120,6 +120,18 @@ def verifier_socle_a_changer(version):
                     data = data.replace(version.encode(), b"0.0.0")
                 except Exception:
                     pass
+                # Normaliser DEV_MODE : l'artefact de release contient DEV_MODE = false
+                # (remplacé par release.py), or le code source est en DEV_MODE = true.
+                if rel_path == "js/background.js":
+                    data = data.replace(b"const DEV_MODE = true;", b"const DEV_MODE = false;")
+                # Normaliser le manifest : le local utilise des onglets, le zip distant
+                # est écrit par json.dump (espaces). Comparer en JSON normalisé.
+                if rel_path == "manifest.json":
+                    try:
+                        manifest_obj = json.loads(data.decode("utf-8"))
+                        data = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
+                    except Exception:
+                        pass
                 local_files[rel_path] = data
 
         icons_src = os.path.join(IMAGES_DIR, "icons")
@@ -133,6 +145,15 @@ def verifier_socle_a_changer(version):
 
         # Normaliser les chemins d'icônes distants (images/icons/X ≡ icons/X)
         remote_files = {normaliser_chemin_icone(k): v for k, v in remote_files.items()}
+
+        # Normaliser le manifest distant : le zip est écrit par json.dump (espaces),
+        # on le re-parse pour comparer en JSON normalisé avec le local.
+        if "manifest.json" in remote_files:
+            try:
+                manifest_obj = json.loads(remote_files["manifest.json"].decode("utf-8"))
+                remote_files["manifest.json"] = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
+            except Exception:
+                pass
 
         # Comparer les clés (fichiers)
         local_keys = set(local_files.keys())
