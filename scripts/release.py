@@ -338,9 +338,17 @@ def main():
         print(f"[*] Génération de l'archive de release : {zip_filename}...")
         with tempfile.TemporaryDirectory() as temp_zip_dir:
             # manifest.json — l'artefact de release ne contient pas de dist/ ;
-            # les icônes restent à images/icons/ (chemin d'origine dans le manifest).
+            # les icônes sont placées dans un dossier "icons/" à la racine (et le manifest
+            # est modifié pour référence "icons/gear_48.png" au lieu de "images/icons/...").
             with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
                 manifest = json.load(f)
+            if "icons" in manifest:
+                for key, path in list(manifest["icons"].items()):
+                    if path.startswith("images/icons/"):
+                        manifest["icons"][key] = "icons/" + os.path.basename(path)
+            if "action" in manifest and "default_icon" in manifest["action"]:
+                if manifest["action"]["default_icon"].startswith("images/icons/"):
+                    manifest["action"]["default_icon"] = "icons/" + os.path.basename(manifest["action"]["default_icon"])
             with open(os.path.join(temp_zip_dir, "manifest.json"), "w", encoding="utf-8") as f:
                 json.dump(manifest, f, indent=2, ensure_ascii=False)
 
@@ -358,10 +366,10 @@ def main():
             with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
                 f.write(bridge_code)
 
-            # images/icons/ (icônes d'extension uniquement) — plus de dist/ dans l'artefact
+            # icons/ à la racine du zip (les icônes d'extension, sans le dossier images/)
             icons_src = os.path.join(IMAGES_DIR, "icons")
             if os.path.isdir(icons_src):
-                icons_dest = os.path.join(temp_zip_dir, "images", "icons")
+                icons_dest = os.path.join(temp_zip_dir, "icons")
                 if os.path.exists(icons_dest):
                     shutil.rmtree(icons_dest)
                 shutil.copytree(icons_src, icons_dest)
