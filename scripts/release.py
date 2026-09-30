@@ -99,7 +99,9 @@ def verifier_socle_a_changer(version):
             return True, f"impossible de lire le zip de la dernière release: {e}"
 
         def normaliser_chemin_icone(rel_path):
-            """Normalise le chemin d'une icône pour la comparaison : images/icons/X ≡ icons/X."""
+            """Normalise le chemin d'une icône pour la comparaison : images/icons/X ≡ icons/X.
+            Les séparateurs sont normalisés en slash pour ignorer les différences Windows/Unix."""
+            rel_path = rel_path.replace(os.sep, "/")
             if rel_path.startswith("images/icons/"):
                 return "icons/" + rel_path[len("images/icons/"):]
             if rel_path.startswith("images/"):
