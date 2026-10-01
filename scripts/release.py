@@ -181,8 +181,10 @@ def verifier_socle_a_changer(version):
         for key in sorted(local_keys):
             if local_files[key] != remote_files[key]:
                 # Normaliser les fins de ligne pour la comparaison (CRLF vs LF)
-                local_norm = local_files[key].replace(b"\r\n", b"\n")
-                remote_norm = remote_files[key].replace(b"\r\n", b"\n")
+                # et ignorer un éventuel saut de ligne final (json.dump n'en ajoute pas,
+                # mais le manifest local en a un).
+                local_norm = local_files[key].replace(b"\r\n", b"\n").rstrip(b"\n")
+                remote_norm = remote_files[key].replace(b"\r\n", b"\n").rstrip(b"\n")
                 if local_norm != remote_norm:
                     # Diagnostic : afficher la différence
                     print(f"[*] Diagnostic différence pour {key}:")
