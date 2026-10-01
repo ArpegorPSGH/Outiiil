@@ -108,6 +108,18 @@ def verifier_socle_a_changer(version):
                 return rel_path[len("images/"):]
             return rel_path
 
+        def normaliser_manifest_icones(manifest_obj):
+            """Normalise les chemins d'icônes dans le manifest (images/icons/X ≡ icons/X)."""
+            if isinstance(manifest_obj, dict):
+                for key, value in manifest_obj.items():
+                    if isinstance(value, str) and value.startswith("images/icons/"):
+                        manifest_obj[key] = "icons/" + value[len("images/icons/"):]
+                    elif isinstance(value, str) and value.startswith("images/"):
+                        manifest_obj[key] = value[len("images/"):]
+                    elif isinstance(value, dict):
+                        normaliser_manifest_icones(value)
+            return manifest_obj
+
         # Lire les fichiers du socle local (sans dist/, sans le numéro de version)
         local_files = {}
         for rel_path in ["manifest.json", "js/background.js", "js/bridge.js"]:
@@ -126,9 +138,11 @@ def verifier_socle_a_changer(version):
                     data = data.replace(b"const DEV_MODE = true;", b"const DEV_MODE = false;")
                 # Normaliser le manifest : le local utilise des onglets, le zip distant
                 # est écrit par json.dump (espaces). Comparer en JSON normalisé.
+                # Les chemins d'icônes sont aussi normalisés (images/icons/X ≡ icons/X).
                 if rel_path == "manifest.json":
                     try:
                         manifest_obj = json.loads(data.decode("utf-8"))
+                        manifest_obj = normaliser_manifest_icones(manifest_obj)
                         data = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
                     except Exception:
                         pass
@@ -148,9 +162,11 @@ def verifier_socle_a_changer(version):
 
         # Normaliser le manifest distant : le zip est écrit par json.dump (espaces),
         # on le re-parse pour comparer en JSON normalisé avec le local.
+        # Les chemins d'icônes sont aussi normalisés (images/icons/X ≡ icons/X).
         if "manifest.json" in remote_files:
             try:
                 manifest_obj = json.loads(remote_files["manifest.json"].decode("utf-8"))
+                manifest_obj = normaliser_manifest_icones(manifest_obj)
                 remote_files["manifest.json"] = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
             except Exception:
                 pass
