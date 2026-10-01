@@ -234,9 +234,31 @@
         return 'image/png';
     }
 
+    // Retry helper for RPC calls to the service worker (background.js).
+    // The service worker may not be running yet on first load, so transient
+    // "RPC error: ..." failures should be retried.
+    async function rpcWithRetry(fn, maxRetries, delayMs) {
+        maxRetries = maxRetries || 5;
+        delayMs = delayMs || 500;
+        var lastError = null;
+        for (var attempt = 0; attempt <= maxRetries; attempt++) {
+            try {
+                return await fn();
+            } catch (e) {
+                lastError = e;
+                if (attempt < maxRetries) {
+                    await new Promise(function (r) { setTimeout(r, delayMs * (attempt + 1)); });
+                }
+            }
+        }
+        throw lastError;
+    }
+
     async function applyImagesFromCache() {
         try {
-            var cached = await window.browserAPI.storage.local.get([STORAGE_KEY_IMAGES]);
+            var cached = await rpcWithRetry(function () {
+                return window.browserAPI.storage.local.get([STORAGE_KEY_IMAGES]);
+            });
             var images = cached[STORAGE_KEY_IMAGES];
             if (!images || Object.keys(images).length === 0) return;
 
@@ -270,7 +292,9 @@
 
         // Try to get version info from background
         try {
-            var info = await window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
+            var info = await rpcWithRetry(function () {
+                return window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
+            });
             if (info && info.result && info.result.version) {
                 window.VERSION = info.result.version;
                 console.log('[Outiiil Runtime] Version from RUNTIME_INFO: ' + window.VERSION +
@@ -280,7 +304,9 @@
             console.warn('[Outiiil Runtime] RUNTIME_INFO failed:', e);
             // Fallback: try reading version from storage
             try {
-                var stored = await window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                var stored = await rpcWithRetry(function () {
+                    return window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                });
                 if (stored[STORAGE_KEY_VERSION]) {
                     window.VERSION = stored[STORAGE_KEY_VERSION];
                     console.log('[Outiiil Runtime] Version from storage: ' + window.VERSION);
@@ -294,7 +320,9 @@
         // If a new version is downloaded, show an "update in progress" banner and
         // wait for completion (polling storage) before continuing.
         try {
-            var updateResult = await window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
+            var updateResult = await rpcWithRetry(function () {
+                return window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
+            }, 3, 1000);
             console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
             if (updateResult && updateResult.result && updateResult.result.updated) {
                 await attendreFinMiseAJour(updateResult.result.version);
