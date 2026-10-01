@@ -163,9 +163,11 @@ def verifier_socle_a_changer(version):
         # Normaliser le manifest distant : le zip est écrit par json.dump (espaces),
         # on le re-parse pour comparer en JSON normalisé avec le local.
         # Les chemins d'icônes sont aussi normalisés (images/icons/X ≡ icons/X).
+        # Le numéro de version est aussi normalisé (le zip distant contient l'ancienne version).
         if "manifest.json" in remote_files:
             try:
-                manifest_obj = json.loads(remote_files["manifest.json"].decode("utf-8"))
+                remote_data = remote_files["manifest.json"].replace(version.encode(), b"0.0.0")
+                manifest_obj = json.loads(remote_data.decode("utf-8"))
                 manifest_obj = normaliser_manifest_icones(manifest_obj)
                 remote_files["manifest.json"] = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
             except Exception:
