@@ -164,7 +164,17 @@ def verifier_socle_a_changer(version):
         # Comparer le contenu de chaque fichier
         for key in sorted(local_keys):
             if local_files[key] != remote_files[key]:
-                return True, f"fichier modifié: {key}"
+                # Normaliser les fins de ligne pour la comparaison (CRLF vs LF)
+                local_norm = local_files[key].replace(b"\r\n", b"\n")
+                remote_norm = remote_files[key].replace(b"\r\n", b"\n")
+                if local_norm != remote_norm:
+                    # Diagnostic : afficher la différence
+                    print(f"[*] Diagnostic différence pour {key}:")
+                    print(f"    local ({len(local_files[key])} bytes): {local_files[key][:200]!r}")
+                    print(f"    distant ({len(remote_files[key])} bytes): {remote_files[key][:200]!r}")
+                    print(f"    local normalisé ({len(local_norm)} bytes): {local_norm[:200]!r}")
+                    print(f"    distant normalisé ({len(remote_norm)} bytes): {remote_norm[:200]!r}")
+                    return True, f"fichier modifié: {key}"
 
         return False, "aucune modification du socle détectée depuis la dernière release"
 
@@ -391,13 +401,15 @@ def main():
             with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
                 bg_code = f.read()
             bg_code_prod = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
-            with open(os.path.join(temp_zip_dir, "js", "background.js"), "w", encoding="utf-8") as f:
+            # Écrire avec LF pour que le zip distant soit identique au source local
+            # (sans newline=, Windows écrirait CRLF → fausse différence de hash).
+            with open(os.path.join(temp_zip_dir, "js", "background.js"), "w", encoding="utf-8", newline="\n") as f:
                 f.write(bg_code_prod)
 
             # js/bridge.js (copié directement)
             with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
                 bridge_code = f.read()
-            with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8") as f:
+            with open(os.path.join(temp_zip_dir, "js", "bridge.js"), "w", encoding="utf-8", newline="\n") as f:
                 f.write(bridge_code)
 
             # icons/ à la racine du zip (les icônes d'extension, sans le dossier images/)
