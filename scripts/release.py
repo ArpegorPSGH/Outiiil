@@ -174,11 +174,17 @@ def verifier_socle_a_changer(version):
         # Comparer les clés (fichiers)
         local_keys = set(local_files.keys())
         remote_keys = set(remote_files.keys())
+        print(f"[*] Clés locales: {sorted(local_keys)}")
+        print(f"[*] Clés distantes: {sorted(remote_keys)}")
         if local_keys != remote_keys:
             return True, f"différence d'ensemble de fichiers: local={sorted(local_keys)}, distant={sorted(remote_keys)}"
 
         # Comparer le contenu de chaque fichier
         for key in sorted(local_keys):
+            # Diagnostic détaillé avant normalisation
+            print(f"[*] Diagnostic pour {key}:")
+            print(f"    local brut ({len(local_files[key])} bytes): {local_files[key]!r}")
+            print(f"    distant brut ({len(remote_files[key])} bytes): {remote_files[key]!r}")
             if local_files[key] != remote_files[key]:
                 # Normaliser les fins de ligne pour la comparaison (CRLF vs LF)
                 # et ignorer un éventuel saut de ligne final (json.dump n'en ajoute pas,
@@ -186,13 +192,20 @@ def verifier_socle_a_changer(version):
                 local_norm = local_files[key].replace(b"\r\n", b"\n").rstrip(b"\n")
                 remote_norm = remote_files[key].replace(b"\r\n", b"\n").rstrip(b"\n")
                 if local_norm != remote_norm:
-                    # Diagnostic : afficher la différence
-                    print(f"[*] Diagnostic différence pour {key}:")
-                    print(f"    local ({len(local_files[key])} bytes): {local_files[key][:200]!r}")
-                    print(f"    distant ({len(remote_files[key])} bytes): {remote_files[key][:200]!r}")
-                    print(f"    local normalisé ({len(local_norm)} bytes): {local_norm[:200]!r}")
-                    print(f"    distant normalisé ({len(remote_norm)} bytes): {remote_norm[:200]!r}")
+                    print(f"    local normalisé ({len(local_norm)} bytes): {local_norm!r}")
+                    print(f"    distant normalisé ({len(remote_norm)} bytes): {remote_norm!r}")
+                    # Trouver la première différence
+                    for i in range(min(len(local_norm), len(remote_norm))):
+                        if local_norm[i] != remote_norm[i]:
+                            print(f"    Première diff à byte {i}: local=0x{local_norm[i]:02x} distant=0x{remote_norm[i]:02x}")
+                            print(f"    Contexte local: {local_norm[max(0,i-20):i+20]!r}")
+                            print(f"    Contexte distant: {remote_norm[max(0,i-20):i+20]!r}")
+                            break
+                    else:
+                        print(f"    Différence de longueur: local={len(local_norm)}, distant={len(remote_norm)}")
                     return True, f"fichier modifié: {key}"
+            else:
+                print(f"    -> IDENTIQUE (brut)")
 
         return False, "aucune modification du socle détectée depuis la dernière release"
 
