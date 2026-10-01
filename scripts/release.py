@@ -19,6 +19,7 @@ Il n'y a plus de branche `socle` : la distribution dynamique est servie depuis
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -166,12 +167,19 @@ def verifier_socle_a_changer(version):
         # Le numéro de version est aussi normalisé (le zip distant contient l'ancienne version).
         if "manifest.json" in remote_files:
             try:
-                remote_data = remote_files["manifest.json"].replace(version.encode(), b"0.0.0")
+                print(f"[*] Normalisation manifest distant (version courante={version})...")
+                remote_raw = remote_files["manifest.json"]
+                print(f"    distant brut: {remote_raw[:300]!r}")
+                # Normaliser n'importe quel numéro de version (X.Y ou X.Y.Z) par 0.0.0
+                # Le zip distant contient l'ancienne version, pas la version courante.
+                remote_data = re.sub(rb'\"version\":\s*\"[0-9.]+\"', b'"version": "0.0.0"', remote_raw)
+                print(f"    distant après norm version: {remote_data[:300]!r}")
                 manifest_obj = json.loads(remote_data.decode("utf-8"))
                 manifest_obj = normaliser_manifest_icones(manifest_obj)
                 remote_files["manifest.json"] = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
-            except Exception:
-                pass
+                print(f"    distant normalisé: {remote_files['manifest.json'][:200]!r}")
+            except Exception as e:
+                print(f"[*] Erreur normalisation manifest distant: {e}")
 
         # Comparer les clés (fichiers)
         local_keys = set(local_files.keys())
