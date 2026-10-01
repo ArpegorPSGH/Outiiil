@@ -145,6 +145,7 @@ function handleEventListener(path, args, sender) {
 
 async function dispatchChromeApiCall(path, args, sender) {
     if (isPathBlacklisted(path)) {
+        console.warn('[Outiiil Background] API blocked for security:', path);
         return { ok: false, error: 'API blocked for security: ' + path };
     }
 
@@ -162,12 +163,14 @@ async function dispatchChromeApiCall(path, args, sender) {
 
     const parent = getParentContext(path);
     if (parent === null) {
+        console.warn('[Outiiil Background] API not found:', path);
         return { ok: false, error: 'API not found: ' + path };
     }
 
     const prop = path.split('.').pop();
     const fn = parent[prop];
     if (typeof fn !== 'function') {
+        console.warn('[Outiiil Background] Not a function:', path, 'typeof=' + typeof fn);
         return { ok: false, error: 'Not a function: ' + path };
     }
 
@@ -176,6 +179,7 @@ async function dispatchChromeApiCall(path, args, sender) {
         const wrapped = await wrapForSerialization(result);
         return { ok: true, result: wrapped };
     } catch (error) {
+        console.error('[Outiiil Background] API call threw:', path, error);
         return { ok: false, error: error.message || String(error) };
     }
 }
@@ -241,9 +245,17 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (!message || !message.type) return false;
 
     if (message.type === 'CHROME_API_CALL') {
+        console.log('[Outiiil Background] CHROME_API_CALL received:', message.path,
+            'requestId=' + message.requestId,
+            'senderTab=' + (sender && sender.tab ? sender.tab.id : 'none'));
         dispatchChromeApiCall(message.path, message.args, sender).then(response => {
+            console.log('[Outiiil Background] CHROME_API_CALL response for', message.path,
+                'requestId=' + message.requestId, 'ok=' + response.ok,
+                'error=' + (response.ok ? undefined : response.error));
             sendResponse({ requestId: message.requestId, ...response });
         }).catch(error => {
+            console.error('[Outiiil Background] CHROME_API_CALL threw for', message.path,
+                'requestId=' + message.requestId, error);
             sendResponse({
                 requestId: message.requestId,
                 ok: false,
@@ -612,9 +624,20 @@ async function downloadImages(imageList, version) {
 
 function getStorage(key) {
     return new Promise((resolve) => {
-        chrome.storage.local.get([key], (result) => {
-            resolve(result[key] !== undefined ? result[key] : null);
-        });
+        try {
+            chrome.storage.local.get([key], (result) => {
+                if (chrome.runtime.lastError) {
+                    console.error('[Outiiil Background] storage.local.get FAILED for key',
+                        key, 'lastError:', chrome.runtime.lastError.message);
+                    resolve(null);
+                    return;
+                }
+                resolve(result[key] !== undefined ? result[key] : null);
+            });
+        } catch (e) {
+            console.error('[Outiiil Background] storage.local.get threw for key', key, e);
+            resolve(null);
+        }
     });
 }
 

@@ -63,6 +63,8 @@
         if (data.target !== OUTIIIL_TARGET) return;
         if (data.type !== REQUEST_TYPE) return;
 
+        console.log('[Outiiil Bridge] RPC request received:', data.path, 'id=' + data.id);
+
         // Forward the RPC call to the background service worker
         chrome.runtime.sendMessage({
             type: 'CHROME_API_CALL',
@@ -71,6 +73,10 @@
             args: data.args
         }, function (response) {
             if (chrome.runtime.lastError) {
+                console.warn('[Outiiil Bridge] RPC forward to background FAILED for',
+                    data.path, 'id=' + data.id,
+                    'lastError:', chrome.runtime.lastError.message,
+                    'response:', response);
                 window.postMessage({
                     type: RESPONSE_TYPE,
                     target: OUTIIIL_TARGET,
@@ -81,6 +87,9 @@
                 return;
             }
 
+            console.log('[Outiiil Bridge] RPC response from background for',
+                data.path, 'id=' + data.id, 'ok=' + response.ok,
+                'error=' + (response.ok ? undefined : response.error));
             window.postMessage({
                 type: RESPONSE_TYPE,
                 target: OUTIIIL_TARGET,

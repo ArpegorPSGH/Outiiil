@@ -34,24 +34,35 @@
         var lastError = null;
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                return await fn();
+                console.log('[Outiiil Diagnostic] RPC attempt ' + (attempt + 1) + '/' + (maxRetries + 1));
+                var result = await fn();
+                console.log('[Outiiil Diagnostic] RPC success on attempt ' + (attempt + 1));
+                return result;
             } catch (e) {
                 lastError = e;
+                console.log('[Outiiil Diagnostic] RPC attempt ' + (attempt + 1) + ' failed:', e.message || e);
                 if (attempt < maxRetries) {
                     await new Promise(function (r) { setTimeout(r, delayMs * (attempt + 1)); });
                 }
             }
         }
+        console.log('[Outiiil Diagnostic] RPC all attempts failed, throwing');
         throw lastError;
     }
 
     async function applyImagesFromCache() {
+        console.log('[Outiiil Runtime] applyImagesFromCache: starting, bridgeReady=' +
+            (window.browserAPI && window.browserAPI._ready ? 'pending' : 'unknown'));
         try {
             var cached = await rpcWithRetry(function () {
+                console.log('[Outiiil Runtime] applyImagesFromCache: calling storage.local.get');
                 return window.browserAPI.storage.local.get([STORAGE_KEY_IMAGES]);
             });
             var images = cached[STORAGE_KEY_IMAGES];
-            if (!images || Object.keys(images).length === 0) return;
+            if (!images || Object.keys(images).length === 0) {
+                console.log('[Outiiil Runtime] applyImagesFromCache: no cached images');
+                return;
+            }
 
             var blobs = {};
             for (var [path, dataUrl] of Object.entries(images)) {
@@ -67,6 +78,10 @@
             console.log('[Outiiil] Dynamic images loaded:', Object.keys(blobs).length);
         } catch (e) {
             console.warn('[Outiiil] Failed to load cached images:', e);
+            console.warn('[Outiiil] applyImagesFromCache context - name=' + (e && e.name) +
+                ' message=' + (e && e.message) +
+                ' bridgeReady=' + (window.browserAPI ? 'defined' : 'undefined') +
+                ' storage.local=' + (window.browserAPI && window.browserAPI.storage ? 'defined' : 'undefined'));
         }
     }
 

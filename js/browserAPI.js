@@ -54,12 +54,19 @@
 
         if (data.type === RESPONSE_TYPE) {
             const p = pendingRequests.get(data.id);
-            if (!p) return;
+            if (!p) {
+                console.warn('[Outiiil browserAPI] RPC response for unknown id:', data.id,
+                    'bridgeReady=' + bridgeReady,
+                    'pending=' + pendingRequests.size);
+                return;
+            }
             clearTimeout(p.timeout);
             pendingRequests.delete(data.id);
             if (data.ok) {
+                console.log('[Outiiil browserAPI] RPC success:', data.path);
                 p.resolve(data.result);
             } else {
+                console.warn('[Outiiil browserAPI] RPC error:', data.path, data.error);
                 p.reject(new Error(data.error || 'RPC error: ' + data.path));
             }
         }
@@ -77,6 +84,8 @@
     function callApi(path, args) {
         const id = nextId();
         const fullPath = typeof path === 'string' ? path : path.join('.');
+
+        console.log('[Outiiil browserAPI] Sending RPC request:', fullPath, 'id=' + id);
 
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
