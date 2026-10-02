@@ -56,33 +56,25 @@
                 console.warn('[Outiiil Main] manifest.json fetch failed:', e);
             }
         } else {
-            console.log('[Outiiil Main] PROD_MODE: reading version from dist/version.json');
+            console.log('[Outiiil Main] PROD_MODE: version not set by runtime_init, using manifest.json');
+            // In PROD mode, dist/version.json is NOT packaged in the extension zip
+            // (only manifest.json, js/, icons/ are). The runtime + version.json are
+            // served from GitHub Pages and cached in chrome.storage.local by the
+            // service worker (background.js). runtime_init.js already tried to read
+            // the cached version via RUNTIME_INFO RPC. If that failed, fall back to
+            // the installed extension manifest version, which is always available
+            // locally and never requires a network fetch.
             try {
-                const distVersionURL = Utils.getExtensionURL('dist/version.json');
-                const distVersionResponse = await fetch(distVersionURL);
-                if (distVersionResponse.ok) {
-                    const distVersionData = await distVersionResponse.json();
-                    versionRetenue = distVersionData.version || versionRetenue;
+                const manifestURL = Utils.getExtensionURL('manifest.json');
+                const manifestResponse = await fetch(manifestURL);
+                if (manifestResponse.ok) {
+                    const manifest = await manifestResponse.json();
+                    window.manifest = manifest;
+                    versionRetenue = manifest.version || versionRetenue;
+                    console.log('[Outiiil Main] Version from manifest.json:', versionRetenue);
                 }
             } catch (e) {
-                console.warn('[Outiiil Main] dist/version.json fetch failed:', e);
-            }
-            // Fallback: dist/version.json may be missing locally (cleaned after release)
-            // or unreachable if the service worker is not ready. Always fall back to
-            // the installed extension manifest version, which is always available.
-            if (!versionRetenue) {
-                console.log('[Outiiil Main] dist/version.json unavailable, falling back to manifest.json');
-                try {
-                    const manifestURL = Utils.getExtensionURL('manifest.json');
-                    const manifestResponse = await fetch(manifestURL);
-                    if (manifestResponse.ok) {
-                        const manifest = await manifestResponse.json();
-                        window.manifest = manifest;
-                        versionRetenue = manifest.version || versionRetenue;
-                    }
-                } catch (e) {
-                    console.warn('[Outiiil Main] manifest.json fallback fetch failed:', e);
-                }
+                console.warn('[Outiiil Main] manifest.json fetch failed:', e);
             }
         }
         if (!versionRetenue) {
