@@ -141,6 +141,12 @@
             if (updateResult && updateResult.result && updateResult.result.updated) {
                 await attendreFinMiseAJour(updateResult.result.version);
             }
+            // If CHECK_UPDATE returned a fresh version (or the runtime was just
+            // updated), prefer it over whatever was read earlier.
+            if (!window.VERSION && updateResult && updateResult.result && updateResult.result.version) {
+                window.VERSION = updateResult.result.version;
+                console.log('[Outiiil Runtime] Version from CHECK_UPDATE: ' + window.VERSION);
+            }
         } catch (e) {
             console.warn('[Outiiil Runtime] CHECK_UPDATE failed:', e);
         }

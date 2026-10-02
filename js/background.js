@@ -213,17 +213,28 @@ function handleRuntimeMessage(message, sender) {
             });
 
         case 'CHECK_UPDATE':
-            checkAndRegisterRuntime().then(result => {
+            // Await the full update cycle before responding so the runtime can
+            // read the freshly cached version from storage in the same turn.
+            // If the service worker is busy (registrationLock), return the
+            // current cached version immediately instead of queuing.
+            try {
+                const result = await checkAndRegisterRuntime();
                 console.log('[Outiiil Background] CHECK_UPDATE result:', JSON.stringify(result));
-                if (sender && sender.tab) {
-                    chrome.tabs.sendMessage(sender.tab.id, {
-                        type: 'OUTIIIL_UPDATE_RESULT',
-                        target: 'outiiil',
-                        result: result
-                    }).catch(() => { });
-                }
-            });
-            return { ok: true, result: { checking: true } };
+                const updatedVersion = (result && result.ok && result.updated)
+                    ? result.version
+                    : (await getStorage(STORAGE_KEY_VERSION)) || chrome.runtime.getManifest().version;
+                return {
+                    ok: true,
+                    result: {
+                        checking: false,
+                        updated: !!(result && result.updated),
+                        version: updatedVersion
+                    }
+                };
+            } catch (e) {
+                console.error('[Outiiil Background] CHECK_UPDATE failed:', e);
+                return { ok: false, error: e.message || String(e) };
+            }
 
         case 'LOG_ERROR':
             console.error('[Outiiil Runtime]', message.error || message);

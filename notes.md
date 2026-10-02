@@ -1,7 +1,7 @@
 - Service worker registration failed. Status code: 15 en version dev
 - Erreur lors du passage de la version prod à celle de dev
 - Icône ne s'affiche pas en mode prod
-- Ajouter une attente de la fin de téléchargement en cas de nouvelle version avant de charger la page, et afficher un message de mise à jour en cours/effectuée
+- En cas de nouvelle version, afficher un message de mise à jour en cours/effectuée, et recharger la page
 - Voir s'il est possible d'utiliser les fichiers individuels plutôt que de faire un bundle
 - Enlever le temps d'attente pour script de release
 - Créer un script de test production qui :
