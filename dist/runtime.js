@@ -266,7 +266,9 @@
                 lastError = e;
                 console.log('[Outiiil Diagnostic] RPC attempt ' + (attempt + 1) + ' failed:', e.message || e);
                 if (attempt < maxRetries) {
-                    await new Promise(function (r) { setTimeout(r, delayMs * (attempt + 1)); });
+                    var waitMs = delayMs * (attempt + 1);
+                    console.log('[Outiiil Diagnostic] Retrying in ' + waitMs + 'ms...');
+                    await new Promise(function (r) { setTimeout(r, waitMs); });
                 }
             }
         }
