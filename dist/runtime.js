@@ -149728,14 +149728,16 @@ Utils.register(class Ennemie extends Page {
     if ($j(".boite_connexion_titre:first").text() != "Connexion") {
         // Wait for dev mode info from bridge before proceeding
         const isDevMode = (await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false))) === true;
-        let versionRetenue = "1.0.0";
+        let versionRetenue = null;
 
         // runtime_init.js may have already set window.VERSION from the dynamic runtime
         // (RUNTIME_INFO / storage). That is the version actually loaded, which can be
         // newer than the installed extension manifest — preserve it.
         if (window.VERSION) {
             versionRetenue = window.VERSION;
+            console.log('[Outiiil Main] Version already set by runtime_init:', versionRetenue);
         } else if (isDevMode) {
+            console.log('[Outiiil Main] DEV_MODE: reading version from manifest.json');
             try {
                 const manifestURL = Utils.getExtensionURL('manifest.json');
                 const manifestResponse = await fetch(manifestURL);
@@ -149744,8 +149746,11 @@ Utils.register(class Ennemie extends Page {
                     window.manifest = manifest;
                     versionRetenue = manifest.version || versionRetenue;
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[Outiiil Main] manifest.json fetch failed:', e);
+            }
         } else {
+            console.log('[Outiiil Main] PROD_MODE: reading version from dist/version.json');
             try {
                 const distVersionURL = Utils.getExtensionURL('dist/version.json');
                 const distVersionResponse = await fetch(distVersionURL);
@@ -149753,9 +149758,33 @@ Utils.register(class Ennemie extends Page {
                     const distVersionData = await distVersionResponse.json();
                     versionRetenue = distVersionData.version || versionRetenue;
                 }
-            } catch (e) { }
+            } catch (e) {
+                console.warn('[Outiiil Main] dist/version.json fetch failed:', e);
+            }
+            // Fallback: dist/version.json may be missing locally (cleaned after release)
+            // or unreachable if the service worker is not ready. Always fall back to
+            // the installed extension manifest version, which is always available.
+            if (!versionRetenue) {
+                console.log('[Outiiil Main] dist/version.json unavailable, falling back to manifest.json');
+                try {
+                    const manifestURL = Utils.getExtensionURL('manifest.json');
+                    const manifestResponse = await fetch(manifestURL);
+                    if (manifestResponse.ok) {
+                        const manifest = await manifestResponse.json();
+                        window.manifest = manifest;
+                        versionRetenue = manifest.version || versionRetenue;
+                    }
+                } catch (e) {
+                    console.warn('[Outiiil Main] manifest.json fallback fetch failed:', e);
+                }
+            }
+        }
+        if (!versionRetenue) {
+            console.error('[Outiiil Main] No version could be determined, defaulting to 1.0.0');
+            versionRetenue = "1.0.0";
         }
         window.VERSION = versionRetenue;
+        console.log('[Outiiil Main] Final version:', window.VERSION, 'isDevMode=' + isDevMode);
 
         // Modification du theme jquery humanity
         $j("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
