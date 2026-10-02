@@ -189,7 +189,7 @@ async function dispatchChromeApiCall(path, args, sender) {
 // receives path 'runtime.sendMessage'. Instead of calling chrome.runtime.sendMessage
 // (which would broadcast to other extension components), we handle the message directly.
 
-function handleRuntimeMessage(message, sender) {
+async function handleRuntimeMessage(message, sender) {
     if (!message || typeof message !== 'object') {
         return { ok: false, error: 'Invalid message format' };
     }
