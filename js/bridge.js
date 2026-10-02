@@ -92,13 +92,29 @@
 
             if (!response) {
                 console.warn('[Outiiil Bridge] RPC forward to background returned no response for',
-                    data.path, 'id=' + data.id);
+                    data.path, 'id=' + data.id,
+                    'lastError=' + JSON.stringify(chrome.runtime.lastError));
                 window.postMessage({
                     type: RESPONSE_TYPE,
                     target: OUTIIIL_TARGET,
                     id: data.id,
                     ok: false,
                     error: 'RPC error: no response from background'
+                }, ORIGIN);
+                return;
+            }
+
+            if (response.ok === undefined) {
+                console.warn('[Outiiil Bridge] RPC response from background is malformed (missing ok) for',
+                    data.path, 'id=' + data.id,
+                    'response=' + JSON.stringify(response) +
+                    ' lastError=' + JSON.stringify(chrome.runtime.lastError));
+                window.postMessage({
+                    type: RESPONSE_TYPE,
+                    target: OUTIIIL_TARGET,
+                    id: data.id,
+                    ok: false,
+                    error: 'RPC error: malformed response from background'
                 }, ORIGIN);
                 return;
             }

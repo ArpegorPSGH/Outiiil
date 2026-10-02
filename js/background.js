@@ -241,6 +241,8 @@ function handleRuntimeMessage(message, sender) {
 
 // --- Message Listener ---
 
+console.log('[Outiiil Background] Service worker active, listener registered. DEV_MODE=' + DEV_MODE);
+
 chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (!message || !message.type) return false;
 
@@ -248,12 +250,18 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         console.log('[Outiiil Background] CHROME_API_CALL received:', message.path,
             'requestId=' + message.requestId,
             'senderTab=' + (sender && sender.tab ? sender.tab.id : 'none'));
-        dispatchChromeApiCall(message.path, message.args, sender).then(response => {
+        try {
+            var response = await dispatchChromeApiCall(message.path, message.args, sender);
+            if (!response) {
+                console.error('[Outiiil Background] CHROME_API_CALL returned no response for', message.path,
+                    'requestId=' + message.requestId);
+                response = { ok: false, error: 'No response from dispatchChromeApiCall' };
+            }
             console.log('[Outiiil Background] CHROME_API_CALL response for', message.path,
                 'requestId=' + message.requestId, 'ok=' + response.ok,
                 'error=' + (response.ok ? undefined : response.error));
             sendResponse({ requestId: message.requestId, ...response });
-        }).catch(error => {
+        } catch (error) {
             console.error('[Outiiil Background] CHROME_API_CALL threw for', message.path,
                 'requestId=' + message.requestId, error);
             sendResponse({
@@ -261,7 +269,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                 ok: false,
                 error: error.message || String(error)
             });
-        });
+        }
         return true;
     }
 
