@@ -66,8 +66,14 @@
                 console.log('[Outiiil browserAPI] RPC success:', data.path);
                 p.resolve(data.result);
             } else {
-                console.warn('[Outiiil browserAPI] RPC error:', data.path, data.error);
-                p.reject(new Error(data.error || 'RPC error: ' + data.path));
+                console.warn('[Outiiil browserAPI] RPC error:', data.path, data.error,
+                    'full response=' + JSON.stringify(data));
+                var errMsg = data.error || ('RPC error: ' + data.path);
+                var errObj = new Error(errMsg);
+                try {
+                    errObj.rawResponse = data;
+                } catch (e) { }
+                p.reject(errObj);
             }
         }
 

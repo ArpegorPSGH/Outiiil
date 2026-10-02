@@ -72,24 +72,42 @@
             path: data.path,
             args: data.args
         }, function (response) {
-            if (chrome.runtime.lastError) {
+            var lastErr = chrome.runtime.lastError;
+            if (lastErr) {
                 console.warn('[Outiiil Bridge] RPC forward to background FAILED for',
                     data.path, 'id=' + data.id,
-                    'lastError:', chrome.runtime.lastError.message,
-                    'response:', response);
+                    'lastError keys=' + Object.keys(lastErr).join(',') +
+                    ' lastError=' + JSON.stringify(lastErr) +
+                    ' response=' + JSON.stringify(response));
+                var errMsg = lastErr.message || JSON.stringify(lastErr) || 'RPC error (no details)';
                 window.postMessage({
                     type: RESPONSE_TYPE,
                     target: OUTIIIL_TARGET,
                     id: data.id,
                     ok: false,
-                    error: chrome.runtime.lastError.message
+                    error: errMsg
                 }, ORIGIN);
                 return;
             }
 
+            if (!response) {
+                console.warn('[Outiiil Bridge] RPC forward to background returned no response for',
+                    data.path, 'id=' + data.id);
+                window.postMessage({
+                    type: RESPONSE_TYPE,
+                    target: OUTIIIL_TARGET,
+                    id: data.id,
+                    ok: false,
+                    error: 'RPC error: no response from background'
+                }, ORIGIN);
+                return;
+            }
+
+            var respErr = response && !response.ok ? response.error : undefined;
             console.log('[Outiiil Bridge] RPC response from background for',
                 data.path, 'id=' + data.id, 'ok=' + response.ok,
-                'error=' + (response.ok ? undefined : response.error));
+                'error=' + respErr,
+                'response=' + JSON.stringify(response));
             window.postMessage({
                 type: RESPONSE_TYPE,
                 target: OUTIIIL_TARGET,
@@ -97,7 +115,7 @@
                 path: data.path,
                 ok: response.ok,
                 result: response.ok ? response.result : undefined,
-                error: response.ok ? undefined : response.error
+                error: response.ok ? undefined : respErr
             }, ORIGIN);
         });
     });

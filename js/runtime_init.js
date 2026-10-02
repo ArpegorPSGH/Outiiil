@@ -82,6 +82,12 @@
                 ' message=' + (e && e.message) +
                 ' bridgeReady=' + (window.browserAPI ? 'defined' : 'undefined') +
                 ' storage.local=' + (window.browserAPI && window.browserAPI.storage ? 'defined' : 'undefined'));
+            try {
+                console.warn('[Outiiil] applyImagesFromCache error object dump:',
+                    JSON.stringify(e, Object.getOwnPropertyNames(e || {})));
+            } catch (dumpErr) {
+                console.warn('[Outiiil] applyImagesFromCache error dump failed:', dumpErr);
+            }
         }
     }
 
