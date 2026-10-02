@@ -364,139 +364,159 @@ async function registerDevRuntime(forceReRegister) {
     return { ok: true, version: manifestVersion, dev: true };
 }
 
-// PROD_MODE: Check version.json, download runtime, verify hash, register
-async function checkAndDownloadRuntime() {
-    const storedVersion = await getStorage(STORAGE_KEY_VERSION) || '0.0.0';
+async function fetchWithDiag(url, label) {
+        try {
+            console.log('[Outiiil Background] ' + label + ' fetching: ' + url);
+            const res = await fetch(url, { cache: 'no-store' });
+            console.log('[Outiiil Background] ' + label + ' status=' + res.status + ' ok=' + res.ok);
+            return res;
+        } catch (e) {
+            console.error('[Outiiil Background] ' + label + ' fetch FAILED: ' + e.message +
+                ' name=' + (e && e.name) + ' url=' + url);
+            throw e;
+        }
+    }
 
-    try {
-        const versionRes = await fetch(VERSION_URL + '?_t=' + Date.now(), { cache: 'no-store' });
-        if (!versionRes.ok) {
-            console.log('[Outiiil Background] Remote version check failed:', versionRes.status);
+    // PROD_MODE: Check version.json, download runtime, verify hash, register
+    async function checkAndDownloadRuntime() {
+        const storedVersion = await getStorage(STORAGE_KEY_VERSION) || '0.0.0';
+        console.log('[Outiiil Background] checkAndDownloadRuntime: storedVersion=' + storedVersion +
+            ' VERSION_URL=' + VERSION_URL);
+
+        try {
+            const versionRes = await fetchWithDiag(VERSION_URL + '?_t=' + Date.now(), 'version.json');
+            if (!versionRes.ok) {
+                console.log('[Outiiil Background] Remote version check failed:', versionRes.status, versionRes.statusText);
+                const storedCode = await getStorage(STORAGE_KEY_CODE);
+                const storedCss = await getStorage(STORAGE_KEY_CSS);
+                if (storedCode) {
+                    await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
+                    return { ok: true, version: storedVersion, dev: false, fromCache: true };
+                }
+                return { ok: false, error: 'No remote access and no cached runtime' };
+            }
+
+            const remoteInfo = await versionRes.json();
+            const remoteVersion = remoteInfo.version;
+            console.log('[Outiiil Background] Remote version.json parsed:', JSON.stringify(remoteInfo));
+
+            if (compareVersions(remoteVersion, storedVersion) <= 0) {
+                if (!userScriptRegistered) {
+                    const storedCode = await getStorage(STORAGE_KEY_CODE);
+                    const storedCss = await getStorage(STORAGE_KEY_CSS);
+                    if (storedCode) {
+                        await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
+                    }
+                }
+                return { ok: true, version: storedVersion, dev: false, upToDate: true };
+            }
+
+            console.log('[Outiiil Background] New runtime available: v' + remoteVersion + ' (current: v' + storedVersion + ')');
+            const runtimeFile = remoteInfo.runtime || 'runtime.js';
+            const cssFile = remoteInfo.css || 'runtime.css';
+            const imageFiles = Array.isArray(remoteInfo.images) ? remoteInfo.images : [];
+
+            const fetchPromises = [
+                fetchWithDiag(BASE_UPDATE_URL + runtimeFile + '?_t=' + Date.now(), 'runtime.js'),
+                fetchWithDiag(BASE_UPDATE_URL + cssFile + '?_t=' + Date.now(), 'runtime.css'),
+                ...imageFiles.map((path, i) => fetchWithDiag(BASE_UPDATE_URL + path + '?_t=' + Date.now(), 'image[' + i + '] ' + path))
+            ];
+
+            console.log('[Outiiil Background] Fetching ' + fetchPromises.length + ' remote files...');
+            const responses = await Promise.all(fetchPromises);
+            const [runtimeRes, cssRes, ...imageResponses] = responses;
+
+            if (!runtimeRes.ok) {
+                throw new Error('Failed to download runtime.js: ' + runtimeRes.status);
+            }
+
+            const runtimeBuffer = await runtimeRes.arrayBuffer();
+            const runtimeCode = new TextDecoder().decode(runtimeBuffer);
+            let cssBuffer = new ArrayBuffer(0);
+            let cssCode = '';
+            if (cssRes.ok) {
+                cssBuffer = await cssRes.arrayBuffer();
+                cssCode = new TextDecoder().decode(cssBuffer);
+            }
+
+            // Rebuild the dist hash from remote files in a stable order
+            const remoteBlobs = new Map();
+            remoteBlobs.set(runtimeFile, new Uint8Array(runtimeBuffer));
+            if (cssRes.ok) remoteBlobs.set(cssFile, new Uint8Array(cssBuffer));
+            for (let i = 0; i < imageFiles.length; i++) {
+                const path = imageFiles[i];
+                const res = imageResponses[i];
+                if (res.ok) remoteBlobs.set(path, new Uint8Array(await res.arrayBuffer()));
+            }
+
+            const sortedEntries = Array.from(remoteBlobs.keys()).sort();
+            console.log('[Outiiil Background] Remote dist files for hash (' + sortedEntries.length + '):');
+            for (const relPath of sortedEntries) {
+                console.log('  - ' + relPath + ' (' + remoteBlobs.get(relPath).length + ' bytes)');
+            }
+
+            let combinedLength = 0;
+            for (const relPath of sortedEntries) {
+                const blob = remoteBlobs.get(relPath);
+                combinedLength += new TextEncoder().encode(`dist/${relPath}\n`).length + blob.length;
+            }
+            const combined = new Uint8Array(combinedLength);
+            let offset = 0;
+            for (const relPath of sortedEntries) {
+                const blob = remoteBlobs.get(relPath);
+                const prefix = new TextEncoder().encode(`dist/${relPath}\n`);
+                combined.set(prefix, offset);
+                offset += prefix.length;
+                combined.set(blob, offset);
+                offset += blob.length;
+            }
+            const computedHash = await sha256(combined);
+
+            // Verify SHA-256
+            if (remoteInfo.sha256) {
+                if (computedHash !== remoteInfo.sha256) {
+                    const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computedHash + ' (version=' + remoteVersion + ', bytes=' + combined.length + ')';
+                    console.warn('[Outiiil Background] ' + msg);
+                    const storedCode = await getStorage(STORAGE_KEY_CODE);
+                    const storedCss = await getStorage(STORAGE_KEY_CSS);
+                    if (storedCode) {
+                        console.warn('[Outiiil Background] Falling back to cached runtime because remote runtime looks inconsistent.');
+                        await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
+                        return { ok: true, version: storedVersion, dev: false, fromCache: true, fallback: msg };
+                    }
+                    throw new Error(msg);
+                }
+                console.log('[Outiiil Background] SHA-256 verified for v' + remoteVersion);
+            }
+
+            // Download images if listed
+            if (Array.isArray(remoteInfo.images) && remoteInfo.images.length > 0) {
+                await downloadImages(remoteInfo.images, remoteVersion);
+            }
+
+            // Persist code and version
+            await chrome.storage.local.set({
+                [STORAGE_KEY_CODE]: runtimeCode,
+                [STORAGE_KEY_CSS]: cssCode,
+                [STORAGE_KEY_VERSION]: remoteVersion
+            });
+
+            await registerOrUpdateUserScript(runtimeCode, cssCode, remoteVersion);
+            return { ok: true, version: remoteVersion, dev: false, updated: true };
+        } catch (error) {
+            console.error('[Outiiil Background] Remote update failed:', error);
+            console.error('[Outiiil Background] Remote update failed - name=' + (error && error.name) +
+                ' message=' + (error && error.message) +
+                ' stack=' + (error && error.stack));
             const storedCode = await getStorage(STORAGE_KEY_CODE);
             const storedCss = await getStorage(STORAGE_KEY_CSS);
             if (storedCode) {
                 await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
-                return { ok: true, version: storedVersion, dev: false, fromCache: true };
+                return { ok: true, version: storedVersion, dev: false, fromCache: true, fallback: error.message };
             }
-            return { ok: false, error: 'No remote access and no cached runtime' };
+            return { ok: false, error: error.message };
         }
-
-        const remoteInfo = await versionRes.json();
-        const remoteVersion = remoteInfo.version;
-
-        if (compareVersions(remoteVersion, storedVersion) <= 0) {
-            if (!userScriptRegistered) {
-                const storedCode = await getStorage(STORAGE_KEY_CODE);
-                const storedCss = await getStorage(STORAGE_KEY_CSS);
-                if (storedCode) {
-                    await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
-                }
-            }
-            return { ok: true, version: storedVersion, dev: false, upToDate: true };
-        }
-
-        console.log('[Outiiil Background] New runtime available: v' + remoteVersion + ' (current: v' + storedVersion + ')');
-        const runtimeFile = remoteInfo.runtime || 'runtime.js';
-        const cssFile = remoteInfo.css || 'runtime.css';
-        const imageFiles = Array.isArray(remoteInfo.images) ? remoteInfo.images : [];
-
-        const fetchPromises = [
-            fetch(BASE_UPDATE_URL + runtimeFile + '?_t=' + Date.now(), { cache: 'no-store' }),
-            fetch(BASE_UPDATE_URL + cssFile + '?_t=' + Date.now(), { cache: 'no-store' }),
-            ...imageFiles.map(path => fetch(BASE_UPDATE_URL + path + '?_t=' + Date.now(), { cache: 'no-store' }))
-        ];
-
-        const responses = await Promise.all(fetchPromises);
-        const [runtimeRes, cssRes, ...imageResponses] = responses;
-
-        if (!runtimeRes.ok) {
-            throw new Error('Failed to download runtime.js: ' + runtimeRes.status);
-        }
-
-        const runtimeBuffer = await runtimeRes.arrayBuffer();
-        const runtimeCode = new TextDecoder().decode(runtimeBuffer);
-        let cssBuffer = new ArrayBuffer(0);
-        let cssCode = '';
-        if (cssRes.ok) {
-            cssBuffer = await cssRes.arrayBuffer();
-            cssCode = new TextDecoder().decode(cssBuffer);
-        }
-
-        // Rebuild the dist hash from remote files in a stable order
-        const remoteBlobs = new Map();
-        remoteBlobs.set(runtimeFile, new Uint8Array(runtimeBuffer));
-        if (cssRes.ok) remoteBlobs.set(cssFile, new Uint8Array(cssBuffer));
-        for (let i = 0; i < imageFiles.length; i++) {
-            const path = imageFiles[i];
-            const res = imageResponses[i];
-            if (res.ok) remoteBlobs.set(path, new Uint8Array(await res.arrayBuffer()));
-        }
-
-        const sortedEntries = Array.from(remoteBlobs.keys()).sort();
-        console.log('[Outiiil Background] Remote dist files for hash (' + sortedEntries.length + '):');
-        for (const relPath of sortedEntries) {
-            console.log('  - ' + relPath + ' (' + remoteBlobs.get(relPath).length + ' bytes)');
-        }
-
-        let combinedLength = 0;
-        for (const relPath of sortedEntries) {
-            const blob = remoteBlobs.get(relPath);
-            combinedLength += new TextEncoder().encode(`dist/${relPath}\n`).length + blob.length;
-        }
-        const combined = new Uint8Array(combinedLength);
-        let offset = 0;
-        for (const relPath of sortedEntries) {
-            const blob = remoteBlobs.get(relPath);
-            const prefix = new TextEncoder().encode(`dist/${relPath}\n`);
-            combined.set(prefix, offset);
-            offset += prefix.length;
-            combined.set(blob, offset);
-            offset += blob.length;
-        }
-        const computedHash = await sha256(combined);
-
-        // Verify SHA-256
-        if (remoteInfo.sha256) {
-            if (computedHash !== remoteInfo.sha256) {
-                const msg = 'SHA-256 verification failed: expected ' + remoteInfo.sha256 + ', got ' + computedHash + ' (version=' + remoteVersion + ', bytes=' + combined.length + ')';
-                console.warn('[Outiiil Background] ' + msg);
-                const storedCode = await getStorage(STORAGE_KEY_CODE);
-                const storedCss = await getStorage(STORAGE_KEY_CSS);
-                if (storedCode) {
-                    console.warn('[Outiiil Background] Falling back to cached runtime because remote runtime looks inconsistent.');
-                    await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
-                    return { ok: true, version: storedVersion, dev: false, fromCache: true, fallback: msg };
-                }
-                throw new Error(msg);
-            }
-            console.log('[Outiiil Background] SHA-256 verified for v' + remoteVersion);
-        }
-
-        // Download images if listed
-        if (Array.isArray(remoteInfo.images) && remoteInfo.images.length > 0) {
-            await downloadImages(remoteInfo.images, remoteVersion);
-        }
-
-        // Persist code and version
-        await chrome.storage.local.set({
-            [STORAGE_KEY_CODE]: runtimeCode,
-            [STORAGE_KEY_CSS]: cssCode,
-            [STORAGE_KEY_VERSION]: remoteVersion
-        });
-
-        await registerOrUpdateUserScript(runtimeCode, cssCode, remoteVersion);
-        return { ok: true, version: remoteVersion, dev: false, updated: true };
-    } catch (error) {
-        console.error('[Outiiil Background] Remote update failed:', error);
-        const storedCode = await getStorage(STORAGE_KEY_CODE);
-        const storedCss = await getStorage(STORAGE_KEY_CSS);
-        if (storedCode) {
-            await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
-            return { ok: true, version: storedVersion, dev: false, fromCache: true, fallback: error.message };
-        }
-        return { ok: false, error: error.message };
     }
-}
 
 async function requestUserScriptsPermission() {
     if (chrome.userScripts) return true;
