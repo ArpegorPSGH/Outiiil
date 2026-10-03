@@ -104,7 +104,27 @@
         // Load cached images
         await applyImagesFromCache();
 
-        // Try to get version info from background
+        // Trigger an update check first so the service worker is woken up and the
+        // freshly cached version is available. Then read RUNTIME_INFO to get the
+        // version actually loaded (which may be newer than the manifest).
+        try {
+            var updateResult = await rpcWithRetry(function () {
+                return window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
+            }, 3, 1000);
+            console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
+            if (updateResult && updateResult.result && updateResult.result.updated) {
+                await attendreFinMiseAJour(updateResult.result.version);
+            }
+            // If CHECK_UPDATE returned a fresh version, prefer it.
+            if (updateResult && updateResult.result && updateResult.result.version) {
+                window.VERSION = updateResult.result.version;
+                console.log('[Outiiil Runtime] Version from CHECK_UPDATE: ' + window.VERSION);
+            }
+        } catch (e) {
+            console.warn('[Outiiil Runtime] CHECK_UPDATE failed:', e);
+        }
+
+        // Try to get version info from background (RUNTIME_INFO reads the cached version)
         try {
             var info = await rpcWithRetry(function () {
                 return window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
@@ -128,27 +148,6 @@
             } catch (e2) {
                 // Ignore - main.js handles version detection
             }
-        }
-
-        // Trigger an update check so the runtime version stays fresh.
-        // If a new version is downloaded, show an "update in progress" banner and
-        // wait for completion (polling storage) before continuing.
-        try {
-            var updateResult = await rpcWithRetry(function () {
-                return window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
-            }, 3, 1000);
-            console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
-            if (updateResult && updateResult.result && updateResult.result.updated) {
-                await attendreFinMiseAJour(updateResult.result.version);
-            }
-            // If CHECK_UPDATE returned a fresh version (or the runtime was just
-            // updated), prefer it over whatever was read earlier.
-            if (!window.VERSION && updateResult && updateResult.result && updateResult.result.version) {
-                window.VERSION = updateResult.result.version;
-                console.log('[Outiiil Runtime] Version from CHECK_UPDATE: ' + window.VERSION);
-            }
-        } catch (e) {
-            console.warn('[Outiiil Runtime] CHECK_UPDATE failed:', e);
         }
     }
 

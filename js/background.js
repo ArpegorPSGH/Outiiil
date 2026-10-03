@@ -195,12 +195,15 @@ async function handleRuntimeMessage(message, sender) {
     }
 
     switch (message.type) {
-        case 'RUNTIME_INFO':
+case 'RUNTIME_INFO':
             // Return the version of the runtime actually registered (from storage),
             // not the manifest version: the dynamic runtime can be newer than the
-            // installed extension, and window.VERSION must reflect what is loaded.
-            const storedRuntimeVersion = getStorage(STORAGE_KEY_VERSION);
-            return Promise.resolve(storedRuntimeVersion).then((storedVersion) => {
+            // installed extension, and consumers must see what is really loaded.
+            console.log('[Outiiil Background] RUNTIME_INFO requested');
+            try {
+                const storedVersion = await getStorage(STORAGE_KEY_VERSION);
+                console.log('[Outiiil Background] RUNTIME_INFO response: storedVersion=' + storedVersion +
+                    ' manifestVersion=' + chrome.runtime.getManifest().version);
                 return {
                     ok: true,
                     result: {
@@ -210,7 +213,10 @@ async function handleRuntimeMessage(message, sender) {
                         baseUrl: chrome.runtime.getURL('')
                     }
                 };
-            });
+            } catch (e) {
+                console.error('[Outiiil Background] RUNTIME_INFO failed:', e);
+                return { ok: false, error: e.message || String(e) };
+            }
 
         case 'CHECK_UPDATE':
             // Await the full update cycle before responding so the runtime can
@@ -285,9 +291,28 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
 
     if (message.type === 'CHECK_UPDATE') {
-        checkAndRegisterRuntime().then(result => {
-            sendResponse({ type: 'UPDATE_RESULT', ...result });
-        });
+        // Await the full update cycle before responding so the runtime can
+        // read the freshly cached version from storage in the same turn.
+        // If the service worker is busy (registrationLock), return the
+        // current cached version immediately instead of queuing.
+        (async function () {
+            try {
+                var result = await checkAndRegisterRuntime();
+                console.log('[Outiiil Background] CHECK_UPDATE result:', JSON.stringify(result));
+                var updatedVersion = (result && result.ok && result.updated)
+                    ? result.version
+                    : (await getStorage(STORAGE_KEY_VERSION)) || chrome.runtime.getManifest().version;
+                sendResponse({
+                    type: 'UPDATE_RESULT',
+                    ok: true,
+                    updated: !!(result && result.updated),
+                    version: updatedVersion
+                });
+            } catch (e) {
+                console.error('[Outiiil Background] CHECK_UPDATE failed:', e);
+                sendResponse({ type: 'UPDATE_RESULT', ok: false, error: e.message || String(e) });
+            }
+        })();
         return true;
     }
 
@@ -317,23 +342,24 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 // --- Update Coordinator ---
 
 async function checkAndRegisterRuntime(forceReRegister = false) {
-    if (registrationLock) {
-        console.log('[Outiiil Background] Registration already in progress, skipping');
-        return { ok: false, error: 'Registration in progress' };
-    }
-    registrationLock = true;
-    try {
-        if (DEV_MODE) {
-            return await registerDevRuntime(forceReRegister);
+        if (registrationLock) {
+            console.log('[Outiiil Background] Registration already in progress, returning cached version');
+            const cachedVersion = await getStorage(STORAGE_KEY_VERSION);
+            return { ok: true, version: cachedVersion || chrome.runtime.getManifest().version, fromCache: true, busy: true };
         }
-        return await checkAndDownloadRuntime();
-    } catch (error) {
-        console.error('[Outiiil Background] Update error:', error);
-        return { ok: false, error: error.message };
-    } finally {
-        registrationLock = false;
+        registrationLock = true;
+        try {
+            if (DEV_MODE) {
+                return await registerDevRuntime(forceReRegister);
+            }
+            return await checkAndDownloadRuntime();
+        } catch (error) {
+            console.error('[Outiiil Background] Update error:', error);
+            return { ok: false, error: error.message };
+        } finally {
+            registrationLock = false;
+        }
     }
-}
 
 // DEV_MODE: Register each source file individually via userScripts.register() `file:` entries
 // so the service worker can re-resolve them on extension reload.
