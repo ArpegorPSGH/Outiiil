@@ -56,6 +56,13 @@ def build_dist():
     js_runtime_path = os.path.join(DIST_DIR, "runtime.js")
     print(f"[Outiiil Builder] Concaténation de {len(js_files)} fichiers JS → runtime.js...")
     with open(js_runtime_path, "w", encoding="utf-8", newline="\n") as out_js:
+        # Bake the runtime version into the bundle so the running page can tell
+        # which version of ITSELF is executing. This is used by runtime_init.js to
+        # detect that a newer/other runtime was cached by the background and reload
+        # the page. (Compared against the *available* version, never the manifest
+        # version, to avoid an infinite reload loop.)
+        out_js.write(f"// Outiiil built runtime version: {version}\n")
+        out_js.write(f"window.__OUTIIIL_RUNTIME_VERSION = {json.dumps(version)};\n\n")
         for rel_path in js_files:
             abs_path = os.path.join(BASE_DIR, rel_path)
             if os.path.exists(abs_path):

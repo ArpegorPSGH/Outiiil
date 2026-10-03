@@ -17,7 +17,19 @@
     const RESPONSE_TYPE = 'OUTIIIL_RPC_RESPONSE';
     const EVENT_TYPE = 'OUTIIIL_RPC_EVENT';
     const BRIDGE_READY_TYPE = 'OUTIIIL_BRIDGE_READY';
+    const TOAST_CONFIG_TYPE = 'OUTIIIL_TOAST_CONFIG';
+    const UPDATE_STATUS_ACTION = 'OUTIIIL_UPDATE_STATUS';
+    const RELOAD_TYPE = 'OUTIIIL_RELOAD';
     const ORIGIN = '*';
+
+    // Toast configuration pushed by the MAIN-world runtime on startup.
+    // null = use built-in fallbacks inside getToastConfig().
+    let toastConfig = null;
+
+    // Guards against scheduling the page reload more than once per update cycle.
+    // Both the background 'success' push and the runtime's reload request can ask
+    // for a reload; only the first actually schedules it.
+    let reloadScheduled = false;
 
     // Set the extension base URL (used by Utils.getExtensionURL fallback)
     const extensionBaseUrl = chrome.runtime.getURL('');
@@ -61,6 +73,23 @@
         var data = event.data;
         if (!data || typeof data !== 'object') return;
         if (data.target !== OUTIIIL_TARGET) return;
+
+        // Runtime pushes its toast configuration to the bridge
+        if (data.type === TOAST_CONFIG_TYPE) {
+            toastConfig = (data.config && typeof data.config === 'object') ? data.config : null;
+            console.log('[Outiiil Bridge] Toast config received from runtime');
+            return;
+        }
+
+        // Runtime asks the bridge to show the toast and reload (this running
+        // runtime's version differs from the available one). The bridge owns the
+        // toast DOM and the page reload.
+        if (data.type === RELOAD_TYPE) {
+            console.log('[Outiiil Bridge] Reload requested by runtime, version=' + data.version);
+            showToast('success', data.version, null);
+            return;
+        }
+
         if (data.type !== REQUEST_TYPE) return;
 
         console.log('[Outiiil Bridge] RPC request received:', data.path, 'id=' + data.id);
@@ -136,12 +165,155 @@
         });
     });
 
+    // --- Update Status Toast (background -> bridge) ---
+    // The background service worker pushes update status to every content-script
+    // bridge via chrome.tabs.sendMessage. The bridge owns the toast DOM and the
+    // page reload, so it works even before the MAIN-world runtime is ready.
+
+    function getToastConfig() {
+        return (toastConfig && typeof toastConfig === 'object') ? toastConfig : {};
+    }
+
+    function applyStyle(el, props) {
+        for (var key in props) {
+            el.style[key] = props[key];
+        }
+    }
+
+    function showToast(status, version, error) {
+        if (!status) return;
+        var cfg = getToastConfig();
+        var pos = cfg.position || 'top-right';
+
+        // Remove any previous update toast
+        var existing = document.getElementById('outiiil-update-toast');
+        if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+
+        var toast = document.createElement('div');
+        toast.id = 'outiiil-update-toast';
+
+        var fixed = {
+            position: 'fixed',
+            zIndex: String(cfg.zIndex || 2147483646),
+            maxWidth: cfg.maxWidth || '360px',
+            minWidth: cfg.minWidth || '240px',
+            padding: '12px 14px',
+            borderRadius: (cfg.radius !== undefined) ? cfg.radius : '10px',
+            boxShadow: (cfg.shadow !== undefined) ? cfg.shadow : '0 8px 24px rgba(0,0,0,0.28)',
+            background: cfg.background || 'rgba(255,255,255,0.95)',
+            color: cfg.textColor || '#111111',
+            fontFamily: '-apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+            fontSize: '13px',
+            lineHeight: '1.4',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            opacity: '0',
+            transition: 'opacity 180ms ease'
+        };
+
+        var p;
+        switch (pos) {
+            case 'top-left': p = { top: '16px', left: '16px' }; break;
+            case 'top-center': p = { top: '16px', left: '50%', transform: 'translateX(-50%)' }; break;
+            case 'bottom-left': p = { bottom: '16px', left: '16px' }; break;
+            case 'bottom-center': p = { bottom: '16px', left: '50%', transform: 'translateX(-50%)' }; break;
+            case 'bottom-right': p = { bottom: '16px', right: '16px' }; break;
+            default: p = { top: '16px', right: '16px' }; break;
+        }
+        for (var pk in p) fixed[pk] = p[pk];
+        applyStyle(toast, fixed);
+        document.documentElement.appendChild(toast);
+        requestAnimationFrame(function () { toast.style.opacity = '1'; });
+
+        function setKind(kind) {
+            while (toast.firstChild) toast.removeChild(toast.firstChild);
+
+            var icon, text, color;
+            if (kind === 'success') {
+                icon = cfg.iconSuccess || '✅';
+                text = (cfg.successText || 'Mise à jour v{version} terminée').replace('{version}', version || '');
+                color = cfg.successColor || '#16a34a';
+            } else if (kind === 'reloading') {
+                icon = cfg.iconInProgress || '⏳';
+                text = cfg.reloadingText || 'Rechargement en cours...';
+                color = cfg.reloadingTextColor || '#8a6d1a';
+                toast.style.background = cfg.reloadingBackground || 'rgba(255,247,214,0.97)';
+            } else if (kind === 'error') {
+                icon = cfg.iconError || '⚠️';
+                text = (cfg.errorText || 'Mise à jour échouée : {error}').replace('{error}', error || 'erreur inconnue');
+                color = cfg.errorColor || '#dc2626';
+            } else { // in_progress (default)
+                icon = cfg.iconInProgress || '⏳';
+                text = cfg.inProgressText || 'Mise à jour en cours...';
+                color = cfg.textColor || '#111111';
+            }
+
+            var iconEl = document.createElement('span');
+            iconEl.textContent = icon;
+            iconEl.style.cssText = 'flex:0 0 auto;font-size:18px;line-height:1;';
+
+            var textEl = document.createElement('span');
+            textEl.textContent = text;
+            textEl.style.cssText = 'flex:1 1 auto;';
+            if (color) textEl.style.color = color;
+
+            toast.appendChild(iconEl);
+            toast.appendChild(textEl);
+
+            if (kind === 'error' && cfg.cancelable) {
+                var btn = document.createElement('button');
+                btn.textContent = 'Réessayer';
+                btn.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
+                btn.addEventListener('click', function () {
+                    toast.style.opacity = '0';
+                    chrome.runtime.sendMessage({ type: 'CHECK_UPDATE' }, function () { });
+                });
+                toast.appendChild(btn);
+            }
+        }
+
+        setKind(status);
+
+        // A fresh download cycle resets the reload guard so a later success can
+        // schedule its own reload.
+        if (status === 'in_progress') {
+            reloadScheduled = false;
+        }
+
+        // On success: after a short delay, switch to the "reloading" state and
+        // reload. Guarded so the background push and the runtime's reload request
+        // do not schedule the reload twice.
+        if (status === 'success' && !reloadScheduled) {
+            reloadScheduled = true;
+            var delay = Number(cfg.delayBeforeReload);
+            if (!isFinite(delay) || delay < 400) delay = 2000;
+            setTimeout(function () {
+                var el = document.getElementById('outiiil-update-toast');
+                if (el) {
+                    setKind('reloading');
+                    setTimeout(function () { window.location.reload(); }, 800);
+                } else {
+                    window.location.reload();
+                }
+            }, delay);
+        }
+    }
+
     // --- Event Forwarding (background -> bridge -> runtime) ---
     // The background uses chrome.tabs.sendMessage to forward events to the tab,
     // which arrives here via chrome.runtime.onMessage.
 
     chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-        if (!message || !message.target) return false;
+        if (!message) return false;
+
+        // Update status pushed by the background service worker
+        if (message.action === UPDATE_STATUS_ACTION) {
+            showToast(message.status, message.version, message.error);
+            return false;
+        }
+
+        if (!message.target) return false;
         if (message.target !== OUTIIIL_TARGET) return false;
 
         if (message.type === EVENT_TYPE) {

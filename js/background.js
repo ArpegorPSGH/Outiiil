@@ -229,12 +229,16 @@ case 'RUNTIME_INFO':
                 const updatedVersion = (result && result.ok && result.updated)
                     ? result.version
                     : (await getStorage(STORAGE_KEY_VERSION)) || chrome.runtime.getManifest().version;
+                console.log('[Outiiil Background] CHECK_UPDATE response: version=' + updatedVersion +
+                    ' manifestVersion=' + chrome.runtime.getManifest().version +
+                    ' updated=' + !!(result && result.updated));
                 return {
                     ok: true,
                     result: {
                         checking: false,
                         updated: !!(result && result.updated),
-                        version: updatedVersion
+                        version: updatedVersion,
+                        manifestVersion: chrome.runtime.getManifest().version
                     }
                 };
             } catch (e) {
@@ -342,6 +346,8 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 // --- Update Coordinator ---
 
 async function checkAndRegisterRuntime(forceReRegister = false) {
+        console.log('[Outiiil Background] checkAndRegisterRuntime called, forceReRegister=' + forceReRegister +
+            ' registrationLock=' + registrationLock);
         if (registrationLock) {
             console.log('[Outiiil Background] Registration already in progress, returning cached version');
             const cachedVersion = await getStorage(STORAGE_KEY_VERSION);
@@ -350,14 +356,17 @@ async function checkAndRegisterRuntime(forceReRegister = false) {
         registrationLock = true;
         try {
             if (DEV_MODE) {
+                console.log('[Outiiil Background] DEV_MODE: registering dev runtime');
                 return await registerDevRuntime(forceReRegister);
             }
+            console.log('[Outiiil Background] PROD_MODE: checking and downloading runtime');
             return await checkAndDownloadRuntime();
         } catch (error) {
             console.error('[Outiiil Background] Update error:', error);
             return { ok: false, error: error.message };
         } finally {
             registrationLock = false;
+            console.log('[Outiiil Background] registrationLock released');
         }
     }
 
@@ -414,6 +423,26 @@ async function fetchWithDiag(url, label) {
         }
     }
 
+    // --- Tab notification (update status pushed to all content-script bridges) ---
+    async function notifyTabs(status, payload) {
+        if (!chrome.tabs || !chrome.tabs.query || !chrome.tabs.sendMessage) return;
+        const message = { action: 'OUTIIIL_UPDATE_STATUS', status: status };
+        if (payload && payload.version !== undefined) message.version = payload.version;
+        if (payload && payload.error !== undefined) message.error = payload.error;
+        try {
+            const tabs = await chrome.tabs.query({});
+            for (const tab of tabs) {
+                try {
+                    await chrome.tabs.sendMessage(tab.id, message);
+                } catch (e) {
+                    // Tab has no bridge (non-matched page) - ignore.
+                }
+            }
+        } catch (e) {
+            console.warn('[Outiiil Background] Failed to notify tabs:', e && e.message);
+        }
+    }
+
     // PROD_MODE: Check version.json, download runtime, verify hash, register
     async function checkAndDownloadRuntime() {
         const storedVersion = await getStorage(STORAGE_KEY_VERSION) || '0.0.0';
@@ -449,6 +478,7 @@ async function fetchWithDiag(url, label) {
             }
 
             console.log('[Outiiil Background] New runtime available: v' + remoteVersion + ' (current: v' + storedVersion + ')');
+            await notifyTabs('in_progress', { version: remoteVersion });
             const runtimeFile = remoteInfo.runtime || 'runtime.js';
             const cssFile = remoteInfo.css || 'runtime.css';
             const imageFiles = Array.isArray(remoteInfo.images) ? remoteInfo.images : [];
@@ -539,6 +569,7 @@ async function fetchWithDiag(url, label) {
             });
 
             await registerOrUpdateUserScript(runtimeCode, cssCode, remoteVersion);
+            await notifyTabs('success', { version: remoteVersion });
             return { ok: true, version: remoteVersion, dev: false, updated: true };
         } catch (error) {
             console.error('[Outiiil Background] Remote update failed:', error);
@@ -551,6 +582,7 @@ async function fetchWithDiag(url, label) {
                 await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
                 return { ok: true, version: storedVersion, dev: false, fromCache: true, fallback: error.message };
             }
+            await notifyTabs('error', { error: error && error.message ? error.message : 'Erreur inconnue' });
             return { ok: false, error: error.message };
         }
     }
