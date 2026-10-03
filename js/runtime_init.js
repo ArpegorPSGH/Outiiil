@@ -155,6 +155,45 @@
     }
 
     function afficherBanniereMiseAJour(message, type) {
+        console.log('[Outiiil Runtime] afficherBanniereMiseAJour: ' + message + ' (type=' + type + ')');
+        // Use jQuery toast if available for a more visible notification.
+        // jQuery may not be loaded yet at document_start, so retry a few times.
+        var attempts = 0;
+        function tryToast() {
+            if (typeof $ !== 'undefined' && typeof $.toast === 'function') {
+                $.toast({
+                    text: message,
+                    heading: type === 'done' ? 'Mise à jour terminée' :
+                            type === 'error' ? 'Mise à jour échouée' :
+                            'Mise à jour en cours',
+                    showHideTransition: 'slide',
+                    icon: type === 'done' ? 'success' :
+                           type === 'error' ? 'error' : 'info',
+                    position: 'top-right',
+                    loaderBg: type === 'error' ? '#c0392b' :
+                             type === 'done' ? '#27ae60' : '#f39c12',
+                    hideAfter: type === 'done' ? 8000 : 15000,
+                    stack: false
+                });
+                return true;
+            }
+            attempts++;
+            if (attempts < 10) {
+                setTimeout(tryToast, 200);
+                return true;
+            }
+            afficherBanniereFallback(message, type);
+            return false;
+        }
+        try {
+            tryToast();
+        } catch (e) {
+            console.warn('[Outiiil Runtime] afficherBanniereMiseAJour failed:', e);
+            afficherBanniereFallback(message, type);
+        }
+    }
+
+    function afficherBanniereFallback(message, type) {
         try {
             var existing = document.getElementById('o_outiiil_update_banner');
             if (existing) existing.remove();
@@ -165,7 +204,6 @@
                 ';color:#fff;text-align:center;padding:8px;font-family:sans-serif;font-size:14px;' +
                 'box-shadow:0 2px 6px rgba(0,0,0,0.3);';
             banner.textContent = message;
-            // At document_start, document.body may not exist yet; documentElement always does.
             var host = document.body || document.documentElement;
             host.appendChild(banner);
         } catch (e) {
@@ -174,14 +212,19 @@
     }
 
     async function attendreFinMiseAJour(targetVersion) {
+        console.log('[Outiiil Runtime] attendreFinMiseAJour: waiting for version ' + targetVersion);
         afficherBanniereMiseAJour('Mise à jour Outiiil en cours...', 'pending');
         var maxAttempts = 60; // up to ~60s
         var attempt = 0;
         while (attempt < maxAttempts) {
             attempt++;
             try {
+                console.log('[Outiiil Runtime] attendreFinMiseAJour: attempt ' + attempt + ', polling storage');
                 var stored = await window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                console.log('[Outiiil Runtime] attendreFinMiseAJour: stored version=' + stored[STORAGE_KEY_VERSION] +
+                    ' target=' + targetVersion);
                 if (stored[STORAGE_KEY_VERSION] === targetVersion) {
+                    console.log('[Outiiil Runtime] attendreFinMiseAJour: version matched, reloading page');
                     afficherBanniereMiseAJour('Mise à jour effectuée. Rechargement de la page...', 'done');
                     // Give the user a moment to see the message, then reload
                     await new Promise(function (resolve) { setTimeout(resolve, 1500); });
@@ -189,10 +232,12 @@
                     return;
                 }
             } catch (e) {
+                console.warn('[Outiiil Runtime] attendreFinMiseAJour: storage poll failed:', e);
                 // Ignore - retry on next attempt
             }
             await new Promise(function (resolve) { setTimeout(resolve, 1000); });
         }
+        console.warn('[Outiiil Runtime] attendreFinMiseAJour: timeout after ' + maxAttempts + ' attempts');
         afficherBanniereMiseAJour('Timeout de mise à jour. Veuillez recharger la page manuellement.', 'error');
     }
 
