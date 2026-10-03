@@ -1,3 +1,6 @@
+// Outiiil built runtime version: 3.22.22
+window.__OUTIIIL_RUNTIME_VERSION = "3.22.22";
+
 // Source: js/browserAPI.js
 /*
  * browserAPI.js
@@ -241,6 +244,46 @@
     const STORAGE_KEY_VERSION = 'outiiil_runtime_version';
     const STORAGE_KEY_BROWSER_API = 'outiiil_browser_api_code';
 
+    // The update toast is owned by the bridge (isolated world). The runtime only
+    // ships this configuration so the toast matches the product's look & wording.
+    // The bridge applies a built-in fallback for any field left undefined.
+    const TOAST_CONFIG = {
+        title: 'Outiiil',
+        inProgressText: 'Mise à jour Outiiil en cours...',
+        successText: 'Mise à jour v{version} terminée.',
+        errorText: 'Mise à jour échouée : {error}',
+        reloadingText: 'Rechargement de la page...',
+        position: 'top-right',
+        zIndex: 2147483646,
+        maxWidth: '360px',
+        minWidth: '240px',
+        delayBeforeReload: 2500,
+        cancelable: true,
+        textColor: '#111111',
+        radius: '10px',
+        shadow: '0 8px 24px rgba(0,0,0,0.28)',
+        background: 'rgba(255,255,255,0.95)',
+        iconInProgress: '⏳',
+        iconSuccess: '✅',
+        iconError: '⚠️',
+        successColor: '#16a34a',
+        errorColor: '#dc2626',
+        reloadingTextColor: '#8a6d1a',
+        reloadingBackground: 'rgba(255,247,214,0.97)'
+    };
+
+    function sendToastConfig() {
+        try {
+            window.postMessage({
+                type: 'OUTIIIL_TOAST_CONFIG',
+                target: 'outiiil',
+                config: TOAST_CONFIG
+            }, '*');
+        } catch (e) {
+            console.warn('[Outiiil] Failed to send toast config to bridge:', e);
+        }
+    }
+
     function getMimeType(path) {
         var lower = path.toLowerCase();
         if (lower.endsWith('.gif')) return 'image/gif';
@@ -318,6 +361,10 @@
     }
 
     async function initRuntime() {
+        // Ship the toast configuration to the bridge up front, before any status can
+        // arrive, so the bridge can render updates with the product's styling.
+        sendToastConfig();
+
         // Wait for the bridge to be ready
         try {
             await window.browserAPI._ready;
@@ -328,141 +375,75 @@
         // Load cached images
         await applyImagesFromCache();
 
-        // Trigger an update check first so the service worker is woken up and the
-        // freshly cached version is available. Then read RUNTIME_INFO to get the
-        // version actually loaded (which may be newer than the manifest).
+        // Trigger an update check so the service worker is woken up and the latest
+        // cached runtime version is available. The returned `version` is the newest
+        // runtime the background has (either just downloaded, or already cached by
+        // its periodic timer).
+        var availableVersion = null;
         try {
             var updateResult = await rpcWithRetry(function () {
                 return window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
             }, 3, 1000);
             console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
-            // CHECK_UPDATE response is flat: { ok, updated, version } (no nested result)
-            var updated = updateResult && updateResult.updated;
-            var updateVersion = updateResult && updateResult.version;
-            if (updated) {
-                await attendreFinMiseAJour(updateVersion);
-            }
-            // If CHECK_UPDATE returned a fresh version, prefer it.
-            if (updateVersion) {
-                window.VERSION = updateVersion;
-                console.log('[Outiiil Runtime] Version from CHECK_UPDATE: ' + window.VERSION);
-            }
+            availableVersion = updateResult && updateResult.version;
         } catch (e) {
             console.warn('[Outiiil Runtime] CHECK_UPDATE failed:', e);
         }
 
-        // Try to get version info from background (RUNTIME_INFO reads the cached version)
-        try {
-            var info = await rpcWithRetry(function () {
-                return window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
-            });
-            if (info && info.result && info.result.version) {
-                window.VERSION = info.result.version;
-                console.log('[Outiiil Runtime] Version from RUNTIME_INFO: ' + window.VERSION +
-                    ' (manifest=' + (info.result.manifestVersion || '?') + ')');
-            }
-        } catch (e) {
-            console.warn('[Outiiil Runtime] RUNTIME_INFO failed:', e);
-            // Fallback: try reading version from storage
+        // This running runtime's own version, baked into dist/runtime.js at build
+        // time. Compare it to the available version to decide whether the page is
+        // executing stale code. (NOT compared to the manifest version, which stays
+        // fixed at the installed bootstrapper's version and would loop forever.)
+        var runningVersion = window.__OUTIIIL_RUNTIME_VERSION;
+        console.log('[Outiiil Runtime] running=' + runningVersion + ' available=' + availableVersion);
+
+        if (runningVersion && availableVersion && runningVersion !== availableVersion) {
+            // The background cached a newer/other runtime while this page ran the
+            // old code. Ask the bridge to show the toast and reload so the available
+            // runtime takes effect. Loop-free: after the reload, running ===
+            // available and this will not fire again.
+            console.log('[Outiiil Runtime] Running ' + runningVersion +
+                ' differs from available ' + availableVersion + ' -> requesting reload via bridge');
+            window.postMessage({
+                type: 'OUTIIIL_RELOAD',
+                target: 'outiiil',
+                version: availableVersion
+            }, '*');
+            return;
+        }
+
+        // Expose the current (available) version for the game logic.
+        if (availableVersion) {
+            window.VERSION = availableVersion;
+            console.log('[Outiiil Runtime] window.VERSION = ' + window.VERSION);
+        }
+
+        // Fallback: read the version from background/storage if the check above did
+        // not yield one (e.g. transient RPC failure).
+        if (!window.VERSION) {
             try {
-                var stored = await rpcWithRetry(function () {
-                    return window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                var info = await rpcWithRetry(function () {
+                    return window.browserAPI.runtime.sendMessage({ type: 'RUNTIME_INFO' });
                 });
-                if (stored[STORAGE_KEY_VERSION]) {
-                    window.VERSION = stored[STORAGE_KEY_VERSION];
-                    console.log('[Outiiil Runtime] Version from storage: ' + window.VERSION);
-                }
-            } catch (e2) {
-                // Ignore - main.js handles version detection
-            }
-        }
-    }
-
-    function afficherBanniereMiseAJour(message, type) {
-        console.log('[Outiiil Runtime] afficherBanniereMiseAJour: ' + message + ' (type=' + type + ')');
-        // Use jQuery toast if available for a more visible notification.
-        // jQuery may not be loaded yet at document_start, so retry a few times.
-        var attempts = 0;
-        function tryToast() {
-            if (typeof $ !== 'undefined' && typeof $.toast === 'function') {
-                $.toast({
-                    text: message,
-                    heading: type === 'done' ? 'Mise à jour terminée' :
-                            type === 'error' ? 'Mise à jour échouée' :
-                            'Mise à jour en cours',
-                    showHideTransition: 'slide',
-                    icon: type === 'done' ? 'success' :
-                           type === 'error' ? 'error' : 'info',
-                    position: 'top-right',
-                    loaderBg: type === 'error' ? '#c0392b' :
-                             type === 'done' ? '#27ae60' : '#f39c12',
-                    hideAfter: type === 'done' ? 8000 : 15000,
-                    stack: false
-                });
-                return true;
-            }
-            attempts++;
-            if (attempts < 10) {
-                setTimeout(tryToast, 200);
-                return true;
-            }
-            afficherBanniereFallback(message, type);
-            return false;
-        }
-        try {
-            tryToast();
-        } catch (e) {
-            console.warn('[Outiiil Runtime] afficherBanniereMiseAJour failed:', e);
-            afficherBanniereFallback(message, type);
-        }
-    }
-
-    function afficherBanniereFallback(message, type) {
-        try {
-            var existing = document.getElementById('o_outiiil_update_banner');
-            if (existing) existing.remove();
-            var banner = document.createElement('div');
-            banner.id = 'o_outiiil_update_banner';
-            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:30001;' +
-                'background:' + (type === 'error' ? '#c0392b' : type === 'done' ? '#27ae60' : '#f39c12') +
-                ';color:#fff;text-align:center;padding:8px;font-family:sans-serif;font-size:14px;' +
-                'box-shadow:0 2px 6px rgba(0,0,0,0.3);';
-            banner.textContent = message;
-            var host = document.body || document.documentElement;
-            host.appendChild(banner);
-        } catch (e) {
-            // Ignore - banner is cosmetic
-        }
-    }
-
-    async function attendreFinMiseAJour(targetVersion) {
-        console.log('[Outiiil Runtime] attendreFinMiseAJour: waiting for version ' + targetVersion);
-        afficherBanniereMiseAJour('Mise à jour Outiiil en cours...', 'pending');
-        var maxAttempts = 60; // up to ~60s
-        var attempt = 0;
-        while (attempt < maxAttempts) {
-            attempt++;
-            try {
-                console.log('[Outiiil Runtime] attendreFinMiseAJour: attempt ' + attempt + ', polling storage');
-                var stored = await window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
-                console.log('[Outiiil Runtime] attendreFinMiseAJour: stored version=' + stored[STORAGE_KEY_VERSION] +
-                    ' target=' + targetVersion);
-                if (stored[STORAGE_KEY_VERSION] === targetVersion) {
-                    console.log('[Outiiil Runtime] attendreFinMiseAJour: version matched, reloading page');
-                    afficherBanniereMiseAJour('Mise à jour effectuée. Rechargement de la page...', 'done');
-                    // Give the user a moment to see the message, then reload
-                    await new Promise(function (resolve) { setTimeout(resolve, 1500); });
-                    location.reload();
-                    return;
+                if (info && info.result && info.result.version) {
+                    window.VERSION = info.result.version;
+                    console.log('[Outiiil Runtime] Version from RUNTIME_INFO: ' + window.VERSION);
                 }
             } catch (e) {
-                console.warn('[Outiiil Runtime] attendreFinMiseAJour: storage poll failed:', e);
-                // Ignore - retry on next attempt
+                console.warn('[Outiiil Runtime] RUNTIME_INFO failed:', e);
+                try {
+                    var stored = await rpcWithRetry(function () {
+                        return window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                    });
+                    if (stored[STORAGE_KEY_VERSION]) {
+                        window.VERSION = stored[STORAGE_KEY_VERSION];
+                        console.log('[Outiiil Runtime] Version from storage: ' + window.VERSION);
+                    }
+                } catch (e2) {
+                    // Ignore - main.js handles version detection
+                }
             }
-            await new Promise(function (resolve) { setTimeout(resolve, 1000); });
         }
-        console.warn('[Outiiil Runtime] attendreFinMiseAJour: timeout after ' + maxAttempts + ' attempts');
-        afficherBanniereMiseAJour('Timeout de mise à jour. Veuillez recharger la page manuellement.', 'error');
     }
 
     // Start initialization (non-blocking). Expose the promise so main.js can await it
