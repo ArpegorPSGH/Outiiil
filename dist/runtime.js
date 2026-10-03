@@ -1,5 +1,5 @@
-// Outiiil built runtime version: 3.22.22
-window.__OUTIIIL_RUNTIME_VERSION = "3.22.22";
+// Outiiil built runtime version: 3.22.23
+window.__OUTIIIL_RUNTIME_VERSION = "3.22.23";
 
 // Source: js/browserAPI.js
 /*
