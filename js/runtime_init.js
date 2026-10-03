@@ -112,12 +112,15 @@
                 return window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
             }, 3, 1000);
             console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
-            if (updateResult && updateResult.result && updateResult.result.updated) {
-                await attendreFinMiseAJour(updateResult.result.version);
+            // CHECK_UPDATE response is flat: { ok, updated, version } (no nested result)
+            var updated = updateResult && updateResult.updated;
+            var updateVersion = updateResult && updateResult.version;
+            if (updated) {
+                await attendreFinMiseAJour(updateVersion);
             }
             // If CHECK_UPDATE returned a fresh version, prefer it.
-            if (updateResult && updateResult.result && updateResult.result.version) {
-                window.VERSION = updateResult.result.version;
+            if (updateVersion) {
+                window.VERSION = updateVersion;
                 console.log('[Outiiil Runtime] Version from CHECK_UPDATE: ' + window.VERSION);
             }
         } catch (e) {
