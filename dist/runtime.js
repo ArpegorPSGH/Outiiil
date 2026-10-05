@@ -250,7 +250,7 @@ window.__OUTIIIL_RUNTIME_VERSION = "3.22.25";
     const TOAST_CONFIG = {
         title: 'Outiiil',
         inProgressText: 'Mise à jour Outiiil en cours...',
-        successText: 'Mise à jour v{version} terminée.',
+        successText: 'Mise à jour v{version} disponible — application imminente.',
         errorText: 'Mise à jour échouée : {error}',
         reloadingText: 'Rechargement de la page...',
         position: 'top-right',
@@ -283,6 +283,59 @@ window.__OUTIIIL_RUNTIME_VERSION = "3.22.25";
             console.warn('[Outiiil] Failed to send toast config to bridge:', e);
         }
     }
+
+    // --- Reload coordination (keep in-progress transactions intact) ----------
+    // Only the MAIN world knows whether a Transaction is running. Transaction.js
+    // publishes `window.__outiiilTransactionActive` and dispatches
+    // `outiiil:transaction:end` when none remain. We therefore schedule the page
+    // reload only at a safe point, and ask the bridge (isolated world) to perform
+    // it via OUTIIIL_RELOAD_NOW. If a reload is refused (beforeunload), the update
+    // is already cached in the background and will apply on the next navigation.
+    let versionMiseAJourEnAttente = null;
+    let rechargementDemandePour = null;
+
+    function afficherMiseAJourDisponibleBridge(version) {
+        try {
+            window.postMessage({ type: 'OUTIIIL_SHOW_PENDING', target: 'outiiil', version: version }, '*');
+        } catch (e) {
+            console.warn('[Outiiil] Failed to notify bridge (show pending):', e);
+        }
+    }
+
+    function demanderRechargementBridge(version) {
+        try {
+            window.postMessage({ type: 'OUTIIIL_RELOAD_NOW', target: 'outiiil', version: version }, '*');
+        } catch (e) {
+            console.warn('[Outiiil] Failed to notify bridge (reload now):', e);
+        }
+    }
+
+    function rechargerAuPointSur() {
+        if (!versionMiseAJourEnAttente) return;
+        if (window.__outiiilTransactionActive) return; // operation in progress: defer
+        if (rechargementDemandePour === versionMiseAJourEnAttente) return; // already requested
+        rechargementDemandePour = versionMiseAJourEnAttente;
+        demanderRechargementBridge(versionMiseAJourEnAttente);
+    }
+
+    function miseAJourDisponible(version) {
+        if (!version || versionMiseAJourEnAttente === version) return;
+        versionMiseAJourEnAttente = version;
+        rechargementDemandePour = null;
+        afficherMiseAJourDisponibleBridge(version);
+        rechargerAuPointSur();
+    }
+
+    // The background pushed a new version (relayed by the bridge).
+    window.addEventListener('message', function (event) {
+        const data = event.data;
+        if (!data || typeof data !== 'object' || data.target !== 'outiiil') return;
+        if (data.type === 'OUTIIIL_UPDATE_AVAILABLE') {
+            miseAJourDisponible(data.version);
+        }
+    });
+    // Safe point reached after a transaction finished.
+    window.addEventListener('outiiil:transaction:end', rechargerAuPointSur);
 
     function getMimeType(path) {
         var lower = path.toLowerCase();
@@ -398,17 +451,12 @@ window.__OUTIIIL_RUNTIME_VERSION = "3.22.25";
         console.log('[Outiiil Runtime] running=' + runningVersion + ' available=' + availableVersion);
 
         if (runningVersion && availableVersion && runningVersion !== availableVersion) {
-            // The background cached a newer/other runtime while this page ran the
-            // old code. Ask the bridge to show the toast and reload so the available
-            // runtime takes effect. Loop-free: after the reload, running ===
-            // available and this will not fire again.
+            // This page is running a stale runtime while a newer one is available.
+            // Schedule the reload at a safe point (never mid-transaction). After the
+            // reload, running === available, so this will not fire again.
             console.log('[Outiiil Runtime] Running ' + runningVersion +
-                ' differs from available ' + availableVersion + ' -> requesting reload via bridge');
-            window.postMessage({
-                type: 'OUTIIIL_RELOAD',
-                target: 'outiiil',
-                version: availableVersion
-            }, '*');
+                ' differs from available ' + availableVersion + ' -> update pending, will reload at a safe point');
+            miseAJourDisponible(availableVersion);
             return;
         }
 
@@ -137911,6 +137959,32 @@ Utils.register(class FonctionnaliteAlliance {
 // Source: js/class/framework/Transaction.js
 Utils.register(class Transaction {
     /**
+     * Nombre de transactions actuellement en cours (toutes les instances confondues).
+     * @private
+     * @static
+     */
+    static #nbEnCours = 0;
+
+    /**
+     * Propage l'état de transaction à l'extérieur, pour le coordinateur de mise à
+     * jour (runtime_init.js) : publie window.__outiiilTransactionActive et émet
+     * outiiil:transaction:end quand plus aucune transaction n'est active. Le canal
+     * reste volontairement sur window/CustomEvent car runtime_init.js est chargé
+     * AVANT cette classe dans le bundle : il doit pouvoir s'abonner avant que
+     * Transaction existe (un static ne serait pas encore accessible à ce moment-là).
+     * @private
+     * @static
+     */
+    static #publierEtat() {
+        const actif = Transaction.#nbEnCours > 0;
+        window.__outiiilTransactionActive = actif;
+        if (!actif) {
+            // Point sûr : aucune transaction active, un rechargement différé peut partir.
+            window.dispatchEvent(new CustomEvent('outiiil:transaction:end'));
+        }
+    }
+
+    /**
      * Listes d'objets créés durant la transaction.
      * @type {Array<ObjetForum>}
      */
@@ -138015,6 +138089,8 @@ Utils.register(class Transaction {
      * @returns {Promise<any>} Résultat de la transaction.
      */
     async run(callback) {
+        Transaction.#nbEnCours++;
+        Transaction.#publierEtat();
         try {
             // Active les bloqueurs pour cette transaction
             window.addEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
@@ -138088,6 +138164,8 @@ Utils.register(class Transaction {
             window.removeEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
             document.removeEventListener('click', this.intercepterClicsDestructeurs, true);
             document.removeEventListener('submit', this.intercepterSoumissionsFormulaire, true);
+            Transaction.#nbEnCours = Math.max(0, Transaction.#nbEnCours - 1);
+            Transaction.#publierEtat();
         }
     }
 
