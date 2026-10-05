@@ -19,17 +19,14 @@
     const BRIDGE_READY_TYPE = 'OUTIIIL_BRIDGE_READY';
     const TOAST_CONFIG_TYPE = 'OUTIIIL_TOAST_CONFIG';
     const UPDATE_STATUS_ACTION = 'OUTIIIL_UPDATE_STATUS';
-    const RELOAD_TYPE = 'OUTIIIL_RELOAD';
+    const UPDATE_AVAILABLE_TYPE = 'OUTIIIL_UPDATE_AVAILABLE';
+    const SHOW_PENDING_TYPE = 'OUTIIIL_SHOW_PENDING';
+    const RELOAD_NOW_TYPE = 'OUTIIIL_RELOAD_NOW';
     const ORIGIN = '*';
 
     // Toast configuration pushed by the MAIN-world runtime on startup.
     // null = use built-in fallbacks inside getToastConfig().
     let toastConfig = null;
-
-    // Guards against scheduling the page reload more than once per update cycle.
-    // Both the background 'success' push and the runtime's reload request can ask
-    // for a reload; only the first actually schedules it.
-    let reloadScheduled = false;
 
     // Set the extension base URL (used by Utils.getExtensionURL fallback)
     const extensionBaseUrl = chrome.runtime.getURL('');
@@ -81,12 +78,18 @@
             return;
         }
 
-        // Runtime asks the bridge to show the toast and reload (this running
-        // runtime's version differs from the available one). The bridge owns the
-        // toast DOM and the page reload.
-        if (data.type === RELOAD_TYPE) {
-            console.log('[Outiiil Bridge] Reload requested by runtime, version=' + data.version);
+        // Runtime asks the bridge to show the "update pending" toast.
+        if (data.type === SHOW_PENDING_TYPE) {
             showToast('success', data.version, null);
+            return;
+        }
+
+        // Runtime reached a safe point (no in-progress transaction) and asks the
+        // bridge to reload the page so the new runtime takes effect. The bridge owns
+        // the toast DOM and the actual location.reload().
+        if (data.type === RELOAD_NOW_TYPE) {
+            console.log('[Outiiil Bridge] Reload now requested by runtime, version=' + data.version);
+            performReload(data.version);
             return;
         }
 
@@ -165,10 +168,13 @@
         });
     });
 
-    // --- Update Status Toast (background -> bridge) ---
-    // The background service worker pushes update status to every content-script
-    // bridge via chrome.tabs.sendMessage. The bridge owns the toast DOM and the
-    // page reload, so it works even before the MAIN-world runtime is ready.
+    // --- Update Status Toast ---
+    // The bridge owns the toast DOM. Update status arrives from the background
+    // service worker (chrome.tabs.sendMessage) and is rendered here. The page
+    // reload, however, is only triggered on OUTIIIL_RELOAD_NOW, which the
+    // MAIN-world runtime sends once it has confirmed no in-progress transaction.
+    // This keeps the toast visible even before the runtime is ready, while still
+    // deferring the actual reload so it never interrupts a transaction.
 
     function getToastConfig() {
         return (toastConfig && typeof toastConfig === 'object') ? toastConfig : {};
@@ -274,30 +280,14 @@
         }
 
         setKind(status);
+    }
 
-        // A fresh download cycle resets the reload guard so a later success can
-        // schedule its own reload.
-        if (status === 'in_progress') {
-            reloadScheduled = false;
-        }
-
-        // On success: after a short delay, switch to the "reloading" state and
-        // reload. Guarded so the background push and the runtime's reload request
-        // do not schedule the reload twice.
-        if (status === 'success' && !reloadScheduled) {
-            reloadScheduled = true;
-            var delay = Number(cfg.delayBeforeReload);
-            if (!isFinite(delay) || delay < 400) delay = 2000;
-            setTimeout(function () {
-                var el = document.getElementById('outiiil-update-toast');
-                if (el) {
-                    setKind('reloading');
-                    setTimeout(function () { window.location.reload(); }, 800);
-                } else {
-                    window.location.reload();
-                }
-            }, delay);
-        }
+    // Actually reload the page. Called only when the MAIN-world runtime has
+    // confirmed a safe point (no in-progress transaction). Shows the "reloading"
+    // state briefly, then reloads.
+    function performReload(version) {
+        showToast('reloading', version, null);
+        setTimeout(function () { window.location.reload(); }, 600);
     }
 
     // --- Event Forwarding (background -> bridge -> runtime) ---
@@ -309,7 +299,21 @@
 
         // Update status pushed by the background service worker
         if (message.action === UPDATE_STATUS_ACTION) {
-            showToast(message.status, message.version, message.error);
+            if (message.status === 'in_progress') {
+                showToast('in_progress', message.version, null);
+            } else if (message.status === 'error') {
+                showToast('error', null, message.error);
+            } else if (message.status === 'success') {
+                // New runtime is cached/registered. Show the "pending" toast and hand
+                // the decision to the MAIN world, which reloads only at a safe point
+                // (never mid-transaction) and then sends OUTIIIL_RELOAD_NOW back.
+                showToast('success', message.version, null);
+                window.postMessage({
+                    type: UPDATE_AVAILABLE_TYPE,
+                    target: OUTIIIL_TARGET,
+                    version: message.version
+                }, ORIGIN);
+            }
             return false;
         }
 

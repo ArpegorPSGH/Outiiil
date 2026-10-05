@@ -1,5 +1,31 @@
 Utils.register(class Transaction {
     /**
+     * Nombre de transactions actuellement en cours (toutes les instances confondues).
+     * @private
+     * @static
+     */
+    static #nbEnCours = 0;
+
+    /**
+     * Propage l'état de transaction à l'extérieur, pour le coordinateur de mise à
+     * jour (runtime_init.js) : publie window.__outiiilTransactionActive et émet
+     * outiiil:transaction:end quand plus aucune transaction n'est active. Le canal
+     * reste volontairement sur window/CustomEvent car runtime_init.js est chargé
+     * AVANT cette classe dans le bundle : il doit pouvoir s'abonner avant que
+     * Transaction existe (un static ne serait pas encore accessible à ce moment-là).
+     * @private
+     * @static
+     */
+    static #publierEtat() {
+        const actif = Transaction.#nbEnCours > 0;
+        window.__outiiilTransactionActive = actif;
+        if (!actif) {
+            // Point sûr : aucune transaction active, un rechargement différé peut partir.
+            window.dispatchEvent(new CustomEvent('outiiil:transaction:end'));
+        }
+    }
+
+    /**
      * Listes d'objets créés durant la transaction.
      * @type {Array<ObjetForum>}
      */
@@ -104,6 +130,8 @@ Utils.register(class Transaction {
      * @returns {Promise<any>} Résultat de la transaction.
      */
     async run(callback) {
+        Transaction.#nbEnCours++;
+        Transaction.#publierEtat();
         try {
             // Active les bloqueurs pour cette transaction
             window.addEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
@@ -177,6 +205,8 @@ Utils.register(class Transaction {
             window.removeEventListener('beforeunload', this.bloquerFermetureEtRafraichissement);
             document.removeEventListener('click', this.intercepterClicsDestructeurs, true);
             document.removeEventListener('submit', this.intercepterSoumissionsFormulaire, true);
+            Transaction.#nbEnCours = Math.max(0, Transaction.#nbEnCours - 1);
+            Transaction.#publierEtat();
         }
     }
 

@@ -23,7 +23,7 @@
     const TOAST_CONFIG = {
         title: 'Outiiil',
         inProgressText: 'Mise à jour Outiiil en cours...',
-        successText: 'Mise à jour v{version} terminée.',
+        successText: 'Mise à jour v{version} disponible — application imminente.',
         errorText: 'Mise à jour échouée : {error}',
         reloadingText: 'Rechargement de la page...',
         position: 'top-right',
@@ -56,6 +56,59 @@
             console.warn('[Outiiil] Failed to send toast config to bridge:', e);
         }
     }
+
+    // --- Reload coordination (keep in-progress transactions intact) ----------
+    // Only the MAIN world knows whether a Transaction is running. Transaction.js
+    // publishes `window.__outiiilTransactionActive` and dispatches
+    // `outiiil:transaction:end` when none remain. We therefore schedule the page
+    // reload only at a safe point, and ask the bridge (isolated world) to perform
+    // it via OUTIIIL_RELOAD_NOW. If a reload is refused (beforeunload), the update
+    // is already cached in the background and will apply on the next navigation.
+    let versionMiseAJourEnAttente = null;
+    let rechargementDemandePour = null;
+
+    function afficherMiseAJourDisponibleBridge(version) {
+        try {
+            window.postMessage({ type: 'OUTIIIL_SHOW_PENDING', target: 'outiiil', version: version }, '*');
+        } catch (e) {
+            console.warn('[Outiiil] Failed to notify bridge (show pending):', e);
+        }
+    }
+
+    function demanderRechargementBridge(version) {
+        try {
+            window.postMessage({ type: 'OUTIIIL_RELOAD_NOW', target: 'outiiil', version: version }, '*');
+        } catch (e) {
+            console.warn('[Outiiil] Failed to notify bridge (reload now):', e);
+        }
+    }
+
+    function rechargerAuPointSur() {
+        if (!versionMiseAJourEnAttente) return;
+        if (window.__outiiilTransactionActive) return; // operation in progress: defer
+        if (rechargementDemandePour === versionMiseAJourEnAttente) return; // already requested
+        rechargementDemandePour = versionMiseAJourEnAttente;
+        demanderRechargementBridge(versionMiseAJourEnAttente);
+    }
+
+    function miseAJourDisponible(version) {
+        if (!version || versionMiseAJourEnAttente === version) return;
+        versionMiseAJourEnAttente = version;
+        rechargementDemandePour = null;
+        afficherMiseAJourDisponibleBridge(version);
+        rechargerAuPointSur();
+    }
+
+    // The background pushed a new version (relayed by the bridge).
+    window.addEventListener('message', function (event) {
+        const data = event.data;
+        if (!data || typeof data !== 'object' || data.target !== 'outiiil') return;
+        if (data.type === 'OUTIIIL_UPDATE_AVAILABLE') {
+            miseAJourDisponible(data.version);
+        }
+    });
+    // Safe point reached after a transaction finished.
+    window.addEventListener('outiiil:transaction:end', rechargerAuPointSur);
 
     function getMimeType(path) {
         var lower = path.toLowerCase();
@@ -171,17 +224,12 @@
         console.log('[Outiiil Runtime] running=' + runningVersion + ' available=' + availableVersion);
 
         if (runningVersion && availableVersion && runningVersion !== availableVersion) {
-            // The background cached a newer/other runtime while this page ran the
-            // old code. Ask the bridge to show the toast and reload so the available
-            // runtime takes effect. Loop-free: after the reload, running ===
-            // available and this will not fire again.
+            // This page is running a stale runtime while a newer one is available.
+            // Schedule the reload at a safe point (never mid-transaction). After the
+            // reload, running === available, so this will not fire again.
             console.log('[Outiiil Runtime] Running ' + runningVersion +
-                ' differs from available ' + availableVersion + ' -> requesting reload via bridge');
-            window.postMessage({
-                type: 'OUTIIIL_RELOAD',
-                target: 'outiiil',
-                version: availableVersion
-            }, '*');
+                ' differs from available ' + availableVersion + ' -> update pending, will reload at a safe point');
+            miseAJourDisponible(availableVersion);
             return;
         }
 
