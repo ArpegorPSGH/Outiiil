@@ -55,6 +55,40 @@ def build_dist():
     # --- Concaténation JS → runtime.js ---
     js_runtime_path = os.path.join(DIST_DIR, "runtime.js")
     print(f"[Outiiil Builder] Concaténation de {len(js_files)} fichiers JS → runtime.js...")
+
+    # Lecture des fichiers sources (les manquants sont sautés avec avertissement)
+    js_fichiers_present = []
+    for rel_path in js_files:
+        abs_path = os.path.join(BASE_DIR, rel_path)
+        if os.path.exists(abs_path):
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as f_in:
+                js_fichiers_present.append((rel_path, f_in.read()))
+        else:
+            print(f"Avertissement : Fichier JS manquant : {rel_path}", file=sys.stderr)
+
+    # Table des positions des fichiers sources dans le bundle : pour chaque fichier,
+    # la ligne (1-indexée) où débute son contenu. Émise dans le bundle sous
+    # window.__OUTIIIL_SOURCES, elle permet au Logger de traduire les frames de stack
+    # de production (<anonymous>:N, le code étant injecté par chrome.userScripts
+    # sous forme de chaîne) en fichier source : ligne source.
+    #
+    # Disposition du bundle :
+    #   ligne 1 : // Outiiil built runtime version: X
+    #   ligne 2 : window.__OUTIIIL_RUNTIME_VERSION = "X";
+    #   ligne 3 : window.__OUTIIIL_SOURCES = [...];
+    #   ligne 4 : (ligne vide)
+    #   ligne 5 : // Source: <premier fichier>  -> contenu du fichier à la ligne 6
+    nb_lignes_ecrites = 4
+    table_sources = []
+    for rel_path, contenu in js_fichiers_present:
+        entree = {"f": rel_path, "s": nb_lignes_ecrites + 2}
+        if rel_path.startswith("js/lib/"):
+            entree["lib"] = 1
+        table_sources.append(entree)
+        nb_lignes_ecrites += 1 + contenu.count("\n") + 2  # marqueur + contenu + séparateur "\n;\n"
+
+    table_compacte = json.dumps(table_sources, separators=(",", ":"))
+
     with open(js_runtime_path, "w", encoding="utf-8", newline="\n") as out_js:
         # Bake the runtime version into the bundle so the running page can tell
         # which version of ITSELF is executing. This is used by runtime_init.js to
@@ -62,16 +96,13 @@ def build_dist():
         # the page. (Compared against the *available* version, never the manifest
         # version, to avoid an infinite reload loop.)
         out_js.write(f"// Outiiil built runtime version: {version}\n")
-        out_js.write(f"window.__OUTIIIL_RUNTIME_VERSION = {json.dumps(version)};\n\n")
-        for rel_path in js_files:
-            abs_path = os.path.join(BASE_DIR, rel_path)
-            if os.path.exists(abs_path):
-                out_js.write(f"// Source: {rel_path}\n")
-                with open(abs_path, "r", encoding="utf-8", errors="replace") as f_in:
-                    out_js.write(f_in.read())
-                out_js.write("\n;\n")
-            else:
-                print(f"Avertissement : Fichier JS manquant : {rel_path}", file=sys.stderr)
+        out_js.write(f"window.__OUTIIIL_RUNTIME_VERSION = {json.dumps(version)};\n")
+        out_js.write(f"window.__OUTIIIL_SOURCES = {table_compacte};\n")
+        out_js.write("\n")
+        for rel_path, contenu in js_fichiers_present:
+            out_js.write(f"// Source: {rel_path}\n")
+            out_js.write(contenu)
+            out_js.write("\n;\n")
 
     # Calcul du SHA-256 du runtime.js
     with open(js_runtime_path, "rb") as f:

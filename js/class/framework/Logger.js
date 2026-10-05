@@ -137,7 +137,6 @@ Utils.register(class Logger {
         const ctor = val.constructor;
         const name = (ctor && ctor.name) ? ctor.name : null;
         if (name && !this.#estObjetBase(val)) {
-            if (window.classesCache && window.classesCache.has(name)) return true;
             if (window[name] === ctor || globalThis[name] === ctor) return true;
         }
         return false;
@@ -466,6 +465,56 @@ Utils.register(class Logger {
     }
 
     /**
+     * Résout une position dans le bundle de runtime vers le fichier source d'origine,
+     * à l'aide de la table window.__OUTIIIL_SOURCES émise par build_bundle.py.
+     * En DEV mode (fichiers individuels enregistrés via userScripts) la table est
+     * absente et la méthode renvoie null : les positions sont déjà celles des sources.
+     * @param {String} fichier - Le fichier extrait de la stack.
+     * @param {Number|String} ligne - Le numéro de ligne dans le bundle.
+     * @returns {Object|null} - { fichier, ligne } résolus dans le fichier source, ou null.
+     * @private
+     */
+    #resoudrePositionSource(fichier, ligne) {
+        if (fichier !== "<anonymous>" && fichier !== "unknown" && fichier !== "runtime.js") return null;
+        const sources = (typeof window !== "undefined") ? window.__OUTIIIL_SOURCES : undefined;
+        if (!Array.isArray(sources) || sources.length === 0) return null;
+        const n = Number(ligne);
+        if (!Number.isInteger(n) || n < 1) return null;
+
+        // Recherche binaire : dernière entrée dont la position de début est <= n
+        let bas = 0, haut = sources.length - 1;
+        while (bas <= haut) {
+            const milieu = (bas + haut) >> 1;
+            if (sources[milieu].s <= n) {
+                bas = milieu + 1;
+            } else {
+                haut = milieu - 1;
+            }
+        }
+        const entree = sources[haut];
+        if (!entree || n < entree.s) return null;
+        return {
+            fichier: String(entree.f).split("/").pop(),
+            ligne: n - entree.s + 1
+        };
+    }
+
+    /**
+     * Remplace la position dans le bundle (<anonymous>:N:col) par la position
+     * dans le fichier source sur une ligne de stack, le cas échéant.
+     * @param {String} line - La ligne de stack à traiter.
+     * @returns {String} - La ligne, éventuellement avec sa position réécrite.
+     * @private
+     */
+    #renommerLigneStack(line) {
+        const match = line.match(/\(([^()]+):(\d+):(\d+)\)\s*$/);
+        if (!match) return line;
+        const resolue = this.#resoudrePositionSource(match[1].split("/").pop(), match[2]);
+        if (!resolue) return line;
+        return line.slice(0, match.index) + `(${resolue.fichier}:${resolue.ligne}:${match[3]})`;
+    }
+
+    /**
      * Extrait les frames pertinentes d'une stacktrace (sous forme de tableau de clés 'fichier:fonction').
      * Ignorer les numéros de ligne permet d'avoir une distance de 0 pour les logs situés dans la même fonction que l'erreur.
      * @param {String} stack
@@ -485,13 +534,16 @@ Utils.register(class Logger {
             let match = line.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
             if (match) {
                 const fn = match[1].startsWith("Proxy.") ? match[1].substring(6) : match[1];
-                const chemin = match[2].split("/").pop();
+                let chemin = match[2].split("/").pop();
+                const resolue = this.#resoudrePositionSource(chemin, match[3]);
+                if (resolue) chemin = resolue.fichier;
                 frames.push(`${chemin}:${fn}`);
             } else {
                 match = line.match(/at\s+(?:async\s+)?(.+):(\d+):(\d+)/);
                 if (match) {
-                    const urlOuChemin = match[1];
-                    const chemin = urlOuChemin.split("/").pop();
+                    let chemin = match[1].split("/").pop();
+                    const resolue = this.#resoudrePositionSource(chemin, match[2]);
+                    if (resolue) chemin = resolue.fichier;
                     frames.push(`${chemin}:anonymous`);
                 }
             }
@@ -548,7 +600,7 @@ Utils.register(class Logger {
             if (line.includes(className) || line.includes("console")) {
                 continue;
             }
-            filteredLines.push(line);
+            filteredLines.push(this.#renommerLigneStack(line));
         }
         return filteredLines.join("\n");
     }
@@ -604,6 +656,15 @@ Utils.register(class Logger {
                     fichier = "native:code";
                 }
             }
+        }
+
+        // En production, le bundle est injecté comme une chaîne (userScripts `code:`),
+        // les frames sont donc nommées <anonymous> : résoudre la position vers le
+        // fichier source d'origine via la table __OUTIIIL_SOURCES.
+        const resolue = this.#resoudrePositionSource(fichier, ligne);
+        if (resolue) {
+            fichier = resolue.fichier;
+            ligne = String(resolue.ligne);
         }
 
         if (fonction.startsWith("Proxy.")) {

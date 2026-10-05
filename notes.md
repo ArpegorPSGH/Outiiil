@@ -1,14 +1,9 @@
-- Service worker registration failed. Status code: 15 en version dev
-- Erreur lors du passage de la version prod à celle de dev
-- Icône ne s'affiche pas en mode prod
-- En cas de nouvelle version, afficher un message de mise à jour en cours/effectuée, et recharger la page
 - Voir s'il est possible d'utiliser les fichiers individuels plutôt que de faire un bundle
-- Enlever le temps d'attente pour script de release
 - Créer un script de test production qui :
     - Pour un bundle, push le dernier commit dev sur une branche de test (à définir en serveur) au lieu de release, et génère un socle en mode prod zip qui pointe dessus, sans effectuer de release
     - Pour des fichiers bruts, génère un socle en mode prod zip qui pointe sur les fichiers de la branche dev (à définir en serveur), sans effectuer de release
 - Mettre à jour doc et roadmap
-- Enlever les checks de SHA du script de release, les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
+- Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
 - N'utiliser qu'une seule des deux manières d'enregistrement dans Utils.register
 - mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes et numéro version), avec un message invitant à une réinstallation de la nouvelle version
 - Nettoyer la branche socle, elle est obsolète.
