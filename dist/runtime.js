@@ -1,5 +1,6 @@
-// Outiiil built runtime version: 3.22.26
-window.__OUTIIIL_RUNTIME_VERSION = "3.22.26";
+// Outiiil built runtime version: 3.22.27
+window.__OUTIIIL_RUNTIME_VERSION = "3.22.27";
+window.__OUTIIIL_SOURCES = [{"f":"js/browserAPI.js","s":6},{"f":"js/runtime_init.js","s":229},{"f":"js/lib/acorn.js","s":506,"lib":1},{"f":"js/lib/jquery_3.2.1.js","s":6770,"lib":1},{"f":"js/lib/jquery-alias.js","s":17026,"lib":1},{"f":"js/lib/jquery-ui_1.12.1.js","s":17030,"lib":1},{"f":"js/lib/jquery-datetimepicker_1.6.3.js","s":35739,"lib":1},{"f":"js/lib/jquery-toast_1.3.1.js","s":38033,"lib":1},{"f":"js/lib/globalize_0.1.1.js","s":38408,"lib":1},{"f":"js/lib/globalize-locale-fr.js","s":39997,"lib":1},{"f":"js/lib/clipboard_1.7.1.js","s":40080,"lib":1},{"f":"js/lib/highcharts_6.0.7.js","s":40873,"lib":1},{"f":"js/lib/highcharts-more.js","s":76333,"lib":1},{"f":"js/lib/highcharts-data.js","s":81952,"lib":1},{"f":"js/lib/highcharts-stock.js","s":83929,"lib":1},{"f":"js/lib/datatables_1.10.16.js","s":93934,"lib":1},{"f":"js/lib/numeral_2.0.6.js","s":123141,"lib":1},{"f":"js/lib/numeral-locale-fr.js","s":123837,"lib":1},{"f":"js/lib/moment_2.19.1.js","s":123872,"lib":1},{"f":"js/lib/moment-locale-fr.js","s":128390,"lib":1},{"f":"js/lib/moment-duration-format.js","s":128454,"lib":1},{"f":"js/class/framework/Utils.js","s":128939},{"f":"js/constants.js","s":129400},{"f":"js/class/framework/Logger.js","s":129658},{"f":"js/class/framework/AccesForum.js","s":133115},{"f":"js/class/framework/ActionSecurisee.js","s":133611},{"f":"js/class/framework/Boite.js","s":133779},{"f":"js/class/framework/Dock.js","s":133893},{"f":"js/class/framework/ErreurRestriction.js","s":134018},{"f":"js/class/framework/DonneeValidable.js","s":134031},{"f":"js/class/framework/AttributObjet.js","s":134346},{"f":"js/class/framework/ParametreObjetForum.js","s":134452},{"f":"js/class/framework/ObjetForum.js","s":134804},{"f":"js/class/framework/GestionnaireSections.js","s":136199},{"f":"js/class/framework/GestionnaireVersions.js","s":136526},{"f":"js/class/framework/GestionnaireDroits.js","s":137105},{"f":"js/class/framework/FonctionnaliteAlliance.js","s":137400},{"f":"js/class/framework/Transaction.js","s":138022},{"f":"js/class/framework/Page.js","s":138542},{"f":"js/class/autre/Alliance.js","s":138632},{"f":"js/class/autre/Armee.js","s":138926},{"f":"js/class/autre/Chasse.js","s":139885},{"f":"js/class/autre/Combat.js","s":140086},{"f":"js/class/autre/ProfilUtilisateur.js","s":140781},{"f":"js/class/autre/ParametreUI.js","s":140887},{"f":"js/class/autre/Traceur.js","s":141020},{"f":"js/class/autre/TraceurJoueur.js","s":141149},{"f":"js/class/autre/TraceurAlliance.js","s":141276},{"f":"js/class/boite/ComptePlus.js","s":141395},{"f":"js/class/boite/Radar.js","s":141906},{"f":"js/class/boite/Signalement.js","s":142129},{"f":"js/class/boite/Ponte.js","s":142263},{"f":"js/class/boite/Chasse.js","s":142478},{"f":"js/class/boite/Combat.js","s":142593},{"f":"js/class/boite/Commande.js","s":143241},{"f":"js/class/boite/Map.js","s":143412},{"f":"js/class/boite/Parametres.js","s":143547},{"f":"js/class/boite/Rapport.js","s":143760},{"f":"js/class/boite/Grade.js","s":143811},{"f":"js/class/boite/Traceur.js","s":143898},{"f":"js/class/attribut/joueur/Id.js","s":143973},{"f":"js/class/attribut/joueur/X.js","s":143980},{"f":"js/class/attribut/joueur/Y.js","s":143987},{"f":"js/class/attribut/joueur/TerrainDeChasse.js","s":143994},{"f":"js/class/attribut/joueur/Fourmiliere.js","s":144002},{"f":"js/class/attribut/joueur/Technologie.js","s":144009},{"f":"js/class/attribut/joueur/Activite.js","s":144016},{"f":"js/class/attribut/joueur/Colonise.js","s":144072},{"f":"js/class/attribut/joueur/TagAlliance.js","s":144079},{"f":"js/class/attribut/joueur/Rang.js","s":144089},{"f":"js/class/attribut/joueur/OrdreRadar.js","s":144097},{"f":"js/class/attribut/joueur/NiveauxRecherches.js","s":144104},{"f":"js/class/attribut/joueur/NiveauxConstructions.js","s":144111},{"f":"js/class/attribut/joueur/Nourriture.js","s":144118},{"f":"js/class/attribut/joueur/Materiaux.js","s":144125},{"f":"js/class/attribut/joueur/ArmeeJoueur.js","s":144132},{"f":"js/class/attribut/joueur/Coordonnees.js","s":144140},{"f":"js/class/attribut/joueur/EtatJoueur.js","s":144156},{"f":"js/class/attribut/joueur/DroitsFourmizzz.js","s":144200},{"f":"js/class/attribut/commande/NourritureRestante.js","s":144216},{"f":"js/class/attribut/commande/MateriauxRestants.js","s":144234},{"f":"js/class/attribut/commande/Statut.js","s":144252},{"f":"js/class/attribut/commande/TempsParcours.js","s":144280},{"f":"js/class/attribut/commande/BoutonLivrer.js","s":144310},{"f":"js/class/attribut/commande/Options.js","s":144357},{"f":"js/class/parametre/joueur/AllianceRattachement.js","s":144400},{"f":"js/class/parametre/joueur/OrdreGrade.js","s":144409},{"f":"js/class/parametre/joueur/Pseudo.js","s":144417},{"f":"js/class/parametre/joueur/Grade.js","s":144426},{"f":"js/class/parametre/joueur/VersionExtension.js","s":144437},{"f":"js/class/parametre/recensement/Constructions.js","s":144445},{"f":"js/class/parametre/recensement/Recherches.js","s":144457},{"f":"js/class/parametre/recensement/Ressources.js","s":144469},{"f":"js/class/parametre/recensement/Unites.js","s":144482},{"f":"js/class/parametre/recensement/DateRecensement.js","s":144495},{"f":"js/class/parametre/commande/DateApres.js","s":144504},{"f":"js/class/parametre/commande/DateCommande.js","s":144516},{"f":"js/class/parametre/commande/DateSouhaitee.js","s":144527},{"f":"js/class/parametre/commande/Demandeur.js","s":144539},{"f":"js/class/parametre/commande/EtatCommande.js","s":144549},{"f":"js/class/parametre/commande/Evolution.js","s":144558},{"f":"js/class/parametre/commande/MateriauxDemandes.js","s":144570},{"f":"js/class/parametre/commande/MateriauxLivres.js","s":144583},{"f":"js/class/parametre/commande/NourritureDemandee.js","s":144594},{"f":"js/class/parametre/commande/NourritureLivree.js","s":144607},{"f":"js/class/parametre/convoi/DateArrivee.js","s":144618},{"f":"js/class/parametre/convoi/DateDepart.js","s":144628},{"f":"js/class/parametre/convoi/Destinataire.js","s":144638},{"f":"js/class/parametre/convoi/Expediteur.js","s":144647},{"f":"js/class/parametre/convoi/IdConvoi.js","s":144656},{"f":"js/class/parametre/convoi/IdCommande.js","s":144664},{"f":"js/class/parametre/convoi/MateriauxEnvoyes.js","s":144672},{"f":"js/class/parametre/convoi/NourritureEnvoyee.js","s":144683},{"f":"js/class/parametre/convoi/Ouvrieres.js","s":144694},{"f":"js/class/objet/Recensement.js","s":144703},{"f":"js/class/objet/Joueur.js","s":144726},{"f":"js/class/objet/Convoi.js","s":145523},{"f":"js/class/objet/Commande.js","s":145568},{"f":"js/class/objet/test_visible.js","s":145761},{"f":"js/class/objet/test_restreint.js","s":145770},{"f":"js/class/objet/test_cache.js","s":145776},{"f":"js/class/fonctionnalite/alliance/Actualiser.js","s":145782},{"f":"js/class/fonctionnalite/alliance/DonneesPrivees.js","s":145859},{"f":"js/class/fonctionnalite/alliance/JoueursExterieurs.js","s":145926},{"f":"js/class/fonctionnalite/alliance/ModifierGrade.js","s":146007},{"f":"js/class/fonctionnalite/alliance/Recenser.js","s":146062},{"f":"js/class/fonctionnalite/commerce/testTransactionsConcurrentes.js","s":146112},{"f":"js/class/fonctionnalite/commerce/AfficherConvois.js","s":146144},{"f":"js/class/fonctionnalite/commerce/GererCommandes.js","s":146314},{"f":"js/class/fonctionnalite/forum/AdministrerForum.js","s":146792},{"f":"js/class/fonctionnalite/forum/AdministrerCommandes.js","s":146909},{"f":"js/class/fonctionnalite/forum/CopierLogs.js","s":146978},{"f":"js/class/fonctionnalite/messagerie/ColorerMessage.js","s":147066},{"f":"js/class/page/Membres.js","s":147121},{"f":"js/class/page/Armee.js","s":147469},{"f":"js/class/page/Attaquer.js","s":147845},{"f":"js/class/page/Chat.js","s":148158},{"f":"js/class/page/Commerce.js","s":148396},{"f":"js/class/page/Construction.js","s":148519},{"f":"js/class/page/Description.js","s":148622},{"f":"js/class/page/Forum.js","s":148742},{"f":"js/class/page/Laboratoire.js","s":148810},{"f":"js/class/page/Messagerie.js","s":148951},{"f":"js/class/page/Profil.js","s":149320},{"f":"js/class/page/Reine.js","s":149424},{"f":"js/class/page/Ressource.js","s":149543},{"f":"js/class/page/Ennemie.js","s":149833},{"f":"js/main.js","s":149869}];
 
 // Source: js/browserAPI.js
 /*
@@ -129793,7 +129794,6 @@ Utils.register(class Logger {
         const ctor = val.constructor;
         const name = (ctor && ctor.name) ? ctor.name : null;
         if (name && !this.#estObjetBase(val)) {
-            if (window.classesCache && window.classesCache.has(name)) return true;
             if (window[name] === ctor || globalThis[name] === ctor) return true;
         }
         return false;
@@ -130122,6 +130122,56 @@ Utils.register(class Logger {
     }
 
     /**
+     * Résout une position dans le bundle de runtime vers le fichier source d'origine,
+     * à l'aide de la table window.__OUTIIIL_SOURCES émise par build_bundle.py.
+     * En DEV mode (fichiers individuels enregistrés via userScripts) la table est
+     * absente et la méthode renvoie null : les positions sont déjà celles des sources.
+     * @param {String} fichier - Le fichier extrait de la stack.
+     * @param {Number|String} ligne - Le numéro de ligne dans le bundle.
+     * @returns {Object|null} - { fichier, ligne } résolus dans le fichier source, ou null.
+     * @private
+     */
+    #resoudrePositionSource(fichier, ligne) {
+        if (fichier !== "<anonymous>" && fichier !== "unknown" && fichier !== "runtime.js") return null;
+        const sources = (typeof window !== "undefined") ? window.__OUTIIIL_SOURCES : undefined;
+        if (!Array.isArray(sources) || sources.length === 0) return null;
+        const n = Number(ligne);
+        if (!Number.isInteger(n) || n < 1) return null;
+
+        // Recherche binaire : dernière entrée dont la position de début est <= n
+        let bas = 0, haut = sources.length - 1;
+        while (bas <= haut) {
+            const milieu = (bas + haut) >> 1;
+            if (sources[milieu].s <= n) {
+                bas = milieu + 1;
+            } else {
+                haut = milieu - 1;
+            }
+        }
+        const entree = sources[haut];
+        if (!entree || n < entree.s) return null;
+        return {
+            fichier: String(entree.f).split("/").pop(),
+            ligne: n - entree.s + 1
+        };
+    }
+
+    /**
+     * Remplace la position dans le bundle (<anonymous>:N:col) par la position
+     * dans le fichier source sur une ligne de stack, le cas échéant.
+     * @param {String} line - La ligne de stack à traiter.
+     * @returns {String} - La ligne, éventuellement avec sa position réécrite.
+     * @private
+     */
+    #renommerLigneStack(line) {
+        const match = line.match(/\(([^()]+):(\d+):(\d+)\)\s*$/);
+        if (!match) return line;
+        const resolue = this.#resoudrePositionSource(match[1].split("/").pop(), match[2]);
+        if (!resolue) return line;
+        return line.slice(0, match.index) + `(${resolue.fichier}:${resolue.ligne}:${match[3]})`;
+    }
+
+    /**
      * Extrait les frames pertinentes d'une stacktrace (sous forme de tableau de clés 'fichier:fonction').
      * Ignorer les numéros de ligne permet d'avoir une distance de 0 pour les logs situés dans la même fonction que l'erreur.
      * @param {String} stack
@@ -130141,13 +130191,16 @@ Utils.register(class Logger {
             let match = line.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
             if (match) {
                 const fn = match[1].startsWith("Proxy.") ? match[1].substring(6) : match[1];
-                const chemin = match[2].split("/").pop();
+                let chemin = match[2].split("/").pop();
+                const resolue = this.#resoudrePositionSource(chemin, match[3]);
+                if (resolue) chemin = resolue.fichier;
                 frames.push(`${chemin}:${fn}`);
             } else {
                 match = line.match(/at\s+(?:async\s+)?(.+):(\d+):(\d+)/);
                 if (match) {
-                    const urlOuChemin = match[1];
-                    const chemin = urlOuChemin.split("/").pop();
+                    let chemin = match[1].split("/").pop();
+                    const resolue = this.#resoudrePositionSource(chemin, match[2]);
+                    if (resolue) chemin = resolue.fichier;
                     frames.push(`${chemin}:anonymous`);
                 }
             }
@@ -130204,7 +130257,7 @@ Utils.register(class Logger {
             if (line.includes(className) || line.includes("console")) {
                 continue;
             }
-            filteredLines.push(line);
+            filteredLines.push(this.#renommerLigneStack(line));
         }
         return filteredLines.join("\n");
     }
@@ -130260,6 +130313,15 @@ Utils.register(class Logger {
                     fichier = "native:code";
                 }
             }
+        }
+
+        // En production, le bundle est injecté comme une chaîne (userScripts `code:`),
+        // les frames sont donc nommées <anonymous> : résoudre la position vers le
+        // fichier source d'origine via la table __OUTIIIL_SOURCES.
+        const resolue = this.#resoudrePositionSource(fichier, ligne);
+        if (resolue) {
+            fichier = resolue.fichier;
+            ligne = String(resolue.ligne);
         }
 
         if (fonction.startsWith("Proxy.")) {
