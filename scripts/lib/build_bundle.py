@@ -22,7 +22,8 @@ try:
 except (AttributeError, OSError):
     pass
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# __file__ est scripts/lib/build_bundle.py → remonter 3 niveaux pour atteindre la racine du projet
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DIST_DIR = os.path.join(BASE_DIR, "dist")
 MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
 IMAGES_SRC_DIR = os.path.join(BASE_DIR, "images")
@@ -47,7 +48,7 @@ def build_dist(override_version=None):
     print(f"[Outiiil Builder] Version détectée : {version}" +
           (f" (override)" if override_version else ""))
 
-    sources_config = os.path.join(BASE_DIR, "scripts", "bundle_sources.json")
+    sources_config = os.path.join(BASE_DIR, "bundle_sources.json")
     if not os.path.exists(sources_config):
         print(f"Erreur : {sources_config} introuvable.", file=sys.stderr)
         sys.exit(1)

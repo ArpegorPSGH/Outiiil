@@ -39,7 +39,7 @@ class ReleaseContext:
         self.bridge_path = os.path.join(BASE_DIR, "js", "bridge.js")
         self.dist_dir = os.path.join(BASE_DIR, "dist")
         self.images_dir = os.path.join(BASE_DIR, "images")
-        self.build_script = os.path.join(BASE_DIR, "scripts", "build_bundle.py")
+        self.build_script = os.path.join(BASE_DIR, "scripts", "lib", "build_bundle.py")
 
         # URL de mise à jour distante (prod par défaut, test pour test_prod.py)
         self.update_url = update_url or "https://arpegorpsgh.github.io/Outiiil/dist/"

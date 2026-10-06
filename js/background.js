@@ -380,7 +380,7 @@ async function registerDevRuntime(forceReRegister) {
     let cssCode = '';
 
     try {
-        const sourcesRes = await fetch(chrome.runtime.getURL('scripts/bundle_sources.json'));
+        const sourcesRes = await fetch(chrome.runtime.getURL('bundle_sources.json'));
         if (sourcesRes.ok) {
             const sources = await sourcesRes.json();
 

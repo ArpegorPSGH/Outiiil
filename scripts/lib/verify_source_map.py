@@ -10,7 +10,7 @@ Vérification de la table des positions de sources (window.__OUTIIIL_SOURCES)
   4. Vérifie le marquage "lib" des fichiers tiers (js/lib/).
   5. Vérifie les cas limites (en-tête du bundle, mode dev, ligne invalide).
 
-Exécution : python -m scripts.verify_source_map   (depuis la racine du projet)
+Exécution : python scripts/lib/verify_source_map.py   (depuis la racine du projet)
 """
 
 import json
@@ -24,7 +24,7 @@ try:
 except (AttributeError, OSError):
     pass
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DIST_DIR = os.path.join(BASE_DIR, "dist")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -61,7 +61,7 @@ def main():
 
     build_bundle.build_dist()
 
-    with open(os.path.join(BASE_DIR, "scripts", "bundle_sources.json"), "r", encoding="utf-8") as f:
+    with open(os.path.join(BASE_DIR, "bundle_sources.json"), "r", encoding="utf-8") as f:
         cfg = json.load(f)
     js_files = cfg.get("js", [])
 

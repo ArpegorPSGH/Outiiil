@@ -7,7 +7,7 @@ Mettre en place un système de mise à jour automatique, transparent et multi-pl
 
 ### 1. Organisation en 3 branches Git
 - **Branche `dev` (Développement) :**
-  - Contient l'intégralité du code source (scripts unitaires, documentation, roadmap, tests, `scripts/bundle_sources.json`).
+  - Contient l'intégralité du code source (scripts unitaires, documentation, roadmap, tests, `bundle_sources.json`).
   - Le flag `DEV_MODE` y est toujours activé (`true`) dans le chargeur : l'extension injecte directement les sources locales à chaque rechargement (F5) sans mise en cache ni interférence réseau.
   - Le dossier de distribution (`dist/`) n'y est pas conservé.
 - **Branche `gh-pages` (Serveur / Publication dynamique) :**
@@ -58,7 +58,7 @@ Un script unique de release prend en charge le cycle complet :
 
 ## Avancement
 - [x] Création du loader d'injection dynamique (`js/loader.js`).
-- [x] Mise en place du bundle distant et du script de packaging initial (`scripts/build_bundle.py`).
+- [x] Mise en place du bundle distant et du script de packaging initial (`scripts/lib/build_bundle.py`).
 - [x] Branchement de la synchronisation asynchrone dans `chrome.storage.local`.
 - [x] Allégement du manifest (`manifest.json`) avec point d'entrée unique sur `loader.js`.
 - [x] Ajout de la bascule `DEV_MODE` dans le loader pour l'isolation totale du développement (chargement direct des sources locales).
