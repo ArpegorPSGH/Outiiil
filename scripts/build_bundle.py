@@ -28,7 +28,13 @@ MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
 IMAGES_SRC_DIR = os.path.join(BASE_DIR, "images")
 IMAGES_DIST_DIR = os.path.join(DIST_DIR, "images")
 
-def build_dist():
+def build_dist(override_version=None):
+    """
+    Build du runtime dans dist/.
+
+    Args:
+        override_version: si fourni, utilise cette version au lieu de manifest.json.
+    """
     print(f"[Outiiil Builder] Répertoire racine : {BASE_DIR}")
     if not os.path.exists(MANIFEST_PATH):
         print(f"Erreur : {MANIFEST_PATH} introuvable.", file=sys.stderr)
@@ -37,8 +43,9 @@ def build_dist():
     with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
         manifest = json.load(f)
 
-    version = manifest.get("version", "1.0.0")
-    print(f"[Outiiil Builder] Version détectée : {version}")
+    version = override_version or manifest.get("version", "1.0.0")
+    print(f"[Outiiil Builder] Version détectée : {version}" +
+          (f" (override)" if override_version else ""))
 
     sources_config = os.path.join(BASE_DIR, "scripts", "bundle_sources.json")
     if not os.path.exists(sources_config):
@@ -185,4 +192,9 @@ def build_dist():
     return version
 
 if __name__ == "__main__":
-    build_dist()
+    import argparse
+    parser = argparse.ArgumentParser(description="Build le runtime Outiiil dans dist/")
+    parser.add_argument("--version", default=None,
+                        help="Override la version (ex: pour les tests)")
+    args = parser.parse_args()
+    build_dist(override_version=args.version)
