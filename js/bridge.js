@@ -249,6 +249,11 @@
                 icon = cfg.iconError || '⚠️';
                 text = (cfg.errorText || 'Mise à jour échouée : {error}').replace('{error}', error || 'erreur inconnue');
                 color = cfg.errorColor || '#dc2626';
+            } else if (kind === 'blocked') {
+                icon = cfg.iconBlocked || '⚠️';
+                text = (cfg.blockedText || 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
+                    'Réinstallez Outiiil v{version} depuis les releases GitHub.').replace('{version}', version || '');
+                color = cfg.blockedColor || '#dc2626';
             } else { // in_progress (default)
                 icon = cfg.iconInProgress || '⏳';
                 text = cfg.inProgressText || 'Mise à jour en cours...';
@@ -277,6 +282,17 @@
                 });
                 toast.appendChild(btn);
             }
+
+            if (kind === 'blocked' && cfg.cancelable) {
+                var btnReinstall = document.createElement('button');
+                btnReinstall.textContent = cfg.blockedButton || 'Réinstaller';
+                btnReinstall.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
+                btnReinstall.addEventListener('click', function () {
+                    toast.style.opacity = '0';
+                    chrome.runtime.sendMessage({ type: 'OPEN_RELEASES_PAGE' });
+                });
+                toast.appendChild(btnReinstall);
+            }
         }
 
         setKind(status);
@@ -303,6 +319,8 @@
                 showToast('in_progress', message.version, null);
             } else if (message.status === 'error') {
                 showToast('error', null, message.error);
+            } else if (message.status === 'blocked') {
+                showToast('blocked', message.version, null);
             } else if (message.status === 'success') {
                 // New runtime is cached/registered. Show the "pending" toast and hand
                 // the decision to the MAIN world, which reloads only at a safe point

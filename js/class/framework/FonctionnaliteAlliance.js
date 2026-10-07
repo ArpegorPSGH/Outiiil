@@ -324,9 +324,9 @@ Utils.register(class FonctionnaliteAlliance {
      */
     static #viderCacheClasse(Classe) {
         const nomClasse = typeof Classe === 'string' ? Classe : Classe.name;
-        for (const key of cacheObjetForums.keys()) {
+        for (const key of objetForumsCache.keys()) {
             if (key.startsWith(`${nomClasse}_`)) {
-                cacheObjetForums.delete(key);
+                objetForumsCache.delete(key);
             }
         }
     }
@@ -497,15 +497,15 @@ Utils.register(class FonctionnaliteAlliance {
         const cleDemande = `${nomClasse}_${chargerContenus}`;
         const cleOpposee = `${nomClasse}_${!chargerContenus}`;
 
-        if (cacheObjetForums.has(cleDemande)) {
-            return cacheObjetForums.get(cleDemande);
+        if (objetForumsCache.has(cleDemande)) {
+            return objetForumsCache.get(cleDemande);
         }
 
         const objetsCharges = [];
 
-        if (cacheObjetForums.has(cleOpposee)) {
+        if (objetForumsCache.has(cleOpposee)) {
             console.log(`[${this.constructor.name}] Utilisation du cache existant (${cleOpposee}) pour charger ${cleDemande} via rafraîchissement.`);
-            const objetsEnCacheOppose = cacheObjetForums.get(cleOpposee);
+            const objetsEnCacheOppose = objetForumsCache.get(cleOpposee);
             const nouveauxObjets = [];
             for (const obj of objetsEnCacheOppose) {
                 const instance = new ClasseObjetForum(this, { idSujet: obj.idSujet, idSection: obj.idSection });
@@ -513,7 +513,7 @@ Utils.register(class FonctionnaliteAlliance {
                     nouveauxObjets.push(instance);
                 }
             }
-            cacheObjetForums.set(cleDemande, nouveauxObjets);
+            objetForumsCache.set(cleDemande, nouveauxObjets);
             return nouveauxObjets;
         }
 
@@ -558,7 +558,7 @@ Utils.register(class FonctionnaliteAlliance {
         const listeSansDoublons = await Utils.eliminerDoublons(objetsCharges);
 
         console.log('objetsCharges (sans doublons): ', listeSansDoublons)
-        cacheObjetForums.set(cleDemande, listeSansDoublons);
+        objetForumsCache.set(cleDemande, listeSansDoublons);
         return listeSansDoublons;
     }
 
@@ -576,11 +576,11 @@ Utils.register(class FonctionnaliteAlliance {
         }
 
         const nomClasse = objet.constructor.name;
-        const clesAMettreAJour = Array.from(cacheObjetForums.keys()).filter(key => key.startsWith(`${nomClasse}_`));
+        const clesAMettreAJour = Array.from(objetForumsCache.keys()).filter(key => key.startsWith(`${nomClasse}_`));
         const aDesContenus = objet.objetsForumContenus.length > 0;
 
         for (const key of clesAMettreAJour) {
-            const liste = cacheObjetForums.get(key);
+            const liste = objetForumsCache.get(key);
             const index = liste.findIndex(o => o.idSujet === objet.idSujet);
             const keyFlag = key.split('_')[1] === 'true';
 

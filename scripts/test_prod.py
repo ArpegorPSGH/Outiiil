@@ -151,7 +151,7 @@ def main():
 
     # 4. Build du runtime (version de test)
     print(f"\n[*] Compilation du runtime (version {test_version})...")
-    rc.build_runtime(ctx, version=test_version)
+    rc.build_runtime(ctx, version=test_version, update_url=test_github_pages_url)
 
     # 5. Vérification locale sha256
     computed_hash = rc.compute_dist_sha256(ctx)

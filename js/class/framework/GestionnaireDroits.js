@@ -282,7 +282,7 @@ Utils.register(class GestionnaireDroits extends ObjetForum {
         // 4. Mise à jour finale
         this.objetsForumContenus = droitsSynchronises;
         this.mapDroits.clear();
-        cacheObjetForums.set(`${this.constructor.classeObjetsForumContenus.name}_false`, droitsSynchronises)
+        objetForumsCache.set(`${this.constructor.classeObjetsForumContenus.name}_false`, droitsSynchronises)
         for (const droit of this.objetsForumContenus) {
             const pseudo = await droit.lire(nomParametrePseudo);
             if (pseudo) this.mapDroits.set(pseudo, droit);

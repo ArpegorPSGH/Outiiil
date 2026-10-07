@@ -26,6 +26,8 @@
         successText: 'Mise à jour v{version} disponible — application imminente.',
         errorText: 'Mise à jour échouée : {error}',
         reloadingText: 'Rechargement de la page...',
+        blockedText: 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
+            'Réinstallez Outiiil depuis les releases GitHub.',
         position: 'top-right',
         zIndex: 2147483646,
         maxWidth: '360px',
@@ -39,8 +41,11 @@
         iconInProgress: '⏳',
         iconSuccess: '✅',
         iconError: '⚠️',
+        iconBlocked: '⚠️',
         successColor: '#16a34a',
         errorColor: '#dc2626',
+        blockedColor: '#dc2626',
+        blockedButton: 'Réinstaller',
         reloadingTextColor: '#8a6d1a',
         reloadingBackground: 'rgba(255,247,214,0.97)'
     };

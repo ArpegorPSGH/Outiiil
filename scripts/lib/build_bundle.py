@@ -12,6 +12,7 @@ et génère un dossier de distribution `dist/` prêt pour GitHub Pages :
 
 import json
 import os
+import re
 import shutil
 import sys
 import hashlib
@@ -28,8 +29,73 @@ DIST_DIR = os.path.join(BASE_DIR, "dist")
 MANIFEST_PATH = os.path.join(BASE_DIR, "manifest.json")
 IMAGES_SRC_DIR = os.path.join(BASE_DIR, "images")
 IMAGES_DIST_DIR = os.path.join(DIST_DIR, "images")
+BACKGROUND_PATH = os.path.join(BASE_DIR, "js", "background.js")
+BRIDGE_PATH = os.path.join(BASE_DIR, "js", "bridge.js")
+DEFAULT_UPDATE_URL = "https://arpegorpsgh.github.io/Outiiil/dist/"
 
-def build_dist(override_version=None):
+def compute_socle_hash(version, update_url):
+    """
+    Compute SHA-256 of the socle (manifest.json + js/background.js + js/bridge.js),
+    excluding icons and normalizing:
+      - manifest version → "0.0.0"
+      - manifest icon paths → normalized (images/icons/X ≡ icons/X)
+      - background.js: DEV_MODE → false, SOCLE_HASH → '', BASE_UPDATE_URL → update_url
+      - bridge.js: as-is
+
+    The same normalization must be applied when patching background.js for the
+    installed extension (generate_zip_socle), so that the hash in version.json
+    matches the SOCLE_HASH constant baked into the deployed background.js.
+    """
+    hasher = hashlib.sha256()
+
+    # --- manifest.json : version → "0.0.0", icons normalized ---
+    with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+        manifest = json.load(f)
+    manifest["version"] = "0.0.0"
+    _normalize_manifest_icons(manifest)
+    manifest_bytes = json.dumps(manifest, sort_keys=True, ensure_ascii=False).encode("utf-8")
+
+    # --- background.js : DEV_MODE → false, SOCLE_HASH → '', BASE_UPDATE_URL → update_url ---
+    with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
+        bg_code = f.read()
+    bg_code = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
+    bg_code = re.sub(r"const SOCLE_HASH\s*=\s*[^;]+;", "const SOCLE_HASH = '';", bg_code)
+    bg_code = re.sub(
+        r"const BASE_UPDATE_URL\s*=\s*['\"][^'\"]*['\"];",
+        f"const BASE_UPDATE_URL = '{update_url}';",
+        bg_code,
+    )
+    bg_bytes = bg_code.encode("utf-8")
+
+    # --- bridge.js : as-is ---
+    with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
+        bridge_code = f.read()
+    bridge_bytes = bridge_code.encode("utf-8")
+
+    # --- Combined hash ---
+    hasher.update(b"manifest.json\n")
+    hasher.update(manifest_bytes)
+    hasher.update(b"\njs/background.js\n")
+    hasher.update(bg_bytes)
+    hasher.update(b"\njs/bridge.js\n")
+    hasher.update(bridge_bytes)
+    return hasher.hexdigest()
+
+
+def _normalize_manifest_icons(manifest_obj):
+    """Normalize icon paths in-place: images/icons/X → icons/X."""
+    if isinstance(manifest_obj, dict):
+        for key, value in list(manifest_obj.items()):
+            if isinstance(value, str) and value.startswith("images/icons/"):
+                manifest_obj[key] = "icons/" + os.path.basename(value)
+            elif isinstance(value, str) and value.startswith("images/"):
+                manifest_obj[key] = value[len("images/"):]
+            elif isinstance(value, dict):
+                _normalize_manifest_icons(value)
+    return manifest_obj
+
+
+def build_dist(override_version=None, override_update_url=None):
     """
     Build du runtime dans dist/.
 
@@ -170,12 +236,18 @@ def build_dist(override_version=None):
     sha256_hash = sha256_hash.hexdigest()
     print(f"[Outiiil Builder] SHA-256 global de dist/ : {sha256_hash}")
 
-    # --- version.json avec sha256 ---
+    # --- version.json avec sha256 + socle_hash ---
     version_json_path = os.path.join(DIST_DIR, "version.json")
+
+    # Compute the socle hash (manifest + background + bridge, excluding icons/version)
+    target_update_url = override_update_url or DEFAULT_UPDATE_URL
+    socle_hash = compute_socle_hash(version, target_update_url)
+    print(f"[Outiiil Builder] SHA-256 du socle : {socle_hash}")
 
     version_data = {
         "version": version,
         "sha256": sha256_hash,
+        "socle_hash": socle_hash,
         "runtime": "runtime.js",
         "css": "runtime.css",
         "images": liste_images,
@@ -188,7 +260,8 @@ def build_dist(override_version=None):
     print(f" - runtime.js ({os.path.getsize(js_runtime_path) // 1024} Ko)")
     print(f" - runtime.css ({os.path.getsize(css_runtime_path) // 1024} Ko)")
     print(f" - images/ ({len(liste_images)} fichiers)")
-    print(f" - version.json (Version: {version}, sha256: {sha256_hash[:16]}..., {len(liste_images)} images)")
+    print(f" - version.json (Version: {version}, sha256: {sha256_hash[:16]}..., "
+          f"socle_hash: {socle_hash[:16]}..., {len(liste_images)} images)")
 
     return version
 
@@ -197,5 +270,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Build le runtime Outiiil dans dist/")
     parser.add_argument("--version", default=None,
                         help="Override la version (ex: pour les tests)")
+    parser.add_argument("--update-url", default=None,
+                        help="Override BASE_UPDATE_URL for socle hash computation "
+                             "(default: production URL, used for test builds)")
     args = parser.parse_args()
-    build_dist(override_version=args.version)
+    build_dist(override_version=args.version, override_update_url=args.update_url)

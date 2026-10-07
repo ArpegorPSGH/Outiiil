@@ -11,11 +11,16 @@ python -m py_compile scripts/lib/build_bundle.py scripts/release.py scripts/test
 ```bash
 python scripts/lib/build_bundle.py
 ```
-Generates `dist/runtime.js`, `dist/runtime.css`, `dist/version.json` (with SHA-256), and `dist/images/`.
+Generates `dist/runtime.js`, `dist/runtime.css`, `dist/version.json` (with SHA-256 + socle_hash), and `dist/images/`.
 
 Use `--version X.Y.Z` to override the version (useful for test pre-deployment):
 ```bash
 python scripts/lib/build_bundle.py --version 3.22.27-test.1
+```
+
+Use `--update-url URL` to override the BASE_UPDATE_URL used for socle hash computation (required for test builds pointing to a different GitHub Pages repo):
+```bash
+python scripts/lib/build_bundle.py --version 3.22.27-test.1 --update-url https://owner.github.io/Outiiil-test/dist/
 ```
 
 ### JSON validation

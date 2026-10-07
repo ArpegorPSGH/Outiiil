@@ -14,6 +14,12 @@
 // --- Configuration ---
 const DEV_MODE = true;
 
+// SOCLE_HASH is baked into the extension at release time (generate_zip_socle).
+// In dev source it is null — production builds patch it to the computed hash.
+// Used to detect when the installed socle is incompatible with the remote runtime.
+const SOCLE_HASH = null;
+
+const GITHUB_RELEASES_URL = 'https://github.com/ArpegorPSGH/Outiiil/releases';
 const BASE_UPDATE_URL = 'https://arpegorpsgh.github.io/Outiiil/dist/';
 const VERSION_URL = BASE_UPDATE_URL + 'version.json';
 const GAME_MATCHES = ['http://*.fourmizzz.fr/*', 'https://*.fourmizzz.fr/*'];
@@ -232,11 +238,12 @@ case 'RUNTIME_INFO':
                 console.log('[Outiiil Background] CHECK_UPDATE response: version=' + updatedVersion +
                     ' manifestVersion=' + chrome.runtime.getManifest().version +
                     ' updated=' + !!(result && result.updated));
-                return {
+                 return {
                     ok: true,
                     result: {
                         checking: false,
                         updated: !!(result && result.updated),
+                        blocked: !!(result && result.requiresReinstall),
                         version: updatedVersion,
                         manifestVersion: chrome.runtime.getManifest().version
                     }
@@ -310,6 +317,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     type: 'UPDATE_RESULT',
                     ok: true,
                     updated: !!(result && result.updated),
+                    blocked: !!(result && result.requiresReinstall),
                     version: updatedVersion
                 });
             } catch (e) {
@@ -337,6 +345,12 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
     if (message.type === 'GET_DEV_MODE') {
         sendResponse({ devMode: DEV_MODE });
+        return true;
+    }
+
+    if (message.type === 'OPEN_RELEASES_PAGE') {
+        chrome.tabs.create({ url: GITHUB_RELEASES_URL });
+        sendResponse({ ok: true });
         return true;
     }
 
@@ -465,6 +479,21 @@ async function fetchWithDiag(url, label) {
             const remoteInfo = await versionRes.json();
             const remoteVersion = remoteInfo.version;
             console.log('[Outiiil Background] Remote version.json parsed:', JSON.stringify(remoteInfo));
+
+            // --- Socle hash check ---
+            // If the remote socle_hash differs from the locally installed SOCLE_HASH,
+            // the extension's bootstrapper has changed and the new runtime may rely on
+            // background/bridge APIs that don't exist in the old socle. Block the update
+            // and invite the user to reinstall. If socle_hash is absent (old version.json)
+            // or SOCLE_HASH is null (dev mode / unpatched), skip the check for backward compat.
+            if (remoteInfo.socle_hash && SOCLE_HASH && remoteInfo.socle_hash !== SOCLE_HASH) {
+                const msg = 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
+                    'Réinstallez Outiiil depuis les releases GitHub.';
+                console.warn('[Outiiil Background] Socle mismatch: remote=' + remoteInfo.socle_hash +
+                    ' local=' + SOCLE_HASH + ' (remoteVersion=' + remoteVersion + ')');
+                await notifyTabs('blocked', { version: remoteVersion });
+                return { ok: false, error: msg, requiresReinstall: true, version: remoteVersion };
+            }
 
             if (compareVersions(remoteVersion, storedVersion) <= 0) {
                 if (!userScriptRegistered) {

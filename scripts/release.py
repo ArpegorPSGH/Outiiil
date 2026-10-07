@@ -134,6 +134,8 @@ def verifier_socle_a_changer(version):
                 # (remplacé par release.py), or le code source est en DEV_MODE = true.
                 if rel_path == "js/background.js":
                     data = data.replace(b"const DEV_MODE = true;", b"const DEV_MODE = false;")
+                    # Normaliser SOCLE_HASH (source = null/placeholder, zip = '<hash>')
+                    data = re.sub(rb"const SOCLE_HASH\s*=\s*[^;]+;", b"const SOCLE_HASH = '';", data)
                 # Normaliser le manifest : le local utilise des onglets, le zip distant
                 # est écrit par json.dump (espaces). Comparer en JSON normalisé.
                 # Les chemins d'icônes sont aussi normalisés (images/icons/X ≡ icons/X).
@@ -157,6 +159,13 @@ def verifier_socle_a_changer(version):
 
         # Normaliser les chemins d'icônes distants (images/icons/X ≡ icons/X)
         remote_files = {normaliser_chemin_icone(k): v for k, v in remote_files.items()}
+
+        # Normaliser SOCLE_HASH dans le background.js distant (zip = '<hash>', source = null/placeholder)
+        if "js/background.js" in remote_files:
+            remote_files["js/background.js"] = re.sub(
+                rb"const SOCLE_HASH\s*=\s*[^;]+;", b"const SOCLE_HASH = '';",
+                remote_files["js/background.js"]
+            )
 
         # Normaliser le manifest distant : le zip est écrit par json.dump (espaces),
         # on le re-parse pour comparer en JSON normalisé avec le local.

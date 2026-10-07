@@ -1,12 +1,9 @@
-- Créer un script de test production qui :
-    - Pour un bundle, push le dernier commit dev sur une branche de test (à définir en serveur) au lieu de release, et génère un socle en mode prod zip qui pointe dessus, sans effectuer de release
-- Mettre à jour doc et roadmap
-- Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
-- N'utiliser qu'une seule des deux manières d'enregistrement dans Utils.register
-- mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes et numéro version), avec un message invitant à une réinstallation de la nouvelle version
-- Supprimer la branche test
-- Supprimer les commits de test du script sur gh-pages
-- Supprimer les anciennes releases
-- Renommer les branches gh-pages en release et test et en faire la branche principale
-- Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
-- Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+
+- [ ] Mettre à jour doc et roadmap
+- [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
+- [ ] Mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes et numéro version), avec un message invitant à une réinstallation de la nouvelle version
+- [ ] Supprimer la branche test
+- [ ] Supprimer les commits de test du script sur gh-pages
+- [ ] Supprimer les anciennes releases
+- [ ] Renommer les branches gh-pages en release et test et en faire la branche principale
+- [ ] Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
+- [ ] Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+

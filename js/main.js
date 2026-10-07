@@ -252,7 +252,7 @@ async function initialiserFrameworkGlobal() {
     // 1c. Initialiser les caches globaux
     window.dependancesObjetForumsCache = new Map();
     window.appelsChargementCache = new Map();
-    window.cacheObjetForums = new Map(); // Nouvelle variable globale
+    window.objetForumsCache = new Map(); // Nouvelle variable globale
     window.sectionsEnCache = new Map();
 
     // Création de la liste globale des sections
