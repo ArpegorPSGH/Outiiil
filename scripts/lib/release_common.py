@@ -146,8 +146,8 @@ def normalize_js(code):
 def normalize_manifest(data):
     """Normalize manifest.json bytes for comparison/hashing.
 
-    Applies: version → "0.0.0", icon path normalization (images/icons/X → icons/X,
-    images/X → X), deterministic JSON serialization (sorted keys, ASCII disabled).
+    Applies: version → "0.0.0", icon path normalization (any prefix/icons/X → icons/X),
+    deterministic JSON serialization (sorted keys, ASCII disabled).
     This ensures that version bumps, formatting, and icon path differences don't
     affect the socle hash or trigger false-positives in verifier_socle_a_changer.
     """
@@ -157,15 +157,43 @@ def normalize_manifest(data):
     def _normalize_icons(obj):
         if isinstance(obj, dict):
             for key, value in list(obj.items()):
-                if isinstance(value, str) and value.startswith("images/icons/"):
-                    obj[key] = "icons/" + value[len("images/icons/"):]
-                elif isinstance(value, str) and value.startswith("images/"):
-                    obj[key] = value[len("images/"):]
+                if isinstance(value, str):
+                    normalized = _normalize_icon_path(value)
+                    if normalized is not None:
+                        obj[key] = normalized
                 elif isinstance(value, dict):
                     _normalize_icons(value)
 
     _normalize_icons(manifest_obj)
     return json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
+
+
+def _normalize_icon_path(value):
+    """Normalize an icon path to canonical form, regardless of directory prefix.
+
+    Handles any path ending in /icons/<filename> → icons/<filename>, or
+    /images/<filename> → <filename>. Returns None if the value is not an icon path.
+    Only normalizes paths ending with a recognized image extension to avoid
+    corrupting glob patterns (e.g. "images/*") or URLs.
+    """
+    if not isinstance(value, str):
+        return None
+    # Skip globs, URLs, and paths without recognized image extensions
+    if '*' in value or value.startswith(('http://', 'https://')):
+        return None
+    if not value.endswith(('.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.bmp')):
+        return None
+    # Normalize path separators
+    normalized = value.replace("\\", "/")
+    # Any path containing icons/ → icons/<basename>
+    if "icons/" in normalized:
+        basename = os.path.basename(normalized)
+        return "icons/" + basename
+    # Any path containing images/ (but not icons/) → <basename>
+    if "images/" in normalized:
+        basename = os.path.basename(normalized)
+        return basename
+    return None
 
 
 def get_latest_github_release_version(owner, repo):
