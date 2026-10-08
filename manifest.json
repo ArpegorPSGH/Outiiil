@@ -4,19 +4,19 @@
 	"version": "3.22.29",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
-		"48": "images/icons/gear_48.png",
-		"96": "images/icons/gear_96.png"
+		"48": "images-test/icons/gear_48.png",
+		"96": "images-test/icons/gear_96.png"
 	},
 	"action": {
 		"default_icon": "images/icons/gear_48.png"
 	},
+	"author": "Arpegor",
 	"host_permissions": [
 		"http://*.fourmizzz.fr/*",
 		"https://*.fourmizzz.fr/*",
 		"http://outiiil.fr/",
 		"https://arpegorpsgh.github.io/*"
 	],
-	"author": "Arpegor",
 	"background": {
 		"service_worker": "js/background.js"
 	},
