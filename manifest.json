@@ -10,13 +10,13 @@
 	"action": {
 		"default_icon": "images/icons/gear_48.png"
 	},
-	"author": "Arpegor",
 	"host_permissions": [
 		"http://*.fourmizzz.fr/*",
 		"https://*.fourmizzz.fr/*",
 		"http://outiiil.fr/",
 		"https://arpegorpsgh.github.io/*"
 	],
+	"author": "Arpegor",
 	"background": {
 		"service_worker": "js/background.js"
 	},

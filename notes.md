@@ -1,9 +1,7 @@
 - [ ] Mettre à jour doc et roadmap
 - [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
 - [ ] Mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes et numéro version), avec un message invitant à une réinstallation de la nouvelle version
-- Le calcul des SHA de comparaison ne doit pas prendre en compte les caractères n'étant pas du code, comme les espaces, les ;, les retours à la ligne ou les commentaires
-- Tester chacun
-- tester manifest:
+- Tester manifest:
     - changement ordre clés
     - changement chemin icônes
     - changement tabulations
