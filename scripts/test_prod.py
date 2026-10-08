@@ -46,6 +46,10 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "lib"))
 import release_common as rc
 
+# Import verifier_socle_a_changer from release.py for socle change detection
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from release import verifier_socle_a_changer
+
 
 def parse_github_remote(remote_url):
     """
@@ -70,6 +74,56 @@ def parse_github_remote(remote_url):
         if len(parts) >= 2:
             return parts[0], parts[1]
     return None, None
+
+
+def _report_release_conditions(prod_version, test_version):
+    """Check and print (without blocking) the three special release conditions.
+    Called at the end of the test for information."""
+    print("\n" + "-" * 55)
+    print("  Vérification des conditions spéciales de release")
+    print("-" * 55)
+
+    issues = []
+
+    # Condition 1 : changement de socle depuis la dernière release
+    try:
+        socle_a_changer, raison_socle, latest_version = verifier_socle_a_changer(prod_version)
+        if socle_a_changer:
+            issues.append(f"CHANGEMENT DE SOCLE : {raison_socle}")
+    except Exception as e:
+        issues.append(f"CHANGEMENT DE SOCLE : erreur lors de la vérification : {e}")
+
+    # Condition 2 : aucune modification hors numéro de version
+    no_code_changes = False
+    last_tag, changed_files = rc.get_changed_files_since_tag()
+    if last_tag and changed_files:
+        non_manifest = [f for f in changed_files if f != "manifest.json"]
+        if not non_manifest and "manifest.json" in changed_files:
+            no_code_changes = True
+            issues.append(
+                f"AUCUNE MODIFICATION : seul le numéro de version a changé "
+                f"(diff depuis {last_tag} : {changed_files})"
+            )
+
+    # Condition 3 : version identique ou inférieure
+    remote_url = rc.get_remote_url()
+    owner, repo = rc.get_repo_owner_repo(remote_url)
+    latest_version = None
+    if owner and repo:
+        latest_version, _ = rc.get_latest_github_release_version(owner, repo)
+        if latest_version and rc.compare_versions(prod_version, latest_version) <= 0:
+            issues.append(
+                f"VERSION : la version prod ({prod_version}) est identique ou inférieure "
+                f"à la dernière release ({latest_version})"
+            )
+
+    if issues:
+        print("\n  ⚠️  CONDITIONS SPÉCIALES DÉTECTÉES (informationnel) :")
+        for i, issue in enumerate(issues, 1):
+            print(f"    {i}. {issue}")
+    else:
+        print("  ✅ Aucune condition spéciale détectée.")
+    print("-" * 55)
 
 
 def make_test_version(prod_version):
@@ -197,6 +251,9 @@ def main():
     # 9. Nettoyage
     if not args.keep_dist:
         rc.cleanup_dist(ctx)
+
+    # 10. Vérification des conditions spéciales (informationnel seulement, sans blocage)
+    _report_release_conditions(prod_version, test_version)
 
     print("\n" + "=" * 55)
     print("  Test pré-déploiement terminé !")

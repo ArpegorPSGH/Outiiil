@@ -52,15 +52,18 @@ def verifier_socle_a_changer(version):
     `Outiiil-vX.Y.zip`), pas le code sur la branche gh-pages : c'est cet artefact
     qui définit ce qui a été release.
 
-    Retourne (a_changer, reason). Un simple bump de version ne déclenche pas
-    une nouvelle archive zip / release GitHub.
+    Retourne (a_changer, reason, latest_version). Un simple bump de version ne
+    déclenche pas une nouvelle archive zip / release GitHub. latest_version est
+    la version taguée de la dernière release (None si indisponible).
     """
     api_url = 'https://api.github.com/repos/ArpegorPSGH/Outiiil/releases/latest'
     zip_url = None
+    latest_version = None
     try:
         req = urllib.request.Request(api_url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'release.py'})
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode('utf-8'))
+        latest_version = data.get('tag_name') or data.get('name')
         # Chercher l'asset zip (nom de la forme Outiiil-vX.Y.zip)
         for asset in data.get('assets', []) or []:
             name = asset.get('name', '')
@@ -68,10 +71,10 @@ def verifier_socle_a_changer(version):
                 zip_url = asset.get('browser_download_url')
                 break
     except Exception as e:
-        return True, f"impossible de lire la dernière release GitHub: {e}"
+        return True, f"impossible de lire la dernière release GitHub: {e}", latest_version
 
     if not zip_url:
-        return True, "aucun asset zip trouvé dans la dernière release"
+        return True, "aucun asset zip trouvé dans la dernière release", latest_version
 
     with tempfile.TemporaryDirectory() as temp_dir:
         zip_path = os.path.join(temp_dir, "release.zip")
@@ -81,7 +84,7 @@ def verifier_socle_a_changer(version):
                 with open(zip_path, "wb") as f:
                     shutil.copyfileobj(resp, f)
         except Exception as e:
-            return True, f"impossible de télécharger le zip de la dernière release: {e}"
+            return True, f"impossible de télécharger le zip de la dernière release: {e}", latest_version
 
         # Lire les fichiers du socle depuis le zip (sans dist/)
         remote_files = {}
@@ -94,11 +97,11 @@ def verifier_socle_a_changer(version):
                         continue
                     remote_files[name] = zf.read(name)
         except Exception as e:
-            return True, f"impossible de lire le zip de la dernière release: {e}"
+            return True, f"impossible de lire le zip de la dernière release: {e}", latest_version
 
         def normaliser_chemin_icone(rel_path):
-            """Normalise le chemin d'une icône pour la comparaison : images/icons/X ≡ icons/X.
-            Les séparateurs sont normalisés en slash pour ignorer les différences Windows/Unix."""
+            """Normalize icon path for comparison: images/icons/X ≡ icons/X.
+            Also normalize path separators for Win/Unix consistency."""
             rel_path = rel_path.replace(os.sep, "/")
             if rel_path.startswith("images/icons/"):
                 return "icons/" + rel_path[len("images/icons/"):]
@@ -106,46 +109,24 @@ def verifier_socle_a_changer(version):
                 return rel_path[len("images/"):]
             return rel_path
 
-        def normaliser_manifest_icones(manifest_obj):
-            """Normalise les chemins d'icônes dans le manifest (images/icons/X ≡ icons/X)."""
-            if isinstance(manifest_obj, dict):
-                for key, value in manifest_obj.items():
-                    if isinstance(value, str) and value.startswith("images/icons/"):
-                        manifest_obj[key] = "icons/" + value[len("images/icons/"):]
-                    elif isinstance(value, str) and value.startswith("images/"):
-                        manifest_obj[key] = value[len("images/"):]
-                    elif isinstance(value, dict):
-                        normaliser_manifest_icones(value)
-            return manifest_obj
-
-        # Lire les fichiers du socle local (sans dist/, sans le numéro de version)
+        # Read socle local files (without dist/, without version number)
         local_files = {}
         for rel_path in ["manifest.json", "js/background.js", "js/bridge.js"]:
             abs_path = os.path.join(BASE_DIR, rel_path)
             if os.path.exists(abs_path):
                 with open(abs_path, "rb") as f:
                     data = f.read()
-                # Normaliser le numéro de version pour la comparaison
-                try:
-                    data = data.replace(version.encode(), b"0.0.0")
-                except Exception:
-                    pass
-                # Normaliser DEV_MODE : l'artefact de release contient DEV_MODE = false
-                # (remplacé par release.py), or le code source est en DEV_MODE = true.
+                # Normalize DEV_MODE : release zip has DEV_MODE = false, source has true
                 if rel_path == "js/background.js":
                     data = data.replace(b"const DEV_MODE = true;", b"const DEV_MODE = false;")
-                    # Normaliser SOCLE_HASH (source = null/placeholder, zip = '<hash>')
+                    # Normalize SOCLE_HASH (source = null/placeholder, zip = '<hash>')
                     data = re.sub(rb"const SOCLE_HASH\s*=\s*[^;]+;", b"const SOCLE_HASH = '';", data)
-                # Normaliser le manifest : le local utilise des onglets, le zip distant
-                # est écrit par json.dump (espaces). Comparer en JSON normalisé.
-                # Les chemins d'icônes sont aussi normalisés (images/icons/X ≡ icons/X).
+                # Normalize manifest : version → "0.0.0", icon paths, deterministic JSON
                 if rel_path == "manifest.json":
-                    try:
-                        manifest_obj = json.loads(data.decode("utf-8"))
-                        manifest_obj = normaliser_manifest_icones(manifest_obj)
-                        data = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
-                    except Exception:
-                        pass
+                    data = rc.normalize_manifest(data)
+                # Normaliser le JS pour ignorer les espaces, commentaires, point-virgules
+                if rel_path in ("js/background.js", "js/bridge.js"):
+                    data = rc.normalize_js(data.decode("utf-8")).encode("utf-8")
                 local_files[rel_path] = data
 
         icons_src = os.path.join(IMAGES_DIR, "icons")
@@ -167,25 +148,19 @@ def verifier_socle_a_changer(version):
                 remote_files["js/background.js"]
             )
 
-        # Normaliser le manifest distant : le zip est écrit par json.dump (espaces),
-        # on le re-parse pour comparer en JSON normalisé avec le local.
-        # Les chemins d'icônes sont aussi normalisés (images/icons/X ≡ icons/X).
-        # Le numéro de version est aussi normalisé (le zip distant contient l'ancienne version).
+        # Normaliser le manifest distant (version → "0.0.0", icon paths, JSON trié)
         if "manifest.json" in remote_files:
-            try:
-                print(f"[*] Normalisation manifest distant (version courante={version})...")
-                remote_raw = remote_files["manifest.json"]
-                print(f"    distant brut: {remote_raw[:300]!r}")
-                # Normaliser n'importe quel numéro de version (X.Y ou X.Y.Z) par 0.0.0
-                # Le zip distant contient l'ancienne version, pas la version courante.
-                remote_data = re.sub(rb'\"version\":\s*\"[0-9.]+\"', b'"version": "0.0.0"', remote_raw)
-                print(f"    distant après norm version: {remote_data[:300]!r}")
-                manifest_obj = json.loads(remote_data.decode("utf-8"))
-                manifest_obj = normaliser_manifest_icones(manifest_obj)
-                remote_files["manifest.json"] = json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
-                print(f"    distant normalisé: {remote_files['manifest.json'][:200]!r}")
-            except Exception as e:
-                print(f"[*] Erreur normalisation manifest distant: {e}")
+            print(f"[*] Normalisation manifest distant (version courante={version})...")
+            print(f"    distant brut: {remote_files['manifest.json'][:300]!r}")
+            remote_files["manifest.json"] = rc.normalize_manifest(remote_files["manifest.json"])
+            print(f"    distant normalisé: {remote_files['manifest.json'][:200]!r}")
+
+        # Normaliser le JS distant pour ignorer les espaces, commentaires, point-virgules
+        for js_file in ("js/background.js", "js/bridge.js"):
+            if js_file in remote_files:
+                remote_files[js_file] = rc.normalize_js(
+                    remote_files[js_file].decode("utf-8")
+                ).encode("utf-8")
 
         # Comparer les clés (fichiers)
         local_keys = set(local_files.keys())
@@ -193,7 +168,7 @@ def verifier_socle_a_changer(version):
         print(f"[*] Clés locales: {sorted(local_keys)}")
         print(f"[*] Clés distantes: {sorted(remote_keys)}")
         if local_keys != remote_keys:
-            return True, f"différence d'ensemble de fichiers: local={sorted(local_keys)}, distant={sorted(remote_keys)}"
+            return True, f"différence d'ensemble de fichiers: local={sorted(local_keys)}, distant={sorted(remote_keys)}", latest_version
 
         # Comparer le contenu de chaque fichier
         for key in sorted(local_keys):
@@ -219,11 +194,73 @@ def verifier_socle_a_changer(version):
                             break
                     else:
                         print(f"    Différence de longueur: local={len(local_norm)}, distant={len(remote_norm)}")
-                    return True, f"fichier modifié: {key}"
+                    return True, f"fichier modifié: {key}", latest_version
             else:
                 print(f"    -> IDENTIQUE (brut)")
 
-        return False, "aucune modification du socle détectée depuis la dernière release"
+        return False, "aucune modification du socle détectée depuis la dernière release", latest_version
+
+
+def _check_release_conditions(version):
+    """
+    Vérifie les trois conditions spéciales avant une release et demande
+    confirmation à l'utilisateur si l'une d'elles est remplie :
+
+    1. Changement de socle (manifest + background + bridge, HORS icônes/version)
+       par rapport à la dernière release GitHub → un nouveau zip/tag/release est nécessaire.
+    2. Aucune modification du code source (socle + runtime) en dehors du numéro de version
+       → le release ne fait que répéter le même code avec une version différente.
+    3. Version identique ou inférieure à la dernière release → probablement oubli d'incrémenter.
+
+    Returns (socle_a_changer, raison_socle, latest_version) pour réutilisation ultérieure.
+    """
+    print("[*] Vérification des conditions spéciales avant release...")
+
+    # Conditions 1 & 3 : check du socle + version depuis la dernière release GitHub
+    socle_a_changer, raison_socle, latest_version = verifier_socle_a_changer(version)
+
+    issues = []
+
+    # Condition 1 : changement de socle
+    if socle_a_changer:
+        issues.append(f"CHANGEMENT DE SOCLE : {raison_socle}")
+
+    # Condition 3 : version identique ou inférieure
+    if latest_version and rc.compare_versions(version, latest_version) <= 0:
+        issues.append(
+            f"VERSION : la version courante ({version}) est identique ou inférieure "
+            f"à la dernière release ({latest_version})"
+        )
+
+    # Condition 2 : aucune modification hors numéro de version
+    no_code_changes = False
+    last_tag, changed_files = rc.get_changed_files_since_tag()
+    if last_tag and changed_files:
+        non_manifest = [f for f in changed_files if f != "manifest.json"]
+        if not non_manifest and "manifest.json" in changed_files:
+            no_code_changes = True
+            issues.append(
+                "AUCUNE MODIFICATION : seul le numéro de version a changé "
+                f"(diff depuis {last_tag} : {changed_files})"
+            )
+
+    if issues:
+        print("\n" + "=" * 60)
+        print("  ⚠️  CONDITIONS SPÉCIALES — CONFIRMATION REQUISE")
+        print("=" * 60)
+        for i, issue in enumerate(issues, 1):
+            print(f"  {i}. {issue}")
+        print("=" * 60)
+        try:
+            response = input("\nVoulez-vous continuer la release ? [y/N] ")
+        except EOFError:
+            response = ""
+        if response.strip().lower() not in ('y', 'yes', 'o', 'oui'):
+            print("\nRelease abandonnée par l'utilisateur.")
+            sys.exit(0)
+        print()
+
+    return socle_a_changer, raison_socle, latest_version
 
 
 def main():
@@ -248,6 +285,13 @@ def main():
     print(f"[*] Version cible pour la release : {version}")
     tag_name = version
 
+    # --- Vérification des conditions spéciales (avant build) ---
+    # Détecte : (1) changement de socle, (2) aucune modification hors version,
+    # (3) version identique ou inférieure à la dernière release.
+    # Si l'une de ces conditions est remplie, demande confirmation à l'utilisateur.
+    # Le résultat du check du socle est réutilisé plus bas pour décider de la création du zip.
+    socle_a_changer, raison_socle, latest_version_check = _check_release_conditions(version)
+
     # 3. Compilation du runtime dans dist/
     rc.build_runtime(ctx)
 
@@ -259,8 +303,7 @@ def main():
     computed_hash = rc.compute_dist_sha256(ctx)
 
     # 4. Génération de l'archive zip (uniquement si le socle a changé)
-    print("[*] Vérification des modifications du socle (manifest + js + icons, HORS numéro de version)...")
-    socle_a_changer, raison_socle = verifier_socle_a_changer(version)
+    # (Le check du socle a été effectué avant le build dans _check_release_conditions.)
     zip_filename = None
     zip_dest_path = None
     if socle_a_changer:

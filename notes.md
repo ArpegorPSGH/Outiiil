@@ -1,9 +1,21 @@
 - [ ] Mettre à jour doc et roadmap
 - [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
 - [ ] Mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes et numéro version), avec un message invitant à une réinstallation de la nouvelle version
+- Le calcul des SHA de comparaison ne doit pas prendre en compte les caractères n'étant pas du code, comme les espaces, les ;, les retours à la ligne ou les commentaires
+- Tester chacun
+- tester manifest:
+    - changement ordre clés
+    - changement chemin icônes
+    - changement tabulations
+- Tester scripts release et test en cas de :
+    - détection de changement de socle
+    - d'absence de modification de l'extension (socle + runtime) en dehors du numéro de version
+    - de numéro de version identique ou inférieur au précédent
+- Tester bloquage modif socle
 - [ ] Supprimer la branche test
 - [ ] Supprimer les commits de test du script sur gh-pages
 - [ ] Supprimer les anciennes releases
 - [ ] Renommer les branches gh-pages en release et test et en faire la branche principale
 - [ ] Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
 - [ ] Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+
+- Signaler Fourmizzz fourmilières attaquables et pouvant attaquer page membres inclu soi-même

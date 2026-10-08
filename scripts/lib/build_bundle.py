@@ -17,6 +17,10 @@ import shutil
 import sys
 import hashlib
 
+# Ensure scripts/lib/ is in sys.path so we can import release_common.py (same dir)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import release_common as rc
+
 # Ensure UTF-8 output for Windows compatibility
 try:
     sys.stdout.reconfigure(encoding='utf-8')
@@ -33,6 +37,64 @@ BACKGROUND_PATH = os.path.join(BASE_DIR, "js", "background.js")
 BRIDGE_PATH = os.path.join(BASE_DIR, "js", "bridge.js")
 DEFAULT_UPDATE_URL = "https://arpegorpsgh.github.io/Outiiil/dist/"
 
+def normalize_js(code):
+    """Normalize JavaScript code by removing comments, excess whitespace, and semicolons.
+
+    This ensures that cosmetic changes (formatting, comments, semicolons) don't
+    trigger false-positive socle hash mismatches. Token boundaries are preserved
+    by collapsing whitespace sequences to a single space (not removing entirely,
+    since e.g. 'return true' must remain two tokens).
+    """
+    # --- Remove multi-line comments /* ... */ ---
+    code = re.sub(r'/\*.*?\*/', ' ', code, flags=re.DOTALL)
+
+    # --- Remove single-line comments // ... (preserving strings) ---
+    result = []
+    i = 0
+    in_string = False
+    string_char = None
+    while i < len(code):
+        c = code[i]
+        if in_string:
+            if c == '\\' and i + 1 < len(code):
+                result.append(code[i:i + 2])
+                i += 2
+                continue
+            if c == string_char:
+                in_string = False
+            result.append(c)
+            i += 1
+            continue
+        # Not in string
+        if c in ('"', "'", '`'):
+            in_string = True
+            string_char = c
+            result.append(c)
+            i += 1
+            continue
+        if c == '/' and i + 1 < len(code):
+            if code[i + 1] == '/':
+                while i < len(code) and code[i] != '\n':
+                    i += 1
+                continue
+            elif code[i + 1] == '*':
+                i += 2
+                while i + 1 < len(code) and not (code[i] == '*' and code[i + 1] == '/'):
+                    i += 1
+                i += 2
+                result.append(' ')
+                continue
+        result.append(c)
+        i += 1
+    code = ''.join(result)
+
+    # --- Normalize whitespace: all whitespace sequences → single space ---
+    code = re.sub(r'\s+', ' ', code)
+    # --- Remove semicolons ---
+    code = code.replace(';', '')
+    return code.strip()
+
+
 def compute_socle_hash(version, update_url):
     """
     Compute SHA-256 of the socle (manifest.json + js/background.js + js/bridge.js),
@@ -41,6 +103,8 @@ def compute_socle_hash(version, update_url):
       - manifest icon paths → normalized (images/icons/X ≡ icons/X)
       - background.js: DEV_MODE → false, SOCLE_HASH → '', BASE_UPDATE_URL → update_url
       - bridge.js: as-is
+      - All JS code is passed through normalize_js() to strip comments,
+        whitespace, and semicolons so only semantic content affects the hash.
 
     The same normalization must be applied when patching background.js for the
     installed extension (generate_zip_socle), so that the hash in version.json
@@ -48,12 +112,9 @@ def compute_socle_hash(version, update_url):
     """
     hasher = hashlib.sha256()
 
-    # --- manifest.json : version → "0.0.0", icons normalized ---
-    with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
-        manifest = json.load(f)
-    manifest["version"] = "0.0.0"
-    _normalize_manifest_icons(manifest)
-    manifest_bytes = json.dumps(manifest, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    # --- manifest.json : version → "0.0.0", icons normalized, deterministic JSON ---
+    with open(MANIFEST_PATH, "rb") as f:
+        manifest_bytes = rc.normalize_manifest(f.read())
 
     # --- background.js : DEV_MODE → false, SOCLE_HASH → '', BASE_UPDATE_URL → update_url ---
     with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
@@ -65,11 +126,13 @@ def compute_socle_hash(version, update_url):
         f"const BASE_UPDATE_URL = '{update_url}';",
         bg_code,
     )
+    bg_code = normalize_js(bg_code)
     bg_bytes = bg_code.encode("utf-8")
 
-    # --- bridge.js : as-is ---
+    # --- bridge.js : as-is (but normalized) ---
     with open(BRIDGE_PATH, "r", encoding="utf-8") as f:
         bridge_code = f.read()
+    bridge_code = normalize_js(bridge_code)
     bridge_bytes = bridge_code.encode("utf-8")
 
     # --- Combined hash ---
@@ -80,19 +143,6 @@ def compute_socle_hash(version, update_url):
     hasher.update(b"\njs/bridge.js\n")
     hasher.update(bridge_bytes)
     return hasher.hexdigest()
-
-
-def _normalize_manifest_icons(manifest_obj):
-    """Normalize icon paths in-place: images/icons/X → icons/X."""
-    if isinstance(manifest_obj, dict):
-        for key, value in list(manifest_obj.items()):
-            if isinstance(value, str) and value.startswith("images/icons/"):
-                manifest_obj[key] = "icons/" + os.path.basename(value)
-            elif isinstance(value, str) and value.startswith("images/"):
-                manifest_obj[key] = value[len("images/"):]
-            elif isinstance(value, dict):
-                _normalize_manifest_icons(value)
-    return manifest_obj
 
 
 def build_dist(override_version=None, override_update_url=None):

@@ -70,6 +70,142 @@ def run_cmd(cmd, cwd=None, check=True):
     return res.stdout.strip()
 
 
+def compare_versions(v1, v2):
+    """Compare two version strings. Returns 1 if v1 > v2, 0 if equal, -1 if v1 < v2."""
+    if not v1 or not v2:
+        return 0
+    parts1 = [int(x) for x in str(v1).split('.')]
+    parts2 = [int(x) for x in str(v2).split('.')]
+    max_len = max(len(parts1), len(parts2))
+    parts1 += [0] * (max_len - len(parts1))
+    parts2 += [0] * (max_len - len(parts2))
+    for p1, p2 in zip(parts1, parts2):
+        if p1 > p2:
+            return 1
+        if p1 < p2:
+            return -1
+    return 0
+
+
+def normalize_js(code):
+    """Normalize JavaScript code by removing comments, excess whitespace, and semicolons.
+
+    This is the same normalization used in build_bundle.py's compute_socle_hash,
+    ensuring that cosmetic changes don't trigger false-positive socle hash mismatches
+    or false 'socle changed' detections in verifier_socle_a_changer.
+    """
+    # --- Remove multi-line comments /* ... */ ---
+    code = re.sub(r'/\*.*?\*/', ' ', code, flags=re.DOTALL)
+
+    # --- Remove single-line comments // ... (preserving strings) ---
+    result = []
+    i = 0
+    in_string = False
+    string_char = None
+    while i < len(code):
+        c = code[i]
+        if in_string:
+            if c == '\\' and i + 1 < len(code):
+                result.append(code[i:i + 2])
+                i += 2
+                continue
+            if c == string_char:
+                in_string = False
+            result.append(c)
+            i += 1
+            continue
+        if c in ('"', "'", '`'):
+            in_string = True
+            string_char = c
+            result.append(c)
+            i += 1
+            continue
+        if c == '/' and i + 1 < len(code):
+            if code[i + 1] == '/':
+                while i < len(code) and code[i] != '\n':
+                    i += 1
+                continue
+            elif code[i + 1] == '*':
+                i += 2
+                while i + 1 < len(code) and not (code[i] == '*' and code[i + 1] == '/'):
+                    i += 1
+                i += 2
+                result.append(' ')
+                continue
+        result.append(c)
+        i += 1
+    code = ''.join(result)
+
+    # --- Normalize whitespace: all whitespace sequences -> single space ---
+    code = re.sub(r'\s+', ' ', code)
+    # --- Remove semicolons ---
+    code = code.replace(';', '')
+    return code.strip()
+
+
+def normalize_manifest(data):
+    """Normalize manifest.json bytes for comparison/hashing.
+
+    Applies: version → "0.0.0", icon path normalization (images/icons/X → icons/X,
+    images/X → X), deterministic JSON serialization (sorted keys, ASCII disabled).
+    This ensures that version bumps, formatting, and icon path differences don't
+    affect the socle hash or trigger false-positives in verifier_socle_a_changer.
+    """
+    manifest_obj = json.loads(data.decode("utf-8"))
+    manifest_obj["version"] = "0.0.0"
+
+    def _normalize_icons(obj):
+        if isinstance(obj, dict):
+            for key, value in list(obj.items()):
+                if isinstance(value, str) and value.startswith("images/icons/"):
+                    obj[key] = "icons/" + value[len("images/icons/"):]
+                elif isinstance(value, str) and value.startswith("images/"):
+                    obj[key] = value[len("images/"):]
+                elif isinstance(value, dict):
+                    _normalize_icons(value)
+
+    _normalize_icons(manifest_obj)
+    return json.dumps(manifest_obj, sort_keys=True, ensure_ascii=False).encode("utf-8")
+
+
+def get_latest_github_release_version(owner, repo):
+    """Fetch the latest release version from GitHub API.
+    Returns (version, error). version is None on failure."""
+    api_url = f'https://api.github.com/repos/{owner}/{repo}/releases/latest'
+    try:
+        req = urllib.request.Request(api_url, headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'release_common.py'})
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        version = data.get('tag_name') or data.get('name')
+        return version, None
+    except Exception as e:
+        return None, str(e)
+
+
+def get_repo_owner_repo(remote_url):
+    """Extract (owner, repo) from a git remote URL.
+    Handles https://github.com/owner/repo.git and git@github.com:owner/repo.git."""
+    m = re.match(r'https://github\.com/([^/]+)/([^/]+?)(?:\.git)?(?:/.*)?$', remote_url)
+    if m:
+        return m.group(1), m.group(2)
+    m = re.match(r'git@github\.com:([^/]+)/(.+?)(?:\.git)?$', remote_url)
+    if m:
+        return m.group(1), m.group(2).replace('.git', '')
+    return None, None
+
+
+def get_changed_files_since_tag(tag=None):
+    """Returns list of changed files since the given git tag.
+    If tag is None, uses the latest local tag (git describe --tags --abbrev=0).
+    Returns (tag, changed_files_list) or (None, []) if no tag found."""
+    if tag is None:
+        tag = run_cmd("git describe --tags --abbrev=0", check=False)
+    if not tag:
+        return None, []
+    changed = run_cmd(f"git diff --name-only {tag}..HEAD", check=False)
+    return tag, [f.strip() for f in changed.splitlines() if f.strip()]
+
+
 # --------------------------------------------------------------------------- #
 #  Git helpers
 # --------------------------------------------------------------------------- #
