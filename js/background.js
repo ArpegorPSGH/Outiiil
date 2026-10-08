@@ -48,7 +48,8 @@ function isPathBlacklisted(path) {
 }
 
 // --- State ---
-let userScriptRegistered = false
+let userScriptRegistered = false;
+
 const registeredEvents = new Map();
 let registrationLock = false;
 
