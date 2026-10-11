@@ -273,7 +273,7 @@
 
             var textEl = document.createElement('span');
             textEl.textContent = text;
-            textEl.style.cssText = 'flex:1 1 auto;';
+            textEl.style.cssText = 'flex:1 1 auto; min-width: 0;';
             if (color) textEl.style.color = color;
 
             toast.appendChild(iconEl);
