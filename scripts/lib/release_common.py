@@ -389,15 +389,18 @@ def generate_zip_socle(ctx, version, dev_mode, update_url, zip_path):
     # Patcher la version (utile pour les zips de test où la version diffère du manifest source)
     manifest["version"] = version
 
-    if "icons" in manifest:
+    # Normaliser les chemins d'icônes de manière cohérente (utilise la même logique
+    # que normalize_manifest, mais garde la version réelle dans le manifest du zip).
+    if "icons" in manifest and isinstance(manifest["icons"], dict):
         for key, path in list(manifest["icons"].items()):
-            if path.startswith("images/icons/"):
-                manifest["icons"][key] = "icons/" + os.path.basename(path)
-    if "action" in manifest and "default_icon" in manifest["action"]:
-        if manifest["action"]["default_icon"].startswith("images/icons/"):
-            manifest["action"]["default_icon"] = "icons/" + os.path.basename(
-                manifest["action"]["default_icon"]
-            )
+            normalized = _normalize_icon_path(path)
+            if normalized is not None:
+                manifest["icons"][key] = normalized
+    if "action" in manifest and isinstance(manifest["action"], dict):
+        if "default_icon" in manifest["action"]:
+            normalized = _normalize_icon_path(manifest["action"]["default_icon"])
+            if normalized is not None:
+                manifest["action"]["default_icon"] = normalized
 
     # --- background.js avec DEV_MODE et BASE_UPDATE_URL patchés ---
     with open(ctx.background_path, "r", encoding="utf-8") as f:

@@ -4,7 +4,7 @@
 	"version": "3.22.32",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
-		"48": "images/icons/gear_48.png",
+		"48": "images-test/icons/gear_48.png",
 		"96": "images/icons/gear_96.png"
 	},
 	"action": {
