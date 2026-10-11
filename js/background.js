@@ -52,6 +52,7 @@ function isPathBlacklisted(path) {
 let userScriptRegistered = false;
 const registeredEvents = new Map();
 let registrationLock = false;
+let test = true;
 
 // --- Chrome API Resolution ---
 
