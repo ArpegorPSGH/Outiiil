@@ -177,7 +177,14 @@
     // deferring the actual reload so it never interrupts a transaction.
 
     function getToastConfig() {
-        return (toastConfig && typeof toastConfig === 'object') ? toastConfig : {};
+        var base = (toastConfig && typeof toastConfig === 'object') ? toastConfig : {};
+        // Default: action buttons (retry, download, releases) are always available
+        // until the runtime pushes its config. This ensures the "blocked" reinstall
+        // buttons appear even when the runtime hasn't loaded yet.
+        if (base.cancelable === undefined) {
+            base.cancelable = true;
+        }
+        return base;
     }
 
     function applyStyle(el, props) {
@@ -283,7 +290,7 @@
                 toast.appendChild(btn);
             }
 
-            if (kind === 'blocked' && cfg.cancelable) {
+            if (kind === 'blocked') {
                 var btnDownload = document.createElement('button');
                 btnDownload.textContent = cfg.blockedButton || 'Télécharger';
                 btnDownload.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';

@@ -44,6 +44,30 @@ IMAGES_DIR = os.path.join(BASE_DIR, "images")
 BRANCH_GH_PAGES = "gh-pages"
 
 
+def _normalize_server_constants(data):
+    """Normalize all server-specific constants in background.js bytes.
+
+    Ensures that URL/repo/address changes (BASE_UPDATE_URL, GITHUB_*, etc.)
+    do not trigger false-positive socle-change detections. Only the bootstrapper
+    LOGIC should affect the socle hash, not the deployment target.
+    """
+    data = re.sub(rb"const DEV_MODE\s*=\s*[^;]+;", b"const DEV_MODE = false;", data)
+    data = re.sub(rb"const SOCLE_HASH\s*=\s*[^;]+;", b"const SOCLE_HASH = '';", data)
+    data = re.sub(rb"const BASE_UPDATE_URL\s*=\s*['\"][^'\"]*['\"];",
+                  b"const BASE_UPDATE_URL = '';", data)
+    data = re.sub(rb"const GITHUB_OWNER\s*=\s*['\"][^'\"]*['\"];",
+                  b"const GITHUB_OWNER = '';", data)
+    data = re.sub(rb"const GITHUB_REPO\s*=\s*['\"][^'\"]*['\"];",
+                  b"const GITHUB_REPO = '';", data)
+    data = re.sub(rb"const GITHUB_ZIP_PREFIX\s*=\s*['\"][^'\"]*['\"];",
+                  b"const GITHUB_ZIP_PREFIX = '';", data)
+    data = re.sub(rb"const GITHUB_RELEASES_URL\s*=\s*[^;]+;",
+                  b"const GITHUB_RELEASES_URL = '';", data)
+    data = re.sub(rb"const GITHUB_LATEST_RELEASE_URL\s*=\s*[^;]+;",
+                  b"const GITHUB_LATEST_RELEASE_URL = '';", data)
+    return data
+
+
 def verifier_socle_a_changer(version):
     """Détermine si le socle (manifest + background.js + bridge.js + icons,
     HORS numéro de version) a changé depuis la dernière release GitHub.
@@ -116,11 +140,9 @@ def verifier_socle_a_changer(version):
             if os.path.exists(abs_path):
                 with open(abs_path, "rb") as f:
                     data = f.read()
-                # Normalize DEV_MODE : release zip has DEV_MODE = false, source has true
+                # Normalize DEV_MODE, SOCLE_HASH, and all server-specific constants
                 if rel_path == "js/background.js":
-                    data = data.replace(b"const DEV_MODE = true;", b"const DEV_MODE = false;")
-                    # Normalize SOCLE_HASH (source = null/placeholder, zip = '<hash>')
-                    data = re.sub(rb"const SOCLE_HASH\s*=\s*[^;]+;", b"const SOCLE_HASH = '';", data)
+                    data = _normalize_server_constants(data)
                 # Normalize manifest : version → "0.0.0", icon paths, deterministic JSON
                 if rel_path == "manifest.json":
                     data = rc.normalize_manifest(data)
@@ -141,10 +163,10 @@ def verifier_socle_a_changer(version):
         # Normaliser les chemins d'icônes distants (images/icons/X ≡ icons/X)
         remote_files = {normaliser_chemin_icone(k): v for k, v in remote_files.items()}
 
-        # Normaliser SOCLE_HASH dans le background.js distant (zip = '<hash>', source = null/placeholder)
+        # Normalize SOCLE_HASH and all server-specific constants in remote background.js
+        # (zip = '<hash>', source = null/placeholder; URLs/repos are normalized to '')
         if "js/background.js" in remote_files:
-            remote_files["js/background.js"] = re.sub(
-                rb"const SOCLE_HASH\s*=\s*[^;]+;", b"const SOCLE_HASH = '';",
+            remote_files["js/background.js"] = _normalize_server_constants(
                 remote_files["js/background.js"]
             )
 

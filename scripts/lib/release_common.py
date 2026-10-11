@@ -365,13 +365,13 @@ def compute_dist_sha256(ctx):
 #  Zip socle generation
 # --------------------------------------------------------------------------- #
 
-def generate_zip_socle(ctx, version, dev_mode, update_url, zip_path):
+def generate_zip_socle(ctx, version, dev_mode, update_url, zip_path, github_repo=None, zip_prefix=None):
     """
     Génère l'archive zip du socle minimale pour l'installation.
 
     Contenu du zip :
       - manifest.json  (chemins d'icônes normalisés : images/icons/X → icons/X)
-      - js/background.js  (DEV_MODE + BASE_UPDATE_URL patchés)
+      - js/background.js  (DEV_MODE + BASE_UPDATE_URL + SOCLE_HASH + GitHub constants patchés)
       - js/bridge.js
       - icons/  (icônes d'extension)
 
@@ -381,6 +381,8 @@ def generate_zip_socle(ctx, version, dev_mode, update_url, zip_path):
         dev_mode     : bool — DEV_MODE dans background.js
         update_url   : str — BASE_UPDATE_URL dans background.js
         zip_path     : str — chemin de destination du zip
+        github_repo  : str or None — repo GitHub (default: None = keep source 'Outiiil')
+        zip_prefix   : str or None — préfixe du nom de fichier zip (default: None = keep 'Outiiil-v')
     """
     # --- manifest.json avec icônes normalisées et version patchée ---
     with open(ctx.manifest_path, "r", encoding="utf-8") as f:
@@ -429,6 +431,19 @@ def generate_zip_socle(ctx, version, dev_mode, update_url, zip_path):
         f"const SOCLE_HASH = '{socle_hash}';",
         bg_code,
     )
+
+    # Patch GitHub repo + zip prefix so the "blocked" toast buttons point to
+    # the correct releases/downloads for the target environment (test vs prod).
+    if github_repo is not None:
+        bg_code = bg_code.replace(
+            "const GITHUB_REPO = 'Outiiil';",
+            f"const GITHUB_REPO = '{github_repo}';",
+        )
+    if zip_prefix is not None:
+        bg_code = bg_code.replace(
+            "const GITHUB_ZIP_PREFIX = 'Outiiil-v';",
+            f"const GITHUB_ZIP_PREFIX = '{zip_prefix}';",
+        )
 
     # --- bridge.js ---
     with open(ctx.bridge_path, "r", encoding="utf-8") as f:

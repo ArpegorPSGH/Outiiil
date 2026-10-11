@@ -95,20 +95,23 @@ def normalize_js(code):
     return code.strip()
 
 
-def compute_socle_hash(version, update_url):
+def compute_socle_hash(version):
     """
     Compute SHA-256 of the socle (manifest.json + js/background.js + js/bridge.js),
     excluding icons and normalizing:
       - manifest version → "0.0.0"
-      - manifest icon paths → normalized (images/icons/X ≡ icons/X)
-      - background.js: DEV_MODE → false, SOCLE_HASH → '', BASE_UPDATE_URL → update_url
+      - manifest icon paths → normalized (any prefix/icons/X → icons/X)
+      - background.js: DEV_MODE → false, SOCLE_HASH → '', all server URLs → '' (normalized)
       - bridge.js: as-is
       - All JS code is passed through normalize_js() to strip comments,
         whitespace, and semicolons so only semantic content affects the hash.
 
-    The same normalization must be applied when patching background.js for the
-    installed extension (generate_zip_socle), so that the hash in version.json
-    matches the SOCLE_HASH constant baked into the deployed background.js.
+    Server-specific constants (BASE_UPDATE_URL, GITHUB_OWNER, GITHUB_REPO,
+    GITHUB_ZIP_PREFIX, GITHUB_RELEASES_URL, GITHUB_LATEST_RELEASE_URL) are
+    normalized to empty strings so that only the server address changes do
+    NOT trigger false-positive socle mismatches. This allows the same zip
+    to be patched with different URLs for test/prod without changing the
+    socle hash.
     """
     hasher = hashlib.sha256()
 
@@ -116,16 +119,29 @@ def compute_socle_hash(version, update_url):
     with open(MANIFEST_PATH, "rb") as f:
         manifest_bytes = rc.normalize_manifest(f.read())
 
-    # --- background.js : DEV_MODE → false, SOCLE_HASH → '', BASE_UPDATE_URL → update_url ---
+    # --- background.js : DEV_MODE → false, SOCLE_HASH → '', server URLs → '' (normalized) ---
     with open(BACKGROUND_PATH, "r", encoding="utf-8") as f:
         bg_code = f.read()
     bg_code = bg_code.replace("const DEV_MODE = true;", "const DEV_MODE = false;")
     bg_code = re.sub(r"const SOCLE_HASH\s*=\s*[^;]+;", "const SOCLE_HASH = '';", bg_code)
-    bg_code = re.sub(
-        r"const BASE_UPDATE_URL\s*=\s*['\"][^'\"]*['\"];",
-        f"const BASE_UPDATE_URL = '{update_url}';",
-        bg_code,
-    )
+
+    # Normalize all server-specific constants to empty strings so that
+    # BASE_UPDATE_URL / GitHub repo changes do not trigger false socle-change
+    # detections. The server address must be allowed to differ between test
+    # and prod (and across renames) without invalidating the socle hash.
+    bg_code = re.sub(r"const BASE_UPDATE_URL\s*=\s*['\"][^'\"]*['\"];",
+                     "const BASE_UPDATE_URL = '';", bg_code)
+    bg_code = re.sub(r"const GITHUB_OWNER\s*=\s*['\"][^'\"]*['\"];",
+                     "const GITHUB_OWNER = '';", bg_code)
+    bg_code = re.sub(r"const GITHUB_REPO\s*=\s*['\"][^'\"]*['\"];",
+                     "const GITHUB_REPO = '';", bg_code)
+    bg_code = re.sub(r"const GITHUB_ZIP_PREFIX\s*=\s*['\"][^'\"]*['\"];",
+                     "const GITHUB_ZIP_PREFIX = '';", bg_code)
+    bg_code = re.sub(r"const GITHUB_RELEASES_URL\s*=\s*[^;]+;",
+                     "const GITHUB_RELEASES_URL = '';", bg_code)
+    bg_code = re.sub(r"const GITHUB_LATEST_RELEASE_URL\s*=\s*[^;]+;",
+                     "const GITHUB_LATEST_RELEASE_URL = '';", bg_code)
+
     bg_code = normalize_js(bg_code)
     bg_bytes = bg_code.encode("utf-8")
 
@@ -150,7 +166,10 @@ def build_dist(override_version=None, override_update_url=None):
     Build du runtime dans dist/.
 
     Args:
-        override_version: si fourni, utilise cette version au lieu de manifest.json.
+        override_version      : si fourni, utilise cette version au lieu de manifest.json.
+        override_update_url   : DEPRECATED — no longer used. The socle hash is now
+                                URL-agnostic (server constants are normalized to ''),
+                                so test/prod builds produce identical hashes.
     """
     print(f"[Outiiil Builder] Répertoire racine : {BASE_DIR}")
     if not os.path.exists(MANIFEST_PATH):
@@ -289,9 +308,8 @@ def build_dist(override_version=None, override_update_url=None):
     # --- version.json avec sha256 + socle_hash ---
     version_json_path = os.path.join(DIST_DIR, "version.json")
 
-    # Compute the socle hash (manifest + background + bridge, excluding icons/version)
-    target_update_url = override_update_url or DEFAULT_UPDATE_URL
-    socle_hash = compute_socle_hash(version, target_update_url)
+    # Compute the socle hash (manifest + background + bridge, excluding icons/version/server URLs)
+    socle_hash = compute_socle_hash(version)
     print(f"[Outiiil Builder] SHA-256 du socle : {socle_hash}")
 
     version_data = {
