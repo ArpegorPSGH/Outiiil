@@ -219,7 +219,7 @@
             fontSize: '13px',
             lineHeight: '1.4',
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             gap: '10px',
             opacity: '0',
             transition: 'opacity 180ms ease'
@@ -276,38 +276,48 @@
             textEl.style.cssText = 'flex:1 1 auto; min-width: 0;';
             if (color) textEl.style.color = color;
 
-            toast.appendChild(iconEl);
-            toast.appendChild(textEl);
+            var textRow = document.createElement('div');
+            textRow.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;';
+            textRow.appendChild(iconEl);
+            textRow.appendChild(textEl);
+            toast.appendChild(textRow);
+
+            var btnContainer = document.createElement('div');
+            btnContainer.style.cssText = 'display:flex;gap:8px;width:100%;';
 
             if (kind === 'error' && cfg.cancelable) {
                 var btn = document.createElement('button');
                 btn.textContent = 'Réessayer';
-                btn.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
+                btn.style.cssText = 'flex:0 0 auto;padding:6px 10px;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
                 btn.addEventListener('click', function () {
                     toast.style.opacity = '0';
                     chrome.runtime.sendMessage({ type: 'CHECK_UPDATE' }, function () { });
                 });
-                toast.appendChild(btn);
+                btnContainer.appendChild(btn);
             }
 
             if (kind === 'blocked') {
                 var btnDownload = document.createElement('button');
                 btnDownload.textContent = cfg.blockedButton || 'Télécharger';
-                btnDownload.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
+                btnDownload.style.cssText = 'flex:0 0 auto;padding:6px 10px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
                 btnDownload.addEventListener('click', function () {
                     toast.style.opacity = '0';
                     chrome.runtime.sendMessage({ type: 'DOWNLOAD_SOCLE', version: version });
                 });
-                toast.appendChild(btnDownload);
+                btnContainer.appendChild(btnDownload);
 
                 var btnReleases = document.createElement('button');
                 btnReleases.textContent = 'Voir les releases';
-                btnReleases.style.cssText = 'flex:0 0 auto;margin-left:4px;padding:6px 10px;border:none;border-radius:6px;background:rgba(0,0,0,0.1);color:#111;cursor:pointer;font-size:12px;font-family:inherit;';
+                btnReleases.style.cssText = 'flex:0 0 auto;padding:6px 10px;border:none;border-radius:6px;background:rgba(0,0,0,0.1);color:#111;cursor:pointer;font-size:12px;font-family:inherit;';
                 btnReleases.addEventListener('click', function () {
                     toast.style.opacity = '0';
                     chrome.runtime.sendMessage({ type: 'OPEN_RELEASES_PAGE' });
                 });
-                toast.appendChild(btnReleases);
+                btnContainer.appendChild(btnReleases);
+            }
+
+            if (btnContainer.firstChild) {
+                toast.appendChild(btnContainer);
             }
         }
 
