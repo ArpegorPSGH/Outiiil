@@ -283,7 +283,7 @@
             toast.appendChild(textRow);
 
             var btnContainer = document.createElement('div');
-            btnContainer.style.cssText = 'display:flex;gap:8px;width:100%;';
+            btnContainer.style.cssText = 'display:flex;gap:8px;width:100%;justify-content:center;';
 
             if (kind === 'error' && cfg.cancelable) {
                 var btn = document.createElement('button');
