@@ -1,6 +1,6 @@
 {
-  "version": "3.22.38",
-  "sha256": "5834a1c45e6ae13d6ea245dc2084599b44cf01db150b90278d69ddf823e3cd18",
+  "version": "3.22.39",
+  "sha256": "883b21d72b14cd5dc14762d097a9bb8948c75365751e6a194472fe5f98e035d7",
   "socle_hash": "1f3e0aba9ec0ad3ce36c83fa81275d34f6c494b0d7026e21466d455a88da5f10",
   "runtime": "runtime.js",
   "css": "runtime.css",
@@ -28,5 +28,5 @@
     "images/icons/gear_48.png",
     "images/icons/gear_96.png"
   ],
-  "timestamp": 1791740928.0
+  "timestamp": 1791741130.0
 }
