@@ -19,11 +19,8 @@ const DEV_MODE = true;
 // Used to detect when the installed socle is incompatible with the remote runtime.
 const SOCLE_HASH = null;
 
-const GITHUB_OWNER = 'ArpegorPSGH';
-const GITHUB_REPO = 'Outiiil';
-const GITHUB_ZIP_PREFIX = 'Outiiil-v';
-const GITHUB_RELEASES_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases';
-const GITHUB_LATEST_RELEASE_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/latest';
+const GITHUB_RELEASES_URL = 'https://github.com/ArpegorPSGH/Outiiil/releases';
+const GITHUB_LATEST_RELEASE_URL = 'https://github.com/ArpegorPSGH/Outiiil/releases/latest';
 const BASE_UPDATE_URL = 'https://arpegorpsgh.github.io/Outiiil/dist/';
 const VERSION_URL = BASE_UPDATE_URL + 'version.json';
 const GAME_MATCHES = ['http://*.fourmizzz.fr/*', 'https://*.fourmizzz.fr/*'];
@@ -55,6 +52,7 @@ function isPathBlacklisted(path) {
 let userScriptRegistered = false;
 const registeredEvents = new Map();
 let registrationLock = false;
+let test = true;
 
 // --- Chrome API Resolution ---
 
@@ -360,8 +358,8 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
 
     if (message.type === 'DOWNLOAD_SOCLE') {
         const version = message.version || '';
-        const downloadUrl = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/download/' +
-            version + '/' + GITHUB_ZIP_PREFIX + version + '.zip';
+        const downloadUrl = 'https://github.com/ArpegorPSGH/Outiiil/releases/download/' +
+            version + '/Outiiil-v' + version + '.zip';
         chrome.tabs.create({ url: downloadUrl });
         sendResponse({ ok: true, url: downloadUrl });
         return true;
