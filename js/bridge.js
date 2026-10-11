@@ -284,14 +284,23 @@
             }
 
             if (kind === 'blocked' && cfg.cancelable) {
-                var btnReinstall = document.createElement('button');
-                btnReinstall.textContent = cfg.blockedButton || 'Réinstaller';
-                btnReinstall.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#dc2626;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
-                btnReinstall.addEventListener('click', function () {
+                var btnDownload = document.createElement('button');
+                btnDownload.textContent = cfg.blockedButton || 'Télécharger';
+                btnDownload.style.cssText = 'flex:0 0 auto;margin-left:8px;padding:6px 10px;border:none;border-radius:6px;background:#2563eb;color:#fff;cursor:pointer;font-size:12px;font-family:inherit;';
+                btnDownload.addEventListener('click', function () {
+                    toast.style.opacity = '0';
+                    chrome.runtime.sendMessage({ type: 'DOWNLOAD_SOCLE', version: version });
+                });
+                toast.appendChild(btnDownload);
+
+                var btnReleases = document.createElement('button');
+                btnReleases.textContent = 'Voir les releases';
+                btnReleases.style.cssText = 'flex:0 0 auto;margin-left:4px;padding:6px 10px;border:none;border-radius:6px;background:rgba(0,0,0,0.1);color:#111;cursor:pointer;font-size:12px;font-family:inherit;';
+                btnReleases.addEventListener('click', function () {
                     toast.style.opacity = '0';
                     chrome.runtime.sendMessage({ type: 'OPEN_RELEASES_PAGE' });
                 });
-                toast.appendChild(btnReinstall);
+                toast.appendChild(btnReleases);
             }
         }
 

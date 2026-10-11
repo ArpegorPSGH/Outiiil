@@ -20,6 +20,7 @@ const DEV_MODE = true;
 const SOCLE_HASH = null;
 
 const GITHUB_RELEASES_URL = 'https://github.com/ArpegorPSGH/Outiiil/releases';
+const GITHUB_LATEST_RELEASE_URL = 'https://github.com/ArpegorPSGH/Outiiil/releases/latest';
 const BASE_UPDATE_URL = 'https://arpegorpsgh.github.io/Outiiil/dist/';
 const VERSION_URL = BASE_UPDATE_URL + 'version.json';
 const GAME_MATCHES = ['http://*.fourmizzz.fr/*', 'https://*.fourmizzz.fr/*'];
@@ -352,6 +353,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.type === 'OPEN_RELEASES_PAGE') {
         chrome.tabs.create({ url: GITHUB_RELEASES_URL });
         sendResponse({ ok: true });
+        return true;
+    }
+
+    if (message.type === 'DOWNLOAD_SOCLE') {
+        const version = message.version || '';
+        const downloadUrl = 'https://github.com/ArpegorPSGH/Outiiil/releases/download/' +
+            version + '/Outiiil-v' + version + '.zip';
+        chrome.tabs.create({ url: downloadUrl });
+        sendResponse({ ok: true, url: downloadUrl });
         return true;
     }
 

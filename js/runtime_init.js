@@ -45,7 +45,7 @@
         successColor: '#16a34a',
         errorColor: '#dc2626',
         blockedColor: '#dc2626',
-        blockedButton: 'Réinstaller',
+        blockedButton: 'Télécharger',
         reloadingTextColor: '#8a6d1a',
         reloadingBackground: 'rgba(255,247,214,0.97)'
     };
