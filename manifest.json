@@ -1,10 +1,10 @@
 {
 	"manifest_version": 3,
 	"name": "Outiiil",
-	"version": "3.22.32",
+	"version": "3.22.33",
 	"description": "Extension pour www.fourmizzz.fr.",
 	"icons": {
-		"48": "images-test/icons/gear_48.png",
+		"48": "images/icons/gear_48.png",
 		"96": "images/icons/gear_96.png"
 	},
 	"action": {
