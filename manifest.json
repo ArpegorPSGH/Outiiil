@@ -15,7 +15,9 @@
 		"http://*.fourmizzz.fr/*",
 		"https://*.fourmizzz.fr/*",
 		"http://outiiil.fr/",
-		"https://arpegorpsgh.github.io/*"
+		"https://arpegorpsgh.github.io/*",
+		"https://api.github.com/*",
+		"https://raw.githubusercontent.com/*"
 	],
 	"background": {
 		"service_worker": "js/background.js"

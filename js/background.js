@@ -494,19 +494,29 @@ async function checkAndDownloadRuntime() {
         const remoteVersion = remoteInfo.version;
         console.log('[Outiiil Background] Remote version.json parsed:', JSON.stringify(remoteInfo));
 
+        let remoteBaseUrl = BASE_UPDATE_URL;
+        let blocked = false;
+
         // --- Socle hash check ---
         // If the remote socle_hash differs from the locally installed SOCLE_HASH,
         // the extension's bootstrapper has changed and the new runtime may rely on
-        // background/bridge APIs that don't exist in the old socle. Block the update
-        // and invite the user to reinstall. If socle_hash is absent (old version.json)
-        // or SOCLE_HASH is null (dev mode / unpatched), skip the check for backward compat.
+        // background/bridge APIs that don't exist in the old socle.
+        // Still, search for the latest compatible commit on gh-pages so the runtime can run.
         if (remoteInfo.socle_hash && SOCLE_HASH && remoteInfo.socle_hash !== SOCLE_HASH) {
-            const msg = 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
-                'Réinstallez Outiiil depuis les releases GitHub.';
             console.warn('[Outiiil Background] Socle mismatch: remote=' + remoteInfo.socle_hash +
-                ' local=' + SOCLE_HASH + ' (remoteVersion=' + remoteVersion + ')');
-            await notifyTabs('blocked', { version: remoteVersion });
-            return { ok: false, error: msg, requiresReinstall: true, version: remoteVersion };
+                ' local=' + SOCLE_HASH + ' (remoteVersion=' + remoteVersion + '). Searching for compatible commit...');
+            
+            const compatibleCommit = await findCompatibleCommit(SOCLE_HASH);
+            if (compatibleCommit) {
+                console.log('[Outiiil Background] Found compatible commit: ' + compatibleCommit.sha +
+                    ' (version ' + compatibleCommit.info.version + ')');
+                remoteInfo = compatibleCommit.info;
+                remoteVersion = compatibleCommit.info.version;
+                remoteBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${compatibleCommit.sha}/dist/`;
+            } else {
+                console.warn('[Outiiil Background] No compatible commit found for socle ' + SOCLE_HASH);
+                blocked = true;
+            }
         }
 
         if (compareVersions(remoteVersion, storedVersion) <= 0) {
@@ -527,9 +537,9 @@ async function checkAndDownloadRuntime() {
         const imageFiles = Array.isArray(remoteInfo.images) ? remoteInfo.images : [];
 
         const fetchPromises = [
-            fetchWithDiag(BASE_UPDATE_URL + runtimeFile + '?_t=' + Date.now(), 'runtime.js'),
-            fetchWithDiag(BASE_UPDATE_URL + cssFile + '?_t=' + Date.now(), 'runtime.css'),
-            ...imageFiles.map((path, i) => fetchWithDiag(BASE_UPDATE_URL + path + '?_t=' + Date.now(), 'image[' + i + '] ' + path))
+            fetchWithDiag(remoteBaseUrl + runtimeFile + '?_t=' + Date.now(), 'runtime.js'),
+            fetchWithDiag(remoteBaseUrl + cssFile + '?_t=' + Date.now(), 'runtime.css'),
+            ...imageFiles.map((path, i) => fetchWithDiag(remoteBaseUrl + path + '?_t=' + Date.now(), 'image[' + i + '] ' + path))
         ];
 
         console.log('[Outiiil Background] Fetching ' + fetchPromises.length + ' remote files...');
@@ -601,7 +611,12 @@ async function checkAndDownloadRuntime() {
 
         // Download images if listed
         if (Array.isArray(remoteInfo.images) && remoteInfo.images.length > 0) {
-            await downloadImages(remoteInfo.images, remoteVersion);
+            await downloadImages(remoteInfo.images, remoteVersion, remoteBaseUrl);
+        }
+
+        if (blocked) {
+            await notifyTabs('blocked', { version: remoteVersion });
+            console.warn('[Outiiil Background] Running runtime from older socle compatible commit, but extension socle is outdated. Please update the extension.');
         }
 
         // Persist code and version
@@ -612,8 +627,10 @@ async function checkAndDownloadRuntime() {
         });
 
         await registerOrUpdateUserScript(runtimeCode, cssCode, remoteVersion);
-        await notifyTabs('success', { version: remoteVersion });
-        return { ok: true, version: remoteVersion, dev: false, updated: true };
+        if (!blocked) {
+            await notifyTabs('success', { version: remoteVersion });
+        }
+        return { ok: true, version: remoteVersion, dev: false, updated: true, blocked };
     } catch (error) {
         console.error('[Outiiil Background] Remote update failed:', error);
         console.error('[Outiiil Background] Remote update failed - name=' + (error && error.name) +
@@ -721,16 +738,63 @@ async function isUserScriptRegistered() {
     }
 }
 
+// --- Compatible Commit Fallback ---
+
+async function findCompatibleCommit(targetSocleHash) {
+    try {
+        let commitsUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?sha=gh-pages&per_page=100`;
+        const commits = [];
+
+        while (commitsUrl) {
+            const res = await fetch(commitsUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+            if (!res.ok) {
+                console.warn('[Outiiil Background] Failed to fetch gh-pages commits:', res.status);
+                return null;
+            }
+
+            const page = await res.json();
+            if (!Array.isArray(page)) return commits.length ? commits : null;
+
+            commits.push(...page);
+
+            // Détecter s'il y a une page suivante via le header Link
+            const linkHeader = res.headers.get('Link');
+            commitsUrl = linkHeader && linkHeader.includes('rel="next"')
+                ? linkHeader.match(/<([^>]+)>;\s*rel="next"/)?.[1]
+                : null;
+        }
+
+        for (const item of commits) {
+            const sha = item.sha;
+            const verUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${sha}/dist/version.json`;
+            try {
+                const verRes = await fetch(verUrl + '?_t=' + Date.now(), { cache: 'no-store' });
+                if (verRes.ok) {
+                    const info = await verRes.json();
+                    if (info.socle_hash === targetSocleHash) {
+                        return { sha, info };
+                    }
+                }
+            } catch (e) {
+                // Ignore and check next commit
+            }
+        }
+    } catch (e) {
+        console.error('[Outiiil Background] Error searching compatible commit:', e);
+    }
+    return null;
+}
+
 // --- Image Download ---
 
-async function downloadImages(imageList, version) {
+async function downloadImages(imageList, version, baseUrl = BASE_UPDATE_URL) {
     try {
         const dataUrls = {};
         const failures = [];
 
         await Promise.all(imageList.map(async (path) => {
             try {
-                const res = await fetch(BASE_UPDATE_URL + path + '?_t=' + Date.now(), { cache: 'no-store' });
+                const res = await fetch(baseUrl + path + '?_t=' + Date.now(), { cache: 'no-store' });
                 if (!res.ok) { failures.push(path); return; }
                 const blob = await res.blob();
                 const dataUrl = await new Promise((resolve) => {

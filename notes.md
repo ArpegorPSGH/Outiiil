@@ -1,8 +1,9 @@
+- En cas de bloquage de la mise à jour pour changement de socle dans la dernière version, en plus du message, effectuer la mise mise à jour depuis la dernière version compatible (si elle n'est pas déjà en cache) et ne pas bloquer l'exécution
+- Tester exécution en cas de blocage avec dernière version compatible en cache
+- Tester exécution en cas de blocage avec version en cache n'étant pas la dernière compatible
+- Tester exécution en cas de bloquage sans version en cache (vérifier pas de réutilisation de cache d'un autre socle)
 - [ ] Mettre à jour doc et roadmap
 - [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
-- [x] Mettre en place mécanisme de bloquage de la mise à jour en cas de modification du socle (sauf icônes et numéro version), avec un message invitant à une réinstallation de la nouvelle version
-- [x] Tester bloquage modif socle + bouton téléchargement nouveau socle
-- [ ] Tester non bloquage hors modifs socle
 - [ ] Supprimer la branche test
 - [ ] Supprimer les commits de test du script sur gh-pages
 - [ ] Supprimer les anciennes releases
@@ -10,4 +11,3 @@
 - [ ] Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
 - [ ] Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+
 - Signaler Fourmizzz fourmilières attaquables et pouvant attaquer page membres inclu soi-même
-- Appliquer l'auto-affectation ouvrier sur page ressources même en cas de C+
