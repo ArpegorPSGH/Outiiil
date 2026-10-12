@@ -55,7 +55,6 @@ function isPathBlacklisted(path) {
 let userScriptRegistered = false;
 const registeredEvents = new Map();
 let registrationLock = false;
-let test = true;
 
 // --- Chrome API Resolution ---
 
@@ -505,7 +504,7 @@ async function checkAndDownloadRuntime() {
         if (remoteInfo.socle_hash && SOCLE_HASH && remoteInfo.socle_hash !== SOCLE_HASH) {
             console.warn('[Outiiil Background] Socle mismatch: remote=' + remoteInfo.socle_hash +
                 ' local=' + SOCLE_HASH + ' (remoteVersion=' + remoteVersion + '). Searching for compatible commit...');
-            
+
             const compatibleCommit = await findCompatibleCommit(SOCLE_HASH);
             if (compatibleCommit) {
                 console.log('[Outiiil Background] Found compatible commit: ' + compatibleCommit.sha +
