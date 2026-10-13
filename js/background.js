@@ -489,7 +489,7 @@ async function checkAndDownloadRuntime() {
             return { ok: false, error: 'No remote access and no cached runtime' };
         }
 
-        const remoteInfo = await versionRes.json();
+        let remoteInfo = await versionRes.json();
         const remoteVersion = remoteInfo.version;
         console.log('[Outiiil Background] Remote version.json parsed:', JSON.stringify(remoteInfo));
 
