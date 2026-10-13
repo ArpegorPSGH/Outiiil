@@ -496,6 +496,7 @@ async function checkAndDownloadRuntime() {
 
         let remoteBaseUrl = BASE_UPDATE_URL;
         let blocked = false;
+        let socleOutdated = false;
 
         // --- Socle hash check ---
         // If the remote socle_hash differs from the locally installed SOCLE_HASH,
@@ -512,11 +513,27 @@ async function checkAndDownloadRuntime() {
                     ' (version ' + compatibleCommit.info.version + ')');
                 remoteInfo = compatibleCommit.info;
                 remoteVersion = compatibleCommit.info.version;
-                remoteBaseUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${compatibleCommit.sha}/dist/`;
+                const { owner, repo } = getDeployedRepoInfo();
+                remoteBaseUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${compatibleCommit.sha}/dist/`;
+                socleOutdated = true;
             } else {
                 console.warn('[Outiiil Background] No compatible commit found for socle ' + SOCLE_HASH);
                 blocked = true;
             }
+        }
+
+        if (blocked) {
+            // No compatible runtime found. Do not download/register the incompatible one.
+            // Keep the currently cached/registered runtime so the extension keeps working.
+            console.log('[Outiiil Background] Blocked: no compatible runtime for socle ' + SOCLE_HASH +
+                '. Not downloading incompatible runtime v' + remoteVersion + '.');
+            const storedCode = await getStorage(STORAGE_KEY_CODE);
+            const storedCss = await getStorage(STORAGE_KEY_CSS);
+            if (!userScriptRegistered && storedCode) {
+                await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
+            }
+            await notifyTabs('blocked', { version: remoteVersion });
+            return { ok: true, version: remoteVersion, dev: false, blocked: true, requiresReinstall: true };
         }
 
         if (compareVersions(remoteVersion, storedVersion) <= 0) {
@@ -614,11 +631,6 @@ async function checkAndDownloadRuntime() {
             await downloadImages(remoteInfo.images, remoteVersion, remoteBaseUrl);
         }
 
-        if (blocked) {
-            await notifyTabs('blocked', { version: remoteVersion });
-            console.warn('[Outiiil Background] Running runtime from older socle compatible commit, but extension socle is outdated. Please update the extension.');
-        }
-
         // Persist code and version
         await chrome.storage.local.set({
             [STORAGE_KEY_CODE]: runtimeCode,
@@ -627,10 +639,11 @@ async function checkAndDownloadRuntime() {
         });
 
         await registerOrUpdateUserScript(runtimeCode, cssCode, remoteVersion);
-        if (!blocked) {
-            await notifyTabs('success', { version: remoteVersion });
+        await notifyTabs('success', { version: remoteVersion });
+        if (socleOutdated) {
+            await notifyTabs('blocked', { version: remoteVersion });
         }
-        return { ok: true, version: remoteVersion, dev: false, updated: true, blocked };
+        return { ok: true, version: remoteVersion, dev: false, updated: true, socleOutdated };
     } catch (error) {
         console.error('[Outiiil Background] Remote update failed:', error);
         console.error('[Outiiil Background] Remote update failed - name=' + (error && error.name) +
@@ -740,9 +753,22 @@ async function isUserScriptRegistered() {
 
 // --- Compatible Commit Fallback ---
 
+function getDeployedRepoInfo() {
+    try {
+        var m = BASE_UPDATE_URL.match(/^https?:\/\/([^.]+)\.github\.io\/([^/]+)\//);
+        if (m) {
+            return { owner: m[1], repo: m[2] };
+        }
+    } catch (e) {
+        // fall back to defaults
+    }
+    return { owner: GITHUB_OWNER, repo: GITHUB_REPO };
+}
+
 async function findCompatibleCommit(targetSocleHash) {
     try {
-        let commitsUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/commits?sha=gh-pages&per_page=100`;
+        const { owner, repo } = getDeployedRepoInfo();
+        let commitsUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=gh-pages&per_page=100`;
         const commits = [];
 
         while (commitsUrl) {
@@ -766,7 +792,7 @@ async function findCompatibleCommit(targetSocleHash) {
 
         for (const item of commits) {
             const sha = item.sha;
-            const verUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${sha}/dist/version.json`;
+            const verUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/dist/version.json`;
             try {
                 const verRes = await fetch(verUrl + '?_t=' + Date.now(), { cache: 'no-store' });
                 if (verRes.ok) {
