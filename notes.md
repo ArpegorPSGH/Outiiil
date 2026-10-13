@@ -1,7 +1,7 @@
 - En cas de bloquage de la mise à jour pour changement de socle dans la dernière version, en plus du message, effectuer la mise mise à jour depuis la dernière version compatible (si elle n'est pas déjà en cache) et ne pas bloquer l'exécution
-- Tester exécution en cas de blocage avec dernière version compatible en cache
 - Tester exécution en cas de blocage avec version en cache n'étant pas la dernière compatible
 - Tester exécution en cas de bloquage sans version en cache (vérifier pas de réutilisation de cache d'un autre socle)
+- Ajouter une croix de fermeture du toast + tester
 - [ ] Mettre à jour doc et roadmap
 - [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
 - [ ] Supprimer la branche test

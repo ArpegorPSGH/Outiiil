@@ -222,7 +222,8 @@
             flexDirection: 'column',
             gap: '10px',
             opacity: '0',
-            transition: 'opacity 180ms ease'
+            transition: 'opacity 180ms ease',
+            outline: 'none'
         };
 
         var p;
@@ -318,6 +319,37 @@
 
             if (btnContainer.firstChild) {
                 toast.appendChild(btnContainer);
+            }
+
+            // Close button (×) for all toast kinds except 'success'
+            if (kind !== 'success') {
+                var closeBtn = document.createElement('button');
+                closeBtn.textContent = '×';
+                closeBtn.title = 'Fermer';
+                applyStyle(closeBtn, {
+                    position: 'absolute',
+                    top: '4px',
+                    right: '4px',
+                    padding: '0',
+                    margin: '0',
+                    width: '20px',
+                    height: '20px',
+                    border: 'none',
+                    borderRadius: '4px',
+                    background: 'rgba(0,0,0,0.08)',
+                    color: '#555',
+                    fontSize: '16px',
+                    lineHeight: '1',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit'
+                });
+                closeBtn.addEventListener('click', function () {
+                    toast.style.opacity = '0';
+                    setTimeout(function () {
+                        if (toast.parentNode) toast.parentNode.removeChild(toast);
+                    }, 180);
+                });
+                toast.appendChild(closeBtn);
             }
         }
 
