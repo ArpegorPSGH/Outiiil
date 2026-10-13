@@ -768,45 +768,53 @@ async function findCompatibleCommit(targetSocleHash) {
     try {
         const { owner, repo } = getDeployedRepoInfo();
         let commitsUrl = `https://api.github.com/repos/${owner}/${repo}/commits?sha=gh-pages&per_page=100`;
-        const commits = [];
+        console.log('[Outiiil Background] Searching commits in repo:', owner + '/' + repo);
 
         while (commitsUrl) {
+            console.log('[Outiiil Background] Fetching commits page:', commitsUrl);
             const res = await fetch(commitsUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+            console.log('[Outiiil Background] Commits response status:', res.status);
             if (!res.ok) {
                 console.warn('[Outiiil Background] Failed to fetch gh-pages commits:', res.status);
                 return null;
             }
 
             const page = await res.json();
-            if (!Array.isArray(page)) return commits.length ? commits : null;
+            if (!Array.isArray(page)) return null;
+            console.log('[Outiiil Background] Received', page.length, 'commits in this page');
 
-            commits.push(...page);
+            for (const item of page) {
+                const sha = item.sha;
+                const verUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/dist/version.json`;
+                console.log('[Outiiil Background] Checking commit:', sha.substring(0, 8));
+                try {
+                    const verRes = await fetch(verUrl + '?_t=' + Date.now(), { cache: 'no-store' });
+                    console.log('[Outiiil Background] version.json status:', verRes.status);
+                    if (verRes.ok) {
+                        const info = await verRes.json();
+                        if (info.socle_hash === targetSocleHash) {
+                            console.log('[Outiiil Background] FOUND compatible commit:', sha);
+                            return { sha, info };
+                        }
+                        console.log('[Outiiil Background] Socle mismatch in commit:', sha.substring(0, 8),
+                            '- remote socle:', info.socle_hash?.substring(0, 16), 'target:', targetSocleHash?.substring(0, 16));
+                    }
+                } catch (e) {
+                    console.warn('[Outiiil Background] Failed to check version.json for commit', sha.substring(0, 8), ':', e);
+                }
+            }
 
-            // Détecter s'il y a une page suivante via le header Link
             const linkHeader = res.headers.get('Link');
+            console.log('[Outiiil Background] Link header:', linkHeader);
             commitsUrl = linkHeader && linkHeader.includes('rel="next"')
                 ? linkHeader.match(/<([^>]+)>;\s*rel="next"/)?.[1]
                 : null;
-        }
-
-        for (const item of commits) {
-            const sha = item.sha;
-            const verUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/dist/version.json`;
-            try {
-                const verRes = await fetch(verUrl + '?_t=' + Date.now(), { cache: 'no-store' });
-                if (verRes.ok) {
-                    const info = await verRes.json();
-                    if (info.socle_hash === targetSocleHash) {
-                        return { sha, info };
-                    }
-                }
-            } catch (e) {
-                // Ignore and check next commit
-            }
+            console.log('[Outiiil Background] Next commitsUrl:', commitsUrl);
         }
     } catch (e) {
         console.error('[Outiiil Background] Error searching compatible commit:', e);
     }
+    console.log('[Outiiil Background] No compatible commit found.');
     return null;
 }
 
