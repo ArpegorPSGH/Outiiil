@@ -491,7 +491,7 @@ async function checkAndDownloadRuntime() {
         }
 
         let remoteInfo = await versionRes.json();
-        const remoteVersion = remoteInfo.version;
+        let remoteVersion = remoteInfo.version;
         console.log('[Outiiil Background] Remote version.json parsed:', JSON.stringify(remoteInfo));
 
         let remoteBaseUrl = BASE_UPDATE_URL;
