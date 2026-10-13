@@ -27,7 +27,7 @@
         errorText: 'Mise à jour échouée : {error}',
         reloadingText: 'Rechargement de la page...',
         blockedText: 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
-            'Réinstallez Outiiil depuis les releases GitHub.',
+            'Réinstallez Outiiil v{version} depuis les releases GitHub.',
         position: 'top-right',
         zIndex: 2147483646,
         maxWidth: '360px',
