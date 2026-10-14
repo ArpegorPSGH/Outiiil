@@ -41,6 +41,27 @@
         target: OUTIIIL_TARGET
     }, ORIGIN);
 
+    // --- Check for pending notifications stored by the background ---
+    // When the extension was just re-enabled, tabs might not have had the bridge
+    // injected when notifyTabs was called. The background stores 'blocked' toasts
+    // so we can replay them here.
+    (function checkPendingToast() {
+        try {
+            chrome.storage.local.get(['outiiil_pending_toast'], function (result) {
+                var pending = result['outiiil_pending_toast'];
+                if (pending && pending.action === 'OUTIIIL_UPDATE_STATUS' && pending.status === 'blocked') {
+                    chrome.storage.local.remove('outiiil_pending_toast', function () {
+                        if (pending.version !== undefined) {
+                            showToast('blocked', pending.version, pending.error || null);
+                        }
+                    });
+                }
+            });
+        } catch (e) {
+            // Storage not available — ignore
+        }
+    })();
+
     // Query background for DEV_MODE state
     chrome.runtime.sendMessage({ type: 'GET_DEV_MODE' }, function (response) {
         if (chrome.runtime.lastError) {

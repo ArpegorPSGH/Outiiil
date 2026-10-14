@@ -32,6 +32,7 @@ const STORAGE_KEY_VERSION = 'outiiil_runtime_version';
 const STORAGE_KEY_CODE = 'outiiil_runtime_code';
 const STORAGE_KEY_CSS = 'outiiil_runtime_css';
 const STORAGE_KEY_IMAGES = 'outiiil_cached_images';
+const STORAGE_KEY_PENDING_TOAST = 'outiiil_pending_toast';
 const UPDATE_CHECK_INTERVAL_MS = 60000;
 
 // --- API Security ---
@@ -456,6 +457,17 @@ async function notifyTabs(status, payload) {
     const message = { action: 'OUTIIIL_UPDATE_STATUS', status: status };
     if (payload && payload.version !== undefined) message.version = payload.version;
     if (payload && payload.error !== undefined) message.error = payload.error;
+
+    // Persist blocked notifications so they can be replayed when the bridge loads
+    // (e.g. when the extension was just re-enabled and tabs haven't reloaded yet)
+    if (status === 'blocked' && payload && payload.version !== undefined) {
+        try {
+            await chrome.storage.local.set({ STORAGE_KEY_PENDING_TOAST: message });
+        } catch (e) {
+            console.warn('[Outiiil Background] Failed to store pending toast:', e);
+        }
+    }
+
     try {
         const tabs = await chrome.tabs.query({});
         for (const tab of tabs) {
