@@ -1,5 +1,3 @@
-- En cas de bloquage de la mise à jour pour changement de socle dans la dernière version, en plus du message, effectuer la mise mise à jour depuis la dernière version compatible (si elle n'est pas déjà en cache) et ne pas bloquer l'exécution
-- Tester exécution en cas de blocage avec version en cache n'étant pas la dernière compatible
 - [ ] Mettre à jour doc et roadmap
 - [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
 - [ ] Supprimer la branche test
