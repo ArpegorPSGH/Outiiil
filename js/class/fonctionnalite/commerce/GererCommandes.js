@@ -112,7 +112,7 @@ Utils.register(class GererCommandes extends FonctionnaliteAlliance {
                 // await convoiTest.ecrire('Matériaux', 100);
                 // await this.commandes[0].enregistrerSurForum();
                 // console.log('début attente');
-                await Utils.sleep(120000);
+                // await Utils.sleep(120000);
                 //     await commandeTest.enregistrerSurForum();
                 //     await commandeTest.transferer(50769);
                 //     await convoiTest.ecrire('Matériaux', 100);

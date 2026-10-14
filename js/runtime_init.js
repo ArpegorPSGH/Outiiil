@@ -91,11 +91,9 @@
     function rechargerAuPointSur() {
         if (!versionMiseAJourEnAttente) return;
         if (window.__outiiilTransactionActive) {
-            console.warn('[Outiiil Runtime] Update pending — deferred: transaction in progress');
             return; // operation in progress: defer
         }
         if (rechargementDemandePour === versionMiseAJourEnAttente) return; // already requested
-        console.warn('[Outiiil Runtime] Safe point reached — applying update for version', versionMiseAJourEnAttente);
         rechargementDemandePour = versionMiseAJourEnAttente;
         demanderRechargementBridge(versionMiseAJourEnAttente);
     }
