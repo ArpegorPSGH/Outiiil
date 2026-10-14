@@ -51,7 +51,7 @@ Un script unique de release prend en charge le cycle complet :
 - [x] Vérifier que le script de release publie correctement sur `gh-pages`.
 - [x] Vérifier que les clients en `DEV_MODE: false` détectent et appliquent automatiquement la mise à jour poussée sur `gh-pages`.
 - [x] Vérifier que le numéro de version s'incrémente bien
-- Vérifier le comportement bloquant et le message adapté en cas d'incompatibilité de données forum.
+- [x] Vérifier le comportement bloquant et le message adapté en cas d'incompatibilité de données forum.
 - Vérifier qu'une mise à jour attend bien la fin d'une transaction
 - Vérifier tous les chemins d'exécution du socle en mode production
 - Vérifier que les logs identifient bien le bon fichier et la bonne ligne en mode production

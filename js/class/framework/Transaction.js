@@ -18,10 +18,14 @@ Utils.register(class Transaction {
      */
     static #publierEtat() {
         const actif = Transaction.#nbEnCours > 0;
+        const precedent = window.__outiiilTransactionActive;
         window.__outiiilTransactionActive = actif;
         if (!actif) {
             // Point sûr : aucune transaction active, un rechargement différé peut partir.
+            console.warn('[Outiiil Transaction] All transactions completed — safe point reached');
             window.dispatchEvent(new CustomEvent('outiiil:transaction:end'));
+        } else if (!precedent) {
+            console.warn('[Outiiil Transaction] Transaction started — update will be deferred if pending');
         }
     }
 
