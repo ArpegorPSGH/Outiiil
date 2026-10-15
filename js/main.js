@@ -172,7 +172,7 @@
                 // console.error('test duplication:', [{ 'listetest': listetest, 'dictest': dictest }, 'supplément']);
                 // console.error('test duplication2:', [{ 'listetest': listetest, 'dictest': dictest }, 'supplément']);
                 // console.error('test duplication2:', { base: [listetest, dictest], complement: 'supplément' });
-                // console.error('test duplication2:', commandeTest);
+                console.error('test');
 
                 await gestionnaireSections.chargerSections();
 
