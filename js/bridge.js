@@ -29,9 +29,6 @@
     // null = use built-in fallbacks inside getToastConfig().
     let toastConfig = null;
 
-    // Timer for fallback auto-dismissal of the success toast
-    let toastAutoDismissTimer = null;
-
     // Set the extension base URL (used by Utils.getExtensionURL fallback)
     const extensionBaseUrl = chrome.runtime.getURL('');
     document.documentElement.setAttribute('data-outiiil-base-url', extensionBaseUrl);
@@ -226,10 +223,6 @@
     }
 
     function removeToast() {
-        if (toastAutoDismissTimer) {
-            clearTimeout(toastAutoDismissTimer);
-            toastAutoDismissTimer = null;
-        }
         var existing = document.getElementById('outiiil-update-toast');
         if (existing && existing.parentNode) {
             existing.style.opacity = '0';
@@ -429,14 +422,8 @@
                 // New runtime is cached/registered. Show the "pending" toast and hand
                 // the decision to the MAIN world, which reloads only at a safe point
                 // (never mid-transaction) and then sends OUTIIIL_RELOAD_NOW back.
-                // The toast will be dismissed when the runtime sends OUTIIIL_RUNTIME_READY,
-                // or after a 10s fallback timeout if the runtime doesn't initialize.
+                // The toast will be dismissed when the runtime sends OUTIIIL_RUNTIME_READY.
                 showToast('success', message.version, null);
-                // Store the toast timestamp for fallback auto-dismissal
-                toastAutoDismissTimer = setTimeout(function () {
-                    console.log('[Outiiil Bridge] Success toast auto-dismiss (fallback 10s)');
-                    removeToast();
-                }, 10000);
                 window.postMessage({
                     type: UPDATE_AVAILABLE_TYPE,
                     target: OUTIIIL_TARGET,

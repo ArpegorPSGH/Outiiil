@@ -307,28 +307,17 @@
     // Start initialization (non-blocking). Expose the promise so main.js can await it
     // before reading window.VERSION (avoids a race where VERSION is read before the
     // background has reported the runtime version).
-    // Safety timeout: if initRuntime takes longer than 15 seconds (e.g., service worker
-    // unresponsive), we resolve with a warning so main.js can still execute.
-    window.__outiiil_runtime_init_promise = Promise.race([
-        initRuntime().then(function () {
-            // Notify the bridge that initialization is complete so it can dismiss
-            // any pending "success" toast from a background update.
-            try {
-                window.postMessage({
-                    type: 'OUTIIIL_RUNTIME_READY',
-                    target: 'outiiil',
-                    version: window.VERSION
-                }, '*');
-            } catch (e) {
-                console.warn('[Outiiil] Failed to notify bridge of runtime readiness:', e);
-            }
-        }),
-        new Promise(function (resolve) {
-            setTimeout(function () {
-                console.warn('[Outiiil Runtime] Initialization timeout (15s) — proceeding anyway');
-                window.__outiiil_runtime_init_timed_out = true;
-                resolve();
-            }, 15000);
-        })
-    ]);
+    window.__outiiil_runtime_init_promise = initRuntime().then(function () {
+        // Notify the bridge that initialization is complete so it can dismiss
+        // any pending "success" toast from a background update.
+        try {
+            window.postMessage({
+                type: 'OUTIIIL_RUNTIME_READY',
+                target: 'outiiil',
+                version: window.VERSION
+            }, '*');
+        } catch (e) {
+            console.warn('[Outiiil] Failed to notify bridge of runtime readiness:', e);
+        }
+    });
 })();
