@@ -22,11 +22,15 @@
     const UPDATE_AVAILABLE_TYPE = 'OUTIIIL_UPDATE_AVAILABLE';
     const SHOW_PENDING_TYPE = 'OUTIIIL_SHOW_PENDING';
     const RELOAD_NOW_TYPE = 'OUTIIIL_RELOAD_NOW';
+    const RUNTIME_READY_TYPE = 'OUTIIIL_RUNTIME_READY';
     const ORIGIN = '*';
 
     // Toast configuration pushed by the MAIN-world runtime on startup.
     // null = use built-in fallbacks inside getToastConfig().
     let toastConfig = null;
+
+    // Timer for fallback auto-dismissal of the success toast
+    let toastAutoDismissTimer = null;
 
     // Set the extension base URL (used by Utils.getExtensionURL fallback)
     const extensionBaseUrl = chrome.runtime.getURL('');
@@ -111,6 +115,13 @@
         if (data.type === RELOAD_NOW_TYPE) {
             console.log('[Outiiil Bridge] Reload now requested by runtime, version=' + data.version);
             performReload(data.version);
+            return;
+        }
+
+        // Runtime initialization is complete — dismiss any success toast.
+        if (data.type === RUNTIME_READY_TYPE) {
+            console.log('[Outiiil Bridge] Runtime ready, dismissing success toast');
+            removeToast();
             return;
         }
 
@@ -211,6 +222,20 @@
     function applyStyle(el, props) {
         for (var key in props) {
             el.style[key] = props[key];
+        }
+    }
+
+    function removeToast() {
+        if (toastAutoDismissTimer) {
+            clearTimeout(toastAutoDismissTimer);
+            toastAutoDismissTimer = null;
+        }
+        var existing = document.getElementById('outiiil-update-toast');
+        if (existing && existing.parentNode) {
+            existing.style.opacity = '0';
+            setTimeout(function () {
+                if (existing.parentNode) existing.parentNode.removeChild(existing);
+            }, 180);
         }
     }
 
@@ -404,7 +429,14 @@
                 // New runtime is cached/registered. Show the "pending" toast and hand
                 // the decision to the MAIN world, which reloads only at a safe point
                 // (never mid-transaction) and then sends OUTIIIL_RELOAD_NOW back.
+                // The toast will be dismissed when the runtime sends OUTIIIL_RUNTIME_READY,
+                // or after a 10s fallback timeout if the runtime doesn't initialize.
                 showToast('success', message.version, null);
+                // Store the toast timestamp for fallback auto-dismissal
+                toastAutoDismissTimer = setTimeout(function () {
+                    console.log('[Outiiil Bridge] Success toast auto-dismiss (fallback 10s)');
+                    removeToast();
+                }, 10000);
                 window.postMessage({
                     type: UPDATE_AVAILABLE_TYPE,
                     target: OUTIIIL_TARGET,

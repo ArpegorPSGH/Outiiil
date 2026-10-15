@@ -230,14 +230,44 @@
         var runningVersion = window.__OUTIIIL_RUNTIME_VERSION;
         console.log('[Outiiil Runtime] running=' + runningVersion + ' available=' + availableVersion);
 
+        // If the running runtime matches the available version, we're good — proceed.
+        // If they differ, we may be running stale code OR the background may have just
+        // registered this exact runtime (e.g., after a socle reinstall). Check the stored
+        // version to distinguish these cases.
         if (runningVersion && availableVersion && runningVersion !== availableVersion) {
-            // This page is running a stale runtime while a newer one is available.
-            // Schedule the reload at a safe point (never mid-transaction). After the
-            // reload, running === available, so this will not fire again.
-            console.log('[Outiiil Runtime] Running ' + runningVersion +
-                ' differs from available ' + availableVersion + ' -> update pending, will reload at a safe point');
-            miseAJourDisponible(availableVersion);
-            return;
+            // Check whether the background just registered this exact runtime version.
+            // If the stored version matches the running version, the background is
+            // reporting a different version because it's the LATEST available one,
+            // not the one currently installed. This happens during socle reinstalls
+            // where the runtime was updated to a new version but the background check
+            // returned the latest from the registry.
+            var storedVersion = null;
+            try {
+                var storedResult = await rpcWithRetry(function () {
+                    return window.browserAPI.storage.local.get([STORAGE_KEY_VERSION]);
+                });
+                storedVersion = storedResult[STORAGE_KEY_VERSION];
+            } catch (e) {
+                console.warn('[Outiiil Runtime] Failed to read stored version:', e);
+            }
+
+            // If the stored version matches what's running, the background is simply
+            // reporting a newer available version (not an error). Only trigger reload
+            // if the stored version differs from both running and available, meaning
+            // the runtime is truly stale.
+            if (storedVersion && storedVersion === runningVersion) {
+                console.log('[Outiiil Runtime] Running version matches stored version ' +
+                    '(stored=' + storedVersion + '), background reports newer available=' +
+                    availableVersion + '. Proceeding with current runtime.');
+            } else {
+                // This page is running a stale runtime while a newer one is available.
+                // Schedule the reload at a safe point (never mid-transaction). After the
+                // reload, running === available, so this will not fire again.
+                console.log('[Outiiil Runtime] Running ' + runningVersion +
+                    ' differs from available ' + availableVersion + ' -> update pending, will reload at a safe point');
+                miseAJourDisponible(availableVersion);
+                return;
+            }
         }
 
         // Expose the current (available) version for the game logic.
@@ -277,5 +307,28 @@
     // Start initialization (non-blocking). Expose the promise so main.js can await it
     // before reading window.VERSION (avoids a race where VERSION is read before the
     // background has reported the runtime version).
-    window.__outiiil_runtime_init_promise = initRuntime();
+    // Safety timeout: if initRuntime takes longer than 15 seconds (e.g., service worker
+    // unresponsive), we resolve with a warning so main.js can still execute.
+    window.__outiiil_runtime_init_promise = Promise.race([
+        initRuntime().then(function () {
+            // Notify the bridge that initialization is complete so it can dismiss
+            // any pending "success" toast from a background update.
+            try {
+                window.postMessage({
+                    type: 'OUTIIIL_RUNTIME_READY',
+                    target: 'outiiil',
+                    version: window.VERSION
+                }, '*');
+            } catch (e) {
+                console.warn('[Outiiil] Failed to notify bridge of runtime readiness:', e);
+            }
+        }),
+        new Promise(function (resolve) {
+            setTimeout(function () {
+                console.warn('[Outiiil Runtime] Initialization timeout (15s) — proceeding anyway');
+                window.__outiiil_runtime_init_timed_out = true;
+                resolve();
+            }, 15000);
+        })
+    ]);
 })();
