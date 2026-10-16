@@ -209,11 +209,12 @@ def build_dist(override_version=None, override_update_url=None):
         else:
             print(f"Avertissement : Fichier JS manquant : {rel_path}", file=sys.stderr)
 
-    # Table des positions des fichiers sources dans le bundle : pour chaque fichier,
-    # la ligne (1-indexée) où débute son contenu. Émise dans le bundle sous
-    # window.__OUTIIIL_SOURCES, elle permet au Logger de traduire les frames de stack
-    # de production (<anonymous>:N, le code étant injecté par chrome.userScripts
-    # sous forme de chaîne) en fichier source : ligne source.
+# Table des positions des fichiers sources dans le bundle : pour chaque fichier,
+# la ligne (1-indexée) où débute son contenu. Émise dans le bundle sous
+# window.__OUTIIIL_SOURCES, elle permet au Logger de traduire les frames de stack
+# de production (UUID:N, le code étant injecté par chrome.userScripts sous forme
+# de chaîne et les frames nommées par un UUID généré par V8) en fichier source :
+# ligne source.
     #
     # Disposition du bundle :
     #   ligne 1 : // Outiiil built runtime version: X

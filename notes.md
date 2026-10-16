@@ -1,9 +1,10 @@
 - [ ] Mettre à jour doc et roadmap
 - [ ] Enlever les logs de debug, et nettoyer le zip généré (+ éventuellement celui de test)
 - [ ] Supprimer la branche test
+- Supprimer worktree fierce woodpecker
 - [ ] Supprimer les commits de test du script sur gh-pages
 - [ ] Supprimer les anciennes releases
-- [ ] Renommer les branches gh-pages en release et test et en faire la branche principale
+- [ ] Renommer les branches gh-pages en release et test
 - [ ] Mettre à jour roadmap/en cours/fonctionnalités essentielles/architecture de mise à jour dynamique.md
 - [ ] Résoudre problème désynchronisation épisodique constructions/recherches de la boîte C+
 - Signaler Fourmizzz fourmilières attaquables et pouvant attaquer page membres inclu soi-même

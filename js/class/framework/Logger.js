@@ -475,7 +475,12 @@ Utils.register(class Logger {
      * @private
      */
     #resoudrePositionSource(fichier, ligne) {
-        if (fichier !== "<anonymous>" && fichier !== "unknown" && fichier !== "runtime.js") return null;
+        const estReferenceBundle =
+            fichier === "<anonymous>" ||
+            fichier === "unknown" ||
+            fichier === "runtime.js" ||
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fichier);
+        if (!estReferenceBundle) return null;
         const sources = (typeof window !== "undefined") ? window.__OUTIIIL_SOURCES : undefined;
         if (!Array.isArray(sources) || sources.length === 0) return null;
         const n = Number(ligne);
@@ -500,7 +505,7 @@ Utils.register(class Logger {
     }
 
     /**
-     * Remplace la position dans le bundle (<anonymous>:N:col) par la position
+     * Remplace la position dans le bundle (UUID:N:col) par la position
      * dans le fichier source sur une ligne de stack, le cas échéant.
      * @param {String} line - La ligne de stack à traiter.
      * @returns {String} - La ligne, éventuellement avec sa position réécrite.
@@ -659,8 +664,8 @@ Utils.register(class Logger {
         }
 
         // En production, le bundle est injecté comme une chaîne (userScripts `code:`),
-        // les frames sont donc nommées <anonymous> : résoudre la position vers le
-        // fichier source d'origine via la table __OUTIIIL_SOURCES.
+        // les frames sont donc nommés par un UUID généré par V8 : résoudre la
+        // position vers le fichier source d'origine via la table __OUTIIIL_SOURCES.
         const resolue = this.#resoudrePositionSource(fichier, ligne);
         if (resolue) {
             fichier = resolue.fichier;
