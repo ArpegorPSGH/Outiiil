@@ -2207,11 +2207,13 @@ Utils.register(class Logger {
 
                 // 1. Liaison par instance de Logger (uniquement pour les signalements automatiques)
                 if (!estManuel && this.idSujet) {
+                    if (console._log) console._log(`[${this.constructor.name}.posterLogs] réutilisation sujet existant idSujet=${this.idSujet}, sujetCreeParCetteInstance=${this.sujetCreeParCetteInstance}`);
                     if (this.sujetCreeParCetteInstance) {
                         // Procéder directement à la mise à jour des logs
                         return await this.#mettreAJourLogsSujetExistant(this.idSujet, messageOptionnel);
                     } else {
                         // Ignorer les erreurs ultérieures si le sujet n'a pas été créé par cette instance
+                        if (console._log) console._log(`[${this.constructor.name}.posterLogs] sujet non créé par cette instance, abandon.`);
                         return false;
                     }
                 }
@@ -2616,26 +2618,33 @@ Utils.register(class Logger {
      * @param {Function|null} [callbackProgression=null]
      * @param {Object|null} [progressState=null]
      */
-    async #envoyerTousLesLogs(idSujet, erreurCatchée = null, callbackProgression = null, progressState = null) {
+     async #envoyerTousLesLogs(idSujet, erreurCatchée = null, callbackProgression = null, progressState = null) {
         if (!progressState) progressState = { lastPct: -1 };
 
         if (this.historique.length === 0) {
+            if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] historique vide, rien à poster.`);
             await this.#notifyProgress(callbackProgression, 100, progressState);
             return true;
         }
 
+        if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] historique=${this.historique.length}, erreurCatchée=${!!erreurCatchée}`);
+
         let logsAEnvoyer = this.historique.filter(log => !this.#estLogAIgnorerDansHistorique(log));
+        if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] après filtre ignore=${logsAEnvoyer.length}`);
 
         // Filtrage par périmètre de distance dans l'arbre d'appel pour un signalement automatique
         if (erreurCatchée) {
             const rawStackErr = erreurCatchée.stack || String(erreurCatchée);
             const stackFramesErr = this.#extraireFramesStack(rawStackErr);
 
+            if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] stackFramesErr=${stackFramesErr.length}`, stackFramesErr);
+
             if (stackFramesErr.length > 0) {
                 logsAEnvoyer = logsAEnvoyer.filter(log => {
                     const dist = this.#calculerDistanceStack(stackFramesErr, log.stackFrames);
                     return dist <= LOGGER_PERIMETRE_STACK_DISTANCE;
                 });
+                if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] après filtre distance=${logsAEnvoyer.length}`);
             }
         }
 

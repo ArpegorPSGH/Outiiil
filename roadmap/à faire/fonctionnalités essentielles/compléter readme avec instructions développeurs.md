@@ -7,6 +7,7 @@ Ajouter une section implémentation au readme contenant des instructions destin�
 - Ajout de fonctionnalités
 - Documentation utilisation fonctionalités
 - Instructions installation
+- Instruction mise à jour socle (préciser suppression ancien socle et désactiver/réactiver autorisation scripts utilisateurs)
 - Créer et maintenir les signatures et descriptions de fonctions pour la génération automatique de la documentation
 - Commenter le code de façon extensive
 - Créer workflow Cline pour générer la doc, les diagrammes de classes et les diagrammes de séquences pour chaque chargement de page et chaque input utilisateur (si trop complexe, générer à la demande manuellement et via MCP)
