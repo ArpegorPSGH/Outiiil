@@ -516,18 +516,23 @@ Utils.register(class Logger {
         let match = line.match(/\(([^()]+):(\d+):(\d+)\)\s*$/);
         if (match) {
             const resolue = this.#resoudrePositionSource(match[1].split("/").pop(), match[2]);
-            if (!resolue) return line;
+            if (!resolue) {
+                if (console._error) console._error('[Logger DEBUG] rename paren failed:', line);
+                return line;
+            }
             return line.slice(0, match.index) + `(${resolue.fichier}:${resolue.ligne}:${match[3]})`;
         }
         // Forme sans parenthèses : at fichier:ligne:colonne
-        match = line.match(/:\s*(\d+):(\d+)\s*$/);
-        // fallback: tenter de capturer chemin + ligne + col avant la fin
         const m2 = line.match(/^(.*?)([^/\s]+):(\d+):(\d+)\s*$/);
         if (m2) {
             const resolue = this.#resoudrePositionSource(m2[2], m2[3]);
-            if (!resolue) return line;
+            if (!resolue) {
+                if (console._error) console._error('[Logger DEBUG] rename noparen failed:', m2[2], m2[3], line);
+                return line;
+            }
             return `${m2[1]}${resolue.fichier}:${resolue.ligne}:${m2[4]}`;
         }
+        if (console._error) console._error('[Logger DEBUG] rename no-match:', JSON.stringify(line));
         return line;
     }
 
