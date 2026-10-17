@@ -505,6 +505,51 @@ Utils.register(class Logger {
     }
 
     /**
+     * Vérifie si une ligne de stacktrace correspond à une frame à ignorer
+     * (Logger ou méthode console monkey-patched), en prenant en compte la
+     * résolution de position en mode production.
+     * En mode dev, le chemin du fichier contient directement le nom de la classe
+     * (ex: Logger.js). En mode prod, le fichier est runtime.js ou un UUID —
+     * il faut résoudre via #resolurePositionSource pour détecter les frames Logger.js
+     * (notamment l'instrumentateur wrapper défini dans Logger.js mais dont la frame
+     * montre runtime.js dans la pile).
+     * @param {String} line - La ligne de stacktrace.
+     * @returns {Boolean} - True si la frame doit être ignorée.
+     * @private
+     */
+    #estFrameALignorer(line) {
+        if (!line) return true;
+        if (line.includes("console")) return true;
+
+        // En mode dev : le nom de fichier contient directement le nom de la classe
+        if (line.includes(this.constructor.name)) return true;
+
+        // En mode prod : le fichier est runtime.js / UUID, résoudre vers le fichier source
+        let fichier;
+        let numLigne;
+        let match = line.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
+        if (match) {
+            fichier = match[2].split("/").pop();
+            numLigne = match[3];
+        } else {
+            match = line.match(/at\s+(?:async\s+)?(.+):(\d+):(\d+)/);
+            if (match) {
+                fichier = match[1].split("/").pop();
+                numLigne = match[2];
+            }
+        }
+
+        if (fichier && numLigne) {
+            const resolue = this.#resoudrePositionSource(fichier, numLigne);
+            if (resolue && resolue.fichier && resolue.fichier.includes(this.constructor.name)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Remplace la position dans le bundle (UUID:N:col) par la position
      * dans le fichier source sur une ligne de stack, le cas échéant.
      * @param {String} line - La ligne de stack à traiter.
@@ -536,13 +581,12 @@ Utils.register(class Logger {
      */
     #extraireFramesStack(stack) {
         if (!stack) return [];
-        const className = this.constructor.name;
         const lines = String(stack).split("\n");
         const frames = [];
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
             if (!line) continue;
-            if (line.includes(className) || line.includes("console")) continue;
+            if (this.#estFrameALignorer(line)) continue;
 
             let match = line.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
             if (match) {
@@ -604,13 +648,12 @@ Utils.register(class Logger {
      */
     #nettoyerStacktrace(stack) {
         if (!stack) return "";
-        const className = this.constructor.name;
         const lines = String(stack).split("\n");
         if (lines.length === 0) return "";
         const filteredLines = [lines[0]];
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
-            if (line.includes(className) || line.includes("console")) {
+            if (this.#estFrameALignorer(line)) {
                 continue;
             }
             filteredLines.push(this.#renommerLigneStack(line));
@@ -626,14 +669,13 @@ Utils.register(class Logger {
      */
     #extraireInfosStack(stack) {
         if (!stack) return { fichier: "unknown", fonction: "anonymous", ligne: "0" };
-        const className = this.constructor.name;
         const lines = stack.split("\n");
         let targetLine = null;
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
             if (!line) continue;
-            // Ignore Logger methods and monkey-patched console methods
-            if (line.includes(className) || line.includes("console")) {
+            // Ignorer les méthodes Logger et console monkey-patched
+            if (this.#estFrameALignorer(line)) {
                 continue;
             }
             if (!targetLine) {
@@ -824,6 +866,7 @@ Utils.register(class Logger {
 
         if (infos && infos.fichier) {
             if (targetClasses.some(cls => infos.fichier.includes(cls))) {
+                if (console._log) console._log(`[Logger.#estLogAIgnorer] DEBUG: IGNORING log, fichier=${infos.fichier} matched cls=${targetClasses.find(cls => infos.fichier.includes(cls))}`);
                 return true;
             }
         }
@@ -858,7 +901,10 @@ Utils.register(class Logger {
         const className = this.constructor.name;
         const targetClasses = ["BoiteSignalement", "Signalement", className];
 
-        if (log.fichier && targetClasses.some(cls => log.fichier.includes(cls))) return true;
+        if (log.fichier && targetClasses.some(cls => log.fichier.includes(cls))) {
+            if (console._log) console._log(`[Logger.#estLogAIgnorerDansHistorique] DEBUG: IGNORING log, fichier=${log.fichier} matched cls=${targetClasses.find(cls => log.fichier.includes(cls))}`);
+            return true;
+        }
 
         if (Array.isArray(log.arguments) && log.arguments.length > 0) {
             const premierArg = String(log.arguments[0] || "");
@@ -900,9 +946,14 @@ Utils.register(class Logger {
         await this.#acquireLock();
         try {
             const infos = this.#extraireInfosStack(stackUtilisee);
-            if (!infos) return;
+            if (!infos) {
+                if (console._log) console._log(`[Logger.enregistrerLog] DEBUG: no infos extracted from stack`);
+                return;
+            }
+            if (console._log) console._log(`[Logger.enregistrerLog] DEBUG: fichier=${infos.fichier}, fonction=${infos.fonction}, ligne=${infos.ligne}, type=${type}, args0=${String(args[0] || "").substring(0, 80)}`);
 
             if (this.#estLogAIgnorer(infos, args)) {
+                if (console._log) console._log(`[Logger.enregistrerLog] DEBUG: IGNORED log, fichier=${infos.fichier}`);
                 return;
             }
 
@@ -2618,7 +2669,7 @@ Utils.register(class Logger {
      * @param {Function|null} [callbackProgression=null]
      * @param {Object|null} [progressState=null]
      */
-     async #envoyerTousLesLogs(idSujet, erreurCatchée = null, callbackProgression = null, progressState = null) {
+    async #envoyerTousLesLogs(idSujet, erreurCatchée = null, callbackProgression = null, progressState = null) {
         if (!progressState) progressState = { lastPct: -1 };
 
         if (this.historique.length === 0) {
@@ -2630,7 +2681,8 @@ Utils.register(class Logger {
         if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] historique=${this.historique.length}, erreurCatchée=${!!erreurCatchée}`);
 
         let logsAEnvoyer = this.historique.filter(log => !this.#estLogAIgnorerDansHistorique(log));
-        if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] après filtre ignore=${logsAEnvoyer.length}`);
+        if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] DEBUG: historique files=[${this.historique.map(l => l.fichier).join(", ")}]`);
+        if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] DEBUG: after ignore filter=${logsAEnvoyer.length} (ignored ${this.historique.length - logsAEnvoyer.length})`);
 
         // Filtrage par périmètre de distance dans l'arbre d'appel pour un signalement automatique
         if (erreurCatchée) {
