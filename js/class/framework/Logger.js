@@ -2642,6 +2642,7 @@ Utils.register(class Logger {
             if (stackFramesErr.length > 0) {
                 logsAEnvoyer = logsAEnvoyer.filter(log => {
                     const dist = this.#calculerDistanceStack(stackFramesErr, log.stackFrames);
+                    if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] log frames=${JSON.stringify(log.stackFrames)} dist=${dist}`);
                     return dist <= LOGGER_PERIMETRE_STACK_DISTANCE;
                 });
                 if (console._log) console._log(`[${this.constructor.name}.#envoyerTousLesLogs] après filtre distance=${logsAEnvoyer.length}`);
