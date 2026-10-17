@@ -512,27 +512,18 @@ Utils.register(class Logger {
      * @private
      */
     #renommerLigneStack(line) {
-        // Forme avec parenthèses : ... (fichier:ligne:colonne)
         let match = line.match(/\(([^()]+):(\d+):(\d+)\)\s*$/);
         if (match) {
             const resolue = this.#resoudrePositionSource(match[1].split("/").pop(), match[2]);
-            if (!resolue) {
-                if (console._error) console._error('[Logger DEBUG] rename paren failed:', line);
-                return line;
-            }
+            if (!resolue) return line;
             return line.slice(0, match.index) + `(${resolue.fichier}:${resolue.ligne}:${match[3]})`;
         }
-        // Forme sans parenthèses : at fichier:ligne:colonne
         const m2 = line.match(/^(.*?)([^/\s]+):(\d+):(\d+)\s*$/);
         if (m2) {
             const resolue = this.#resoudrePositionSource(m2[2], m2[3]);
-            if (!resolue) {
-                if (console._error) console._error('[Logger DEBUG] rename noparen failed:', m2[2], m2[3], line);
-                return line;
-            }
+            if (!resolue) return line;
             return `${m2[1]}${resolue.fichier}:${resolue.ligne}:${m2[4]}`;
         }
-        if (console._error) console._error('[Logger DEBUG] rename no-match:', JSON.stringify(line));
         return line;
     }
 
@@ -2036,7 +2027,7 @@ Utils.register(class Logger {
             body += `\n${argsStr}`;
         }
         if (log.fullStack) {
-            body += `\nStacktrace:\n${log.fullStack}`;
+            body += `\nStacktrace:\n${this.#nettoyerStacktrace(log.fullStack)}`;
         }
         return {
             entete,
@@ -2143,7 +2134,7 @@ Utils.register(class Logger {
                 const dateFinStr = new Date(g.dateFin).toISOString().replace("T", " ").substring(0, 23);
                 entetePrefixee = `[${dateDebutStr} -> ${dateFinStr}] (répété ${g.count} fois) ${g.logFormatte.entete}`;
             }
-            const texteComplet = entetePrefixee + (g.logFormatte.args.length > 0 ? "\n" + g.logFormatte.args.join("\n") : "") + (g.logFormatte.fullStack ? `\nStacktrace:\n${g.logFormatte.fullStack}` : "");
+            const texteComplet = entetePrefixee + (g.logFormatte.args.length > 0 ? "\n" + g.logFormatte.args.join("\n") : "") + (g.logFormatte.fullStack ? `\nStacktrace:\n${this.#nettoyerStacktrace(g.logFormatte.fullStack)}` : "");
             return {
                 entete: entetePrefixee,
                 args: g.logFormatte.args,
@@ -2941,7 +2932,7 @@ Utils.register(class Logger {
         const entete = logStructure.entete;
         const elements = [...logStructure.args];
         if (logStructure.fullStack) {
-            elements.push(`Stacktrace:\n${logStructure.fullStack}`);
+            elements.push(`Stacktrace:\n${this.#nettoyerStacktrace(logStructure.fullStack)}`);
         }
 
         const logEntier = entete + (elements.length > 0 ? "\n" + elements.join("\n") : "");
