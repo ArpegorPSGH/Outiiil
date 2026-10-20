@@ -30,8 +30,8 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
     async afficherConvoisEntrants() {
         if (Utils.comptePlus) return;
 
-        if ($("#o_convoisEntrants").length === 0) {
-            $("#o_listeCommande").before("<div id='o_convoisEntrants'></div>");
+        if ($j("#o_convoisEntrants").length === 0) {
+            $j("#o_listeCommande").before("<div id='o_convoisEntrants'></div>");
         }
 
         const convoisEntrants = [];
@@ -62,7 +62,7 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             }
         }
 
-        $("#o_convoisEntrants").html(html);
+        $j("#o_convoisEntrants").html(html);
 
         for (const timer of timers) {
             Utils.decreaseTime(timer.temps, timer.id);
@@ -95,14 +95,14 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
      * Affiche le tableau des convois en cours.
      */
     async afficherTableauConvois() {
-        if ($("#o_tableListeConvoi").length === 0) {
+        if ($j("#o_tableListeConvoi").length === 0) {
             const en_tete_html = await Convoi.afficherEntete();
 
             let contenu = `<div id="o_listeConvoi" class="simulateur centre o_marginT15"><h2>Convois en cours</h2><table id='o_tableListeConvoi' class="o_maxWidth" cellspacing=0>
                 <thead><tr class="ligne_paire">${en_tete_html}</tr></thead>
                 <tbody></tbody></table></div><br/>`;
 
-            $("#centre .Bas").before(contenu);
+            $j("#centre .Bas").before(contenu);
 
             // Générer la configuration DataTables à partir des propriétés de l'objet Convoi
             const proprietes = Convoi.recupererProprietesAffichage();
@@ -117,7 +117,7 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             // Trouver l'index de la colonne d'arrivée pour le tri par défaut
             const indexArrivee = Object.keys(proprietes).indexOf('Date Arrivée');
 
-            $("#o_tableListeConvoi").DataTable({
+            $j("#o_tableListeConvoi").DataTable({
                 data: [],
                 bPaginate: false,
                 dom: "Bfrti",
@@ -146,22 +146,22 @@ Utils.register(class AfficherConvois extends FonctionnaliteAlliance {
             tableRows.push(corps_html);
         }
         // Optimisation : Utiliser l'API DataTables sans détruire/recréer la table
-        if ($.fn.DataTable.isDataTable('#o_tableListeConvoi')) {
-            const table = $("#o_tableListeConvoi").DataTable();
+        if ($j.fn.DataTable.isDataTable('#o_tableListeConvoi')) {
+            const table = $j("#o_tableListeConvoi").DataTable();
 
             // Effacer les données actuelles sans redessiner
             table.clear();
 
             if (tableRows.length > 0) {
                 // Ajouter les nouvelles lignes via l'API pour qu'elles soient indexées et affichées
-                table.rows.add($(tableRows.map($tr => $tr[0])));
+                table.rows.add($j(tableRows.map($tr => $tr[0])));
             }
 
             // Redessiner la table avec les nouvelles données
             table.draw();
         } else {
             // Si la DataTable n'existe pas encore, juste mettre à jour le HTML
-            $("#o_tableListeConvoi tbody").empty().append(tableRows);
+            $j("#o_tableListeConvoi tbody").empty().append(tableRows);
         }
     }
 })

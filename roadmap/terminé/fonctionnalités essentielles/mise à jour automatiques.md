@@ -40,7 +40,7 @@ L'extension utilisera un mécanisme de mise à jour automatique via un serveur p
     *   L'`appid` est l'ID unique de l'extension Chrome (visible dans `chrome://extensions/` une fois l'extension chargée en mode développeur).
     *   Le `codebase` doit pointer vers l'URL du fichier `.crx` hébergé sur GitHub Releases.
 4.  **Héberger les Fichiers sur GitHub :**
-    *   **Pour `update.xml` :** Activer GitHub Pages pour le dépôt. Placer `update.xml` dans un dossier (ex: `updates/`) à la racine de la branche `gh-pages` (ou `main`/`master` si configuré pour GitHub Pages).
+    *   **Pour `update.xml` :** Activer GitHub Pages pour le dépôt. Placer `update.xml` dans un dossier (ex: `updates/`) à la racine de la branche `release` (ou `main`/`master` si configuré pour GitHub Pages).
     *   **Pour les fichiers `.crx` :** Pour chaque nouvelle version, empaqueter l'extension (via `chrome://extensions/` -> "Empaqueter l'extension") pour générer le `.crx` et le `.pem`. Créer une nouvelle "Release" sur GitHub et attacher le fichier `.crx` comme un asset à cette release. Conserver le fichier `.pem` en sécurité pour les futures mises à jour.
 5.  **Instructions d'Installation Initiale pour les Utilisateurs :**
     *   Fournir des instructions claires aux utilisateurs pour activer le "Mode développeur" dans Chrome et "Charger l'extension non empaquetée" en sélectionnant le dossier de l'extension.

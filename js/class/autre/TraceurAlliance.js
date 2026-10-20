@@ -19,7 +19,7 @@ Utils.register(class TraceurAlliance extends Traceur {
     * @private
     */
     #getClassement(numeroPage) {
-        return $.ajax({
+        return $j.ajax({
             type: "get",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/classement2.php",
             data: {
@@ -35,7 +35,7 @@ Utils.register(class TraceurAlliance extends Traceur {
     * @private
     */
     #getInformation() {
-        return $.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/team`);
+        return $j.get(`http://outiiil.fr/fzzz/${Utils.serveur}/event/team`);
     }
     /**
     *
@@ -50,24 +50,24 @@ Utils.register(class TraceurAlliance extends Traceur {
                 // recupérer des données
                 this.#getClassement(1).then((data) => {
                     this._data = {};
-                    $("<div/>").append(data["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
+                    $j("<div/>").append(data["tableau_classement"]).find("tr:gt(0)").each((i, elt) => {
                         // on enregistre un tablea avec [alliance, terrain, construction, recherche, trophée]
-                        this._data[$(elt).find("td:eq(1)").text()] = numeral($(elt).find("td:eq(2)").text()).value() + ";" + numeral($(elt).find("td:eq(3)").text()).value() + ";" + numeral($(elt).find("td:eq(4)").text()).value() + ";" + numeral($(elt).find("td:eq(5)").text()).value() + ";" + ~~$(elt).find("td:eq(6)").text();
+                        this._data[$j(elt).find("td:eq(1)").text()] = numeral($j(elt).find("td:eq(2)").text()).value() + ";" + numeral($j(elt).find("td:eq(3)").text()).value() + ";" + numeral($j(elt).find("td:eq(4)").text()).value() + ";" + numeral($j(elt).find("td:eq(5)").text()).value() + ";" + ~~$j(elt).find("td:eq(6)").text();
                     });
                     // on poste les données sur l'utilitaire
                     this.envoyerData().then((data) => {
                         let donnees = JSON.parse(data);
                         if (donnees.error == "0") {
-                            $.toast({ ...TOAST_INFO, text: "Traceur alliance mis à jour" });
+                            $j.toast({ ...TOAST_INFO, text: "Traceur alliance mis à jour" });
                             // lancement de la boucle
                             setTimeout(() => { this.tracer(); }, this._intervalle * 60000);
                         } else
-                            $.toast({ ...TOAST_ERROR, text: donnees.message });
+                            $j.toast({ ...TOAST_ERROR, text: donnees.message });
                     }, (jqXHR, textStatus, errorThrown) => {
-                        $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
+                        $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la sauvegarde des données du traceur." });
                     });
                 }, (jqXHR, textStatus, errorThrown) => {
-                    $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencntrée lors de la récupération du classement alliance." });
+                    $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencntrée lors de la récupération du classement alliance." });
                 });
             } else {
                 setTimeout(() => { this.tracer(); }, tempsMAJ * 1000);
@@ -79,8 +79,8 @@ Utils.register(class TraceurAlliance extends Traceur {
     *
     */
     afficher(id) {
-        $(id).append(`<table id='o_infosTraceurAlliance'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Tag</th><th>Evènement</th></tr></thead></table>`);
-        $("#o_infosTraceurAlliance").DataTable({
+        $j(id).append(`<table id='o_infosTraceurAlliance'><thead style="background-color:${monProfilUtilisateur.parametre["couleur2"].valeur}"><tr><th>Date</th><th>Tag</th><th>Evènement</th></tr></thead></table>`);
+        $j("#o_infosTraceurAlliance").DataTable({
             dom: "Bfrtip",
             buttons: ["copyHtml5", "csvHtml5", "excelHtml5"],
             order: [[0, "desc"]],
@@ -89,10 +89,10 @@ Utils.register(class TraceurAlliance extends Traceur {
                 zeroRecords: "Aucune information trouvée"
             },
             rowCallback: (row, data, index) => {
-                $(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
+                $j(row).css("background-color", index % 2 == 0 ? "inherit" : monProfilUtilisateur.parametre["couleur2"].valeur);
             },
             drawCallback: (settings) => {
-                $(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+                $j(".o_content a, .o_content table, .o_content label").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
             }
         });
         this.#getInformation().then((data) => {
@@ -101,10 +101,10 @@ Utils.register(class TraceurAlliance extends Traceur {
                 for (let line of donnees.message.split("\n")) {
                     if (line) {
                         info = line.split(", ");
-                        rows.push($(`<tr><td>${info[0]}</td><td>${this.parseAlliance(info[1])}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
+                        rows.push($j(`<tr><td>${info[0]}</td><td>${this.parseAlliance(info[1])}</td><td>${this.parseAlliance(info[2])}</td></tr>`)[0]);
                     }
                 }
-                $("#o_infosTraceurAlliance").DataTable().clear().rows.add(rows).draw();
+                $j("#o_infosTraceurAlliance").DataTable().clear().rows.add(rows).draw();
             }
         }, (jqXHR, textStatus, errorThrown) => {
             return false;

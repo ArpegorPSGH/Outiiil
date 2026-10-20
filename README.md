@@ -28,5 +28,12 @@ autrement ou celui qui veut vraiment participer peut desormais le faire plus fac
 
 ### Comment ? ###
 
-Le projet disponible ci dessus présente les sources en javascript pouvant être intégré à une extension ou un userscript.
+Le projet disponible ci-dessus présente les sources en JavaScript pouvant être intégrées à une extension ou un userscript.
+
+### Générer une release et déployer une mise à jour ###
+
+Outiiil utilise une architecture de mise à jour dynamique :
+1. Incrémentez le numéro de version dans `manifest.json`.
+2. Exécutez le script release.py
+Les utilisateurs recevront automatiquement la mise à jour en arrière-plan dès leur navigation suivante, sans aucune action requise de leur part.
 

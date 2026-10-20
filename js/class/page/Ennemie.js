@@ -23,11 +23,11 @@ Utils.register(class Ennemie extends Page {
      */
     async ajouterTemps() {
         // Affichage des temps de trajet
-        $("#tabEnnemie tr:eq(0) th:eq(5)").after("<th class='centre'>Temps</th>");
-        $("#tabEnnemie tr:gt(0)").each(async (i, elt) => {
-            let distance = parseInt($(elt).find("td:eq(5)").text());
+        $j("#tabEnnemie tr:eq(0) th:eq(5)").after("<th class='centre'>Temps</th>");
+        $j("#tabEnnemie tr:gt(0)").each(async (i, elt) => {
+            let distance = parseInt($j(elt).find("td:eq(5)").text());
             let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-            $(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, recherches[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
+            $j(elt).find("td:eq(5)").after(`<td class='centre'>${Utils.intToTime(Math.ceil(Math.pow(0.9, recherches[6]) * 637200 * (1 - Math.exp(-(distance / 350)))))}</td>`);
         });
     }
 })

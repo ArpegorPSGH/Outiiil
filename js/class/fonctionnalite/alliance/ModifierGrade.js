@@ -29,17 +29,17 @@ Utils.register(class ModifierGrade extends FonctionnaliteAlliance {
         const pseudoColIndex = this.page.getColonneIndex('Pseudo');
 
         // Parcourir toutes les lignes pour ajouter l'icône de modification
-        $("#tabMembresAlliance tbody tr").each((i, elt) => {
-            const pseudo = $(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
+        $j("#tabMembresAlliance tbody tr").each((i, elt) => {
+            const pseudo = $j(elt).find(`td:eq(${pseudoColIndex})`).text().split(' ')[0];
             const data = membresForumMap.get(pseudo);
 
             if (data) {
-                const premierTd = $(elt).find('td:eq(0)');
+                const premierTd = $j(elt).find('td:eq(0)');
                 if (premierTd.find('img[alt="grade"]').length > 0) {
                     return;
                 }
                 const { joueur, id } = data;
-                const bouton = $(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
+                const bouton = $j(`<a href="#"><img src="${IMG_UTILITY}" alt="grade"/></a>`);
                 bouton.onActionSecurisee('click', this, (e) => {
                     const boite = new BoiteGrade(joueur, this.page, id);
                     boite.afficher();

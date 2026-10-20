@@ -30,7 +30,7 @@ L'approche vise à encapsuler la logique de vérification et de rafraîchissemen
   * Créer une méthode (ex: `_determinerAppelsChargement()`) qui parse le code source de la fonctionnalité (via `acorn`) pour repérer tous les appels à `this.chargerObjetsForum(...)`.
   * **Signatures d'appels** : Extraire l'intégralité des combinaisons d'arguments uniques passées à `chargerObjetsForum` pour pouvoir les rejouer fidèlement.
 * **Méthode `rafraichirDonneesFonctionnalite()`** :
-  * **Vider le cache** : Pour chaque classe identifiée comme premier argument d'un appel `chargerObjetsForum`, supprimer l'entrée correspondante dans `cacheObjetForums`.
+  * **Vider le cache** : Pour chaque classe identifiée comme premier argument d'un appel `chargerObjetsForum`, supprimer l'entrée correspondante dans `objetForumsCache`.
   * *Note : Le rechargement des données est délégué à la méthode de prise d'empreinte qui suivra.*
 * **Consistance du cache dans `chargerObjetsForum`** :
   * Si `chargerContenus` est à `false` mais que les objets en cache possèdent déjà des contenus chargés, la méthode doit vider la liste `objetsForumContenus` de ces instances avant de les retourner. Cela garantit que l'état de l'objet en mémoire correspond exactement à ce qui a été demandé par la fonctionnalité courante.

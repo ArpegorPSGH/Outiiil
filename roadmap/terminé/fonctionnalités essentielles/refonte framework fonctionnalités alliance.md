@@ -175,7 +175,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
         a.  Construit le **registre global de classes** en scannant le `manifest.json` pour créer une `Map` de toutes les classes `FonctionnaliteAlliance` et `ObjetForum`.
         b.  Analyse le code d'initialisation pour créer la **"carte des types"** des variables globales (ex: `window.gd` -> `GestionnaireDroits`).
         c.  Crée les instances globales des gestionnaires (`GestionnaireDroits`, `GestionnaireVersions`) et les stocke dans l'objet `window`.
-        d.  Initialise les caches globaux (`window.dependancesObjetForumsCache`, `window.cacheObjetForums`).
+        d.  Initialise les caches globaux (`window.dependancesObjetForumsCache`, `window.objetForumsCache`).
         e.  Crée la liste des noms de section requis.
     *   Cette fonction est appelée une première fois au démarrage de l'extension.
 
@@ -324,8 +324,8 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
 *   **Logique Détaillée :**
     1.  **Vérification du Cache :**
         a.  Récupère le nom de la classe demandée : `const nomClasse = ClasseObjetForum.name;`.
-        b.  Vérifie si une entrée pour cette classe existe déjà dans le cache de la page : `if (cacheObjetForums.has(nomClasse))`.
-        c.  Si c'est le cas, la méthode retourne immédiatement la liste d'objets depuis le cache : `return cacheObjetForums.get(nomClasse);`.
+        b.  Vérifie si une entrée pour cette classe existe déjà dans le cache de la page : `if (objetForumsCache.has(nomClasse))`.
+        c.  Si c'est le cas, la méthode retourne immédiatement la liste d'objets depuis le cache : `return objetForumsCache.get(nomClasse);`.
 
     2.  **Initialisation du Chargement (si non trouvé dans le cache) :**
         a.  Initialise `let objetsCharges = [];` et `let tousLesSujets = [];`.
@@ -353,7 +353,7 @@ Pour garantir la robustesse, le framework s'appuie sur une fonction d'initialisa
                 -   Ajoute l'instance au tableau `objetsCharges`.
 
     6.  **Mise en Cache et Retour :**
-        a.  Une fois le chargement terminé, la méthode stocke la liste nouvellement créée dans le cache de la page : `cacheObjetForums.set(nomClasse, objetsCharges);`.
+        a.  Une fois le chargement terminé, la méthode stocke la liste nouvellement créée dans le cache de la page : `objetForumsCache.set(nomClasse, objetsCharges);`.
         b.  Retourne le tableau `objetsCharges` complet.
 
 ### **Plan Détaillé : Classe `ObjetForum`**

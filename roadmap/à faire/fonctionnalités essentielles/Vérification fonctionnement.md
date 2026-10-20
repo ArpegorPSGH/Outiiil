@@ -10,5 +10,6 @@ Vérifier les instructions d'installation, le fonctionnement et la mise à jour 
 ## Plan d'Implémentation
 
 ## Tests à effectuer
+- Tester mise à jour auto
 
 ## Avancement

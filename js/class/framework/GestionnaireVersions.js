@@ -428,37 +428,20 @@ Utils.register(class GestionnaireVersions {
 
             // Scénario 1 (Extension obsolète)
             if ((compVersion < 0 || compFormats < 0 || estExtensionEnRetard) && compVersion <= 0 && compFormats <= 0 && !estForumEnRetard) {
-                console.warn(`L'extension est obsolète. L'objet ${objet.constructor.name} nécessite une mise à jour.`);
+                console.warn(`[GestionnaireVersions.verifierCompatibiliteObjetForum] Extension obsolète. L'objet ${objet.constructor.name} nécessite une mise à jour.`);
                 if (objet instanceof ObjetForumDroits) {
                     const historiqueTronque = versionForum.classesParametres.slice(0, indexDansForum + 1);
                     objet.constructor.PARAMETRES_OBJET = convertirIdsEnClasses(historiqueTronque);
                     console.log('Historique de classe de paramètres réécrit:', objet.constructor.PARAMETRES_OBJET);
                 }
-                $.toast({
+                $j.toast({
                     heading: 'Mise à jour requise',
-                    text: "Votre extension Outiiil nécessite une mise à jour pour fonctionner correctement. Tentative de mise à jour automatique...",
+                    text: "Votre version d'Outiiil est obsolète pour cet objet du forum. Veuillez actualiser la page (F5) pour appliquer la dernière mise à jour.",
                     icon: 'warning',
                     loader: true,
                     loaderBg: '#9EC600',
                     position: 'top-right',
-                    hideAfter: 5000
-                });
-
-                chrome.runtime.sendMessage({ action: "requestUpdateCheck" }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("Canal de message fermé, probablement en raison d'une mise à jour de l'extension.", chrome.runtime.lastError.message);
-                        return true; // C'est un comportement attendu si la mise à jour réussit et recharge l'extension
-                    }
-                    // Si nous recevons une réponse, cela signifie que la mise à jour n'a pas eu lieu ou a échoué
-                    $.toast({
-                        heading: 'Échec de la mise à jour',
-                        text: "La mise à jour automatique a échoué. Veuillez mettre à jour votre extension manuellement.",
-                        icon: 'error',
-                        loader: true,
-                        loaderBg: '#FF0000',
-                        position: 'top-right',
-                        hideAfter: false // Garder le message visible
-                    });
+                    hideAfter: 8000
                 });
                 return false; // Arrêter l'exécution actuelle car la version est incompatible
             }
@@ -556,30 +539,14 @@ Utils.register(class GestionnaireVersions {
             // Scénario 1 (Extension obsolète)
             if (compVersion < 0 || compFormatHistory < 0) {
                 console.warn(`[GestionnaireVersions.verifierCompatibiliteParametre] Extension obsolète. Le paramètre ${parametre.constructor.name} nécessite une mise à jour.`);
-                $.toast({
+                $j.toast({
                     heading: 'Mise à jour requise',
-                    text: "Votre extension Outiiil nécessite une mise à jour pour fonctionner correctement. Tentative de mise à jour automatique...",
+                    text: "Votre version d'Outiiil est obsolète pour ce paramètre du forum. Veuillez actualiser la page (F5) pour appliquer la dernière mise à jour.",
                     icon: 'warning',
                     loader: true,
                     loaderBg: '#9EC600',
                     position: 'top-right',
-                    hideAfter: 5000
-                });
-
-                chrome.runtime.sendMessage({ action: "requestUpdateCheck" }, (response) => {
-                    if (chrome.runtime.lastError) {
-                        console.warn("[GestionnaireVersions.verifierCompatibiliteParametre] Canal de message fermé, probablement en raison d'une mise à jour de l'extension.", chrome.runtime.lastError.message);
-                        return;
-                    }
-                    $.toast({
-                        heading: 'Échec de la mise à jour',
-                        text: "La mise à jour automatique a échoué. Veuillez mettre à jour votre extension manuellement.",
-                        icon: 'error',
-                        loader: true,
-                        loaderBg: '#FF0000',
-                        position: 'top-right',
-                        hideAfter: false
-                    });
+                    hideAfter: 8000
                 });
                 return false;
             }

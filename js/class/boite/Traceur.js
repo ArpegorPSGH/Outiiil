@@ -30,7 +30,7 @@ Utils.register(class BoiteTraceur extends Boite {
     async afficher() {
         if (await super.afficher()) {
             let chargeAlliance = false;
-            $("#o_tabsTraceur").tabs({
+            $j("#o_tabsTraceur").tabs({
                 activate: async (e, ui) => {
                     if (!chargeAlliance && ui.newTab.index() == 1) {
                         chargeAlliance = true;
@@ -51,12 +51,12 @@ Utils.register(class BoiteTraceur extends Boite {
     */
     css() {
         super.css();
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
         return this;
     }

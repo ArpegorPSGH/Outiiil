@@ -31,8 +31,8 @@ Utils.register(class ColorerMessage extends FonctionnaliteAlliance {
             mapJoueurs[pseudo] = joueur;
         }
 
-        $("tr[id^='conversation_']").each((i, elt) => {
-            let titre = $(elt).find("td:eq(3) .intitule_message").text(), color = "";
+        $j("tr[id^='conversation_']").each((i, elt) => {
+            let titre = $j(elt).find("td:eq(3) .intitule_message").text(), color = "";
             // une colonie perdue est toujours rouge
             // Attaque échouée contre xXx : votre armée...
             if (titre.includes("Colonie perdue") || titre.includes("conquis par") || titre.includes("Attaque échouée contre") || titre.includes("Rebellion échouée"))
@@ -46,7 +46,7 @@ Utils.register(class ColorerMessage extends FonctionnaliteAlliance {
             // Invasion de xXx: votre armée
             else if (titre.includes("Vol par") || titre.includes("Invasion"))
                 color = mapJoueurs.hasOwnProperty(titre.split(" ")[2]) ? "green" : "red";
-            if (color) $(elt).find("td:eq(3)").children().addClass(color);
+            if (color) $j(elt).find("td:eq(3)").children().addClass(color);
         });
     }
 });

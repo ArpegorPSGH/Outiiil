@@ -24,7 +24,7 @@ Utils.register(class Construction extends Page {
     async recuperationConstruction() {
         // verification des niveaux
         let niveau = new Array(13);
-        $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        $j(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
         if (niveau.join(",") != constructions.join(",")) {
             constructions = niveau;
@@ -38,7 +38,7 @@ Utils.register(class Construction extends Page {
     * @method titleEtable
     */
     async titleEtable() {
-        if ($(".desciption_amelioration:eq(11) table").find(".verificationOK").length) return;
+        if ($j(".desciption_amelioration:eq(11) table").find(".verificationOK").length) return;
         let recherche = await monProfilJoueur.lire('Niveaux Recherches');
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
         let ouvDispo = Utils.ouvrieres - Utils.terrain, perte = 80 * Math.pow(2, recherche[4]);
@@ -50,8 +50,8 @@ Utils.register(class Construction extends Page {
             <tr><td>Capacité de livraison niveau suivant</td><td class='right' style='padding-left:10px'>${numeral((ouvDispo - perte) * (10 + ((constructions[11] + 1) / 2))).format()}</td></tr>
             <tr><td>Seuil rentabilité ouvrière</td><td class='right gras' style='padding-left:10px'>${numeral((21 + constructions[11]) * 40 * Math.pow(2, (constructions[11] + 3))).format()}</td></tr>
             </table>`;
-        $(".cout_amelioration:eq(11) table").prepend("<tr class='centre'><td colspan='2' id='o_rentabiliteEtable' title=''>Rentabilité</td></tr>");
-        $("#o_rentabiliteEtable").tooltip({
+        $j(".cout_amelioration:eq(11) table").prepend("<tr class='centre'><td colspan='2' id='o_rentabiliteEtable' title=''>Rentabilité</td></tr>");
+        $j("#o_rentabiliteEtable").tooltip({
             position: { my: "right+15 center", at: "left center" },
             content: title,
             tooltipClass: "ui-tooltip-brown ui-tooltip-lightBrown"
@@ -66,13 +66,13 @@ Utils.register(class Construction extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Affichage de la fin de la construction
-        if ($("#centre > strong").length)
-            $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+        if ($j("#centre > strong").length)
+            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($j("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la construction en cours
         this.#saveConstruction();
         // Suppresion de la construction en cours si on annule
-        if ($("a:contains('Annuler')").length)
-            $("a:contains('Annuler')").click((e) => {
+        if ($j("a:contains('Annuler')").length)
+            $j("a:contains('Annuler')").click((e) => {
                 boiteComptePlus.expConstruction = 0;
                 boiteComptePlus.construction = "";
                 boiteComptePlus.startConstruction = 0;
@@ -87,9 +87,9 @@ Utils.register(class Construction extends Page {
     * @method #saveConstruction
     */
     #saveConstruction() {
-        let str = $("#centre > strong").text();
+        let str = $j("#centre > strong").text();
         let construction = str.substring(2, str.indexOf("se termine") - 1);
-        if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.construction = construction.substr(0, 1).toUpperCase() + construction.substr(1);
             boiteComptePlus.expConstruction = moment().add(parseInt(str.split(',')[0].split('(')[1]), 's');
             boiteComptePlus.startConstruction = moment();

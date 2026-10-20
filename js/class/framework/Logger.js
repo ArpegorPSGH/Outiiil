@@ -137,7 +137,6 @@ Utils.register(class Logger {
         const ctor = val.constructor;
         const name = (ctor && ctor.name) ? ctor.name : null;
         if (name && !this.#estObjetBase(val)) {
-            if (window.classesCache && window.classesCache.has(name)) return true;
             if (window[name] === ctor || globalThis[name] === ctor) return true;
         }
         return false;
@@ -466,6 +465,114 @@ Utils.register(class Logger {
     }
 
     /**
+     * Résout une position dans le bundle de runtime vers le fichier source d'origine,
+     * à l'aide de la table window.__OUTIIIL_SOURCES émise par build_bundle.py.
+     * En DEV mode (fichiers individuels enregistrés via userScripts) la table est
+     * absente et la méthode renvoie null : les positions sont déjà celles des sources.
+     * @param {String} fichier - Le fichier extrait de la stack.
+     * @param {Number|String} ligne - Le numéro de ligne dans le bundle.
+     * @returns {Object|null} - { fichier, ligne } résolus dans le fichier source, ou null.
+     * @private
+     */
+    #resoudrePositionSource(fichier, ligne) {
+        const estReferenceBundle =
+            fichier === "<anonymous>" ||
+            fichier === "unknown" ||
+            fichier === "runtime.js" ||
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fichier);
+        if (!estReferenceBundle) return null;
+        const sources = (typeof window !== "undefined") ? window.__OUTIIIL_SOURCES : undefined;
+        if (!Array.isArray(sources) || sources.length === 0) return null;
+        const n = Number(ligne);
+        if (!Number.isInteger(n) || n < 1) return null;
+
+        // Recherche binaire : dernière entrée dont la position de début est <= n
+        let bas = 0, haut = sources.length - 1;
+        while (bas <= haut) {
+            const milieu = (bas + haut) >> 1;
+            if (sources[milieu].s <= n) {
+                bas = milieu + 1;
+            } else {
+                haut = milieu - 1;
+            }
+        }
+        const entree = sources[haut];
+        if (!entree || n < entree.s) return null;
+        return {
+            fichier: String(entree.f).split("/").pop(),
+            ligne: n - entree.s + 1
+        };
+    }
+
+    /**
+     * Vérifie si une ligne de stacktrace correspond à une frame à ignorer
+     * (Logger ou méthode console monkey-patched), en prenant en compte la
+     * résolution de position en mode production.
+     * En mode dev, le chemin du fichier contient directement le nom de la classe
+     * (ex: Logger.js). En mode prod, le fichier est runtime.js ou un UUID —
+     * il faut résoudre via #resolurePositionSource pour détecter les frames Logger.js
+     * (notamment l'instrumentateur wrapper défini dans Logger.js mais dont la frame
+     * montre runtime.js dans la pile).
+     * @param {String} line - La ligne de stacktrace.
+     * @returns {Boolean} - True si la frame doit être ignorée.
+     * @private
+     */
+    #estFrameALignorer(line) {
+        if (!line) return true;
+        if (line.includes("console")) return true;
+
+        // En mode dev : le nom de fichier contient directement le nom de la classe
+        if (line.includes(this.constructor.name)) return true;
+
+        // En mode prod : le fichier est runtime.js / UUID, résoudre vers le fichier source
+        let fichier;
+        let numLigne;
+        let match = line.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
+        if (match) {
+            fichier = match[2].split("/").pop();
+            numLigne = match[3];
+        } else {
+            match = line.match(/at\s+(?:async\s+)?(.+):(\d+):(\d+)/);
+            if (match) {
+                fichier = match[1].split("/").pop();
+                numLigne = match[2];
+            }
+        }
+
+        if (fichier && numLigne) {
+            const resolue = this.#resoudrePositionSource(fichier, numLigne);
+            if (resolue && resolue.fichier && resolue.fichier.includes(this.constructor.name)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Remplace la position dans le bundle (UUID:N:col) par la position
+     * dans le fichier source sur une ligne de stack, le cas échéant.
+     * @param {String} line - La ligne de stack à traiter.
+     * @returns {String} - La ligne, éventuellement avec sa position réécrite.
+     * @private
+     */
+    #renommerLigneStack(line) {
+        let match = line.match(/\(([^()]+):(\d+):(\d+)\)\s*$/);
+        if (match) {
+            const resolue = this.#resoudrePositionSource(match[1].split("/").pop(), match[2]);
+            if (!resolue) return line;
+            return line.slice(0, match.index) + `(${resolue.fichier}:${resolue.ligne}:${match[3]})`;
+        }
+        const m2 = line.match(/^(.*?)([^/\s]+):(\d+):(\d+)\s*$/);
+        if (m2) {
+            const resolue = this.#resoudrePositionSource(m2[2], m2[3]);
+            if (!resolue) return line;
+            return `${m2[1]}${resolue.fichier}:${resolue.ligne}:${m2[4]}`;
+        }
+        return line;
+    }
+
+    /**
      * Extrait les frames pertinentes d'une stacktrace (sous forme de tableau de clés 'fichier:fonction').
      * Ignorer les numéros de ligne permet d'avoir une distance de 0 pour les logs situés dans la même fonction que l'erreur.
      * @param {String} stack
@@ -474,24 +581,26 @@ Utils.register(class Logger {
      */
     #extraireFramesStack(stack) {
         if (!stack) return [];
-        const className = this.constructor.name;
         const lines = String(stack).split("\n");
         const frames = [];
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
             if (!line) continue;
-            if (line.includes(className) || line.includes("console")) continue;
+            if (this.#estFrameALignorer(line)) continue;
 
             let match = line.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
             if (match) {
                 const fn = match[1].startsWith("Proxy.") ? match[1].substring(6) : match[1];
-                const chemin = match[2].split("/").pop();
+                let chemin = match[2].split("/").pop();
+                const resolue = this.#resoudrePositionSource(chemin, match[3]);
+                if (resolue) chemin = resolue.fichier;
                 frames.push(`${chemin}:${fn}`);
             } else {
                 match = line.match(/at\s+(?:async\s+)?(.+):(\d+):(\d+)/);
                 if (match) {
-                    const urlOuChemin = match[1];
-                    const chemin = urlOuChemin.split("/").pop();
+                    let chemin = match[1].split("/").pop();
+                    const resolue = this.#resoudrePositionSource(chemin, match[2]);
+                    if (resolue) chemin = resolue.fichier;
                     frames.push(`${chemin}:anonymous`);
                 }
             }
@@ -539,16 +648,15 @@ Utils.register(class Logger {
      */
     #nettoyerStacktrace(stack) {
         if (!stack) return "";
-        const className = this.constructor.name;
         const lines = String(stack).split("\n");
         if (lines.length === 0) return "";
         const filteredLines = [lines[0]];
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
-            if (line.includes(className) || line.includes("console")) {
+            if (this.#estFrameALignorer(line)) {
                 continue;
             }
-            filteredLines.push(line);
+            filteredLines.push(this.#renommerLigneStack(line));
         }
         return filteredLines.join("\n");
     }
@@ -560,15 +668,14 @@ Utils.register(class Logger {
      * @private
      */
     #extraireInfosStack(stack) {
-        if (!stack) return { fichier: "unknown", fonction: "anonymous", ligne: "0" };
-        const className = this.constructor.name;
+        if (!stack) return { fichier: "unknown", fonction: "anonymous", ligne: "0", colonne: "0" };
         const lines = stack.split("\n");
         let targetLine = null;
         for (let i = 1; i < lines.length; i++) {
             const line = lines[i];
             if (!line) continue;
-            // Ignore Logger methods and monkey-patched console methods
-            if (line.includes(className) || line.includes("console")) {
+            // Ignorer les méthodes Logger et console monkey-patched
+            if (this.#estFrameALignorer(line)) {
                 continue;
             }
             if (!targetLine) {
@@ -582,12 +689,14 @@ Utils.register(class Logger {
         let fonction = "anonymous";
         let fichier = "unknown";
         let ligne = "0";
+        let colonne = "0";
 
         let match = targetLine.match(/at\s+(?:async\s+)?([^\s(]+)\s+\((.+):(\d+):(\d+)\)/);
         if (match) {
             fonction = match[1];
             const cheminComplet = match[2];
             ligne = match[3];
+            colonne = match[4];
             const parties = cheminComplet.split("/");
             fichier = parties[parties.length - 1];
         } else {
@@ -595,6 +704,7 @@ Utils.register(class Logger {
             if (match) {
                 const cheminComplet = match[1];
                 ligne = match[2];
+                colonne = match[3];
                 const parties = cheminComplet.split("/");
                 fichier = parties[parties.length - 1];
             } else {
@@ -606,6 +716,15 @@ Utils.register(class Logger {
             }
         }
 
+        // En production, le bundle est injecté comme une chaîne (userScripts `code:`),
+        // les frames sont donc nommés par un UUID généré par V8 : résoudre la
+        // position vers le fichier source d'origine via la table __OUTIIIL_SOURCES.
+        const resolue = this.#resoudrePositionSource(fichier, ligne);
+        if (resolue) {
+            fichier = resolue.fichier;
+            ligne = String(resolue.ligne);
+        }
+
         if (fonction.startsWith("Proxy.")) {
             fonction = fonction.substring(6);
         }
@@ -613,7 +732,7 @@ Utils.register(class Logger {
             fichier = "native:code";
         }
 
-        return { fichier, fonction, ligne };
+        return { fichier, fonction, ligne, colonne };
     }
 
     /**
@@ -687,7 +806,7 @@ Utils.register(class Logger {
                     }
                     logger.posterLogs(errorObj).then(postes => {
                         if (postes) {
-                            $.toast({ ...TOAST_INFO, text: "Erreur technique transmise automatiquement." });
+                            $j.toast({ ...TOAST_INFO, text: "Erreur technique transmise automatiquement." });
                         }
                     }).catch(e => {
                         if (console._error) {
@@ -749,9 +868,7 @@ Utils.register(class Logger {
         const targetClasses = ["BoiteSignalement", "Signalement", className];
 
         if (infos && infos.fichier) {
-            if (targetClasses.some(cls => infos.fichier.includes(cls))) {
-                return true;
-            }
+            if (targetClasses.some(cls => infos.fichier.includes(cls))) return true;
         }
 
         if (args && args.length > 0) {
@@ -828,9 +945,7 @@ Utils.register(class Logger {
             const infos = this.#extraireInfosStack(stackUtilisee);
             if (!infos) return;
 
-            if (this.#estLogAIgnorer(infos, args)) {
-                return;
-            }
+            if (this.#estLogAIgnorer(infos, args)) return;
 
             const logObj = {
                 date,
@@ -838,6 +953,7 @@ Utils.register(class Logger {
                 fichier: infos.fichier,
                 fonction: infos.fonction,
                 ligne: infos.ligne,
+                colonne: infos.colonne,
                 stackFrames: this.#extraireFramesStack(stackUtilisee),
                 arguments: argsSerialises,
                 fullStack: (type === "error" && (!errorObj || !errorObj.stack)) ? this.#nettoyerStacktrace(stackUtilisee) : undefined
@@ -1953,7 +2069,7 @@ Utils.register(class Logger {
             body += `\n${argsStr}`;
         }
         if (log.fullStack) {
-            body += `\nStacktrace:\n${log.fullStack}`;
+            body += `\nStacktrace:\n${this.#nettoyerStacktrace(log.fullStack)}`;
         }
         return {
             entete,
@@ -2060,7 +2176,7 @@ Utils.register(class Logger {
                 const dateFinStr = new Date(g.dateFin).toISOString().replace("T", " ").substring(0, 23);
                 entetePrefixee = `[${dateDebutStr} -> ${dateFinStr}] (répété ${g.count} fois) ${g.logFormatte.entete}`;
             }
-            const texteComplet = entetePrefixee + (g.logFormatte.args.length > 0 ? "\n" + g.logFormatte.args.join("\n") : "") + (g.logFormatte.fullStack ? `\nStacktrace:\n${g.logFormatte.fullStack}` : "");
+            const texteComplet = entetePrefixee + (g.logFormatte.args.length > 0 ? "\n" + g.logFormatte.args.join("\n") : "") + (g.logFormatte.fullStack ? `\nStacktrace:\n${this.#nettoyerStacktrace(g.logFormatte.fullStack)}` : "");
             return {
                 entete: entetePrefixee,
                 args: g.logFormatte.args,
@@ -2080,6 +2196,48 @@ Utils.register(class Logger {
         return (location.pathname + location.search + location.hash).replace(/^\/+/, '');
     }
 
+    /**
+     * Extrait une signature canonique à partir d'une stacktrace en ne retenant
+     * que le fichier, la ligne et la colonne de chaque entrée, en ignorant le
+     * nom de fonction (dépendant du navigateur, de l'instance de l'extension
+     * et du mode de génération du bundle).
+     * @param {String} stack - La stacktrace nettoyée.
+     * @returns {String} - Signature triée et dédupliquée des positions file:ligne:colonne.
+     * @private
+     */
+    #extraireSignatureStack(stack) {
+        if (!stack) return "";
+        const lines = String(stack).split("\n");
+        const signatures = new Set();
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line) continue;
+
+            let fichier;
+            let numLigne;
+            let colonne;
+
+            let match = line.match(/at\s+(?:async\s+)?[^\s(]+\s+\((.+):(\d+):(\d+)\)\s*$/);
+            if (match) {
+                fichier = match[1].split("/").pop();
+                numLigne = match[2];
+                colonne = match[3];
+            } else {
+                match = line.match(/at\s+(?:async\s+)?(.+):(\d+):(\d+)\s*$/);
+                if (match) {
+                    fichier = match[1].split("/").pop();
+                    numLigne = match[2];
+                    colonne = match[3];
+                }
+            }
+
+            if (fichier && numLigne && colonne) {
+                signatures.add(`${fichier}:${numLigne}:${colonne}`);
+            }
+        }
+        return Array.from(signatures).sort().join("|");
+    }
+
     #genererHashHFTA() {
         const vus = new Set();
         for (let i = this.historique.length - 1; i >= 0; i--) {
@@ -2087,7 +2245,7 @@ Utils.register(class Logger {
             if (this.#estLogAIgnorerDansHistorique(log)) {
                 continue;
             }
-            const sig = `${log.type}:${log.fichier}:${log.fonction}:${log.ligne}`;
+            const sig = `${log.type}:${log.fichier}:${log.ligne}:${log.colonne}`;
             if (!vus.has(sig)) {
                 vus.add(sig);
                 if (vus.size === 100) break;
@@ -2137,7 +2295,6 @@ Utils.register(class Logger {
                         // Procéder directement à la mise à jour des logs
                         return await this.#mettreAJourLogsSujetExistant(this.idSujet, messageOptionnel);
                     } else {
-                        // Ignorer les erreurs ultérieures si le sujet n'a pas été créé par cette instance
                         return false;
                     }
                 }
@@ -2149,7 +2306,7 @@ Utils.register(class Logger {
                 if (estManuel) {
                     hashcode = this.#genererHashHFTA();
                 } else {
-                    hashcode = Utils.genererHash(stack);
+                    hashcode = Utils.genererHash(this.#extraireSignatureStack(stack));
                 }
 
                 // 3. Recherche de sujet existant
@@ -2858,7 +3015,7 @@ Utils.register(class Logger {
         const entete = logStructure.entete;
         const elements = [...logStructure.args];
         if (logStructure.fullStack) {
-            elements.push(`Stacktrace:\n${logStructure.fullStack}`);
+            elements.push(`Stacktrace:\n${this.#nettoyerStacktrace(logStructure.fullStack)}`);
         }
 
         const logEntier = entete + (elements.length > 0 ? "\n" + elements.join("\n") : "");

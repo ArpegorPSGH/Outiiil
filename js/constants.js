@@ -171,19 +171,37 @@ const IMG_VACANCES = "<img src='images/icone/4rondbleu.gif' alt='Vacances' title
 const IMG_BANNI = "<img src='images/icone/5rondgris.gif' alt='Banni' title='Banni'/>";
 const IMG_COLONISE = "<img src='images/icone/attention.gif' alt='Colonisé' title='Colonisé'/>";
 // Image pour l'extension
-const IMG_CHANGE = chrome.runtime.getURL("images/change.png");
-const IMG_ACTUALISER = chrome.runtime.getURL("images/actualize_on_01.png");
-const IMG_CRAYON = chrome.runtime.getURL("images/crayon.gif");
-const IMG_CROIX = chrome.runtime.getURL("images/croix.png");
-const IMG_COPIER = chrome.runtime.getURL("images/copy.png");
-const IMG_HISTORIQUE = chrome.runtime.getURL("images/historique.png");
-const IMG_LIVRAISON = chrome.runtime.getURL("images/livraison.png");
-const IMG_RADAR = chrome.runtime.getURL("images/radar.png");
-const IMG_SPRITE_MENU = chrome.runtime.getURL("images/sprite_menu.png");
-const IMG_UTILITY = chrome.runtime.getURL("images/utility.png");
-const IMG_DOWN = chrome.runtime.getURL("images/down.png");
-const IMG_UP = chrome.runtime.getURL("images/up.png");
-const IMG_OUTIIIL = chrome.runtime.getURL("images/outiiil.png");
+// Ces constantes sont des getters (résolus à l'accès, pas au chargement du module) :
+// OUTIIIL_DYNAMIC_IMAGES est peuplé de façon asynchrone par runtime_init.js, donc
+// appeler getExtensionURL() immédiatement ici (avant que le cache ne soit prêt)
+// renvoyait l'URL de l'extension bundle (dist/ local) au lieu du blob dynamique.
+// Résoudre à l'utilisation (dans les template literals, toujours après le cache prêt)
+// évite la race condition et fonctionne en mode dev comme prod.
+(function () {
+    const imagePaths = {
+        CHANGE: 'images/change.png',
+        ACTUALISER: 'images/actualize_on_01.png',
+        CRAYON: 'images/crayon.gif',
+        CROIX: 'images/croix.png',
+        COPIER: 'images/copy.png',
+        HISTORIQUE: 'images/historique.png',
+        LIVRAISON: 'images/livraison.png',
+        RADAR: 'images/radar.png',
+        SPRITE_MENU: 'images/sprite_menu.png',
+        UTILITY: 'images/utility.png',
+        DOWN: 'images/down.png',
+        UP: 'images/up.png',
+        OUTIIIL: 'images/outiiil.png'
+    };
+    for (const nom in imagePaths) {
+        (function (path) {
+            Object.defineProperty(window, 'IMG_' + nom, {
+                get: function () { return Utils.getExtensionURL(path); },
+                configurable: true
+            });
+        })(imagePaths[nom]);
+    }
+})();
 
 const TOAST_ERROR = { heading: "Erreur", hideAfter: 3500, showHideTransition: "slide", position: { top: 30, right: 100 }, icon: "error" };
 const TOAST_SUCCESS = { heading: "Succès", hideAfter: 3500, showHideTransition: "slide", position: { top: 30, right: 100 }, icon: "success" };

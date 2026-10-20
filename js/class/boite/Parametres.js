@@ -39,8 +39,8 @@ Utils.register(class BoiteParametre extends Boite {
     */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_tabsParametre").tabs({ activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
-            if (!monProfilUtilisateur.parametre["cleTraceur"].valeur) $("#o_tabsParametre").tabs("disable", 3);
+            $j("#o_tabsParametre").tabs({ activate: (e, ui) => { this.css(); } }).removeClass("ui-widget");
+            if (!monProfilUtilisateur.parametre["cleTraceur"].valeur) $j("#o_tabsParametre").tabs("disable", 3);
             this.#parametreStyle().#parametreUtilitaire().#parametreGeneral().#parametreTraceur().css().event();
         }
     }
@@ -51,15 +51,15 @@ Utils.register(class BoiteParametre extends Boite {
     */
     css() {
         super.css();
-        $(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
+        $j(".o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").unbind("mouseenter mouseleave").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
+        $j(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
     /**
@@ -71,13 +71,13 @@ Utils.register(class BoiteParametre extends Boite {
         super.event();
 
         // Delegated event listener for text inputs (type 'input') and color inputs
-        $("#o_boiteParametre").on("input", ".o_input:not([type='checkbox']):not([type='color']), .o_inputColor", function (e) {
+        $j("#o_boiteParametre").on("input", ".o_input:not([type='checkbox']):not([type='color']), .o_inputColor", function (e) {
             const paramId = this.id.replace('Picker', ''); // Handle color picker ID
             const param = monProfilUtilisateur.parametre[paramId];
             if (param) {
                 if (param.type === 'color') {
                     param.valeur = e.currentTarget.value.padEnd(7, "0");
-                    $(`#${param.id}Picker`).val(param.valeur);
+                    $j(`#${param.id}Picker`).val(param.valeur);
                 } else { // type 'input'
                     param.valeur = e.currentTarget.value;
                 }
@@ -86,7 +86,7 @@ Utils.register(class BoiteParametre extends Boite {
         });
 
         // Delegated event listener for checkboxes and selects
-        $("#o_boiteParametre").on("change", ".o_checkbox, select.o_input", function (e) {
+        $j("#o_boiteParametre").on("change", ".o_checkbox, select.o_input", function (e) {
             const paramId = this.id;
             const param = monProfilUtilisateur.parametre[paramId];
             if (param) {
@@ -128,12 +128,12 @@ Utils.register(class BoiteParametre extends Boite {
                     spinnerOptions.min = 0;
                 }
 
-                $(`#${paramId}`).spinner(spinnerOptions);
+                $j(`#${paramId}`).spinner(spinnerOptions);
 
                 // Also add an input event for direct typing into spinner field
-                $(`#${paramId}`).on("input", (e) => {
+                $j(`#${paramId}`).on("input", (e) => {
                     param.valeur = numeral(e.currentTarget.value).value();
-                    $(e.currentTarget).spinner("value", param.valeur); // Update spinner display
+                    $j(e.currentTarget).spinner("value", param.valeur); // Update spinner display
                     param.sauvegarde();
                 });
             }
@@ -147,7 +147,7 @@ Utils.register(class BoiteParametre extends Boite {
     #parametreStyle() {
         let content = ``;
         for (let param of this.#paramStyle) content += monProfilUtilisateur.parametre[param].getForm();
-        $("#o_tabsParametre3").append(`<form>${content}</form>`);
+        $j("#o_tabsParametre3").append(`<form>${content}</form>`);
         return this;
     }
     /**
@@ -177,14 +177,14 @@ Utils.register(class BoiteParametre extends Boite {
                 console.error(`[BoiteParametre] Erreur: monProfilUtilisateur.parametre[${param}] est indéfini lors de la génération du formulaire.`);
             }
         }
-        $("#o_tabsParametre2").append(`<p class='left reduce gras'>Saisissez les identifiants des sections de votre utilitaire</p><form>${content}</form>`);
+        $j("#o_tabsParametre2").append(`<p class='left reduce gras'>Saisissez les identifiants des sections de votre utilitaire</p><form>${content}</form>`);
         return this;
     }
     /**
     * @private
     */
     #parametreGeneral() {
-        $("#o_tabsParametre1").append(`<form>
+        $j("#o_tabsParametre1").append(`<form>
             <p class='left reduce gras'>L'affectation sera automatique lors de la consultation de la page ressource</p>
             ${monProfilUtilisateur.parametre[this.#paramGeneral[0]].getForm()}
             <p class='left reduce gras'>La méthode sera sélectionnée par défaut dans le lanceur de flood</p>
@@ -199,7 +199,7 @@ Utils.register(class BoiteParametre extends Boite {
     * @private
     */
     #parametreTraceur() {
-        $("#o_tabsParametre4").append(`<form>
+        $j("#o_tabsParametre4").append(`<form>
             <p class='left reduce gras'>Paramètres pour le traçage des joueurs</p>
             ${monProfilUtilisateur.parametre[this.#paramTraceur[0]].getForm() + monProfilUtilisateur.parametre[this.#paramTraceur[1]].getForm() + monProfilUtilisateur.parametre[this.#paramTraceur[2]].getForm()}
             <p class='left reduce gras'>Paramètres pour le traçage des alliances</p>

@@ -56,10 +56,10 @@ Utils.register(class Forum extends Page {
             // On s'assure de ne pas boucler avec l'observer.
             observer.disconnect();
             await super.init();
-            observer.observe($("#alliance")[0], { childList: true });
+            observer.observe($j("#alliance")[0], { childList: true });
         });
-        if ($("#alliance").length) {
-            observer.observe($("#alliance")[0], { childList: true });
+        if ($j("#alliance").length) {
+            observer.observe($j("#alliance")[0], { childList: true });
         }
     }
 });

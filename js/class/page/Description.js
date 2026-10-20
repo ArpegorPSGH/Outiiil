@@ -28,24 +28,24 @@ Utils.register(class Description extends Page {
 
     async constructionAlliance() {
         // Suppression du cadre classement
-        $("#centre center:first").remove();
+        $j("#centre center:first").remove();
         // construction de l'alliance
         let tmpJoueurs = {};
-        await $("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
-            let pseudo = $(elt).find("td:eq(2)").text(), terrain = numeral($(elt).find("td:eq(4)").text()).value();
+        await $j("#tabMembresAlliance tr:gt(0)").each(async (i, elt) => {
+            let pseudo = $j(elt).find("td:eq(2)").text(), terrain = numeral($j(elt).find("td:eq(4)").text()).value();
             tmpJoueurs[pseudo] = new Joueur(null, {
                 donneesInitiales: {
                     'Pseudo': pseudo,
                     'Terrain de Chasse': terrain,
-                    'Fourmilière': ~~($(elt).find("td:eq(7)").text()),
-                    'Technologie': ~~($(elt).find("td:eq(6)").text())
+                    'Fourmilière': ~~($j(elt).find("td:eq(7)").text()),
+                    'Technologie': ~~($j(elt).find("td:eq(6)").text())
                 }
             });
             if (!Utils.comptePlus && ! await tmpJoueurs[pseudo].estJoueurCourant()) {
                 if (await tmpJoueurs[pseudo].estAttaquable())
-                    $(elt).find("td:eq(5)").html(IMG_ATT);
+                    $j(elt).find("td:eq(5)").html(IMG_ATT);
                 if (await tmpJoueurs[pseudo].estAttaquant())
-                    $(elt).find("td:eq(3)").html(IMG_DEF);
+                    $j(elt).find("td:eq(3)").html(IMG_DEF);
             }
         });
         this._alliance.joueurs = tmpJoueurs;
@@ -56,8 +56,8 @@ Utils.register(class Description extends Page {
     * @return
     */
     async ajoutFooter() {
-        $("#tabMembresAlliance tr:first").remove();
-        $("#tabMembresAlliance")
+        $j("#tabMembresAlliance tr:first").remove();
+        $j("#tabMembresAlliance")
             .append(`<tfoot><tr class='gras centre'><td colspan='8'>Terrain : <span id='totalTerrain'>${numeral(await this._alliance.calculTerrain()).format()}</span> cm² | Fourmilière : ${numeral(await this._alliance.calculFourmiliere()).format()} | Technologie : ${numeral(await this._alliance.calculTechnologie()).format()}.</td></tr></tfoot>`)
             .wrap("<div class='simulateur'>")
             .css({ "border": "0px", "width": "100%", "padding": "0px" })
@@ -65,16 +65,16 @@ Utils.register(class Description extends Page {
             .after(`<div id='o_bouton_alliance' class='o_group_bouton'><span id='o_historique' class='option_gestion'><img src="${IMG_HISTORIQUE}" alt="historique"/> Historique</span><span id='o_surveiller' class='option_gestion'><img src="${IMG_RADAR}" alt="surveiller"/>${boiteRadar.alliances.hasOwnProperty(this._alliance.tag) ? " Ignorer" : " Surveiller"}</span></div><div id='o_separation_graph' class='clear'></div>`);
         this.#tableau();
 
-        $("#o_historique").click((e) => {
-            $(e.currentTarget).off().css("backgroundColor", "#bbb");
+        $j("#o_historique").click((e) => {
+            $j(e.currentTarget).off().css("backgroundColor", "#bbb");
             this.#historique();
         });
-        $("#o_surveiller").click(async (e) => {
+        $j("#o_surveiller").click(async (e) => {
             if (!boiteRadar.alliances.hasOwnProperty(this._alliance.tag)) {
-                $(e.currentTarget).html($(e.currentTarget).html().replace(/Surveiller/, "Ignorer"));
+                $j(e.currentTarget).html($j(e.currentTarget).html().replace(/Surveiller/, "Ignorer"));
                 await boiteRadar.ajouteAlliance(this._alliance);
             } else {
-                $(e.currentTarget).html($(e.currentTarget).html().replace(/Ignorer/, "Surveiller"));
+                $j(e.currentTarget).html($j(e.currentTarget).html().replace(/Ignorer/, "Surveiller"));
                 await boiteRadar.supprimeAlliance(this._alliance);
             }
             await boiteRadar.sauvegarder(); // Await the promise to get the BoiteRadar instance
@@ -88,7 +88,7 @@ Utils.register(class Description extends Page {
     * @method #tableau
     */
     #tableau() {
-        $("#tabMembresAlliance").DataTable({
+        $j("#tabMembresAlliance").DataTable({
             bPaginate: false,
             dom: "Bfrti",
             order: [],
@@ -110,7 +110,7 @@ Utils.register(class Description extends Page {
     * @method #historique
     */
     #historique() {
-        $("#o_separation_graph").after(`<div id='o_boiteAlliance' class='simulateur o_marginT15'><div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div><div id='o_chartAlliance'></div></div>`);
+        $j("#o_separation_graph").after(`<div id='o_boiteAlliance' class='simulateur o_marginT15'><div id='o_bouton_range' class='o_group_bouton'><span id='o_selectHisto_1' class='active option_gestion ligne_paire' data='30'>30J</span><span id='o_selectHisto_2' class='option_gestion' data='90'>90J</span><span id='o_selectHisto_3' class='option_gestion' data='180'>180J</span><span id='o_selectHisto_4' class='option_gestion' data='all'>Tout</span></div><div id='o_chartAlliance'></div></div>`);
         this._alliance.getHistorique("o_chartAlliance");
         return this;
     }

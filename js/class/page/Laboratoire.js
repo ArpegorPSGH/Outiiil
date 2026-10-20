@@ -26,7 +26,7 @@ Utils.register(class Laboratoire extends Page {
         // verification des niveaux
         let niveau = new Array(10);
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-        $(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($(elt).find(".niveau_amelioration").text().split(" ")[1]); });
+        $j(".ligneAmelioration").each((i, elt) => { niveau[i] = parseInt($j(elt).find(".niveau_amelioration").text().split(" ")[1]); });
         if (niveau.join(",") != recherches.join(",")) {
             recherches = niveau;
             await monProfilJoueur.ecrire("Niveaux Recherches", recherches);
@@ -42,7 +42,7 @@ Utils.register(class Laboratoire extends Page {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
         let armee = await monProfilJoueur.lire('Armée');
         let vieAB = armee.getBaseVie() + armee.getBonusVie(recherches[1]);
-        let tOuv = numeral($(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
+        let tOuv = numeral($j(".ligneAmelioration:eq(1)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
         let apportPonte = Math.round(parseInt(tOuv / (TEMPS_UNITE[1] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (8 + 8 * recherches[1] / 10));
         let vieABSupp = armee.getBaseVie() + armee.getBonusVie(recherches[1] + 1);
         let bLigneGras = vieAB + apportPonte >= vieABSupp ? true : false;
@@ -51,7 +51,7 @@ Utils.register(class Laboratoire extends Page {
             <tr${(bLigneGras ? " class='gras' " : "")}><td>Vie AB + ponte JSN</td><td class='right' style='padding-left:10px'>${numeral(vieAB + apportPonte).format()} (+ ${numeral(apportPonte).format()})</td></tr>
             <tr${(!bLigneGras ? " class='gras' " : "")}><td>Vie AB niveau ${(recherches[1] + 1)}</td><td class='right'>${numeral(vieABSupp).format()} (+ ${numeral(vieABSupp - vieAB).format()})</td></tr>
             </table>`;
-        $(".desciption_amelioration:eq(1) h2").attr("title", title).tooltip({
+        $j(".desciption_amelioration:eq(1) h2").attr("title", title).tooltip({
             position: { my: "left+5 top", at: "right top" },
             content: title,
             tooltipClass: "ui-tooltip-brown ui-tooltip-lightBrown"
@@ -67,7 +67,7 @@ Utils.register(class Laboratoire extends Page {
         let recherches = await monProfilJoueur.lire('Niveaux Recherches');
         let armee = await monProfilJoueur.lire('Armée');
         let attAB = armee.getTotalAtt(recherches[2]);
-        let tOuv = numeral($(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
+        let tOuv = numeral($j(".ligneAmelioration:eq(2)").find(".ouvriere").text()).value() * (TEMPS_UNITE[0] * Math.pow(0.9, await monProfilJoueur.getTDP()));
         let apportPonteJS = Math.round(parseInt(tOuv / (TEMPS_UNITE[4] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (10 + 10 * recherches[1] / 10));
         let apportPonteTk = Math.round(parseInt(tOuv / (TEMPS_UNITE[11] * Math.pow(0.9, await monProfilJoueur.getTDP()))) * (55 + 55 * recherches[1] / 10));
         let attABSupp = armee.getTotalAtt(recherches[2] + 1);
@@ -88,7 +88,7 @@ Utils.register(class Laboratoire extends Page {
             <tr${(bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB + ponte TuE</td><td class='right' style='padding-left:10px'>${numeral(defAB + apportPonteTuE).format()} (+ ${numeral(apportPonteTuE).format()})</td></tr>
             <tr${(!bLigneGrasTuE ? " class='gras' " : "")}><td>Défense AB niveau ${(recherches[2] + 1)}</td><td class='right'>${numeral(defABSupp).format()} (+ ${numeral(defABSupp - defAB).format()})</td></tr>
             </table>`;
-        $(".desciption_amelioration:eq(2) h2").attr("title", title).tooltip({
+        $j(".desciption_amelioration:eq(2) h2").attr("title", title).tooltip({
             position: { my: "left+5 top", at: "right top" },
             content: title,
             tooltipClass: "ui-tooltip-brown ui-tooltip-lightBrown"
@@ -103,13 +103,13 @@ Utils.register(class Laboratoire extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Affichage de la fin de la recherche
-        if ($("#centre > strong").length)
-            $("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+        if ($j("#centre > strong").length)
+            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($j("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la recherche en cours
         this.#saveRecherche();
         // Suppresion de la recherche en cours si on annule
-        if ($("a:contains('Je confirme')").length)
-            $("a:contains('Je confirme')").click((e) => {
+        if ($j("a:contains('Je confirme')").length)
+            $j("a:contains('Je confirme')").click((e) => {
                 boiteComptePlus.expRecherche = 0;
                 boiteComptePlus.recherche = "";
                 boiteComptePlus.startRecherche = 0;
@@ -125,9 +125,9 @@ Utils.register(class Laboratoire extends Page {
     * @return
     */
     #saveRecherche() {
-        let str = $("#centre strong").text();
+        let str = $j("#centre strong").text();
         let recherche = str.substring(2, str.indexOf("termin") - 1);
-        if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $("#boiteComptePlus").length) {
+        if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $j("#boiteComptePlus").length) {
             boiteComptePlus.recherche = recherche.substr(0, 1).toUpperCase() + recherche.substr(1);
             boiteComptePlus.expRecherche = moment().add(parseInt(str.split(",")[0].split("(")[1]), 's');
             boiteComptePlus.startRecherche = moment();

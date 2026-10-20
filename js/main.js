@@ -9,56 +9,125 @@
 * @class Main
 */
 !async function () {
+    // Save jQuery reference immediately (before page scripts can overwrite $ after DOMContentLoaded)
+    var $j = window.jQuery;
+    window.$j = $j;
+
+    // Ensure the DOM is ready before running game logic
+    // In userScript world: MAIN, the script runs at document_start before DOM is ready
+    function domReady() {
+        if (document.readyState === 'loading') {
+            return new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+        }
+        return Promise.resolve();
+    }
+
+    await domReady();
+
+    // Wait for runtime_init.js to finish (it sets window.VERSION from the dynamic
+    // runtime version, which can be newer than the installed extension manifest).
+    if (window.__outiiil_runtime_init_promise) {
+        try { await window.__outiiil_runtime_init_promise; } catch (e) { /* ignore */ }
+    }
 
     // si l'utilisateur est identifié
-    if ($(".boite_connexion_titre:first").text() != "Connexion") {
-        // Récupération de la version depuis manifest.json
-        const manifestURL = chrome.runtime.getURL('manifest.json');
-        const manifestResponse = await fetch(manifestURL);
-        const manifest = await manifestResponse.json();
-        window.manifest = manifest;
-        window.VERSION = manifest.version;
+    if ($j(".boite_connexion_titre:first").text() != "Connexion") {
+        // Wait for dev mode info from bridge before proceeding
+        const isDevMode = (await (window.browserAPI && window.browserAPI._devModeReady ? window.browserAPI._devModeReady : Promise.resolve(false))) === true;
+        let versionRetenue = null;
+
+        // runtime_init.js may have already set window.VERSION from the dynamic runtime
+        // (RUNTIME_INFO / storage). That is the version actually loaded, which can be
+        // newer than the installed extension manifest — preserve it.
+        if (window.VERSION) {
+            versionRetenue = window.VERSION;
+            console.log('[Outiiil Main] Version already set by runtime_init:', versionRetenue);
+        } else if (isDevMode) {
+            console.log('[Outiiil Main] DEV_MODE: reading version from manifest.json');
+            try {
+                const manifestURL = Utils.getExtensionURL('manifest.json');
+                const manifestResponse = await fetch(manifestURL);
+                if (manifestResponse.ok) {
+                    const manifest = await manifestResponse.json();
+                    window.manifest = manifest;
+                    versionRetenue = manifest.version || versionRetenue;
+                }
+            } catch (e) {
+                console.warn('[Outiiil Main] manifest.json fetch failed:', e);
+            }
+        } else {
+            console.log('[Outiiil Main] PROD_MODE: version not set by runtime_init, using manifest.json');
+            // In PROD mode, dist/version.json is NOT packaged in the extension zip
+            // (only manifest.json, js/, icons/ are). The runtime + version.json are
+            // served from GitHub Pages and cached in chrome.storage.local by the
+            // service worker (background.js). runtime_init.js already tried to read
+            // the cached version via RUNTIME_INFO RPC. If that failed, fall back to
+            // the installed extension manifest version, which is always available
+            // locally and never requires a network fetch.
+            try {
+                const manifestURL = Utils.getExtensionURL('manifest.json');
+                const manifestResponse = await fetch(manifestURL);
+                if (manifestResponse.ok) {
+                    const manifest = await manifestResponse.json();
+                    window.manifest = manifest;
+                    versionRetenue = manifest.version || versionRetenue;
+                    console.log('[Outiiil Main] Version from manifest.json:', versionRetenue);
+                }
+            } catch (e) {
+                console.warn('[Outiiil Main] manifest.json fetch failed:', e);
+            }
+        }
+        if (!versionRetenue) {
+            console.error('[Outiiil Main] No version could be determined, defaulting to 1.0.0');
+            versionRetenue = "1.0.0";
+        }
+        window.VERSION = versionRetenue;
+        console.log('[Outiiil Main] Final version:', window.VERSION, 'isDevMode=' + isDevMode);
 
         // Modification du theme jquery humanity
-        $("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
+        $j("head").append("<link rel='stylesheet' href='http://code.jquery.com/ui/1.12.1/themes/humanity/jquery-ui.min.css'/>");
         // Chargement du language francais
         numeral.locale("fr");
         moment.locale("fr");
 
         Highcharts.setOptions({ lang: { months: MOIS_FR, shortMonths: MOIS_RAC_FR, weekdays: JOUR_FR, decimalPoint: ',', thousandsSep: ' ' } });
         // Ajout du tri pour les nombres
-        $.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return d ? parseInt(d.replace(/\s/g, '')) : 0; };
-        $.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix() : 0; };
-        $.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix() : 0; };
-        $.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return d ? Utils.timeToInt(d) : 0; };
+        try {
+            $j.fn.dataTable.ext.type.order["quantite-grade-pre"] = (d) => { return d ? parseInt(d.replace(/\s/g, '')) : 0; };
+            $j.fn.dataTable.ext.type.order["moment-D MMM YYYY-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM YYYY", "fr", true).unix() : 0; };
+            $j.fn.dataTable.ext.type.order["moment-D MMM [à] HH[h]mm-pre"] = (d) => { return d ? moment(d.replace('.', ''), "D MMM [à] HH[h]mm", "fr", true).unix() : 0; };
+            $j.fn.dataTable.ext.type.order["time-unformat-pre"] = (d) => { return d ? Utils.timeToInt(d) : 0; };
 
-        // Configuration globale de DataTables (Français)
-        $.extend(true, $.fn.dataTable.defaults, {
-            bInfo: false,
-            bAutoWidth: false,
-            responsive: true,
-            language: {
-                zeroRecords: "Aucun résultat trouvé",
-                info: "Page _PAGE_ de _PAGES_",
-                infoEmpty: "Aucun enregistrement disponible",
-                infoFiltered: "(filtré de _MAX_ enregistrements au total)",
-                search: "Rechercher : ",
-                paginate: {
-                    first: "Premier",
-                    last: "Dernier",
-                    next: "Suivant",
-                    previous: "Précédent"
-                },
-                buttons: {
-                    colvis: "Colonnes",
-                    copy: "Copier",
-                    csv: "CSV",
-                    excel: "Excel",
-                    pdf: "PDF",
-                    print: "Imprimer"
+            // Configuration globale de DataTables (Français)
+            $j.extend(true, $j.fn.dataTable.defaults, {
+                bInfo: false,
+                bAutoWidth: false,
+                responsive: true,
+                language: {
+                    zeroRecords: "Aucun résultat trouvé",
+                    info: "Page _PAGE_ de _PAGES_",
+                    infoEmpty: "Aucun enregistrement disponible",
+                    infoFiltered: "(filtré de _MAX_ enregistrements au total)",
+                    search: "Rechercher : ",
+                    paginate: {
+                        first: "Premier",
+                        last: "Dernier",
+                        next: "Suivant",
+                        previous: "Précédent"
+                    },
+                    buttons: {
+                        colvis: "Colonnes",
+                        copy: "Copier",
+                        csv: "CSV",
+                        excel: "Excel",
+                        pdf: "PDF",
+                        print: "Imprimer"
+                    }
                 }
-            }
-        });
+            });
+        } catch (e) {
+            console.warn('[Outiiil] DataTables initialization skipped:', e.message);
+        }
 
         await initialiserFrameworkGlobal(); // Ensure framework is initialized before anything else
 
@@ -103,7 +172,7 @@
                 // console.error('test duplication:', [{ 'listetest': listetest, 'dictest': dictest }, 'supplément']);
                 // console.error('test duplication2:', [{ 'listetest': listetest, 'dictest': dictest }, 'supplément']);
                 // console.error('test duplication2:', { base: [listetest, dictest], complement: 'supplément' });
-                // console.error('test duplication2:', commandeTest);
+                console.error('test');
 
                 await gestionnaireSections.chargerSections();
 
@@ -180,53 +249,10 @@ async function initialiserFrameworkGlobal() {
     console.log("Registre des classes 'FonctionnaliteAlliance':", registreClasses.FonctionnaliteAlliance);
     console.log("Registre des classes 'Page':", registreClasses.Page);
 
-
-    // 1b. Créer la "carte des types" des variables globales
-    window.carteDesTypes = new Map();
-    const initURL = chrome.runtime.getURL('js/main.js');
-    const initResponse = await fetch(initURL);
-    const initContent = await initResponse.text();
-
-    try {
-        const ast = acorn.parse(initContent, { ecmaVersion: 2020 });
-
-        // Simple AST traversal to find assignments to 'global'
-        function traverse(node) {
-            if (!node) return;
-
-            if (node.type === 'AssignmentExpression' &&
-                node.left.type === 'MemberExpression' &&
-                node.left.object.type === 'Identifier' &&
-                node.left.object.name === 'window' &&
-                node.right.type === 'NewExpression') {
-
-                const globalVarName = `window.${node.left.property.name}`;
-                const className = node.right.callee.name;
-                carteDesTypes.set(globalVarName, className);
-            }
-
-            for (const key in node) {
-                if (node[key] && typeof node[key] === 'object') {
-                    if (Array.isArray(node[key])) {
-                        node[key].forEach(traverse);
-                    } else {
-                        traverse(node[key]);
-                    }
-                }
-            }
-        }
-
-        traverse(ast);
-    } catch (error) {
-        console.error("Erreur lors de l'analyse AST de init.js:", error);
-    }
-
-    console.log("Carte des types des variables globales:", carteDesTypes);
-
     // 1c. Initialiser les caches globaux
     window.dependancesObjetForumsCache = new Map();
     window.appelsChargementCache = new Map();
-    window.cacheObjetForums = new Map(); // Nouvelle variable globale
+    window.objetForumsCache = new Map(); // Nouvelle variable globale
     window.sectionsEnCache = new Map();
 
     // Création de la liste globale des sections

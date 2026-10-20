@@ -5,7 +5,7 @@ Utils.register(class AccesForum {
     * @private
     */
     static #creerSection(nomSection) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -25,7 +25,7 @@ Utils.register(class AccesForum {
     static async creerSectionEtRetournerId(nomSection) {
         try {
             const data = await AccesForum.#creerSection(nomSection);
-            const response = $("<div/>").append($(data).find("cmd:eq(1)").html());
+            const response = $j("<div/>").append($j(data).find("cmd:eq(1)").html());
             const elementSection = response.find(`input[value='${nomSection}']`);
 
             if (elementSection.length) {
@@ -45,7 +45,7 @@ Utils.register(class AccesForum {
     * Modifie une section forum.
     */
     static modifierSection(id, nomSection, categorie = "cache") {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -66,7 +66,7 @@ Utils.register(class AccesForum {
     static #consulterSection(id) {
         const timerName = `consulterSection-${id}`;
         // console.time(timerName);
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -98,14 +98,14 @@ Utils.register(class AccesForum {
     static async recupererSujetsSection(idSection) {
         try {
             const dataSection = await AccesForum.#consulterSection(idSection);
-            const responseSection = $(dataSection).find("cmd:eq(1)").text();
+            const responseSection = $j(dataSection).find("cmd:eq(1)").text();
 
             if (responseSection.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error(`[AccesForum][recupererSujetsSection] Accès refusé à la section forum ID: ${idSection}. Retourne une liste vide.`);
                 return { sujets: [], titreSection: null };
             }
 
-            const htmlDoc = $("<div/>").append(responseSection);
+            const htmlDoc = $j("<div/>").append(responseSection);
 
             // Extraction du titre de la section (présent dans le <span> du 2ème <th> du tableau)
             const sectionTitleElement = htmlDoc.find('table.tab_triable tr.alt th:nth-child(2) span:first-child');
@@ -115,12 +115,12 @@ Utils.register(class AccesForum {
             const sujets = [];
 
             sujetElements.each((i, elt) => {
-                const titreSujet = $(elt).find("td:eq(1)").text();
-                const dateDerniereActiviteText = $(elt).find("td:eq(2)").text().trim();
+                const titreSujet = $j(elt).find("td:eq(1)").text();
+                const dateDerniereActiviteText = $j(elt).find("td:eq(2)").text().trim();
                 const dateMatch = dateDerniereActiviteText.match(/.*?(\d+[ \u00A0]+[a-zA-Z\u00C0-\u017F]+\.?[ \u00A0]+à[ \u00A0]*\d+h\d+)/);
                 const datePartToParse = dateMatch ? dateMatch[1] : '';
                 let id = null;
-                const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                const onclickAttr = $j(elt).find("a.topic_forum").attr("onclick");
                 if (onclickAttr) {
                     const match = onclickAttr.match(/\d+/);
                     if (match) {
@@ -150,7 +150,7 @@ Utils.register(class AccesForum {
     * @private
     */
     static #creerSujet(id, nomSujet, contenu = " ", type = "normal") {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -173,21 +173,21 @@ Utils.register(class AccesForum {
     static async creerSujetEtRetournerId(id, nomSujet, contenu = " ", type = "normal") {
         try {
             const data = await AccesForum.#creerSujet(id, nomSujet, contenu, type);
-            const response = $(data).find("cmd:eq(1)").text();
+            const response = $j(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error("[AccesForum][creerSujetEtRetournerId] Impossible de récupérer le contenu de la section après la création du sujet.");
                 return null;
             }
 
-            const sujetElements = $("<div/>").append(response).find("#form_cat tr:gt(0)");
+            const sujetElements = $j("<div/>").append(response).find("#form_cat tr:gt(0)");
             let idSujet = null;
 
             sujetElements.each((i, elt) => {
-                const titreSujet = $(elt).find("td:eq(1)").text();
+                const titreSujet = $j(elt).find("td:eq(1)").text();
                 // Use startsWith for a more robust comparison
                 if (titreSujet.startsWith(nomSujet)) {
-                    const onclickAttr = $(elt).find("a.topic_forum").attr("onclick");
+                    const onclickAttr = $j(elt).find("a.topic_forum").attr("onclick");
                     if (onclickAttr) {
                         const match = onclickAttr.match(/\d+/);
                         if (match) {
@@ -216,7 +216,7 @@ Utils.register(class AccesForum {
      * @param {number} idSujet - ID du sujet.
      */
     static async modifierSujet(idSujet, nomSujet, contenu = " ") {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -239,7 +239,7 @@ Utils.register(class AccesForum {
     static #consulterSujet(id) {
         const timerName = `#consulterSujet-${id}`;
         // console.time(timerName);
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -261,26 +261,26 @@ Utils.register(class AccesForum {
     static async consulterSujetAvecMessagesEtIds(idSujet) {
         try {
             const dataSujet = await AccesForum.#consulterSujet(idSujet);
-            const response = $(dataSujet).find("cmd:eq(1)").text();
+            const response = $j(dataSujet).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error("[AccesForum][consulterSujetAvecMessagesEtIds] Impossible de récupérer le contenu du sujet.");
                 return { titre: null, messages: null };
             }
 
-            const sujetHtml = $("<div/>").append(response);
+            const sujetHtml = $j("<div/>").append(response);
             const titre = sujetHtml.find("h2").text();
             const messageElements = sujetHtml.find(".messageForum");
             const messages = [];
 
             messageElements.each((i, elt) => {
-                const messageContent = $(elt).text();
+                const messageContent = $j(elt).text();
                 // Filtrer les messages qui ne contiennent que des espaces ou caractères invisibles
                 if (messageContent.trim().length === 0) {
                     return true;
                 }
 
-                const editLink = $(elt).find("a[onclick*='xajax_editMessage']");
+                const editLink = $j(elt).find("a[onclick*='xajax_editMessage']");
                 let messageId = null;
 
                 if (editLink.length > 0) {
@@ -309,7 +309,7 @@ Utils.register(class AccesForum {
      */
     static async transfererSujet(idSujet, idSectionDestination, idSectionSource) {
         try {
-            $.ajax({
+            $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -337,7 +337,7 @@ Utils.register(class AccesForum {
      */
     static async supprimerSujet(idSujet, idSection) {
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -355,7 +355,7 @@ Utils.register(class AccesForum {
                 if (typeof data === "string") {
                     responseText = data;
                 } else {
-                    responseText = $(data).find("cmd").text() || $(data).text() || "";
+                    responseText = $j(data).find("cmd").text() || $j(data).text() || "";
                 }
             }
 
@@ -375,7 +375,7 @@ Utils.register(class AccesForum {
     * Envoie un message.
     */
     static #envoyerMessage(idSujet, message) {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
             data: {
@@ -396,19 +396,19 @@ Utils.register(class AccesForum {
     static async envoyerMessageEtRetournerId(idSujet, message) {
         try {
             const data = await AccesForum.#envoyerMessage(idSujet, message);
-            const response = $(data).find("cmd:eq(1)").text();
+            const response = $j(data).find("cmd:eq(1)").text();
 
             if (!response || response.includes("Vous n'avez pas accès à ce forum.")) {
                 console.error("[AccesForum][envoyerMessageEtRetournerId] Impossible de récupérer le contenu du sujet après l'envoi du message.");
                 return null;
             }
 
-            const messageElements = $("<div/>").append(response).find(".messageForum");
+            const messageElements = $j("<div/>").append(response).find(".messageForum");
             let idMessage = null;
 
             if (messageElements.length > 0) {
                 const lastMessageElement = messageElements.last();
-                const editLink = $(lastMessageElement).find("a[onclick*='xajax_editMessage']");
+                const editLink = $j(lastMessageElement).find("a[onclick*='xajax_editMessage']");
                 if (editLink.length > 0) {
                     const onclickAttr = editLink.attr('onclick');
                     const match = onclickAttr.match(/xajax_editMessage\((\d+)\)/);
@@ -434,7 +434,7 @@ Utils.register(class AccesForum {
      */
     static async modifierMessage(idMessage, nouveauContenu) {
         try {
-            $.ajax({
+            $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -458,7 +458,7 @@ Utils.register(class AccesForum {
  */
     static async supprimerMessage(idMessage) {
         try {
-            const data = await $.ajax({
+            const data = await $j.ajax({
                 type: "post",
                 url: "http://" + Utils.serveur + ".fourmizzz.fr/alliance.php?forum_menu",
                 data: {
@@ -473,7 +473,7 @@ Utils.register(class AccesForum {
                 if (typeof data === "string") {
                     responseText = data;
                 } else {
-                    responseText = $(data).find("cmd").text() || $(data).text() || "";
+                    responseText = $j(data).find("cmd").text() || $j(data).text() || "";
                 }
             }
 

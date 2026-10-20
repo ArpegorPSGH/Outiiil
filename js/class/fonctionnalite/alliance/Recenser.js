@@ -10,9 +10,9 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
      * @returns {Promise<void>}
      */
     async run() {
-        const dtButtonsContainer = $("#tabMembresAlliance_wrapper .dt-buttons");
+        const dtButtonsContainer = $j("#tabMembresAlliance_wrapper .dt-buttons");
         if (dtButtonsContainer.length > 0) {
-            const bouton = $(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
+            const bouton = $j(`<a id="o_recensementButton" class="dt-button" href="#"><span>Recensement</span></a>`);
             bouton.onActionSecurisee('click', this, this.effectuerRecensement.bind(this));
             dtButtonsContainer.append(bouton);
         }
@@ -25,7 +25,7 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
      */
     async effectuerRecensement(e) {
         e.preventDefault();
-        const bouton = $(e.currentTarget);
+        const bouton = $j(e.currentTarget);
         bouton.addClass('processing').css('pointer-events', 'none');
 
         try {
@@ -33,13 +33,13 @@ Utils.register(class Recenser extends FonctionnaliteAlliance {
             recensementReussi = await monProfilJoueur.effectuerRecensement();
 
             if (recensementReussi) {
-                $.toast({ ...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum." });
+                $j.toast({ ...TOAST_SUCCESS, text: "Recensement effectué et posté sur le forum." });
             } else {
                 throw new Error("Échec de l'opération de recensement.");
             }
         } catch (error) {
             console.error("Erreur lors du recensement:", error);
-            $.toast({ ...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}` });
+            $j.toast({ ...TOAST_ERROR, heading: "Erreur Recensement", text: `${error.message || 'Une erreur est survenue.'}` });
         } finally {
             bouton.removeClass('processing').css('pointer-events', 'auto');
         }

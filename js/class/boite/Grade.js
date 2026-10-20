@@ -59,21 +59,21 @@ Utils.register(class BoiteGrade extends Boite {
     */
     async event() {
         super.event();
-        $("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").onActionSecurisee('click', this._joueur.fonctionnaliteCreatrice, async (e) => {
+        $j("#o_form" + await this._joueur.lire('Id') + " button[name='o_btnGrade']").onActionSecurisee('click', this._joueur.fonctionnaliteCreatrice, async (e) => {
             e.preventDefault();
             try {
                 // on sauvegarde le grade du joueur
-                await this._joueur.ecrire('Grade', $("#o_libGrade" + await this._joueur.lire('Id')).val());
-                await this._joueur.ecrire('Ordre Grade', $("#o_ordGrade" + await this._joueur.lire('Id')).val());
+                await this._joueur.ecrire('Grade', $j("#o_libGrade" + await this._joueur.lire('Id')).val());
+                await this._joueur.ecrire('Ordre Grade', $j("#o_ordGrade" + await this._joueur.lire('Id')).val());
 
                 // mise a jour du forum
                 await this._joueur.enregistrerSurForum();
                 const fonctionnaliteDonneesPrivees = new DonneesPrivees(this._page);
                 await fonctionnaliteDonneesPrivees.init();
-                $.toast({ ...TOAST_INFO, text: "Mise à jour correctement effectuée." });
+                $j.toast({ ...TOAST_INFO, text: "Mise à jour correctement effectuée." });
             }
             catch (err) {
-                $.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la mise à jour des membres de l'alliance." });
+                $j.toast({ ...TOAST_ERROR, text: "Une erreur réseau a été rencontrée lors de la mise à jour des membres de l'alliance." });
                 console.error(err)
             }
             this.masquer();

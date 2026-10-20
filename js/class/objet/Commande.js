@@ -150,12 +150,12 @@ Utils.register(class Commande extends ObjetForum {
         }
 
         if (await convoiTrouve.estTermine()) {
-            $.toast({ ...TOAST_INFO, text: "Convoi déjà arrivé : annulation ignorée sur le forum." });
+            $j.toast({ ...TOAST_INFO, text: "Convoi déjà arrivé : annulation ignorée sur le forum." });
             return { trouve: true, modifie: false };
         }
 
         if (!(await convoiTrouve.estAnnulable(timestampClic))) {
-            $.toast({ ...TOAST_INFO, text: "Délai d'annulation de 2 minutes dépassé : annulation ignorée sur le forum." });
+            $j.toast({ ...TOAST_INFO, text: "Délai d'annulation de 2 minutes dépassé : annulation ignorée sur le forum." });
             return { trouve: true, modifie: false };
         }
 
@@ -185,7 +185,7 @@ Utils.register(class Commande extends ObjetForum {
         // Sauvegarde de la commande sur le forum (mise à jour des totaux dans le titre/sujet)
         await this.enregistrerSurForum();
 
-        $.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum (message supprimé)." });
+        $j.toast({ ...TOAST_SUCCESS, text: "Annulation de convoi enregistrée sur le forum (message supprimé)." });
         return { trouve: true, modifie: true, resurrection: resurrection };
     }
 })

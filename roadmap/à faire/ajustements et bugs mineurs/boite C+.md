@@ -9,6 +9,7 @@ Améliorer barres de progressions.
 - Au survol des pontes, constructions et recherches, afficher la liste des tâches séquentielles programmées et l'heure de fin pour chaque tâche
 - Pour les chasses, attaques et convois, au survol afficher la liste des tâches parallèles en cours, chacune avec sa barre d'avancement et sa date d'arrivée/retour.
 - Pour les chasses, attaques et convois, afficher une barre de progression globale étant la moyenne des barres de progression individuelles. La durée restante est celle de la tâche qui se termine le plus tard. Pour les chasses, afficher le nombre de cm² total en cours. Pour les attaques, afficher le nombre total d'unités envoyé. Pour les convois, afficher la somme des quantités de nourriture et de matériaux envoyé.
+- Ajouter une option de remplacement de la boîte C+ de Fourmizzz par celle d'Outiiil.
 
 ## Plan d'Implémentation
 

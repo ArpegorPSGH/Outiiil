@@ -426,3 +426,85 @@ Pour partager les IDs connus entre tous les membres sans forcer chaque joueur à
     *   **Récupération locale :** Si l'ID local d'une section est inconnu (vide), il est récupéré depuis le forum s'il y est défini.
     *   **Création de sujet :** Si une section interne ne possède pas encore de sujet d'indexation sur le forum, celui-ci est créé.
     *   Finalement, le profil de l'utilisateur (`monProfilUtilisateur`) est mis à jour avec les IDs résolus, permettant le bon fonctionnement de toutes les fonctionnalités de l'alliance.
+
+---
+
+## 9. Architecture de Mise à Jour Automatique (Bootstrapper / Runtime)
+
+L'extension Outiiil utilise une architecture en **deux niveaux** pour permettre des mises à jour dynamiques du code sans réinstallation manuelle. Le socle (bootstrapper) est installé une fois ; le runtime (logique de jeu) est téléchargé et mis à jour depuis GitHub Pages.
+
+### 9.1 Composition du bootstrapper (socle stable)
+
+Le socle est installé une fois et ne change que lors d'une release officielle (via l'archive zip GitHub) :
+
+| Fichier | Rôle |
+|---|---|
+| `manifest.json` | Manifeste MV3. Point d'entrée unique : `js/bridge.js` (content script). Contient la version officielle. |
+| `js/background.js` | Service worker (MV3). Contient la bascule `DEV_MODE` (`true` en dev, `false` en prod), le `SOCLE_HASH` (patché au build), le RPC dispatcher générique et le coordinateur de mise à jour. |
+| `js/bridge.js` | Content script dans le monde isolé. Relaie les RPC du monde MAIN vers le background, gère les toasts de mise à jour et le replay des notifications bloquantes. |
+| `icons/` | Icônes d'extension (statiques, dans le socle). |
+
+Le `SOCLE_HASH` est calculé par `build_bundle.py` à partir de `manifest.json` + `js/background.js` + `js/bridge.js` (normalisés : version → `0.0.0`, `DEV_MODE` → `false`, `SOCLE_HASH` → `''`, URLs serveur → `''`, commentaires/espaces/point-virgules supprimés). Ce hash permet de détecter quand le socle installé est incompatible avec le runtime disponible.
+
+### 9.2 Composition du runtime dynamique
+
+Le runtime est un bundle généré par `build_bundle.py` et déployé sur la branche `release` :
+
+| Fichier | Rôle |
+|---|---|
+| `dist/runtime.js` | Bundle JS : `browserAPI.js` + `runtime_init.js` + toutes les bibliothèques et classes du jeu (`bundle_sources.json`). Contient `window.__OUTIIIL_RUNTIME_VERSION` et la table `window.__OUTIIIL_SOURCES` pour le débogage. |
+| `dist/runtime.css` | Styles concaténés (depuis `bundle_sources.json`). |
+| `dist/version.json` | Métadonnées : `version`, `sha256` (hash du dist/), `socle_hash`, `runtime`, `css`, `images` (liste), `timestamp`. |
+| `dist/images/` | Images et icônes servies dynamiquement (mises à jour sans réinstallation). |
+
+Le `runtime.js` est injecté via `chrome.userScripts.register()` avec `world: "MAIN"` et `runAt: "document_start"`. Le CSS est injecté via une balise `<style>` créée par le runtime lui-même (car `userScripts.register` ne supporte pas le CSS nativement).
+
+### 9.3 Modes de fonctionnement
+
+#### DEV_MODE (`DEV_MODE = true` dans `background.js`)
+
+- Le service worker lit `bundle_sources.json` et enregistre **chaque fichier source individuellement** via `chrome.userScripts.register()` avec des entrées `file:`.
+- Le CSS est concaténé depuis les fichiers source locaux.
+- Aucun cache réseau : chaque F5 recharge directement les sources locales.
+- Le service worker se ré-enregistre à chaque navigation vers `fourmizzz.fr` (`tabs.onUpdated`).
+- Le runtime n'est **pas** téléchargé depuis GitHub Pages.
+
+#### PROD_MODE (`DEV_MODE = false`)
+
+- Le runtime téléchargé depuis `release/version.json` est stocké dans `chrome.storage.local` (`outiiil_runtime_code`, `outiiil_runtime_css`, `outiiil_runtime_version`, `outiiil_cached_images`).
+- Le service worker enregistre/met à jour le user script **immédiatement** depuis le cache local — le jeu démarre sans attendre la vérification réseau (Stale-While-Revalidate).
+- Une vérification en tâche de fond interroge `release/version.json` (avec cache-busting `?_t=...`) au démarrage, à l'installation, et toutes les 60 secondes.
+- Si une version plus récente est disponible, le nouveau runtime + CSS + images sont téléchargés, le **SHA-256** est vérifié, puis stockés en cache. Le user script est mis à jour.
+- Le chargement des images dynamiques se fait via `runtime_init.js` → `OUTIIIL_RUNTIME_READY`.
+
+### 9.4 Flux de mise à jour détaillé
+
+1. **Check** : le service worker récupère `release/version.json`.
+2. **Comparaison de version** : si `remoteVersion > storedVersion`, procède au téléchargement.
+3. **Téléchargement parallèle** : `runtime.js`, `runtime.css`, et tous les fichiers images listés dans `version.json.images`.
+4. **Vérification SHA-256** : le hash combiné (fichiers triés, préfixe `dist/<chemin>\n` + contenu) est comparé à `version.json.sha256`. En cas d'échec, un fallback sur le runtime en cache est tenté.
+5. **Vérification socle_hash** : si `remoteInfo.socle_hash !== SOCLE_HASH` local, recherche d'un **commit compatible** dans l'historique de `release` (jusqu'à 100 commits via l'API GitHub). Si trouvé, le runtime est téléchargé depuis `raw.githubusercontent.com/<owner>/<repo>/<sha>/dist/`. Notification "blocked" avec bouton de téléchargement.
+6. **Cache** : le code, le CSS, la version et les images sont stockés dans `chrome.storage.local`.
+7. **Enregistrement** : `chrome.userScripts.update()` (ou `.register()` si premier usage) avec le nouveau code.
+8. **Notification** : les onglets sont notifiés via `chrome.tabs.sendMessage` avec le statut (in_progress / success / error / blocked). Le bridge affiche le toast correspondant.
+9. **Rechargement** : `runtime_init.js` (monde MAIN) déclenche le rechargement au **point sûr** (aucune transaction en cours — `Transaction.js` expose `window.__outiiilTransactionActive` et dispatch `outiiil:transaction:end`). Le bridge exécute `location.reload()`.
+
+### 9.5 Communication inter-mondes
+
+```
+MAIN world (runtime.js)   →   Isolated world (bridge.js)   →   Background (service worker)
+postMessage(OIIIL_RPC_REQUEST)  →  chrome.runtime.sendMessage(CHROME_API_CALL)  →  dispatchChromeApiCall()
+```
+
+- `browserAPI.js` (monde MAIN) : proxy générique qui transforme n'importe quelle chaîne `chrome.*` en un appel RPC via `postMessage`. Les namespaces d'événements (`*.on*`) sont gérés avec `addListener` et un `cbId` de corrélation.
+- `bridge.js` (monde isolé) : relaie les requêtes RPC vers le background, et les réponses + événements en retour vers le monde MAIN. Gère aussi les notifications de mise à jour (`OUTIIIL_UPDATE_STATUS`) → toasts.
+- `background.js` : RPC dispatcher générique (résout dynamiquement `chrome.*`), gestion des messages internes (`CHECK_UPDATE`, `RUNTIME_INFO`, `LOG_*`), et coordinateur de mise à jour.
+
+### 9.6 Points de vigilance pour les développeurs
+
+- **Stack traces en production** : `build_bundle.py` insère `window.__OUTIIIL_SOURCES`, une table `[{f: "chemin/source.js", s: ligne_début}]`. Le `Logger` utilise cette table pour mapper les frames V8 (`runtime.js:UUID:N`) vers les fichiers source d'origine. Ne pas modifier le format de cette table sans mettre à jour `Logger.js`.
+- **Version du runtime** : `window.__OUTIIIL_RUNTIME_VERSION` (baked dans `runtime.js`) est **différente** de `manifest.json` version (socle). Le runtime peut être plus récent que le socle installé. `runtime_init.js` compare ces deux versions pour décider d'un rechargement.
+- **Transaction-safe reload** : le rechargement ne se déclenche jamais pendant une transaction. `Transaction.js` doit dispatcher `outiiil:transaction:end` à la bonne fin de toutes les transactions imbriquées.
+- **Normalisation du socle_hash** : serveurs, repos, URLs et version sont normalisés à vide lors du calcul du `SOCLE_HASH`. Seule la **logique** du socle (manifest structure, background/bridge code) affecte le hash — un changement d'URL de déploiement ou de nom de repo ne doit pas invalider le socle.
+- **Nettoyage des artefacts de release** : `scripts/lib/release_common.py` fournit `cleanup_zip()` (supprime le zip socle `Outiiil-vX.Y.Z.zip`) et `cleanup_test_zips()` (supprime tout zip `Outiiil-test-*.zip` restant). Le script `release.py` appelle les deux au moment du nettoyage final — on suppose que les tests pré-déploiement (`test_prod.py`) sont terminés à ce stade. Le script `test_prod.py` ne nettoie pas son propre zip, qui reste disponible pour l'installation manuelle.
+

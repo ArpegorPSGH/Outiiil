@@ -21,7 +21,7 @@ Utils.register(class BoiteChasse extends Boite {
     */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_tabsChasse").tabs({ disabled: [1], activate: (event, ui) => { this.css(); } }).removeClass("ui-widget");
+            $j("#o_tabsChasse").tabs({ disabled: [1], activate: (event, ui) => { this.css(); } }).removeClass("ui-widget");
             this.#analyse().css().event();
         }
     }
@@ -33,15 +33,15 @@ Utils.register(class BoiteChasse extends Boite {
     */
     css() {
         super.css();
-        $("#o_resultatChasse tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $(".o_content a").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
-        $(".o_content li:not(.ui-state-active) a").css("color", "inherit")
+        $j("#o_resultatChasse tr:even, .o_tabs .ui-widget-header .ui-tabs-anchor").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j(".o_content a").css("color", monProfilUtilisateur.parametre["couleurTexte"].valeur);
+        $j(".o_content li:not(.ui-state-active) a").css("color", "inherit")
         let matches = monProfilUtilisateur.parametre["couleurTexte"].valeur.match(/#([\da-f]{2})([\da-f]{2})([\da-f]{2})/i);
-        $(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
-            (e) => { $(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
-            (e) => { $(e.currentTarget).css("color", "inherit"); }
+        $j(".o_content li:not(.ui-state-active):not(.ui-state-disabled) a").hover(
+            (e) => { $j(e.currentTarget).css("color", "rgba(" + matches.slice(1).map((m) => { return parseInt(m, 16); }).concat('0.5') + ")"); },
+            (e) => { $j(e.currentTarget).css("color", "inherit"); }
         );
-        $(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
+        $j(".o_content .ui-state-disabled a").css({ cursor: "not-allowed", "pointer-events": "all" });
         return this;
     }
     // /**
@@ -61,13 +61,13 @@ Utils.register(class BoiteChasse extends Boite {
     * @method #analyse
     */
     #analyse() {
-        $("#o_tabsChasse1").append("<textarea id='o_rcChasse' class='o_maxWidth' placeholder='Rapport(s) de chasse(s)...'></textarea><div class='o_marginT15'><table  id='o_resultatChasse' class='o_maxWidth'></table></div>");
+        $j("#o_tabsChasse1").append("<textarea id='o_rcChasse' class='o_maxWidth' placeholder='Rapport(s) de chasse(s)...'></textarea><div class='o_marginT15'><table  id='o_resultatChasse' class='o_maxWidth'></table></div>");
 
-        $("#o_rcChasse").on("input", async (e) => {
+        $j("#o_rcChasse").on("input", async (e) => {
             // on recup les chasses à analyser
             let chasses = e.currentTarget.value.split("nourriture"), bilan = new Chasse(""), chasse = null, erreur = false, html = "<tr class='gras'><td colspan='2'>Avant</td><td colspan='2'>Evolution</td><td colspan='2'>Résultat</td></tr>";
             // on nettoie l'ancien affichage
-            $("#o_resultatChasse").html("");
+            $j("#o_resultatChasse").html("");
             for (let i = 0; i < chasses.length; i++) {
                 if (chasses[i]) {
                     chasse = new Chasse(chasses[i]);
@@ -75,13 +75,13 @@ Utils.register(class BoiteChasse extends Boite {
                         html += await chasse.toHTMLBoite(false);
                         bilan.ajoute(chasse);
                     } else {
-                        $.toast({ ...TOAST_WARNING, text: "Le rapport de chasse ne peut pas être analysé." });
+                        $j.toast({ ...TOAST_WARNING, text: "Le rapport de chasse ne peut pas être analysé." });
                         erreur = true;
                     }
                 }
             }
             if (!erreur) {
-                $("#o_resultatChasse").append(html);
+                $j("#o_resultatChasse").append(html);
                 await this.#afficherBilan(bilan);
             }
         });
@@ -97,15 +97,15 @@ Utils.register(class BoiteChasse extends Boite {
     */
     async #afficherBilan(chasse) {
         let i = 0, html = "<tr><td colspan='6'><select id='o_choixChasse' class='o_marginT15'>";
-        for (; i < Math.floor($("#o_resultatChasse tr").length / 4); html += "<option value='" + i + "'>Chasse " + (i + 1) + "</option>", i++);
+        for (; i < Math.floor($j("#o_resultatChasse tr").length / 4); html += "<option value='" + i + "'>Chasse " + (i + 1) + "</option>", i++);
         html += "<option value='" + i + "' selected>Bilan</option></select></td></tr>";
-        $("#o_resultatChasse").append(await chasse.toHTMLBoite(true) + html);
+        $j("#o_resultatChasse").append(await chasse.toHTMLBoite(true) + html);
         // Style
-        $("#o_resultatChasse tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
-        $("#o_choixChasse").change((e) => {
+        $j("#o_resultatChasse tr:even").css("background-color", monProfilUtilisateur.parametre["couleur2"].valeur);
+        $j("#o_choixChasse").change((e) => {
             let selection = e.currentTarget.value;
-            $("#o_resultatChasse tr:gt(0):lt(-1):visible").toggle();
-            $("#o_resultatChasse tr:eq(" + ((selection * 4) + 1) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 2) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 3) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 4) + ")").toggle();
+            $j("#o_resultatChasse tr:gt(0):lt(-1):visible").toggle();
+            $j("#o_resultatChasse tr:eq(" + ((selection * 4) + 1) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 2) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 3) + "), #o_resultatChasse tr:eq(" + ((selection * 4) + 4) + ")").toggle();
         });
     }
 

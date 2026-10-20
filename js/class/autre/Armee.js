@@ -101,21 +101,21 @@ Utils.register(class Armee {
 	* @method getArmee
 	*/
 	getArmee() {
-		return $.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Armee.php" });
+		return $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/Armee.php" });
 	}
 	/**
 	*
 	*/
 	chargeData(html) {
 		this._unite.fill(0);
-		let $html = $(typeof html === 'string' ? $.parseHTML(html) : html);
+		let $html = $j(typeof html === 'string' ? $j.parseHTML(html) : html);
 		$html.find(".simulateur tr[align='center']:lt(15)").each((i, elt) => {
-			let label = $(elt).find(".pas_sur_telephone").text().replace(/\s/g, ' ').trim();
+			let label = $j(elt).find(".pas_sur_telephone").text().replace(/\s/g, ' ').trim();
 			if (label) {
 				let index = NOM_UNITE.indexOf(label);
 				if (index != -1) {
-					$(elt).find("td span").each((i2, elt2) => {
-						var val = parseInt($(elt2).text().replace(/[^0-9]/g, ''));
+					$j(elt).find("td span").each((i2, elt2) => {
+						var val = parseInt($j(elt2).text().replace(/[^0-9]/g, ''));
 						if (!isNaN(val))
 							this._unite[index] += val;
 					});
@@ -626,12 +626,12 @@ Utils.register(class Armee {
 	*/
 	async simulerChasse(tdcDep, nbChasse, terrainChasse, diffChasse, fixNB, fixHF, reste) {
 		let iTabChasse = await this.#calculChasse(tdcDep, diffChasse, fixNB, fixHF, reste), dDiff = this.#calculDifficulte(tdcDep, iTabChasse["NB"], iTabChasse["HF"]), iTabPerte = await this.#calculPerte(RATIO_CHASSE.indexOf(parseFloat(diffChasse)), dDiff);
-		if ($("#o_chasseNbrAuto").is(':checked')) {
-			$("#o_chasseNbr").spinner("value", iTabChasse["NB"]);
+		if ($j("#o_chasseNbrAuto").is(':checked')) {
+			$j("#o_chasseNbr").spinner("value", iTabChasse["NB"]);
 			nbChasse = iTabChasse["NB"];
 		}
-		if ($("#o_chasseTDCRepAuto").is(':checked')) {
-			$("#o_chasseTDCRep").spinner("value", iTabChasse["HF"]);
+		if ($j("#o_chasseTDCRepAuto").is(':checked')) {
+			$j("#o_chasseTDCRep").spinner("value", iTabChasse["HF"]);
 			terrainChasse = iTabChasse["HF"];
 		}
 		let ratio = await this.#calculRatio(tdcDep, nbChasse, terrainChasse);
@@ -666,11 +666,11 @@ Utils.register(class Armee {
 			donnees["unite13"] = this.repartition[indice][12];
 			donnees["unite14"] = this.repartition[indice][7];
 			// Requete
-			$.post("http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php", donnees, (data) => {
+			$j.post("http://" + Utils.serveur + ".fourmizzz.fr/AcquerirTerrain.php", donnees, (data) => {
 				if (data.indexOf("La chasse est lancée.") > -1)
-					$("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='green'>${indice + 1}</td><td colspan='14' class='green'>La chasse est lancée.</td>`);
+					$j("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='green'>${indice + 1}</td><td colspan='14' class='green'>La chasse est lancée.</td>`);
 				else
-					$("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='red'>${indice + 1}</td><td colspan='14' class='red'>La chasse n'a pas pu être lancée.</td>`);
+					$j("#o_simulationChasse tr:eq(" + (indice + 1) + ")").html(`<td class='red'>${indice + 1}</td><td colspan='14' class='red'>La chasse n'a pas pu être lancée.</td>`);
 				setTimeout(() => { this.envoyerChasse(terrainChasse, nbChasse, ++indice, intervalle, securite); }, intervalle);
 			});
 		} else // on a fini, on recharge la page
@@ -863,7 +863,7 @@ Utils.register(class Armee {
 				donnees["" + securite.split("=")[0]] = securite.split("=")[1];
 				donnees["ChoixArmee"] = "1";
 				donnees["lieu"] = "1"; //$("input[name=o_domeFlood]:checked").val() == "Oui" ? "2" : "1";
-				donnees["pseudoCible"] = $("input[name=pseudoCible]").val();
+				donnees["pseudoCible"] = $j("input[name=pseudoCible]").val();
 				donnees["unite1"] = this.repartition[indice][1];
 				donnees["unite2"] = this.repartition[indice][2];
 				donnees["unite3"] = this.repartition[indice][3];
@@ -879,9 +879,9 @@ Utils.register(class Armee {
 				donnees["unite13"] = this.repartition[indice][12];
 				donnees["unite14"] = this.repartition[indice][7];
 				// Requete
-				$.post("http://" + Utils.serveur + ".fourmizzz.fr/ennemie.php?Attaquer=" + idCible, donnees, (data) => {
-					let res = $("<div/>").append(data).find("center:last").text();
-					$("#o_simulationFlood tr:eq(" + (indice + 2) + ")").addClass(res.indexOf("Vos troupes sont en marche") == -1 ? "red" : "green");
+				$j.post("http://" + Utils.serveur + ".fourmizzz.fr/ennemie.php?Attaquer=" + idCible, donnees, (data) => {
+					let res = $j("<div/>").append(data).find("center:last").text();
+					$j("#o_simulationFlood tr:eq(" + (indice + 2) + ")").addClass(res.indexOf("Vos troupes sont en marche") == -1 ? "red" : "green");
 					setTimeout(() => { this.envoyerFlood(idCible, ++indice, securite); }, 1000);
 				});
 			} else // on passe à l'attaque suivante
@@ -929,19 +929,19 @@ Utils.register(class Armee {
 			unitesTotales[nom] = 0;
 		});
 
-		let parsedHtml = $("<div/>").append(html);
+		let parsedHtml = $j("<div/>").append(html);
 		parsedHtml.find(".simulateur tr[align='center']:lt(14)").each((i, elt) => {
-			let nomUnite = $(elt).find(".pas_sur_telephone").text();
+			let nomUnite = $j(elt).find(".pas_sur_telephone").text();
 			if (nomUnite && unitesTotales.hasOwnProperty(nomUnite)) {
 				// Somme des unités TDC (col 3), Dôme (cols 4 à n-2), Loge (col n-1)
 				// TDC
-				unitesTotales[nomUnite] += numeral($(elt).find("td:nth-child(3) span").text()).value() || 0;
+				unitesTotales[nomUnite] += numeral($j(elt).find("td:nth-child(3) span").text()).value() || 0;
 				// Dôme (plus complexe car nombre variable de colonnes)
-				$(elt).find("td").slice(3, -2).each((i2, elt2) => {
-					unitesTotales[nomUnite] += numeral($(elt2).text()).value() || 0;
+				$j(elt).find("td").slice(3, -2).each((i2, elt2) => {
+					unitesTotales[nomUnite] += numeral($j(elt2).text()).value() || 0;
 				});
 				// Loge
-				unitesTotales[nomUnite] += numeral($(elt).find("td:nth-last-child(2)").text()).value() || 0;
+				unitesTotales[nomUnite] += numeral($j(elt).find("td:nth-last-child(2)").text()).value() || 0;
 			}
 		});
 		// Retourner seulement les unités qui ont une quantité > 0 pour alléger

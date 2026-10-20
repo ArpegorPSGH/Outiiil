@@ -86,7 +86,7 @@ Utils.register(class Traceur {
     * @private
     */
     #envoyerData() {
-        return $.ajax({
+        return $j.ajax({
             type: "post",
             url: "http://outiiil.fr/fzzz/traceur",
             data: {

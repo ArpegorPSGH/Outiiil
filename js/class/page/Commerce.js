@@ -22,7 +22,7 @@ Utils.register(class Commerce extends Page {
      */
     async ajouterInfosEtable() {
         let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-        $("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${constructions[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (constructions[11] / 2))}</strong> ressources.</td></tr>`);
+        $j("form table").append(`<tr class='centre'><td colspan=6>Info : Niveau d'étable <strong>${constructions[11]}</strong>, 1 ouvrière peut transporter : <strong>${(10 + (constructions[11] / 2))}</strong> ressources.</td></tr>`);
     }
 
     /**
@@ -34,30 +34,30 @@ Utils.register(class Commerce extends Page {
         const transportCapacity = 10 + (constructions[11] / 2);
 
         // Bouton arrondir nourriture
-        $("#bouton_nourriture_max").html(`Nourriture donnée <span id="o_arrondirNou" class="gras small">arrondir...</span>`);
-        $("#o_arrondirNou").click((e) => {
+        $j("#bouton_nourriture_max").html(`Nourriture donnée <span id="o_arrondirNou" class="gras small">arrondir...</span>`);
+        $j("#o_arrondirNou").click((e) => {
             e.preventDefault();
-            const value = Math.floor($("#nbNourriture").val());
-            const nbMat = Math.floor($("#nbMateriaux").val());
+            const value = Math.floor($j("#nbNourriture").val());
+            const nbMat = Math.floor($j("#nbMateriaux").val());
             const newValue = Utils.arrondiQuantite(value);
-            $("#input_nbNourriture").val(numeral(newValue).format());
-            $("#nbNourriture").val(newValue);
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / transportCapacity)).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbMat) / transportCapacity));
+            $j("#input_nbNourriture").val(numeral(newValue).format());
+            $j("#nbNourriture").val(newValue);
+            $j("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbMat) / transportCapacity)).format());
+            $j("#nbOuvriere").val(Math.floor((newValue + nbMat) / transportCapacity));
             return false;
         });
 
         // Bouton arrondir matériaux
-        $("#bouton_materiaux_max").html(`Matériaux donnés <span id="o_arrondirMat" class="gras small">arrondir...</span>`);
-        $("#o_arrondirMat").click((e) => {
+        $j("#bouton_materiaux_max").html(`Matériaux donnés <span id="o_arrondirMat" class="gras small">arrondir...</span>`);
+        $j("#o_arrondirMat").click((e) => {
             e.preventDefault();
-            const value = Math.floor($("#nbMateriaux").val());
-            const nbNou = Math.floor($("#nbNourriture").val());
+            const value = Math.floor($j("#nbMateriaux").val());
+            const nbNou = Math.floor($j("#nbNourriture").val());
             const newValue = Utils.arrondiQuantite(value);
-            $("#input_nbMateriaux").val(numeral(newValue).format());
-            $("#nbMateriaux").val(newValue);
-            $("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / transportCapacity)).format());
-            $("#nbOuvriere").val(Math.floor((newValue + nbNou) / transportCapacity));
+            $j("#input_nbMateriaux").val(numeral(newValue).format());
+            $j("#nbMateriaux").val(newValue);
+            $j("#input_nbOuvriere").val(numeral(Math.floor((newValue + nbNou) / transportCapacity)).format());
+            $j("#nbOuvriere").val(Math.floor((newValue + nbNou) / transportCapacity));
             return false;
         });
     }
@@ -69,7 +69,7 @@ Utils.register(class Commerce extends Page {
         if (Utils.comptePlus) return;
 
         // Autocomplete sur le champ pseudo
-        $("#pseudo_convoi").autocomplete({
+        $j("#pseudo_convoi").autocomplete({
             source: (request, response) => {
                 Joueur.rechercher(request.term).then((data) => {
                     response(Utils.extraitRecherche(data, true, false));
@@ -82,20 +82,20 @@ Utils.register(class Commerce extends Page {
 
         // Sauvegarde des convois
         const listeConvoi = [];
-        $("#centre > strong").each((i, elt) => {
+        $j("#centre > strong").each((i, elt) => {
             // Affichage du retour des convois
-            if ($(elt).next().text().indexOf("Retour") == -1) {
-                const tempsRestant = Utils.timeToInt($(elt).text().split("dans")[1].trim());
-                $(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}</span>`);
+            if ($j(elt).next().text().indexOf("Retour") == -1) {
+                const tempsRestant = Utils.timeToInt($j(elt).text().split("dans")[1].trim());
+                $j(elt).after(`<span class='small'>- Retour le ${Utils.roundMinute(tempsRestant).format("D MMM YYYY à HH[h]mm")}</span>`);
             }
-            const nombres = $(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
+            const nombres = $j(elt).text().replace(/ /g, '').split("dans")[0].match(/^\d+|\d+\b|\d+(?=\w)/g);
             if (nombres) {
                 const convoiData = {
-                    "cible": $(elt).find("a").text(),
-                    "sens": $(elt).text().includes("livrer"),
+                    "cible": $j(elt).find("a").text(),
+                    "sens": $j(elt).text().includes("livrer"),
                     "nou": nombres[0],
                     "mat": nombres[1],
-                    "exp": moment().add(Utils.timeToInt($(elt).text().split("dans")[1].trim()), 's')
+                    "exp": moment().add(Utils.timeToInt($j(elt).text().split("dans")[1].trim()), 's')
                 };
                 listeConvoi.push(convoiData);
             }

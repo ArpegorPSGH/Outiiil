@@ -38,9 +38,9 @@ Utils.register(class BoiteSignalement extends Boite {
      */
     async afficher() {
         if (await super.afficher()) {
-            $("#o_signalementProgressContainer").hide();
-            $("#o_btnEnvoyerSignalement").show().removeClass('processing').css('pointer-events', 'auto');
-            $("#o_signalementError").hide();
+            $j("#o_signalementProgressContainer").hide();
+            $j("#o_btnEnvoyerSignalement").show().removeClass('processing').css('pointer-events', 'auto');
+            $j("#o_signalementError").hide();
             await this.css().event();
         }
         return this;
@@ -65,13 +65,13 @@ Utils.register(class BoiteSignalement extends Boite {
     event() {
         super.event();
 
-        $("#o_btnEnvoyerSignalement").off("click").on("click", async (e) => {
+        $j("#o_btnEnvoyerSignalement").off("click").on("click", async (e) => {
             e.preventDefault();
-            const bouton = $("#o_btnEnvoyerSignalement");
+            const bouton = $j("#o_btnEnvoyerSignalement");
             if (bouton.hasClass('processing')) return false;
 
-            const description = $("#o_inputBugDescription").val().trim();
-            const errorContainer = $("#o_signalementError");
+            const description = $j("#o_inputBugDescription").val().trim();
+            const errorContainer = $j("#o_signalementError");
 
             if (!description) {
                 errorContainer.text("Veuillez décrire le problème rencontré.").show();
@@ -81,9 +81,9 @@ Utils.register(class BoiteSignalement extends Boite {
             errorContainer.hide();
             bouton.addClass('processing').css('pointer-events', 'none');
 
-            const progressContainer = $("#o_signalementProgressContainer");
-            const progressBar = $("#o_signalementProgressBar");
-            const progressText = $("#o_signalementProgressText");
+            const progressContainer = $j("#o_signalementProgressContainer");
+            const progressBar = $j("#o_signalementProgressBar");
+            const progressText = $j("#o_signalementProgressText");
 
             bouton.hide();
             progressBar.progressbar({ value: 0 });
@@ -110,16 +110,16 @@ Utils.register(class BoiteSignalement extends Boite {
                 if (succes) {
                     progressBar.progressbar("value", 100);
                     progressText.text("100%");
-                    $.toast({ ...TOAST_SUCCESS, text: "Merci pour votre signalement !" });
-                    $("#o_inputBugDescription").val("");
+                    $j.toast({ ...TOAST_SUCCESS, text: "Merci pour votre signalement !" });
+                    $j("#o_inputBugDescription").val("");
                     await Utils.sleep(500);
                     this.masquer();
                 } else {
-                    $.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
+                    $j.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
                 }
             } catch (err) {
                 console.error("Erreur lors de l'envoi du signalement:", err);
-                $.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
+                $j.toast({ ...TOAST_ERROR, text: "Une erreur est survenue lors de l'envoi du signalement." });
             } finally {
                 progressContainer.hide();
                 bouton.show().removeClass('processing').css('pointer-events', 'auto');
