@@ -423,6 +423,28 @@ Utils.register(class Joueur extends ObjetForum {
         }
     }
 
+    /**
+     * Indique si la tâche (construction ou recherche) enregistrée dans la boîte C+ est arrivée
+     * à échéance. Une date de fin absente ou illisible est considérée comme échue : la page du
+     * jeu doit alors être relue pour réaligner la boîte.
+     * @param {String} type - "construction" ou "recherche".
+     * @returns {Boolean} - Vrai si une tâche est enregistrée et que sa date de fin est dépassée.
+     * @private
+     */
+    #tacheExpiree(type) {
+        try {
+            const data = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
+            if (!data[type]) return false; // Pas de tâche enregistrée : rien à expirer
+            if (!data["exp" + type]) return true; // Tâche enregistrée sans date de fin : échue
+            const fin = moment(data["exp" + type]);
+            if (!fin.isValid()) return true;
+            return fin.diff(moment()) < 0;
+        } catch (e) {
+            console.warn("[Joueur] Lecture de la progression impossible :", e);
+            return false;
+        }
+    }
+
     async estJoueurCourant() {
         const estCourant = await this.lire('Pseudo') == await monProfilJoueur.lire('Pseudo');
         if (estCourant && this.idSujet) { //S'assurer que le chargement inclu bien le forum
@@ -498,15 +520,16 @@ Utils.register(class Joueur extends ObjetForum {
         if (!html) {
             await this.chargerDepuisLocalStorage("outiiil_joueur");
             const levels = await this.lire('Niveaux Constructions');
-            if (levels.every((elt) => elt == -1)) {
-                try {
-                    html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
-                } catch (error) {
-                    console.error(`[Joueur] Erreur AJAX lors de la récupération des constructions.`, error);
-                    return false;
-                }
-            } else {
-                return true;
+            // La page du jeu est relue si les niveaux sont inconnus ou si la construction enregistrée
+            // dans la boîte est arrivée à échéance (l'extension n'a pas été rafraîchie pendant la
+            // construction). C'est la seule façon de connaître la date de fin réelle et de réaligner
+            // le chrono de la boîte, qui serait sinon décalé.
+            if (!levels.every((elt) => elt == -1) && !this.#tacheExpiree('construction')) return true;
+            try {
+                html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/construction.php" });
+            } catch (error) {
+                console.error(`[Joueur] Erreur AJAX lors de la récupération des constructions.`, error);
+                return false;
             }
         }
 
@@ -516,7 +539,9 @@ Utils.register(class Joueur extends ObjetForum {
         await this.ecrire('Niveaux Constructions', levels);
         console.log(`[Joueur.chargerConstruction] Niveaux de construction chargés pour ${await this.lire('Pseudo')}:`, levels);
 
-        let ligne = parsed.find("#centre strong").text(),
+        // Même sélecteur que la page construction.php : le bloc central peut contenir plusieurs
+        // <strong>, dont la concaténation fausserait le temps restant (et donc la date de fin).
+        let ligne = parsed.find("#centre > strong").text(),
             construction = ligne.substring(2, ligne.indexOf("se termine") - 1),
             time = parseInt(ligne.split(',')[0].split('(')[1]);
 
@@ -524,12 +549,23 @@ Utils.register(class Joueur extends ObjetForum {
         // si il y a une construction en cours les données expirent à la fin de cette construction
         if (construction) {
             let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
-            // si on a pas de donné ou que la consutrction n'est pas deja enregistré
-            if (!dataEvo.hasOwnProperty("construction")) {
+            // on enregistre la construction si elle est inconnue ou si celle connue est terminée
+            // (sinon la boîte conserve une construction périmée et son timer ne redescend jamais à zéro)
+            if (!dataEvo.hasOwnProperty("construction") || !dataEvo.expConstruction || moment(dataEvo.expConstruction).diff(moment()) < 0) {
                 // si on pas les infos en localstorage
                 dataEvo.construction = construction.substr(0, 1).toUpperCase() + construction.substr(1);
                 dataEvo.expConstruction = moment().add(time, 's');
                 dataEvo.startConstruction = moment();
+                localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
+            }
+        } else {
+            // aucune construction en cours : celle éventuellement enregistrée est terminée,
+            // on la retire pour éviter d'incrémenter son niveau une seconde fois
+            let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
+            if (dataEvo.hasOwnProperty("construction") && dataEvo.expConstruction && moment(dataEvo.expConstruction).diff(moment()) < 0) {
+                delete dataEvo.construction;
+                delete dataEvo.expConstruction;
+                delete dataEvo.startConstruction;
                 localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
             }
         }
@@ -548,15 +584,16 @@ Utils.register(class Joueur extends ObjetForum {
         if (!html) {
             await this.chargerDepuisLocalStorage("outiiil_joueur");
             const levels = await this.lire('Niveaux Recherches');
-            if (levels.every((elt) => elt == -1)) {
-                try {
-                    html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
-                } catch (error) {
-                    console.error(`[Joueur] Erreur AJAX lors de la récupération des recherches.`, error);
-                    return false;
-                }
-            } else {
-                return true;
+            // La page du jeu est relue si les niveaux sont inconnus ou si la recherche enregistrée
+            // dans la boîte est arrivée à échéance (l'extension n'a pas été rafraîchie pendant la
+            // recherche). C'est la seule façon de connaître la date de fin réelle et de réaligner
+            // le chrono de la boîte, qui serait sinon décalé.
+            if (!levels.every((elt) => elt == -1) && !this.#tacheExpiree('recherche')) return true;
+            try {
+                html = await $j.ajax({ url: "http://" + Utils.serveur + ".fourmizzz.fr/laboratoire.php" });
+            } catch (error) {
+                console.error(`[Joueur] Erreur AJAX lors de la récupération des recherches.`, error);
+                return false;
             }
         }
 
@@ -574,12 +611,23 @@ Utils.register(class Joueur extends ObjetForum {
         // si il y a une recherche en cours les données expirent à la fin de cette construction
         if (recherche) {
             let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
-            // si on a pas de donné ou que la recherche n'est pas deja enregistré
-            if (!dataEvo.hasOwnProperty("recherche")) {
+            // on enregistre la recherche si elle est inconnue ou si celle connue est terminée
+            // (sinon la boîte conserve une recherche périmée et son timer ne redescend jamais à zéro)
+            if (!dataEvo.hasOwnProperty("recherche") || !dataEvo.expRecherche || moment(dataEvo.expRecherche).diff(moment()) < 0) {
                 // si on pas les infos en localstorage
                 dataEvo.recherche = recherche;
                 dataEvo.expRecherche = moment().add(time, 's');
                 dataEvo.startRecherche = moment();
+                localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
+            }
+        } else {
+            // aucune recherche en cours : celle éventuellement enregistrée est terminée,
+            // on la retire pour éviter d'incrémenter son niveau une seconde fois
+            let dataEvo = JSON.parse(localStorage.getItem("outiiil_evolution")) || {};
+            if (dataEvo.hasOwnProperty("recherche") && dataEvo.expRecherche && moment(dataEvo.expRecherche).diff(moment()) < 0) {
+                delete dataEvo.recherche;
+                delete dataEvo.expRecherche;
+                delete dataEvo.startRecherche;
                 localStorage.setItem("outiiil_evolution", JSON.stringify(dataEvo));
             }
         }

@@ -30,8 +30,10 @@ Utils.register(class Laboratoire extends Page {
         if (niveau.join(",") != recherches.join(",")) {
             recherches = niveau;
             await monProfilJoueur.ecrire("Niveaux Recherches", recherches);
-            await monProfilJoueur.enregistrerLocalStorage();
         }
+        // la sauvegarde est toujours effectuée : le localStorage doit refléter l'état réel du jeu,
+        // même si la valeur en mémoire était déjà identique (sinon le niveau périmé est conservé)
+        await monProfilJoueur.enregistrerLocalStorage();
     }
     /**
     * Ajoute un title detaillé pour connaitre la rentabilité du niveau bouclier.
@@ -103,10 +105,12 @@ Utils.register(class Laboratoire extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Affichage de la fin de la recherche
-        if ($j("#centre > strong").length)
-            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($j("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+        let str = $j("#centre strong").text();
+        let temps = parseInt(str.split(",")[0].split("(")[1]);
+        if ($j("#centre > strong").length && !isNaN(temps))
+            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la recherche en cours
-        this.#saveRecherche();
+        this.#saveRecherche(str);
         // Suppresion de la recherche en cours si on annule
         if ($j("a:contains('Je confirme')").length)
             $j("a:contains('Je confirme')").click((e) => {
@@ -118,16 +122,18 @@ Utils.register(class Laboratoire extends Page {
         return this;
     }
     /**
-    * Sauvegarde la recherche en cours.
-    *
-    * @private
-    * @method #saveRecherche
-    * @return
-    */
-    #saveRecherche() {
-        let str = $j("#centre strong").text();
+     * Sauvegarde la recherche en cours.
+     *
+     * @private
+     * @method #saveRecherche
+     * @param {String} str - Texte de statut de la recherche affiché par la page.
+     * @return
+     */
+    #saveRecherche(str) {
         let recherche = str.substring(2, str.indexOf("termin") - 1);
-        if (recherche && (!boiteComptePlus.recherche || moment().diff(moment(boiteComptePlus.expRecherche), 's') > 0) && !Utils.comptePlus && $j("#boiteComptePlus").length) {
+        if (recherche && !Utils.comptePlus && $j("#boiteComptePlus").length) {
+            // la page fait foi : la recherche enregistrée dans la boîte est alignée sur celle
+            // affichée par la page, afin que le timer corresponde toujours à la date de fin prévue
             boiteComptePlus.recherche = recherche.substr(0, 1).toUpperCase() + recherche.substr(1);
             boiteComptePlus.expRecherche = moment().add(parseInt(str.split(",")[0].split("(")[1]), 's');
             boiteComptePlus.startRecherche = moment();

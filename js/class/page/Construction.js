@@ -29,8 +29,10 @@ Utils.register(class Construction extends Page {
         if (niveau.join(",") != constructions.join(",")) {
             constructions = niveau;
             await monProfilJoueur.ecrire("Niveaux Constructions", constructions);
-            await monProfilJoueur.enregistrerLocalStorage();
         }
+        // la sauvegarde est toujours effectuée : le localStorage doit refléter l'état réel du jeu,
+        // même si la valeur en mémoire était déjà identique (sinon le niveau périmé est conservé)
+        await monProfilJoueur.enregistrerLocalStorage();
     }
     /**
     * Ajoute un title detaillé pour connaitre la rentabilité de la construction : etable à pucerons.
@@ -66,10 +68,12 @@ Utils.register(class Construction extends Page {
     plus() {
         if (Utils.comptePlus) return;
         // Affichage de la fin de la construction
-        if ($j("#centre > strong").length)
-            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute($j("#centre > strong").text().split(',')[0].split('(')[1]).format("D MMM YYYY à HH[h]mm")}</span>`);
+        let str = $j("#centre > strong").text();
+        let temps = parseInt(str.split(',')[0].split('(')[1]);
+        if ($j("#centre > strong").length && !isNaN(temps))
+            $j("#centre > strong").after(`<span class='small'> Terminé le ${Utils.roundMinute(temps).format("D MMM YYYY à HH[h]mm")}</span>`);
         // Sauvegarde de la construction en cours
-        this.#saveConstruction();
+        this.#saveConstruction(str);
         // Suppresion de la construction en cours si on annule
         if ($j("a:contains('Annuler')").length)
             $j("a:contains('Annuler')").click((e) => {
@@ -81,15 +85,17 @@ Utils.register(class Construction extends Page {
         return this;
     }
     /**
-    * Sauvegarde la construction en cours.
-    *
-    * @private
-    * @method #saveConstruction
-    */
-    #saveConstruction() {
-        let str = $j("#centre > strong").text();
+     * Sauvegarde la construction en cours.
+     *
+     * @private
+     * @method #saveConstruction
+     * @param {String} str - Texte de statut de la construction affiché par la page.
+     */
+    #saveConstruction(str) {
         let construction = str.substring(2, str.indexOf("se termine") - 1);
-        if (construction && (!boiteComptePlus.construction || moment().diff(moment(boiteComptePlus.expConstruction), 's') > 0) && !Utils.comptePlus && $j("#boiteComptePlus").length) {
+        if (construction && !Utils.comptePlus && $j("#boiteComptePlus").length) {
+            // la page fait foi : la construction enregistrée dans la boîte est alignée sur celle
+            // affichée par la page, afin que le timer corresponde toujours à la date de fin prévue
             boiteComptePlus.construction = construction.substr(0, 1).toUpperCase() + construction.substr(1);
             boiteComptePlus.expConstruction = moment().add(parseInt(str.split(',')[0].split('(')[1]), 's');
             boiteComptePlus.startConstruction = moment();

@@ -250,12 +250,19 @@ Utils.register(class BoiteComptePlus {
     */
     async #verifierDonnees() {
         // si la construction est fini
-        if (this._construction && moment(this._expConstruction).diff(moment()) < 0) {
+        if (this._construction && this.#tacheTerminee(this._expConstruction)) {
             // on met à jour le niveau de la construction
-            let index = CONSTRUCTION.findIndex((elt) => { return this._construction.toLowerCase().includes(elt.toLowerCase()); });
-            let constructions = await monProfilJoueur.lire('Niveaux Constructions');
-            constructions[index]++;
-            await monProfilJoueur.ecrire("Niveaux Constructions", constructions);
+            // (isolé : la construction doit être retirée de la boîte même si la mise à jour échoue)
+            try {
+                let index = CONSTRUCTION.findIndex((elt) => { return this._construction.toLowerCase().includes(elt.toLowerCase()); });
+                let constructions = await monProfilJoueur.lire('Niveaux Constructions');
+                constructions[index]++;
+                await monProfilJoueur.ecrire("Niveaux Constructions", constructions);
+                // le niveau doit être persisté, sinon le localStorage conserve un niveau périmé
+                await monProfilJoueur.enregistrerLocalStorage();
+            } catch (e) {
+                console.error("[ComptePlus] Erreur lors de la mise à jour du niveau de la construction terminée :", e);
+            }
             // si la construction est une evolution de ponte, on met a jour les pontes
             if (this._construction.includes("Couveuse") || this._construction.includes("Solarium"))
                 this.#recalculeTempsPonte();
@@ -264,12 +271,18 @@ Utils.register(class BoiteComptePlus {
             this._construction = "";
         }
         // si la recherche est fini
-        if (this._recherche && moment(this._expRecherche).diff(moment()) < 0) {
+        if (this._recherche && this.#tacheTerminee(this._expRecherche)) {
             // on met à jour le niveau de la recherche
-            let index = RECHERCHE.findIndex((elt) => { return this._recherche.toLowerCase().includes(elt.toLowerCase()); });
-            let recherches = await monProfilJoueur.lire('Niveaux Recherches');
-            recherches[index]++;
-            await monProfilJoueur.ecrire("Niveaux Recherches", recherches);
+            try {
+                let index = RECHERCHE.findIndex((elt) => { return this._recherche.toLowerCase().includes(elt.toLowerCase()); });
+                let recherches = await monProfilJoueur.lire('Niveaux Recherches');
+                recherches[index]++;
+                await monProfilJoueur.ecrire("Niveaux Recherches", recherches);
+                // le niveau doit être persisté, sinon le localStorage conserve un niveau périmé
+                await monProfilJoueur.enregistrerLocalStorage();
+            } catch (e) {
+                console.error("[ComptePlus] Erreur lors de la mise à jour du niveau de la recherche terminée :", e);
+            }
             // si la recherche est une evolution de ponte, on met a jour les pontes
             if (this._recherche.includes("Technique de ponte"))
                 this.#recalculeTempsPonte();
@@ -300,16 +313,32 @@ Utils.register(class BoiteComptePlus {
         return this.sauvegarder();
     }
     /**
+     * Indique si une tâche (construction/recherche) est terminée.
+     * Une date de fin absente ou illisible est considérée comme terminée : la tâche est
+     * alors retirée de la boîte, plutôt que d'y rester avec un timer qui ne redescend pas.
+     *
+     * @private
+     * @method #tacheTerminee
+     * @param {String|Number|Date} exp Date de fin de la tâche.
+     * @return {Boolean} Vrai si la tâche est terminée.
+     */
+    #tacheTerminee(exp) {
+        if (!exp) return true;
+        let fin = moment(exp);
+        if (!fin.isValid()) return true;
+        return fin.diff(moment()) < 0;
+    }
+    /**
     * @private
     */
     #recalculeTempsPonte() {
         this._ponte.forEach((ponte) => { ponte.exp = moment().add(Math.round((moment(ponte.exp).diff(moment()) / 1000) * 0.9), 's'); });
     }
     /**
-* Affiche la boite.
-*
-* @method afficher
-*/
+    * Affiche la boite.
+    *
+    * @method afficher
+    */
     async afficher() {
         let visible = localStorage.getItem("outiiil_boiteActive");
         if (!Utils.comptePlus) {
