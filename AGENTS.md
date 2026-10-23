@@ -4,7 +4,7 @@
 
 ### Python syntax check
 ```bash
-python -m py_compile scripts/lib/build_bundle.py scripts/release.py scripts/test_prod.py scripts/lib/release_common.py
+python -m py_compile scripts/lib/build_bundle.py scripts/release.py scripts/test_prod.py scripts/lib/release_common.py scripts/rollback.py
 ```
 
 ### Build the runtime bundle (dev)
@@ -39,6 +39,12 @@ python scripts/test_prod.py [--verify] [--test-repo Outiiil-test]
 ```
 Simulates the full release workflow on a **test branch/repo** without creating a Git tag or GitHub release. Generates a production-mode zip socle (`DEV_MODE=false`) pointing to the test branch, and deploys `dist/` to a secondary GitHub repo (default: `Outiiil-test`) with GitHub Pages enabled. Requires a secondary repo with GitHub Pages configured on its `test` branch.
 
+### Rollback (revert to previous version)
+```
+python scripts/rollback.py [--dry-run] [--branch release]
+```
+Rolls back the last release on the release branch: deletes the GitHub release + tag for the latest version, and force-pushes the previous commit as the new HEAD of the release branch. The runtime (background.js) will automatically detect the version difference and download the previous version on the next update check.
+
 ## Project Structure
 
 ```
@@ -60,6 +66,7 @@ extension/
 ├── scripts/
 │   ├── release.py         # Release orchestrator (release branch + socle + GitHub release)
 │   ├── test_prod.py       # Pre-deployment test (test branch + zip socle, no GitHub release)
+│   ├── rollback.py        # Rollback: removes last commit from release branch + GitHub release/tag
 │   └── lib/
 │       ├── build_bundle.py    # Build script: generates dist/ runtime
 │       └── release_common.py  # Shared functions between release.py and test_prod.py

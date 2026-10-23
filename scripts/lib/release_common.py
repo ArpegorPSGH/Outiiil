@@ -23,6 +23,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import zipfile
 
@@ -698,3 +699,107 @@ def cleanup_test_zips(base_dir):
                     print(f"[!] Impossible de supprimer {zip_path}: {e}", file=sys.stderr)
     except OSError as e:
         print(f"[!] Erreur lors du nettoyage des zips de test: {e}", file=sys.stderr)
+
+
+# --------------------------------------------------------------------------- #
+#  Rollback helpers
+# --------------------------------------------------------------------------- #
+
+def get_file_from_commit(commit_sha, file_path):
+    """Read a file's content from a specific git commit or tree-ish.
+
+    Args:
+        commit_sha : str — commit SHA or tree-ish (e.g. 'origin/release')
+        file_path  : str — relative path within the repo (e.g. 'dist/version.json')
+
+    Returns:
+        File content as a string, or None if the file doesn't exist at that commit.
+    """
+    result = run_cmd(f'git show {commit_sha}:{file_path}', check=False)
+    if not result:
+        return None
+    return result
+
+
+def delete_github_release(owner, repo, version):
+    """Delete a GitHub release and its git tag by tag name.
+
+    Tries `gh` CLI first (which handles auth automatically), then falls back to
+    the GitHub REST API with a GITHUB_TOKEN environment variable.
+    Returns (deleted_release, deleted_tag) booleans.
+    """
+    deleted_release = False
+    deleted_tag = False
+
+    gh_available = shutil.which("gh") is not None
+    token = os.environ.get('GITHUB_TOKEN') or os.environ.get('GH_TOKEN')
+
+    if gh_available:
+        # --- Delete release via gh CLI ---
+        rc_gh = run_cmd(f'gh release delete {version} --repo {owner}/{repo} --yes', check=False)
+        deleted_release = True
+
+        # --- Delete tag via gh CLI ---
+        rc_tag = run_cmd(f'git push origin --delete {version}', check=False)
+        if rc_tag:
+            deleted_tag = True
+        else:
+            rc_tag = run_cmd(f'gh api repos/{owner}/{repo}/git/refs/tags/{version} -X DELETE', check=False)
+            if rc_tag:
+                deleted_tag = True
+    else:
+        # --- Fall back to GitHub REST API ---
+        headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'release_common.py'}
+        if token:
+            headers['Authorization'] = f'token {token}'
+        else:
+            print(f"  [!] Aucun token GitHub trouvé (GITHUB_TOKEN/GH_TOKEN). "
+                  f"Les appels API DELETE sans auth échoueront (limite 60 req/h, pas de DELETE).",
+                  file=sys.stderr)
+
+        # 1. Find and delete the GitHub release by tag name
+        release_url = f'https://api.github.com/repos/{owner}/{repo}/releases/tags/{version}'
+        try:
+            req = urllib.request.Request(release_url, headers=headers)
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                release_data = json.loads(resp.read().decode('utf-8'))
+                release_id = release_data.get('id')
+                if release_id:
+                    del_req = urllib.request.Request(
+                        f'https://api.github.com/repos/{owner}/{repo}/releases/{release_id}',
+                        method='DELETE', headers=headers
+                    )
+                    urllib.request.urlopen(del_req, timeout=30)
+                    deleted_release = True
+                    print(f"  -> Release GitHub v{version} supprimée (id={release_id}).")
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                print(f"  -> [!] API GitHub 401 Unauthorized (release). "
+                      f"Configurez GITHUB_TOKEN ou le gh CLI.", file=sys.stderr)
+            elif e.code != 404:
+                print(f"  -> [!] Erreur API GitHub (release) : {e.code} {e.reason}", file=sys.stderr)
+        except Exception as e:
+            print(f"  -> [!] Erreur lors de la suppression de la release : {e}", file=sys.stderr)
+
+        # 2. Delete the git tag via GitHub API
+        ref_url = f'https://api.github.com/repos/{owner}/{repo}/git/refs/tags/{version}'
+        try:
+            del_req = urllib.request.Request(ref_url, method='DELETE', headers=headers)
+            urllib.request.urlopen(del_req, timeout=30)
+            deleted_tag = True
+            print(f"  -> Tag Git v{version} supprimé.")
+        except urllib.error.HTTPError as e:
+            if e.code == 401:
+                print(f"  -> [!] API GitHub 401 Unauthorized (tag). "
+                      f"Configurez GITHUB_TOKEN ou le gh CLI.", file=sys.stderr)
+            elif e.code != 404:
+                print(f"  -> [!] Erreur API GitHub (tag) : {e.code} {e.reason}", file=sys.stderr)
+        except Exception as e:
+            print(f"  -> [!] Erreur lors de la suppression du tag : {e}", file=sys.stderr)
+
+    if not deleted_release:
+        print(f"  -> [!] Aucune release GitHub trouvée ou supprimée pour v{version}.")
+    if not deleted_tag:
+        print(f"  -> [!] Aucun tag Git supprimé pour v{version}.")
+
+    return deleted_release, deleted_tag

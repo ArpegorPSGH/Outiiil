@@ -33,6 +33,7 @@ const STORAGE_KEY_VERSION = 'outiiil_runtime_version';
 const STORAGE_KEY_CODE = 'outiiil_runtime_code';
 const STORAGE_KEY_CSS = 'outiiil_runtime_css';
 const STORAGE_KEY_IMAGES = 'outiiil_cached_images';
+const STORAGE_KEY_SHA256 = 'outiiil_runtime_sha256';
 const STORAGE_KEY_PENDING_TOAST = 'outiiil_pending_toast';
 const UPDATE_CHECK_INTERVAL_MS = 60000;
 
@@ -250,6 +251,7 @@ async function handleRuntimeMessage(message, sender) {
                         checking: false,
                         updated: !!(result && result.updated),
                         blocked: !!(result && result.requiresReinstall),
+                        rollbackDetected: !!(result && result.rollbackDetected),
                         version: updatedVersion,
                         manifestVersion: chrome.runtime.getManifest().version
                     }
@@ -281,23 +283,15 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (!message || !message.type) return false;
 
     if (message.type === 'CHROME_API_CALL') {
-        console.log('[Outiiil Background] CHROME_API_CALL received:', message.path,
-            'requestId=' + message.requestId,
-            'senderTab=' + (sender && sender.tab ? sender.tab.id : 'none'));
         try {
             var response = await dispatchChromeApiCall(message.path, message.args, sender);
             if (!response) {
-                console.error('[Outiiil Background] CHROME_API_CALL returned no response for', message.path,
-                    'requestId=' + message.requestId);
+                console.error('[Outiiil Background] CHROME_API_CALL returned no response for', message.path);
                 response = { ok: false, error: 'No response from dispatchChromeApiCall' };
             }
-            console.log('[Outiiil Background] CHROME_API_CALL response for', message.path,
-                'requestId=' + message.requestId, 'ok=' + response.ok,
-                'error=' + (response.ok ? undefined : response.error));
             sendResponse({ requestId: message.requestId, ...response });
         } catch (error) {
-            console.error('[Outiiil Background] CHROME_API_CALL threw for', message.path,
-                'requestId=' + message.requestId, error);
+            console.error('[Outiiil Background] CHROME_API_CALL threw for', message.path, error);
             sendResponse({
                 requestId: message.requestId,
                 ok: false,
@@ -324,6 +318,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                     ok: true,
                     updated: !!(result && result.updated),
                     blocked: !!(result && result.requiresReinstall),
+                    rollbackDetected: !!(result && result.rollbackDetected),
                     version: updatedVersion
                 });
             } catch (e) {
@@ -361,11 +356,12 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     }
 
     if (message.type === 'DOWNLOAD_SOCLE') {
-        const version = message.version || '';
-        const downloadUrl = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/download/' +
-            version + '/' + GITHUB_ZIP_PREFIX + version + '.zip';
-        chrome.tabs.create({ url: downloadUrl });
-        sendResponse({ ok: true, url: downloadUrl });
+        const versionHint = message.version || '';
+        (async function () {
+            const downloadUrl = await getLatestSocleDownloadUrl(versionHint);
+            chrome.tabs.create({ url: downloadUrl });
+            sendResponse({ ok: true, url: downloadUrl });
+        })();
         return true;
     }
 
@@ -441,9 +437,7 @@ async function registerDevRuntime(forceReRegister) {
 
 async function fetchWithDiag(url, label) {
     try {
-        console.log('[Outiiil Background] ' + label + ' fetching: ' + url);
         const res = await fetch(url, { cache: 'no-store' });
-        console.log('[Outiiil Background] ' + label + ' status=' + res.status + ' ok=' + res.ok);
         return res;
     } catch (e) {
         console.error('[Outiiil Background] ' + label + ' fetch FAILED: ' + e.message +
@@ -458,6 +452,7 @@ async function notifyTabs(status, payload) {
     const message = { action: 'OUTIIIL_UPDATE_STATUS', status: status };
     if (payload && payload.version !== undefined) message.version = payload.version;
     if (payload && payload.error !== undefined) message.error = payload.error;
+    if (payload && payload.rollbackDetected !== undefined) message.rollbackDetected = payload.rollbackDetected;
 
     // Persist blocked notifications so they can be replayed when the bridge loads
     // (e.g. when the extension was just re-enabled and tabs haven't reloaded yet)
@@ -486,7 +481,9 @@ async function notifyTabs(status, payload) {
 // PROD_MODE: Check version.json, download runtime, verify hash, register
 async function checkAndDownloadRuntime() {
     const storedVersion = await getStorage(STORAGE_KEY_VERSION) || '0.0.0';
-    console.log('[Outiiil Background] checkAndDownloadRuntime: storedVersion=' + storedVersion +
+    const storedSha256 = await getStorage(STORAGE_KEY_SHA256);
+        console.log('[Outiiil Background] checkAndDownloadRuntime: storedVersion=' + storedVersion +
+        ' storedSha256=' + (storedSha256 || '(none)') +
         ' VERSION_URL=' + VERSION_URL);
 
     try {
@@ -517,9 +514,10 @@ async function checkAndDownloadRuntime() {
         // the extension's bootstrapper has changed and the new runtime may rely on
         // background/bridge APIs that don't exist in the old socle.
         // Still, search for the latest compatible commit on the deployed branch so the runtime can run.
-        if (remoteInfo.socle_hash && SOCLE_HASH && remoteInfo.socle_hash !== SOCLE_HASH) {
+        // Note: SOCLE_HASH may be null/empty in dev source — still detect mismatch so blocking works.
+        if (remoteInfo.socle_hash && remoteInfo.socle_hash !== SOCLE_HASH) {
             console.warn('[Outiiil Background] Socle mismatch: remote=' + remoteInfo.socle_hash +
-                ' local=' + SOCLE_HASH + ' (remoteVersion=' + remoteVersion + '). Searching for compatible commit...');
+                ' local=' + (SOCLE_HASH || '(none)') + ' (remoteVersion=' + remoteVersion + '). Searching for compatible commit...');
 
             const compatibleCommit = await findCompatibleCommit(SOCLE_HASH);
             if (compatibleCommit) {
@@ -539,20 +537,44 @@ async function checkAndDownloadRuntime() {
         }
 
         if (blocked) {
-            // No compatible runtime found. Do not download/register the incompatible one.
-            // Keep the currently cached/registered runtime so the extension keeps working.
-            console.log('[Outiiil Background] Blocked: no compatible runtime for socle ' + SOCLE_HASH +
-                '. Not downloading incompatible runtime v' + remoteVersion + '.');
-            const storedCode = await getStorage(STORAGE_KEY_CODE);
-            const storedCss = await getStorage(STORAGE_KEY_CSS);
-            if (!userScriptRegistered && storedCode) {
-                await registerOrUpdateUserScript(storedCode, storedCss || '', storedVersion);
+            // No compatible runtime found. The socle (bootstrap) has changed and
+            // no version on the release branch matches the installed socle hash.
+            // This happens on rollback when the compatible commit was removed, or
+            // on a socle upgrade where no older compatible version is available.
+            // Block the runtime entirely and require the user to reinstall the socle.
+            const rollbackDetected = remoteVersion !== storedVersion;
+            if (rollbackDetected) {
+                console.warn('[Outiiil Background] ROLLBACK detected: remote version ' + remoteVersion +
+                    ' differs from stored version ' + storedVersion +
+                    '. No compatible commit found for socle ' + SOCLE_HASH + '.');
+            } else {
+                console.warn('[Outiiil Background] Blocked: no compatible runtime for socle ' + SOCLE_HASH +
+                    '. Not downloading incompatible runtime v' + remoteVersion + '.');
             }
-            await notifyTabs('blocked', { version: remoteVersion });
-            return { ok: true, version: remoteVersion, dev: false, blocked: true, requiresReinstall: true };
+
+            // Unregister the user script so the old/incompatible runtime does not
+            // continue executing on page loads.
+            if (userScriptRegistered) {
+                try {
+                    await chrome.userScripts.unregister({ ids: [USER_SCRIPT_ID] });
+                    userScriptRegistered = false;
+                    console.log('[Outiiil Background] User script unregistered (blocked).');
+                } catch (e) {
+                    console.warn('[Outiiil Background] Failed to unregister user script:', e);
+                }
+            }
+
+            await notifyTabs('blocked', {
+                version: remoteVersion,
+                rollbackDetected: rollbackDetected
+            });
+            return {
+                ok: true, version: remoteVersion, dev: false, blocked: true,
+                requiresReinstall: true, rollbackDetected: rollbackDetected
+            };
         }
 
-        if (compareVersions(remoteVersion, storedVersion) <= 0) {
+        if (remoteVersion === storedVersion && (!remoteInfo.sha256 || storedSha256 === remoteInfo.sha256)) {
             if (!userScriptRegistered) {
                 const storedCode = await getStorage(STORAGE_KEY_CODE);
                 const storedCss = await getStorage(STORAGE_KEY_CSS);
@@ -566,8 +588,12 @@ async function checkAndDownloadRuntime() {
             return { ok: true, version: storedVersion, dev: false, upToDate: true, socleOutdated };
         }
 
-        console.log('[Outiiil Background] New runtime available: v' + remoteVersion + ' (current: v' + storedVersion + ')');
-        await notifyTabs('in_progress', { version: remoteVersion });
+        const rollbackDetected = compareVersions(remoteVersion, storedVersion) < 0;
+        if (rollbackDetected) {
+            console.warn('[Outiiil Background] ROLLBACK detected: downloading older version v' +
+                remoteVersion + ' (current: v' + storedVersion + ')');
+        }
+        await notifyTabs('in_progress', { version: remoteVersion, rollbackDetected: rollbackDetected });
         const runtimeFile = remoteInfo.runtime || 'runtime.js';
         const cssFile = remoteInfo.css || 'runtime.css';
         const imageFiles = Array.isArray(remoteInfo.images) ? remoteInfo.images : [];
@@ -578,7 +604,6 @@ async function checkAndDownloadRuntime() {
             ...imageFiles.map((path, i) => fetchWithDiag(remoteBaseUrl + path + '?_t=' + Date.now(), 'image[' + i + '] ' + path))
         ];
 
-        console.log('[Outiiil Background] Fetching ' + fetchPromises.length + ' remote files...');
         const responses = await Promise.all(fetchPromises);
         const [runtimeRes, cssRes, ...imageResponses] = responses;
 
@@ -606,10 +631,6 @@ async function checkAndDownloadRuntime() {
         }
 
         const sortedEntries = Array.from(remoteBlobs.keys()).sort();
-        console.log('[Outiiil Background] Remote dist files for hash (' + sortedEntries.length + '):');
-        for (const relPath of sortedEntries) {
-            console.log('  - ' + relPath + ' (' + remoteBlobs.get(relPath).length + ' bytes)');
-        }
 
         let combinedLength = 0;
         for (const relPath of sortedEntries) {
@@ -654,15 +675,16 @@ async function checkAndDownloadRuntime() {
         await chrome.storage.local.set({
             [STORAGE_KEY_CODE]: runtimeCode,
             [STORAGE_KEY_CSS]: cssCode,
-            [STORAGE_KEY_VERSION]: remoteVersion
+            [STORAGE_KEY_VERSION]: remoteVersion,
+            [STORAGE_KEY_SHA256]: remoteInfo.sha256 || ''
         });
 
         await registerOrUpdateUserScript(runtimeCode, cssCode, remoteVersion);
-        await notifyTabs('success', { version: remoteVersion });
+        await notifyTabs('success', { version: remoteVersion, rollbackDetected: rollbackDetected });
         if (socleOutdated) {
             await notifyTabs('blocked', { version: latestRemoteVersion });
         }
-        return { ok: true, version: remoteVersion, dev: false, updated: true, socleOutdated, latestRemoteVersion };
+        return { ok: true, version: remoteVersion, dev: false, updated: true, socleOutdated, latestRemoteVersion, rollbackDetected: rollbackDetected };
     } catch (error) {
         console.error('[Outiiil Background] Remote update failed:', error);
         console.error('[Outiiil Background] Remote update failed - name=' + (error && error.name) +
@@ -824,6 +846,30 @@ async function findCompatibleCommit(targetSocleHash) {
         console.error('[Outiiil Background] Error searching compatible commit:', e);
     }
     return null;
+}
+
+async function getLatestSocleDownloadUrl(versionHint) {
+    var hint = versionHint || '';
+    var { owner, repo } = getDeployedRepoInfo();
+    try {
+        var apiUrl = `https://api.github.com/repos/${owner}/${repo}/releases/latest`;
+        var res = await fetch(apiUrl, { headers: { 'Accept': 'application/vnd.github.v3+json' } });
+        if (res.ok) {
+            var data = await res.json();
+            var tag = data.tag_name;
+            if (tag) {
+                return 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO +
+                    '/releases/download/' + tag + '/' + GITHUB_ZIP_PREFIX + tag + '.zip';
+            }
+        }
+    } catch (e) {
+        console.warn('[Outiiil Background] Failed to fetch latest release tag, falling back:', e);
+    }
+    if (hint) {
+        return 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO +
+            '/releases/download/' + hint + '/' + GITHUB_ZIP_PREFIX + hint + '.zip';
+    }
+    return GITHUB_RELEASES_URL;
 }
 
 // --- Image Download ---

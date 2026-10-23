@@ -28,6 +28,9 @@
         reloadingText: 'Rechargement de la page...',
         blockedText: 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
             'Réinstallez Outiiil v{version} depuis les releases GitHub.',
+        rollbackText: 'Un rollback a été effectué sur le serveur. ' +
+            'Téléchargez la dernière release pour rétablir le fonctionnement.',
+        rollbackSuccessText: 'Rollback v{version} appliqué — rechargement imminent.',
         position: 'top-right',
         zIndex: 2147483646,
         maxWidth: '360px',
@@ -134,35 +137,26 @@
         var lastError = null;
         for (var attempt = 0; attempt <= maxRetries; attempt++) {
             try {
-                console.log('[Outiiil Diagnostic] RPC attempt ' + (attempt + 1) + '/' + (maxRetries + 1));
                 var result = await fn();
-                console.log('[Outiiil Diagnostic] RPC success on attempt ' + (attempt + 1));
                 return result;
             } catch (e) {
                 lastError = e;
-                console.log('[Outiiil Diagnostic] RPC attempt ' + (attempt + 1) + ' failed:', e.message || e);
                 if (attempt < maxRetries) {
                     var waitMs = delayMs * (attempt + 1);
-                    console.log('[Outiiil Diagnostic] Retrying in ' + waitMs + 'ms...');
                     await new Promise(function (r) { setTimeout(r, waitMs); });
                 }
             }
         }
-        console.log('[Outiiil Diagnostic] RPC all attempts failed, throwing');
         throw lastError;
     }
 
     async function applyImagesFromCache() {
-        console.log('[Outiiil Runtime] applyImagesFromCache: starting, bridgeReady=' +
-            (window.browserAPI && window.browserAPI._ready ? 'pending' : 'unknown'));
         try {
             var cached = await rpcWithRetry(function () {
-                console.log('[Outiiil Runtime] applyImagesFromCache: calling storage.local.get');
                 return window.browserAPI.storage.local.get([STORAGE_KEY_IMAGES]);
             });
             var images = cached[STORAGE_KEY_IMAGES];
             if (!images || Object.keys(images).length === 0) {
-                console.log('[Outiiil Runtime] applyImagesFromCache: no cached images');
                 return;
             }
 
@@ -177,19 +171,8 @@
                 }
             }
             window.OUTIIIL_DYNAMIC_IMAGES = blobs;
-            console.log('[Outiiil] Dynamic images loaded:', Object.keys(blobs).length);
         } catch (e) {
-            console.warn('[Outiiil] Failed to load cached images:', e);
-            console.warn('[Outiiil] applyImagesFromCache context - name=' + (e && e.name) +
-                ' message=' + (e && e.message) +
-                ' bridgeReady=' + (window.browserAPI ? 'defined' : 'undefined') +
-                ' storage.local=' + (window.browserAPI && window.browserAPI.storage ? 'defined' : 'undefined'));
-            try {
-                console.warn('[Outiiil] applyImagesFromCache error object dump:',
-                    JSON.stringify(e, Object.getOwnPropertyNames(e || {})));
-            } catch (dumpErr) {
-                console.warn('[Outiiil] applyImagesFromCache error dump failed:', dumpErr);
-            }
+            console.warn('[Outiiil] Failed to load cached images:', e.message);
         }
     }
 
@@ -213,12 +196,20 @@
         // runtime the background has (either just downloaded, or already cached by
         // its periodic timer).
         var availableVersion = null;
+        var blocked = false;
         try {
             var updateResult = await rpcWithRetry(function () {
                 return window.browserAPI.runtime.sendMessage({ type: 'CHECK_UPDATE' });
             }, 3, 1000);
             console.log('[Outiiil Runtime] CHECK_UPDATE result:', JSON.stringify(updateResult));
             availableVersion = updateResult && updateResult.version;
+            blocked = !!(updateResult && updateResult.blocked);
+            if (blocked) {
+                console.log('[Outiiil Runtime] Runtime blocked by background' +
+                    (updateResult && updateResult.rollbackDetected ? ' (rollback detected)' : '') +
+                    '. The user script has been unregistered; the bridge will show a toast. ' +
+                    'No auto-reload will be triggered.');
+            }
         } catch (e) {
             console.warn('[Outiiil Runtime] CHECK_UPDATE failed:', e);
         }
@@ -234,7 +225,11 @@
         // If they differ, we may be running stale code OR the background may have just
         // registered this exact runtime (e.g., after a socle reinstall). Check the stored
         // version to distinguish these cases.
-        if (runningVersion && availableVersion && runningVersion !== availableVersion) {
+        // Skip this check when the background has blocked the runtime (e.g., after a
+        // socle mismatch/rollback): the user script has been (or will be) unregistered,
+        // and the bridge handles showing the blocked toast. No reload should be
+        // triggered because the available version's socle is incompatible.
+        if (!blocked && runningVersion && availableVersion && runningVersion !== availableVersion) {
             // Check whether the background just registered this exact runtime version.
             // If the stored version matches the running version, the background is
             // reporting a different version because it's the LATEST available one,
@@ -271,7 +266,10 @@
         }
 
         // Expose the current (available) version for the game logic.
-        if (availableVersion) {
+        // When blocked (e.g. after a rollback with socle mismatch), do NOT
+        // expose the rolled-back version — the running runtime is from the
+        // old/incompatible version and should report its own version.
+        if (!blocked && availableVersion) {
             window.VERSION = availableVersion;
             console.log('[Outiiil Runtime] window.VERSION = ' + window.VERSION);
         }

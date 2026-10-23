@@ -53,7 +53,8 @@
                 if (pending && pending.action === 'OUTIIIL_UPDATE_STATUS' && pending.status === 'blocked') {
                     chrome.storage.local.remove('outiiil_pending_toast', function () {
                         if (pending.version !== undefined) {
-                            showToast('blocked', pending.version, pending.error || null);
+                            showToast('blocked', pending.version, pending.error || null,
+                                pending.rollbackDetected);
                         }
                     });
                 }
@@ -96,7 +97,6 @@
         // Runtime pushes its toast configuration to the bridge
         if (data.type === TOAST_CONFIG_TYPE) {
             toastConfig = (data.config && typeof data.config === 'object') ? data.config : null;
-            console.log('[Outiiil Bridge] Toast config received from runtime');
             return;
         }
 
@@ -110,21 +110,17 @@
         // bridge to reload the page so the new runtime takes effect. The bridge owns
         // the toast DOM and the actual location.reload().
         if (data.type === RELOAD_NOW_TYPE) {
-            console.log('[Outiiil Bridge] Reload now requested by runtime, version=' + data.version);
-            performReload(data.version);
+             performReload(data.version);
             return;
         }
 
         // Runtime initialization is complete — dismiss any success toast.
         if (data.type === RUNTIME_READY_TYPE) {
-            console.log('[Outiiil Bridge] Runtime ready, dismissing success toast');
             removeToast();
             return;
         }
 
         if (data.type !== REQUEST_TYPE) return;
-
-        console.log('[Outiiil Bridge] RPC request received:', data.path, 'id=' + data.id);
 
         // Forward the RPC call to the background service worker
         chrome.runtime.sendMessage({
@@ -135,12 +131,8 @@
         }, function (response) {
             var lastErr = chrome.runtime.lastError;
             if (lastErr) {
-                console.warn('[Outiiil Bridge] RPC forward to background FAILED for',
-                    data.path, 'id=' + data.id,
-                    'lastError keys=' + Object.keys(lastErr).join(',') +
-                    ' lastError=' + JSON.stringify(lastErr) +
-                    ' response=' + JSON.stringify(response));
-                var errMsg = lastErr.message || JSON.stringify(lastErr) || 'RPC error (no details)';
+                console.warn('[Outiiil Bridge] RPC forward failed for', data.path, 'id=' + data.id, lastErr.message);
+                var errMsg = lastErr.message || 'RPC error (no details)';
                 window.postMessage({
                     type: RESPONSE_TYPE,
                     target: OUTIIIL_TARGET,
@@ -152,9 +144,7 @@
             }
 
             if (!response) {
-                console.warn('[Outiiil Bridge] RPC forward to background returned no response for',
-                    data.path, 'id=' + data.id,
-                    'lastError=' + JSON.stringify(chrome.runtime.lastError));
+                console.warn('[Outiiil Bridge] RPC forward: no response for', data.path, 'id=' + data.id);
                 window.postMessage({
                     type: RESPONSE_TYPE,
                     target: OUTIIIL_TARGET,
@@ -166,10 +156,7 @@
             }
 
             if (response.ok === undefined) {
-                console.warn('[Outiiil Bridge] RPC response from background is malformed (missing ok) for',
-                    data.path, 'id=' + data.id,
-                    'response=' + JSON.stringify(response) +
-                    ' lastError=' + JSON.stringify(chrome.runtime.lastError));
+                console.warn('[Outiiil Bridge] RPC response malformed (missing ok) for', data.path, 'id=' + data.id);
                 window.postMessage({
                     type: RESPONSE_TYPE,
                     target: OUTIIIL_TARGET,
@@ -181,10 +168,6 @@
             }
 
             var respErr = response && !response.ok ? response.error : undefined;
-            console.log('[Outiiil Bridge] RPC response from background for',
-                data.path, 'id=' + data.id, 'ok=' + response.ok,
-                'error=' + respErr,
-                'response=' + JSON.stringify(response));
             window.postMessage({
                 type: RESPONSE_TYPE,
                 target: OUTIIIL_TARGET,
@@ -232,7 +215,7 @@
         }
     }
 
-    function showToast(status, version, error) {
+    function showToast(status, version, error, rollbackDetected) {
         if (!status) return;
         var cfg = getToastConfig();
         var pos = cfg.position || 'top-right';
@@ -285,7 +268,13 @@
             var icon, text, color;
             if (kind === 'success') {
                 icon = cfg.iconSuccess || '✅';
-                text = (cfg.successText || 'Mise à jour v{version} terminée').replace('{version}', version || '');
+                if (rollbackDetected) {
+                    text = (cfg.rollbackSuccessText || 'Rollback v{version} appliqué — rechargement imminent.')
+                        .replace('{version}', version || '');
+                } else {
+                    text = (cfg.successText || 'Mise à jour v{version} terminée')
+                        .replace('{version}', version || '');
+                }
                 color = cfg.successColor || '#16a34a';
             } else if (kind === 'reloading') {
                 icon = cfg.iconInProgress || '⏳';
@@ -298,8 +287,13 @@
                 color = cfg.errorColor || '#dc2626';
             } else if (kind === 'blocked') {
                 icon = cfg.iconBlocked || '⚠️';
-                text = (cfg.blockedText || 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
-                    'Réinstallez Outiiil v{version} depuis les releases GitHub.').replace('{version}', version || '');
+                if (rollbackDetected) {
+                    text = (cfg.rollbackText || 'Un rollback a été effectué sur le serveur. ' +
+                        'Téléchargez la dernière release pour rétablir le fonctionnement.').replace('{version}', version || '');
+                } else {
+                    text = (cfg.blockedText || 'Mise à jour bloquée : le socle de l\'extension a changé. ' +
+                        'Réinstallez Outiiil v{version} depuis les releases GitHub.').replace('{version}', version || '');
+                }
                 color = cfg.blockedColor || '#dc2626';
             } else { // in_progress (default)
                 icon = cfg.iconInProgress || '⏳';
@@ -413,17 +407,17 @@
         // Update status pushed by the background service worker
         if (message.action === UPDATE_STATUS_ACTION) {
             if (message.status === 'in_progress') {
-                showToast('in_progress', message.version, null);
+                showToast('in_progress', message.version, null, message.rollbackDetected);
             } else if (message.status === 'error') {
                 showToast('error', null, message.error);
             } else if (message.status === 'blocked') {
-                showToast('blocked', message.version, null);
+                showToast('blocked', message.version, null, message.rollbackDetected);
             } else if (message.status === 'success') {
                 // New runtime is cached/registered. Show the "pending" toast and hand
                 // the decision to the MAIN world, which reloads only at a safe point
                 // (never mid-transaction) and then sends OUTIIIL_RELOAD_NOW back.
                 // The toast will be dismissed when the runtime sends OUTIIIL_RUNTIME_READY.
-                showToast('success', message.version, null);
+                showToast('success', message.version, null, message.rollbackDetected);
                 window.postMessage({
                     type: UPDATE_AVAILABLE_TYPE,
                     target: OUTIIIL_TARGET,
