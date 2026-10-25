@@ -110,13 +110,38 @@
         // bridge to reload the page so the new runtime takes effect. The bridge owns
         // the toast DOM and the actual location.reload().
         if (data.type === RELOAD_NOW_TYPE) {
-             performReload(data.version);
+            performReload(data.version);
             return;
         }
 
         // Runtime initialization is complete — dismiss any success toast.
         if (data.type === RUNTIME_READY_TYPE) {
             removeToast();
+            return;
+        }
+
+        if (data.type === 'GET_DOC') {
+            chrome.runtime.sendMessage({
+                type: 'GET_DOC',
+                file: data.file
+            }).then(function (response) {
+                window.postMessage({
+                    type: 'GET_DOC_RESPONSE',
+                    target: OUTIIIL_TARGET,
+                    requestId: data.requestId,
+                    ok: response && response.ok,
+                    result: response && response.ok ? response.result : undefined,
+                    error: response && !response.ok ? response.error : undefined
+                }, ORIGIN);
+            }).catch(function (e) {
+                window.postMessage({
+                    type: 'GET_DOC_RESPONSE',
+                    target: OUTIIIL_TARGET,
+                    requestId: data.requestId,
+                    ok: false,
+                    error: e && e.message ? e.message : String(e)
+                }, ORIGIN);
+            });
             return;
         }
 
@@ -348,6 +373,15 @@
                     chrome.runtime.sendMessage({ type: 'OPEN_RELEASES_PAGE' });
                 });
                 btnContainer.appendChild(btnReleases);
+
+                var btnInstructions = document.createElement('button');
+                btnInstructions.textContent = 'Instructions';
+                btnInstructions.style.cssText = btnReleases.style.cssText;
+                btnInstructions.addEventListener('click', function () {
+                    toast.style.opacity = '0';
+                    chrome.runtime.sendMessage({ type: 'OPEN_DOC_PAGE' });
+                });
+                btnContainer.appendChild(btnInstructions);
             }
 
             if (btnContainer.firstChild) {

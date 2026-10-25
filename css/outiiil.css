@@ -377,6 +377,13 @@ input:required, select:required {box-shadow:none;}
 {
     background-position:0 -200px;
 }
+#o_toolbarOutiiil .o_toolbarItem #o_itemDoc
+{
+    /* Icône du dock "Documentation" : image volontairement vide pour l'instant. */
+    background-image: none;
+    background-color: rgba(255,255,255,0.06);
+    border-radius: 4px;
+}
 
 /* Titre des boites */
 .o_titre
@@ -466,6 +473,58 @@ input:required, select:required {box-shadow:none;}
 #o_boiteParametre {min-width:40%;}
 #o_boiteSignalement {width: 400px; min-width: auto;}
 #o_tabsParametre1, #o_tabsParametre2, #o_tabsParametre3 {max-height: 50vh;overflow-y:auto;}
+
+/* Documentation */
+#o_boiteDocumentation {min-width: 450px;min-height: 300px;max-width: calc(100vw - 20px);max-height: calc(100vh - 20px);display: flex;flex-direction: column;overflow: hidden !important;}
+#o_boiteDocumentation .o_tabs {position: absolute;top: 36px;left: 0;right: 0;bottom: 0;display: flex;flex-direction: column;overflow: hidden !important;}
+#o_boiteDocumentation .o_docTabsNav {flex: 0 0 auto;margin: 0;}
+#o_boiteDocumentation .o_docPanel, #o_boiteDocumentation .o_docPanel.ui-tabs-panel {flex: 1 1 auto !important;min-height: 0 !important;height: 100% !important;overflow: hidden !important;padding: 0 !important;border: none !important;}
+#o_boiteDocumentation .o_docInner {flex: 1 1 auto;height: 100%;width: 100%;min-height: 0;display: flex;flex-direction: row;overflow: hidden !important;}
+/* Plan (colonne gauche) */
+#o_boiteDocumentation .o_docTocWrapper {flex: 0 0 auto;height: 100%;min-height: 0;display: flex;flex-direction: column;overflow: hidden !important;border-right: 1px solid rgba(0,0,0,0.2);box-sizing: border-box;}
+#o_boiteDocumentation .o_docInner.o_docTocHidden .o_docTocWrapper {display: none !important;}
+#o_boiteDocumentation .o_docToc {flex: 1 1 auto;min-height: 0;overflow-y: auto !important;overscroll-behavior: contain;padding: 8px 8px 12px 8px;box-sizing: border-box;}
+#o_boiteDocumentation .o_docTocList {list-style: none;margin: 0;padding: 0;}
+#o_boiteDocumentation .o_docTocSub {display: none;padding-left: 14px;}
+#o_boiteDocumentation .o_docTocItem.open > .o_docTocSub {display: block;}
+#o_boiteDocumentation .o_docTocItem {margin: 2px 0;}
+#o_boiteDocumentation .o_docTocItemHeader {display: flex;align-items: flex-start;}
+#o_boiteDocumentation .o_docTocChevron {flex: 0 0 14px;text-align: center;font-size: 11px;cursor: pointer;user-select: none;margin-right: 4px;margin-top: 1px;transition: color 0.2s;}
+#o_boiteDocumentation .o_docTocChevronPlaceholder {cursor: default;display: inline-block;width: 14px;margin-right: 4px;}
+#o_boiteDocumentation .o_docTocChevronPlaceholder::before {content: none !important;}
+#o_boiteDocumentation .o_docTocChevron::before {content: "\25B6";}
+#o_boiteDocumentation .o_docTocItem.open > .o_docTocItemHeader > .o_docTocChevron::before {content: "\25BC";}
+#o_boiteDocumentation .o_docTocLink {flex: 1;display: block;word-wrap: break-word;word-break: break-word;white-space: normal;padding: 2px 4px;cursor: pointer;}
+#o_boiteDocumentation .o_docTocLink:hover {text-decoration: underline;}
+/* Bande verticale de toggle sur le bord droit du plan */
+#o_boiteDocumentation .o_docTocHandle {flex: 0 0 auto;width: 14px;height: 100%;display: flex;align-items: center;justify-content: center;cursor: pointer;user-select: none;z-index: 2;}
+#o_boiteDocumentation .o_docTocHandle .o_docTocHandleChevron {font-size: 14px;line-height: 1;user-select: none;}
+/* Contenu (colonne droite) */
+#o_boiteDocumentation .o_docContent {flex: 1 1 auto;min-width: 0;min-height: 0;height: 100%;overflow-y: auto !important;overscroll-behavior: contain;padding: 12px 18px;box-sizing: border-box;width: 100%;font-size: 0.9em;line-height: 1.5;text-align: left;}
+#o_boiteDocumentation .o_docContent > * {max-width: 100%;box-sizing: border-box;}
+#o_boiteDocumentation .o_docContent h1, #o_boiteDocumentation .o_docContent h2, #o_boiteDocumentation .o_docContent h3, #o_boiteDocumentation .o_docContent h4, #o_boiteDocumentation .o_docContent h5, #o_boiteDocumentation .o_docContent h6 {font-size: 1.1em;margin: 0.9em 0 0.4em 0;}
+#o_boiteDocumentation .o_docContent p {margin: 0.5em 0;}
+#o_boiteDocumentation .o_docContent ul, #o_boiteDocumentation .o_docContent ol {margin: 0.4em 0;padding-left: 1.4em;}
+#o_boiteDocumentation .o_docContent code {background: rgba(0,0,0,0.12);padding: 2px 5px;border-radius: 3px;font-size: 0.9em;}
+#o_boiteDocumentation .o_docContent pre {overflow-x: auto;max-height: none;background: rgba(0,0,0,0.08);border: 1px solid rgba(0,0,0,0.25);border-radius: 4px;padding: 10px;margin: 0.5em 0;font-size: 0.85em;width: 100%;box-sizing: border-box;}
+#o_boiteDocumentation .o_docContent pre code {background: none;padding: 0;font-size: inherit;}
+#o_boiteDocumentation .o_docContent blockquote {border-left: 3px solid rgba(0,0,0,0.25);margin: 0.5em 0;padding: 0.4em 1em;background: rgba(0,0,0,0.06);width: 100%;box-sizing: border-box;}
+#o_boiteDocumentation .o_docContent table {font-size: 0.85em;width: 100%;max-width: 100%;border-collapse: collapse;margin: 0.5em 0;}
+#o_boiteDocumentation .o_docContent table th, #o_boiteDocumentation .o_docContent table td {padding: 6px 8px;border: 1px solid rgba(0,0,0,0.2);}
+#o_boiteDocumentation .o_docContent img {max-width: 100%;height: auto;}
+#o_boiteDocumentation .o_docContent a {text-decoration: underline;}
+#o_boiteDocumentation .o_docContent h1:first-of-type {margin-top: 0;}
+/* Poignées de redimensionnement multi-directionnelles */
+#o_boiteDocumentation .o_resizer {position: absolute;z-index: 100000;user-select: none;}
+#o_boiteDocumentation .o_resizer_n {top: -4px;left: 8px;right: 8px;height: 8px;cursor: ns-resize;}
+#o_boiteDocumentation .o_resizer_s {bottom: -4px;left: 8px;right: 8px;height: 8px;cursor: ns-resize;}
+#o_boiteDocumentation .o_resizer_e {right: -4px;top: 8px;bottom: 8px;width: 8px;cursor: ew-resize;}
+#o_boiteDocumentation .o_resizer_w {left: -4px;top: 8px;bottom: 8px;width: 8px;cursor: ew-resize;}
+#o_boiteDocumentation .o_resizer_nw {top: -4px;left: -4px;width: 12px;height: 12px;cursor: nwse-resize;}
+#o_boiteDocumentation .o_resizer_ne {top: -4px;right: -4px;width: 12px;height: 12px;cursor: nesw-resize;}
+#o_boiteDocumentation .o_resizer_se {bottom: -4px;right: -4px;width: 12px;height: 12px;cursor: nwse-resize;}
+#o_boiteDocumentation .o_resizer_sw {bottom: -4px;left: -4px;width: 12px;height: 12px;cursor: nesw-resize;}
+
 
 /* Commande - Grade */
 .o_rangForm, .o_commandeForm {margin-top:40px;}

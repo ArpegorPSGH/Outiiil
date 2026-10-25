@@ -14,6 +14,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import hashlib
 
@@ -233,6 +234,36 @@ def build_dist(override_version=None, override_update_url=None):
 
     table_compacte = json.dumps(table_sources, separators=(",", ":"))
 
+    # --- Documentation (build) : lire les .md et extraire le titre depuis le
+    # premier titre de niveau 1 (H1) de chaque fichier. Le H1 est la source unique
+    # de vérité du titre (plus de index.json). La doc est inlinée comme globales
+    # miroir de version.json "docs" ; versionnée et hashée avec le runtime
+    # (sha256 global de dist/ inclut runtime.js), ce qui déclenche une MAJ du
+    # runtime à chaque changement de doc, SANS toucher au socle
+    # (manifest.json + background.js + bridge.js). Le runtime lit la doc directement
+    # depuis ces globales → aucun appel réseau/CSP n'est nécessaire.
+    docs_list = []
+    docs_texts = {}
+    docs_src_dir = os.path.join(BASE_DIR, "documentation")
+    if os.path.isdir(docs_src_dir):
+        for fname in sorted(os.listdir(docs_src_dir)):
+            if not fname.lower().endswith(".md"):
+                continue
+            src_md = os.path.join(docs_src_dir, fname)
+            rel = "documentation/" + fname
+            try:
+                with open(src_md, "r", encoding="utf-8", errors="replace") as f_md:
+                    md_text = f_md.read()
+            except Exception as e:
+                print(f"Avertissement : Lecture du markdown impossible ({fname}) : {e}", file=sys.stderr)
+                continue
+            docs_texts[rel] = md_text
+            # Titre = premier H1 markdown (source unique de vérité du titre).
+            h1 = re.search(r'(?m)^#{1}\s+(.+?)(?:\s+#+)?\s*$', md_text)
+            title = h1.group(1).strip() if h1 else fname
+            docs_list.append({"file": rel, "title": title})
+        print(f"[Outiiil Builder] Documentation lue : {len(docs_list)} fichier(s) (titres extraits du H1)")
+
     with open(js_runtime_path, "w", encoding="utf-8", newline="\n") as out_js:
         # Bake the runtime version into the bundle so the running page can tell
         # which version of ITSELF is executing. This is used by runtime_init.js to
@@ -247,6 +278,10 @@ def build_dist(override_version=None, override_update_url=None):
             out_js.write(f"// Source: {rel_path}\n")
             out_js.write(contenu)
             out_js.write("\n;\n")
+        # Injecte la documentation comme globales miroir de version.json "docs".
+        out_js.write("// --- Documentation bundle (built from documentation/*.md) ---\n")
+        out_js.write("window.OUTIIIL_DOC_MANIFEST = " + json.dumps(docs_list, ensure_ascii=False) + ";\n")
+        out_js.write("window.OUTIIIL_DOC_TEXTS = " + json.dumps(docs_texts, ensure_ascii=False) + ";\n")
 
     # Calcul du SHA-256 du runtime.js
     with open(js_runtime_path, "rb") as f:
@@ -313,13 +348,29 @@ def build_dist(override_version=None, override_update_url=None):
     socle_hash = compute_socle_hash(version)
     print(f"[Outiiil Builder] SHA-256 du socle : {socle_hash}")
 
+    # Identifiant du commit Git source (branche dev) depuis lequel le runtime a
+    # été construit. Le socle (background.js) utilise ce SHA pour ouvrir la doc
+    # publiée dans LA release correspondante (blob/<source_commit>/documentation/...),
+    # et non celle éventuellement installée en local ou la branche dev courante.
+    # La doc .md étant versionnée sur dev, ce SHA pointe toujours vers une doc valide.
+    try:
+        source_commit = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=BASE_DIR, text=True,
+            stderr=subprocess.DEVNULL
+        ).strip() or None
+    except Exception:
+        source_commit = None
+    print(f"[Outiiil Builder] Commit source : {source_commit}")
+
     version_data = {
         "version": version,
         "sha256": sha256_hash,
         "socle_hash": socle_hash,
+        "source_commit": source_commit,
         "runtime": "runtime.js",
         "css": "runtime.css",
         "images": liste_images,
+        "docs": docs_list,
         "timestamp": os.path.getmtime(js_runtime_path)
     }
     with open(version_json_path, "w", encoding="utf-8") as f_ver:

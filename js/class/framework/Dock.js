@@ -18,6 +18,7 @@ Utils.register(class Dock {
             <div id="o_toolbarItem5" class="o_toolbarItem" title="Carte"><span id="o_itemMap" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
             <div id="o_toolbarItem6" class="o_toolbarItem" title="Préférence"><span id="o_itemParametre" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
             <div id="o_toolbarItem7" class="o_toolbarItem" title="Signaler un bug"><span id="o_itemBug" style="background-image: url(__IMG_SPRITE_MENU__)"/></div>
+            <div id="o_toolbarItem8" class="o_toolbarItem" title="Documentation"><span id="o_itemDoc"/></div>
             </div>`;
         /**
         *
@@ -47,6 +48,10 @@ Utils.register(class Dock {
         *
         */
         this._boiteSignalement = new BoiteSignalement();
+        /**
+         *
+         */
+        this._boiteDocumentation = new BoiteDocumentation();
     }
     /**
     * Affiche la boite.
@@ -113,6 +118,9 @@ Utils.register(class Dock {
                     break;
                 case "o_itemBug":
                     await this._boiteSignalement.afficher();
+                    break;
+                case "o_itemDoc":
+                    await this._boiteDocumentation.afficher();
                     break;
                 default:
                     break;

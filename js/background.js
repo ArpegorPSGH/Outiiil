@@ -24,6 +24,16 @@ const GITHUB_REPO = 'Outiiil';
 const GITHUB_ZIP_PREFIX = 'Outiiil-v';
 const GITHUB_RELEASES_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases';
 const GITHUB_LATEST_RELEASE_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/latest';
+const GITHUB_DEFAULT_BRANCH = 'dev';
+// Chemin GitHub du doc d'installation/mise à jour du socle. Le bouton
+// "Instructions" du toast bloqué ouvre la doc de la DERNIERE RELEASE (commit source
+// déclaré dans le version.json déployé sur la branche release), via
+// OUTIIIL_DOC_GITHUB_BASE_URL + source_commit + OUTIIIL_DOC_FILE.
+// GITHUB_DOC_URL est la cible dégradée (branche dev) si source_commit est absent.
+const OUTIIIL_DOC_GITHUB_BASE_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO +
+    '/blob/';
+const OUTIIIL_DOC_FILE = 'documentation/installation.md';
+const GITHUB_DOC_URL = OUTIIIL_DOC_GITHUB_BASE_URL + GITHUB_DEFAULT_BRANCH + '/' + OUTIIIL_DOC_FILE;
 const BASE_UPDATE_URL = 'https://arpegorpsgh.github.io/Outiiil/dist/';
 const DEPLOYED_BRANCH = 'release';
 const VERSION_URL = BASE_UPDATE_URL + 'version.json';
@@ -355,6 +365,34 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
         return true;
     }
 
+    if (message.type === 'OPEN_DOC_PAGE') {
+        // Ouvre la doc de la DERNIERE RELEASE — pas celle du runtime installé : on
+        // relit le version.json déployé sur la branche release pour récupérer
+        // `source_commit` (commit dev source de la release), puis on pointe
+        // blob/<source_commit>/documentation/installation.md. La doc .md étant
+        // versionnée sur dev, ce SHA pointe toujours vers une doc valide et = la
+        // version publiée dans la dernière release (pas la dev locale).
+        (async function () {
+            let url = GITHUB_DOC_URL;
+            let source_commit = null;
+            try {
+                const res = await fetchWithDiag(VERSION_URL + '?_t=' + Date.now(), 'version.json');
+                if (res && res.ok) {
+                    const info = await res.json();
+                    source_commit = info.source_commit;
+                }
+            } catch (e) {
+                // Réseau/CSP indisponible → on retombe sur GITHUB_DOC_URL (branche dev)
+            }
+            if (source_commit) {
+                url = OUTIIIL_DOC_GITHUB_BASE_URL + source_commit + '/' + OUTIIIL_DOC_FILE;
+            }
+            chrome.tabs.create({ url });
+            sendResponse({ ok: true, source_commit: source_commit || null, url });
+        })();
+        return true;
+    }
+
     if (message.type === 'DOWNLOAD_SOCLE') {
         const versionHint = message.version || '';
         (async function () {
@@ -363,6 +401,26 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
             sendResponse({ ok: true, url: downloadUrl });
         })();
         return true;
+    }
+
+    if (message.type === 'GET_DOC') {
+        return (async function () {
+            try {
+                const file = (message.file || '').trim();
+                if (!file || file.indexOf('..') !== -1 || file.indexOf('//') !== -1) {
+                    return { ok: false, error: 'Invalid doc file' };
+                }
+                const url = chrome.runtime.getURL(file);
+                const res = await fetch(url);
+                if (!res.ok) {
+                    return { ok: false, error: 'HTTP ' + res.status };
+                }
+                const text = await res.text();
+                return { ok: true, result: { text: text } };
+            } catch (e) {
+                return { ok: false, error: e.message || String(e) };
+            }
+        })();
     }
 
     return false;
@@ -482,7 +540,7 @@ async function notifyTabs(status, payload) {
 async function checkAndDownloadRuntime() {
     const storedVersion = await getStorage(STORAGE_KEY_VERSION) || '0.0.0';
     const storedSha256 = await getStorage(STORAGE_KEY_SHA256);
-        console.log('[Outiiil Background] checkAndDownloadRuntime: storedVersion=' + storedVersion +
+    console.log('[Outiiil Background] checkAndDownloadRuntime: storedVersion=' + storedVersion +
         ' storedSha256=' + (storedSha256 || '(none)') +
         ' VERSION_URL=' + VERSION_URL);
 

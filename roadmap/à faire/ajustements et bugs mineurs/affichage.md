@@ -25,6 +25,8 @@ Ajuster divers affichages pour des raisons esthétiques.
 - Message du popup de blocage de changement de page en cours de transaction incorrect
 - Les fonctionnalités de la page alliance ne s'affichent plus après un changement de rang de joueur
 - Ajouter un nom complet aux fonctionnalités, qui sera utilisé dans le toast de blocage de fonctionnalité pour version obsolète
+- Ajouter/déplacer le numéro de version quelque part où il est toujours visible (s'en servir comme vérification pour la mise à jour du socle)
+- Se remémorer l'onglet sélectionné et la position du slider des boites du dock d'une page à l'autre
 
 ## Plan d'Implémentation
 
