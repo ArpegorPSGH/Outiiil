@@ -10,6 +10,7 @@ Permettre la création de rôles à attribuer à chaque joueur, qui seront utili
     - Chasseur
     - Invité
 - Les rôles sont cumulables
+- Lors d'un flood, mettre le bon mode par défaut en fonction de si la cible est au-dessus ou en-dessous dans la chaîne
 
 ## Plan d'Implémentation
 

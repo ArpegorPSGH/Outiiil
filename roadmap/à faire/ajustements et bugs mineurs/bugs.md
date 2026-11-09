@@ -20,6 +20,7 @@ Corriger divers bugs mineurs pour des raisons esthétiques ou d'ergonomie.
 * Par défaut, les champs de commande doivent être vides, et non comprter un objet
 * Lors d'un deuxième ajout de commande sans rechargement, le changement d'évolution n'a pas d'impact sur les ressources, et les valeurs des champs semblent ne pas être reconnues pour l'enregistrement.
 * Corriger avancement des barres boîte C+ incorrects
+* Corriger impossible de repasser de l'affichage radar à celui de la boite C+ après avoir retiré tous les joueurs et alliances traquées
 
 ## Plan d'Implémentation
 

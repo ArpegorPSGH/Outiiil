@@ -6,7 +6,7 @@ Créer une documentation utilisateur et développeur.
 ## Fonctionnement Détaillé
 - [x] Instructions installation utilisateur et développeur et mise à jour du socle (préciser suppression ancien socle et désactiver/réactiver autorisation scripts utilisateurs)
 - [x] Intégration des instructions à l'extension (boîte dock + bouton toast "Instructions" + bundle markdown inline dans runtime.js/version.json)
-- [ ] Instructions utilisation (les rendre disponibles dans l'extension)
+- [x] Instructions utilisation (les rendre disponibles dans l'extension)
 - [ ] Documentation de fonctionnement global de l'extension et spécificités (décrit dans les notes de documentation)
 - [ ] Instructions d'ajout de pages/fonctionnalités alliance et locales/objets/paramètres/attributs/sections, modification de format, vérification de robustesse et de bonnes pratiques pour étendre l'extension (et plus généralement de tout ce qui en relève décrit dans les notes de documentation)(ajouter maintien de toutes les instructions et documentation du dossier de documentation, et une description + signature de toutes les fonctions pour la génération automatique de la documentation)
 - [ ] Créer les signatures et descriptions de fonctions manquantes

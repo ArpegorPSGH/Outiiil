@@ -1,4 +1,4 @@
-# Installation et mise à jour du socle Outiiil
+# Installation et mise à jour du socle
 
 > **À quoi sert le socle ?** Le *socle* (bootstrap statique) est l'extension installée une fois dans le navigateur. Il contient `manifest.json`, `js/background.js` (service worker), `js/bridge.js` (content script isolé) et les icônes. Le socle orchestre les mises à jour et injecte dynamiquement le **runtime** (logique du jeu) téléchargé depuis GitHub Pages.
 >
@@ -72,10 +72,10 @@ Le **socle** n'est mis à jour que rarement. Quand ses propres fichiers évoluen
 
 Suivez cette procédure :
 
-1. **Télécharger le nouveau socle** → référez-vous à [l'Étape 1 — Télécharger le socle depuis GitHub](#étape-1--télécharger-le-socle-depuis-github).
-2. **Supprimer l'ancien socle** → référez-vous à [l'Étape 2 — Accéder à la page des extensions](#étape-2--accéder-à-la-page-des-extensions) pour l'accès aux extensions.
+1. **Téléchargez le nouveau socle** → référez-vous à [l'Étape 1 — Télécharger le socle depuis GitHub](#étape-1--télécharger-le-socle-depuis-github).
+2. **Supprimez l'ancien socle** → référez-vous à [l'Étape 2 — Accéder à la page des extensions](#étape-2--accéder-à-la-page-des-extensions) pour l'accès aux extensions.
 Sur cette  page, repérez Outiiil dans la liste, cliquez sur **Supprimer** (ou **Remove**) puis confirmez. Vous pouvez également simplement désactiver l'extension en cliquant sur le slider, l'important étant que deux versions de l'extension ne soient pas simultanément actives.
-3. **Charger le nouveau socle** → référez-vous à [l'Étape 3 — Installer le socle selon votre navigateur](#étape-3--installer-le-socle-selon-votre-navigateur).
+3. **Chargez le nouveau socle** → référez-vous à [l'Étape 3 — Installer le socle selon votre navigateur](#étape-3--installer-le-socle-selon-votre-navigateur).
 4. Voir [Étape 4 — Désactiver puis réactiver les scripts utilisateurs](#étape-4--désactiver-puis-réactiver-les-scripts-utilisateurs).
 5. Voir [Étape 5 — Vérifier la réussite](#étape-5--vérifier-la-réussite).
 

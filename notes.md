@@ -1,3 +1,5 @@
+- Recensement cassé
+- Résoudre bug sujet 
 - Problème TdT tableau membres
 - Supprimer aussi les socles de test_prod décompressés
-
+- Rendre toutes les boites redimensionables par défaut via une configuration globale

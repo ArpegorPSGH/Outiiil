@@ -9,6 +9,7 @@ Réparer et améliorer la fonctionnalité traceur de l'extension.
 - Appliquer le même principe pour les floods reçus (sans filtrage avec la VA)
 - Appliquer le même principe pour les floods envoyés et reçus au niveau de l'alliance entière vers/depuis l'extérieur (en comptant les joueurs à l'extérieur pour son alliance)
 - Créer un mode de tracé en cascade pour voir le cheminement du Tdc et identifier où il se trouve actuellement
+- Prendre en compte l'échange C+
 
 ## Plan d'Implémentation
 
