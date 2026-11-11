@@ -678,9 +678,10 @@ def cleanup_zip(zip_path):
             print(f"[!] Impossible de supprimer {zip_path}: {e}", file=sys.stderr)
 
 
-def cleanup_test_zips(base_dir):
-    """Supprime les archives zip de test (`Outiiil-test-*.zip`) éventuellement
-    laissées dans le répertoire racine après l'exécution de `test_prod.py`.
+def cleanup_test(base_dir):
+    """Supprime les archives zip et dossiers de test (`Outiiil-test-*.zip` et
+    `Outiiil-test-*` dossiers) éventuellement laissés dans le répertoire racine après
+    l'exécution de `test_prod.py`.
 
     Appelée par `release.py` au moment du nettoyage final, car on suppose que
     les tests pré-déploiement sont terminés à ce stade.
@@ -690,15 +691,22 @@ def cleanup_test_zips(base_dir):
     """
     try:
         for name in os.listdir(base_dir):
-            if name.startswith("Outiiil-test-") and name.endswith(".zip"):
-                zip_path = os.path.join(base_dir, name)
-                try:
-                    os.remove(zip_path)
-                    print(f"[*] Archive zip de test supprimée : {name}")
-                except OSError as e:
-                    print(f"[!] Impossible de supprimer {zip_path}: {e}", file=sys.stderr)
+            full_path = os.path.join(base_dir, name)
+            if name.startswith("Outiiil-test-"):
+                if name.endswith(".zip"):
+                    try:
+                        os.remove(full_path)
+                        print(f"[*] Archive zip de test supprimée : {name}")
+                    except OSError as e:
+                        print(f"[!] Impossible de supprimer {full_path}: {e}", file=sys.stderr)
+                elif os.path.isdir(full_path):
+                    try:
+                        shutil.rmtree(full_path)
+                        print(f"[*] Dossier de test supprimé : {name}")
+                    except OSError as e:
+                        print(f"[!] Impossible de supprimer {full_path}: {e}", file=sys.stderr)
     except OSError as e:
-        print(f"[!] Erreur lors du nettoyage des zips de test: {e}", file=sys.stderr)
+        print(f"[!] Erreur lors du nettoyage des artefacts de test: {e}", file=sys.stderr)
 
 
 # --------------------------------------------------------------------------- #

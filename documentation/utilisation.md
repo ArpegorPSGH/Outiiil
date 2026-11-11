@@ -698,6 +698,12 @@ Permet aux administrateurs de modifier en masse l'état des commandes depuis les
 5. Cliquez sur le bouton « Modifier l'état ».
 6. L'extension met à jour l'ensemble des commandes sélectionnées et affiche une notification de succès.
 
+**Gestion standard d'une commande par l'administration :**
+1. Lors de sa création par un joueur, une commande est « Nouvelle ».
+2. Si la commande est acceptée, il faut changer son état à « En attente ».
+3. En cas de refus de la commande, sont état doit être changé à « Supprimée » (« Annulée » est pour le demandeur).
+4. La commande progressera toute seule vers « En cours » puis « Terminée ».
+
 ##### Export des logs
 
 Permet d'exporter les logs d'exécution depuis les options sur la dernière ligne de la section « Logs Outiiil » du forum vers le presse-papier.
@@ -736,7 +742,7 @@ Le nombre de membres correspondant à chaque statut (actif, en vacances, inactif
 
 ##### Actualiser
 
-Cette fonctionnalité lance la synchronisation des données des joueurs entre le tableau actuel et le forum.
+Cette fonctionnalité lance la synchronisation des données des joueurs entre le tableau actuel et le forum. Elle sert à intégrer de nouveaux membres.
 - **Droits d'accès** : nécessite les droits d'administration (niveau `Administrateur` Outiiil ou droit Fourmizzz `Administrer l'alliance`).
 - **Actualiser l'alliance** : un bouton dans la barre d'outils du tableau des membres.
 - **Résultat** : après le lancement, un message confirme que la mise à jour a réussi ou signale une erreur si un problème est survenu.

@@ -363,7 +363,7 @@ def main():
     if zip_dest_path:
         rc.cleanup_zip(zip_dest_path)
     # Nettoyer les zips de test restants (on suppose que les tests sont terminés)
-    rc.cleanup_test_zips(BASE_DIR)
+    rc.cleanup_test(BASE_DIR)
 
     print("========================================")
     print(f" Release {version} terminée avec succès !")

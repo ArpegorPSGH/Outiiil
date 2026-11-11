@@ -124,7 +124,7 @@ Un script unique (`scripts/release.py`) orcheste le cycle complet via `scripts/l
 7. **Déploiement** du contenu de `dist/` sur la branche `release` (clone, copy, commit, push).
 8. **Vérification distante** de la cohérence SHA-256 (optionnelle, avec attente de propagation CDN).
 9. **Création du tag Git** et **release GitHub** (uniquement si le socle a changé) via `gh release create` (ou instructions manuelles si gh CLI absent).
-10. **Nettoyage** du dossier `dist/` local, de l'archive zip socle (`Outiiil-vX.Y.Z.zip`) et des zips de test éventuels (`Outiiil-test-*.zip`) via `rc.cleanup_dist()` + `rc.cleanup_zip()` + `rc.cleanup_test_zips()`.
+10. **Nettoyage** du dossier `dist/` local, de l'archive zip socle (`Outiiil-vX.Y.Z.zip`) et des zips de test éventuels (`Outiiil-test-*.zip`) via `rc.cleanup_dist()` + `rc.cleanup_zip()` + `rc.cleanup_test()`.
 
 ### Script de test pré-déploiement (`scripts/test_prod.py`)
 
