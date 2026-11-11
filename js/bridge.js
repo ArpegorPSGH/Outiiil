@@ -120,6 +120,32 @@
             return;
         }
 
+        if (data.type === 'GET_DOC_LIST') {
+            chrome.runtime.sendMessage({
+                type: 'GET_DOC_LIST',
+                requestId: data.requestId
+            }).then(function (response) {
+                window.postMessage({
+                    type: 'GET_DOC_LIST_RESPONSE',
+                    target: OUTIIIL_TARGET,
+                    requestId: data.requestId,
+                    docs: response && response.docs ? response.docs : [],
+                    ok: response && response.ok,
+                    error: response && !response.ok ? response.error : undefined
+                }, ORIGIN);
+            }).catch(function (e) {
+                window.postMessage({
+                    type: 'GET_DOC_LIST_RESPONSE',
+                    target: OUTIIIL_TARGET,
+                    requestId: data.requestId,
+                    docs: [],
+                    ok: false,
+                    error: e && e.message ? e.message : String(e)
+                }, ORIGIN);
+            });
+            return;
+        }
+
         if (data.type === 'GET_DOC') {
             chrome.runtime.sendMessage({
                 type: 'GET_DOC',

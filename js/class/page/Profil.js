@@ -34,9 +34,11 @@ Utils.register(class Profil extends Page {
     */
     async chargerData() {
         this._profil = new Joueur(null, { donneesInitiales: { Pseudo: $j("h2").text() } });
-        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $j(".boite_membre").find("a[href^='carte2.php?']").text();
-        await this._profil.ecrire('X', ~~(ligne.replace(regexp, "$1")));
-        await this._profil.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
+        const pseudo = $j("h2").text();
+        let href = $j(".boite_membre").find("a[href^='carte.php?']").attr("href");
+        const coords = href ? href.match(/x\s*=\s*(\d+)\s*(?:&|\s)*y\s*=\s*(\d+)/i) : null;
+        await this._profil.ecrire('X', coords ? parseInt(coords[1], 10) : -1);
+        await this._profil.ecrire('Y', coords ? parseInt(coords[2], 10) : -1);
         await this._profil.ecrire('Activité', $j(".boite_membre table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances"));
         await this._profil.ecrire('Id', $j("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0]);
         await this._profil.ecrire('Terrain de Chasse', numeral($j(".tableau_score tr:eq(1) td:eq(1)").text()).value());

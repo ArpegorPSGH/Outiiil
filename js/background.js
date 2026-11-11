@@ -25,15 +25,15 @@ const GITHUB_ZIP_PREFIX = 'Outiiil-v';
 const GITHUB_RELEASES_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases';
 const GITHUB_LATEST_RELEASE_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/releases/latest';
 const GITHUB_DEFAULT_BRANCH = 'dev';
-// Chemin GitHub du doc d'installation/mise à jour du socle. Le bouton
-// "Instructions" du toast bloqué ouvre la doc de la DERNIERE RELEASE (commit source
+// Chemin de base GitHub des documents. Le bouton "Instructions" du toast bloqué
+// ouvre la doc d'installation/mise à jour du socle de la DERNIERE RELEASE (commit source
 // déclaré dans le version.json déployé sur la branche release), via
-// OUTIIIL_DOC_GITHUB_BASE_URL + source_commit + OUTIIIL_DOC_FILE.
+// OUTIIIL_DOC_GITHUB_BASE_URL + source_commit + OUTIIIL_DOC_DIR.
 // GITHUB_DOC_URL est la cible dégradée (branche dev) si source_commit est absent.
 const OUTIIIL_DOC_GITHUB_BASE_URL = 'https://github.com/' + GITHUB_OWNER + '/' + GITHUB_REPO +
     '/blob/';
-const OUTIIIL_DOC_FILE = 'documentation/installation.md';
-const GITHUB_DOC_URL = OUTIIIL_DOC_GITHUB_BASE_URL + GITHUB_DEFAULT_BRANCH + '/' + OUTIIIL_DOC_FILE;
+const OUTIIIL_DOC_DIR = 'documentation/';
+const GITHUB_DOC_URL = OUTIIIL_DOC_GITHUB_BASE_URL + GITHUB_DEFAULT_BRANCH + '/' + OUTIIIL_DOC_DIR;
 const BASE_UPDATE_URL = 'https://arpegorpsgh.github.io/Outiiil/dist/';
 const DEPLOYED_BRANCH = 'release';
 const VERSION_URL = BASE_UPDATE_URL + 'version.json';
@@ -69,7 +69,55 @@ let userScriptRegistered = false;
 const registeredEvents = new Map();
 let registrationLock = false;
 
-// --- Chrome API Resolution ---
+async function discoverDocumentationFiles() {
+    const docs = [];
+
+    // Mode prod : récupérer la liste basée sur version.json
+    if (!DEV_MODE) {
+        try {
+            let res = await fetch(chrome.runtime.getURL('dist/version.json'));
+            if (res.ok) {
+                const info = await res.json();
+                if (Array.isArray(info.docs) && info.docs.length > 0) {
+                    return info.docs;
+                }
+            }
+        } catch (e) {
+            console.warn('[Outiiil Background] Failed to load docs from version.json:', e);
+        }
+        return docs;
+    }
+
+    // Mode dev : lire les fichiers de documentation déclarés dans bundle_sources.json
+    try {
+        const sourcesRes = await fetch(chrome.runtime.getURL('bundle_sources.json'));
+        let docFiles = [];
+        if (sourcesRes.ok) {
+            const sourcesConfig = await sourcesRes.json();
+            if (Array.isArray(sourcesConfig.docs)) {
+                docFiles = sourcesConfig.docs;
+            }
+        }
+
+        for (const relPath of docFiles) {
+            try {
+                const fileRes = await fetch(chrome.runtime.getURL(relPath));
+                if (fileRes.ok) {
+                    const text = await fileRes.text();
+                    const h1 = text.match(/^#{1}\s+(.+?)(?:\s+#+)?\s*$/m);
+                    const title = h1 ? h1[1].trim() : relPath.split('/').pop();
+                    docs.push({ file: relPath, title: title });
+                }
+            } catch (e) {
+                console.warn('[Outiiil Background] Could not fetch doc file ' + relPath, e);
+            }
+        }
+    } catch (e) {
+        console.error('[Outiiil Background] Failed to load bundle_sources.json in dev mode:', e);
+    }
+
+    return docs;
+}
 
 function resolveChromeApiPath(path) {
     let obj = chrome;
@@ -385,7 +433,7 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                 // Réseau/CSP indisponible → on retombe sur GITHUB_DOC_URL (branche dev)
             }
             if (source_commit) {
-                url = OUTIIIL_DOC_GITHUB_BASE_URL + source_commit + '/' + OUTIIIL_DOC_FILE;
+                url = OUTIIIL_DOC_GITHUB_BASE_URL + source_commit + '/' + OUTIIIL_DOC_DIR;
             }
             chrome.tabs.create({ url });
             sendResponse({ ok: true, source_commit: source_commit || null, url });
@@ -421,6 +469,25 @@ chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
                 return { ok: false, error: e.message || String(e) };
             }
         })();
+    }
+
+    if (message.type === 'GET_DOC_LIST') {
+        try {
+            const docs = await discoverDocumentationFiles();
+            sendResponse({
+                ok: true,
+                docs: docs,
+                requestId: message.requestId
+            });
+        } catch (e) {
+            sendResponse({
+                ok: true,
+                docs: [],
+                requestId: message.requestId,
+                error: e.message || String(e)
+            });
+        }
+        return true;
     }
 
     return false;

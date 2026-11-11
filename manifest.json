@@ -49,6 +49,7 @@
 				"js/*",
 				"dist/*",
 				"scripts/*",
+				"documentation/*",
 				"manifest.json"
 			],
 			"matches": [

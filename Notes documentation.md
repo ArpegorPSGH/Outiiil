@@ -508,3 +508,37 @@ postMessage(OIIIL_RPC_REQUEST)  →  chrome.runtime.sendMessage(CHROME_API_CALL)
 - **Normalisation du socle_hash** : serveurs, repos, URLs et version sont normalisés à vide lors du calcul du `SOCLE_HASH`. Seule la **logique** du socle (manifest structure, background/bridge code) affecte le hash — un changement d'URL de déploiement ou de nom de repo ne doit pas invalider le socle.
 - **Nettoyage des artefacts de release** : `scripts/lib/release_common.py` fournit `cleanup_zip()` (supprime le zip socle `Outiiil-vX.Y.Z.zip`) et `cleanup_test_zips()` (supprime tout zip `Outiiil-test-*.zip` restant). Le script `release.py` appelle les deux au moment du nettoyage final — on suppose que les tests pré-déploiement (`test_prod.py`) sont terminés à ce stade. Le script `test_prod.py` ne nettoie pas son propre zip, qui reste disponible pour l'installation manuelle.
 
+---
+
+## 10. Mécanisme de Découverte Dynamique de la Documentation
+
+### 10.1 Objectif
+
+Le système de documentation liste et sert les fichiers Markdown intégrés à l'extension (versionnés avec le runtime), sans adresses de fichiers codées en dur dans le code source. Le contenu est résolu par le background car le runtime (injected dans le monde MAIN) est soumis au CSP/CORS de la page et ne peut pas fetch() directement.
+
+### 10.2 Sources de données (dev vs prod)
+
+- **Mode prod** (`DEV_MODE = false`) : le runtime bundle (`dist/runtime.js`) inclut les structures de données statiques suivantes sur la fenêtre globale (injectées par `build_bundle.py` depuis `@documentation/*.md`):
+  - `window.OUTIIIL_DOC_MANIFEST` (liste des documents `{file, title}`).
+  - `window.OUTIIIL_DOC_TEXTS` (contenu brut de chaque document).
+  - `dist/version.json.docs` (liste des documents).
+  - La documentation ne nécessite pas de requête réseau — elle est intégrée au bundle.
+
+- **Mode dev** (`DEV_MODE = true`) : le runtime utilise les fichiers locaux dans le dossier `documentation/` (via `chrome.runtime.getURL`). La découverte se fait via le background (`GET_DOC_LIST` → `discoverDocumentationFiles`) qui lit `bundle_sources.json` (liste des fichiers du bundle) et récupère ensuite chaque fichier Markdown via `fetch(chrome.runtime.getURL(relPath))`.
+
+### 10.3 Workflow de récupération (géré par la boîte BoiteDocumentation)
+
+La boîte `BoiteDocumentation` détermine le mode via `data-outiiil-dev-mode` de la page et choisit la source appropriée :
+
+- **Dev mode** (`DEV_MODE = true`) : appelle `#fetchDocListFromBackground()` (bridge → background → `discoverDocumentationFiles`) pour obtenir la liste des documents.
+- **Prod mode** (`DEV_MODE = false`) : utilise directement `window.OUTIIIL_DOC_MANIFEST` (hors bundle, déjà intégré au runtime).
+
+Les documents sont résolus via :
+
+- Prod : `window.OUTIIIL_DOC_TEXTS` (hors bundle, contenu intégré au runtime).
+- Dev : appel via background au endpoint `GET_DOC` (`#fetchDocViaBackground`) qui récupère le fichier Markdown via `fetch(chrome.runtime.getURL(file))` (bypass CSP).
+
+### 10.4 Fallback final
+
+Si aucune source de données (manifeste, textes, ou récupération background) n'est disponible, la liste de documents retombe sur un tableau vide (`[]`). La boîte affiche alors : « Aucune documentation disponible. Lancez `python scripts/lib/build_bundle.py` puis rechargez la page. »
+

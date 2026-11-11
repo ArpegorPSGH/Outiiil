@@ -74,15 +74,17 @@ Utils.register(class Joueur extends ObjetForum {
      */
     async chargerDonneesMembreDepuisPage(html) {
         const pseudo = await this.lire('Pseudo');
-        if (html.includes("Aucun joueurs avec le pseudo")) {
+        if (html.includes("Aucun joueur avec le pseudo")) {
             console.log(`[Joueur] Profil non trouvé pour: ${pseudo}`);
             return false;
         }
 
-        let regexp = new RegExp("x=(\\d*) et y=(\\d*)"), ligne = $j(html).find(".boite_membre a[href^='carte2.php?']").text();
+        const coordLink = $j(html).find(".boite_membre a[href^='carte.php?']");
+        let href = coordLink.attr("href");
+        const coords = href ? href.match(/x\s*=\s*(\d+)\s*(?:&|\s)*y\s*=\s*(\d+)/i) : null;
         await this.ecrire('Id', parseInt($j(html).find("a[href^='commerce.php?ID=']").attr("href").match(/\d+/g)[0], 10));
-        await this.ecrire('X', ~~(ligne.replace(regexp, "$1")));
-        await this.ecrire('Y', ~~(ligne.replace(regexp, "$2")));
+        await this.ecrire('X', coords ? parseInt(coords[1], 10) : -1);
+        await this.ecrire('Y', coords ? parseInt(coords[2], 10) : -1);
         await this.ecrire('Activité', $j(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur en vacances") ? 'vacances' : await this.lire('Activité'));
         await this.ecrire('Activité', $j(html).find("table:eq(0) tr:eq(0) td:eq(0)").text().includes("Joueur banni") ? 'banni' : await this.lire('Activité'));
         await this.ecrire('Terrain de Chasse', numeral($j(html).find(".tableau_score tr:eq(1) td:eq(1)").text()).value());

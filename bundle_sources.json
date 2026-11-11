@@ -1,4 +1,8 @@
 {
+    "docs": [
+        "documentation/installation.md",
+        "documentation/utilisation.md"
+    ],
     "css": [
         "css/outiiil.css",
         "css/toasts.css",

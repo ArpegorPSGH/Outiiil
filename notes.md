@@ -1,5 +1,5 @@
-- Recensement cassé
-- Résoudre bug sujet 
-- Problème TdT tableau membres
+- Les doc d'utlisation n'apparaissent pas dans la boite de documentation en mode dev
+- Ajouter les procédures d'intégration de nouveaux membres et de gestion des commandes par les administrateurs
 - Supprimer aussi les socles de test_prod décompressés
 - Rendre toutes les boites redimensionables par défaut via une configuration globale
+- Voir à créer une pipeline de tests automatisés et l'insérer dans la doc (création + run des tests en mode dev et pre-prod)

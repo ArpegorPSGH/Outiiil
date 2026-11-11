@@ -244,25 +244,24 @@ def build_dist(override_version=None, override_update_url=None):
     # depuis ces globales → aucun appel réseau/CSP n'est nécessaire.
     docs_list = []
     docs_texts = {}
-    docs_src_dir = os.path.join(BASE_DIR, "documentation")
-    if os.path.isdir(docs_src_dir):
-        for fname in sorted(os.listdir(docs_src_dir)):
-            if not fname.lower().endswith(".md"):
-                continue
-            src_md = os.path.join(docs_src_dir, fname)
-            rel = "documentation/" + fname
+    doc_files_to_build = cfg.get("docs", [])
+
+    for rel in doc_files_to_build:
+        src_md = os.path.join(BASE_DIR, rel)
+        fname = os.path.basename(rel)
+        if os.path.exists(src_md):
             try:
                 with open(src_md, "r", encoding="utf-8", errors="replace") as f_md:
                     md_text = f_md.read()
             except Exception as e:
-                print(f"Avertissement : Lecture du markdown impossible ({fname}) : {e}", file=sys.stderr)
+                print(f"Avertissement : Lecture du markdown impossible ({rel}) : {e}", file=sys.stderr)
                 continue
             docs_texts[rel] = md_text
             # Titre = premier H1 markdown (source unique de vérité du titre).
             h1 = re.search(r'(?m)^#{1}\s+(.+?)(?:\s+#+)?\s*$', md_text)
             title = h1.group(1).strip() if h1 else fname
             docs_list.append({"file": rel, "title": title})
-        print(f"[Outiiil Builder] Documentation lue : {len(docs_list)} fichier(s) (titres extraits du H1)")
+    print(f"[Outiiil Builder] Documentation lue : {len(docs_list)} fichier(s) (titres extraits du H1)")
 
     with open(js_runtime_path, "w", encoding="utf-8", newline="\n") as out_js:
         # Bake the runtime version into the bundle so the running page can tell

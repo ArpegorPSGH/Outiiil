@@ -203,21 +203,32 @@ Utils.register(class BoiteDocumentation extends Boite {
     }
 
     /**
-     * Récupère la liste des documents. La liste (issue de version.json, reflétée
-     * dans la globale OUTIIIL_DOC_MANIFEST générée au build) est lue directement.
-     * En mode dev (sans bundle), une liste de repli par défaut est utilisée.
+     * Récupère la liste des documents en mode dev (découverte dynamique background)
+     * ou en mode prod (manifeste bundle issu de version.json).
      *
      * @method #loadList
      * @private
      */
-    #loadList() {
-        let manifest = window.OUTIIIL_DOC_MANIFEST;
-        if (!Array.isArray(manifest) || !manifest.length) {
-            manifest = [
-                { file: "documentation/installation.md", title: "Installation et mise à jour du socle Outiiil" }
-            ];
+    async #loadList() {
+        const devModeAttr = document.documentElement.getAttribute('data-outiiil-dev-mode');
+        const devModeReadyVal = (window.browserAPI && window.browserAPI._devModeReady)
+            ? await window.browserAPI._devModeReady
+            : false;
+        const devMode = devModeAttr === 'true' ||
+            (window.browserAPI && window.browserAPI._isDevMode === true) ||
+            devModeReadyVal === true;
+
+        let docs = [];
+
+        if (devMode) {
+            // Mode dev : découverte dynamique des fichiers locaux via le background
+            docs = await this.#fetchDocListFromBackground();
+        } else {
+            // Mode prod : utiliser directement la liste intégrée au bundle (OUTIIIL_DOC_MANIFEST)
+            docs = window.OUTIIIL_DOC_MANIFEST || [];
         }
-        this._docs = manifest;
+
+        this._docs = Array.isArray(docs) ? docs : [];
         this.#buildTabs();
     }
 
@@ -400,16 +411,46 @@ Utils.register(class BoiteDocumentation extends Boite {
     }
 
     /**
-     * Récupère un fichier de documentation en mode dev via postMessage vers le
-     * bridge (le monde MAIN ne peut pas fetch() un chrome-extension:// URL).
+     * Récupère la liste des documents depuis le background (récupération dynamique).
      *
+     * @method #fetchDocListFromBackground
+     * @private
+     * @returns {Promise<Array>} Liste des documents {file, title}
+     */
+    async #fetchDocListFromBackground() {
+        const requestId = '__outiiil_doc_list_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        return new Promise((resolve) => {
+            const handler = (event) => {
+                const data = event.data;
+                if (!data || data.target !== 'outiiil' || data.type !== 'GET_DOC_LIST_RESPONSE') return;
+                if (data.requestId !== requestId) return;
+                window.removeEventListener('message', handler);
+                resolve(data.docs || []);
+            };
+            window.addEventListener('message', handler);
+            window.postMessage({
+                type: 'GET_DOC_LIST',
+                target: 'outiiil',
+                requestId: requestId
+            }, '*');
+            // Timeout de secours
+            setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve([]);
+            }, 15000);
+        });
+    }
+
+    /**
+     * Récupère le texte brut d'un fichier de documentation auprès du background.
+     *
+     * @static
      * @method #fetchDocViaBackground
      * @private
-     * @static
-     * @param {string} file
-     * @returns {Promise<string>}
+     * @param {string} file Chemin du fichier
+     * @returns {Promise<string>} Contenu markdown du document
      */
-    static #fetchDocViaBackground(file) {
+    static async #fetchDocViaBackground(file) {
         const requestId = '__outiiil_doc_' + Date.now() + '_' + Math.random().toString(36).slice(2);
         return new Promise((resolve) => {
             const handler = (event) => {
@@ -417,32 +458,34 @@ Utils.register(class BoiteDocumentation extends Boite {
                 if (!data || data.target !== 'outiiil' || data.type !== 'GET_DOC_RESPONSE') return;
                 if (data.requestId !== requestId) return;
                 window.removeEventListener('message', handler);
-                resolve((data.ok && data.result) ? data.result.text : "");
+                if (data.ok && data.result) {
+                    resolve(data.result.text || "");
+                } else {
+                    resolve("");
+                }
             };
             window.addEventListener('message', handler);
             window.postMessage({
                 type: 'GET_DOC',
                 target: 'outiiil',
-                requestId: requestId,
-                file: file
+                file: file,
+                requestId: requestId
             }, '*');
-            // Timeout de secours
             setTimeout(() => {
                 window.removeEventListener('message', handler);
                 resolve("");
-            }, 15000);
+            }, 10000);
         });
     }
 
     /**
-     * Parse le markdown avec `marked`, génère des id d'ancre robustes,
-     * reconstruit les liens internes et produit le bloc complet (plan + contenu).
+     * Rendu markdown vers HTML avec extraction du plan et réécriture des liens.
      *
      * @method #renderMarkdown
      * @private
      * @param {string} md
-     * @param {{file:string}} doc Document courant (pour la résolution des liens inter-documents).
-     * @returns {string} HTML à injecter
+     * @param {Object} doc
+     * @returns {string} HTML complet
      */
     #renderMarkdown(md, doc) {
         let html = "";
